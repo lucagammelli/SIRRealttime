@@ -12,3 +12,13 @@ Una riga per decisione: data, scelta, motivo.
   DataVolley reali; i layout non confermati sono elencati in `docs/dvw-parser.md`.
 - 2026-10-14: statistiche ricalcolate da zero a ogni aggiornamento (funzione pura, ~ms), rapporti 0-1
   (`docs/statistiche.md`).
+- 2026-10-14: Fastify + Drizzle per il server, con PGlite (Postgres in WebAssembly) per i test, perché i test girano
+  senza un Postgres installato con lo stesso SQL e le stesse migrazioni (`docs/server.md`).
+- 2026-10-14: stato della partita ricalcolato a ogni ingest e inviato intero via WebSocket, perché il calcolo è puro e
+  veloce e i client non devono gestire differenze o perdite di messaggi (`docs/server.md`).
+- 2026-10-14: autenticazione dopo il rate limit (controlli in `preParsing`/`preValidation`/`preHandler`), perché
+  i tentativi rifiutati devono essere contati e limitati anch'essi (`docs/server.md`).
+- 2026-10-14: link pubblici "live" (`matchId` nullo) che seguono la partita corrente, perché il link da condividere
+  resta lo stesso da una partita all'altra (`docs/server.md`).
+- 2026-10-14: specifica OpenAPI per la DAST scritta a mano in `stackhawk/openapi.yaml` (nessuna generazione dal codice
+  per ora), da aggiornare quando cambiano le rotte (`docs/server.md`).

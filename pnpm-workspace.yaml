@@ -2,3 +2,8 @@ packages:
   - apps/*
   - packages/*
   - tools/*
+# Dependencies with install scripts: none is run. argon2 ships prebuilt binaries (loaded at runtime by
+# node-gyp-build), esbuild (drizzle-kit, tsx) installs its platform binary as an optional dependency.
+allowBuilds:
+  argon2: false
+  esbuild: false

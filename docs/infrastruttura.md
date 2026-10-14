@@ -11,8 +11,8 @@ rami, job e CI in `docs/regole/test-job-rilasci.md`.
 - **Node 24** (`engines.node` = `>=24` in `package.json`) e **pnpm 12.11.2**, fissato in `packageManager` e attivato
   con corepack.
 - **TypeScript `~6.0.3`** e non 7: è la versione compatibile con typescript-eslint 8.71 (vedi `docs/decisioni.md`).
-- Workspace (`pnpm-workspace.yaml`): `apps/*`, `packages/*`, `tools/*`. Oggi esistono `packages/dvw-parser`,
-  `packages/shared`, `packages/volley-stats`, `tools/dvw-simulator`.
+- Workspace (`pnpm-workspace.yaml`): `apps/*`, `packages/*`, `tools/*`. Oggi esistono `apps/server`, `packages/dvw-parser`,
+  `packages/shared`, `packages/volley-stats`, `tools/dvw-simulator` (vedi `docs/architettura.md`).
 
 ### Script radice
 Tutti ricorsivi sui pacchetti che hanno lo script (`pnpm -r --if-present`), tranne i due di formattazione.
@@ -58,9 +58,38 @@ La CI è solo locale: `scripts/ci_locale.sh` esegue 5 passi: 1/5 `pnpm install -
 2/5 `pnpm -r --if-present lint`, 3/5 typecheck, 4/5 test, 5/5 build. Non c'è CI su GitHub (nessuna GitHub Action);
 lo script va lanciato prima di ogni PR e da `scripts/job.sh unisci`. Richiede Node 24 e corepack.
 
+### Test del server e `ws`
+`apps/server/vitest.config.ts` non usa le condizioni di `vitest.shared.ts` ma solo `@sir/source`, `node` e `default`
+(per `resolve` e `ssr.resolve`): togliere `import` e `module` serve perché vitest passa le condizioni anche a Node per le
+dipendenze CommonJS, e con `import` il `require('ws')` dentro `@fastify/websocket` caricherebbe il wrapper ESM di `ws`,
+che non ha `WebSocket.Server`. Timeout di test e hook: 30 s.
+
+### Build dei pacchetti con script di installazione
+`pnpm-workspace.yaml` ha `allowBuilds` con `argon2: false` e `esbuild: false`: nessuno script di installazione viene
+eseguito. `argon2` ha binari precompilati (caricati a runtime) ed `esbuild` (usato da drizzle-kit e tsx) installa il
+binario della piattaforma come dipendenza opzionale.
+
+### Sicurezza HTTP del server
+`@fastify/helmet` è in `apps/server/package.json` con intervallo `^13.1.2` e il lockfile lo risolve a 13.1.2 (con
+`helmet` 8.3.0). Il motivo: la 13.2.0 non passava il controllo pnpm sull'età minima del rilascio, quindi si resta sulla
+13.1.2. Un cambio di versione va controllato sulle intestazioni inviate dal server (`docs/server.md`).
+
+### Docker
+- `docker-compose.yml` (radice): servizi `postgres` (immagine `postgres:17`, volume `pgdata`) e `server`
+  (porta 8090, pubblicata su `SERVER_BIND`, di default `127.0.0.1`). Dettagli e comandi in `docs/server.md`.
+- `docker/server.Dockerfile`: build multi-stage con Node 24 slim. Lo stadio `build` esegue
+  `pnpm install --frozen-lockfile`, `pnpm --filter "@sir/server..." build` e `pnpm --filter @sir/server deploy --prod /out`;
+  lo stadio `runtime` copia `/out`, gira come utente `node` ed esegue `node dist/main.js` con un healthcheck su
+  `/api/health`.
+- `.dockerignore`: esclude dal contesto `node_modules`, `dist`, `coverage`, log, `.git`, `.env` e `.env.*` (tranne
+  `.env.example`), `.claude`, `docs` e `samples`.
+- Non ancora provati: l'immagine non è stata costruita per mancanza di spazio su disco.
+
 ## Configurazione
-- `.env.example` è ancora vuoto: nessuna variabile d'ambiente richiesta finora.
-- Non c'è `docker-compose.yml` né altro in `docker/` per ora.
+- `.env.example` elenca le variabili del server (`DATABASE_URL`, `PORT`, `HOST`, `CORS_ORIGIN`, `COOKIE_SECURE`,
+  `SESSION_TTL_HOURS`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `PUBLIC_BASE_URL`, `LOG_LEVEL`, `TRUST_PROXY`,
+  `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_ADMIN`, `MATCH_MAX_LINES`) e quelle di Docker Compose (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `SERVER_BIND`).
+  Descrizione e default in `docs/server.md`. Il file `.env` vero non va mai nel repository.
 
 ## Come si usa / si prova
 ```bash
@@ -82,4 +111,5 @@ scripts/ci_locale.sh                  # i 5 passi della CI, da lanciare prima di
 - `vitest.shared.ts`, `packages/*/vitest.config.ts`
 - `eslint.config.js`, `.prettierrc`, `.editorconfig`
 - `scripts/ci_locale.sh`, `.env.example`
-- Sezioni che ne dipendono: `docs/dvw-parser.md`, `docs/simulatore.md`
+- `docker-compose.yml`, `docker/server.Dockerfile`, `.dockerignore`, `apps/server/vitest.config.ts`
+- Sezioni che ne dipendono: `docs/dvw-parser.md`, `docs/simulatore.md`, `docs/server.md`, `docs/architettura.md`

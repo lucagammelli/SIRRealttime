@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+coverage/
+pnpm-lock.yaml
+samples/
+*.dvw
+# Documenti e configurazione di Claude: scritti a mano, non riformattati.
+CLAUDE.md
+docs/
+.claude/

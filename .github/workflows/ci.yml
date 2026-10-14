@@ -1,0 +1,41 @@
+# CI: gli stessi passi di scripts/ci_locale.sh (docs/regole/test-job-rilasci.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      # pnpm nella versione fissata in `packageManager` del package.json radice.
+      - name: Abilita pnpm (corepack)
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+
+      - name: 1/5 Dipendenze
+        run: pnpm install --frozen-lockfile
+      - name: 2/5 Lint
+        run: pnpm -r --if-present lint
+      - name: 3/5 Typecheck
+        run: pnpm -r --if-present typecheck
+      - name: 4/5 Test
+        run: pnpm -r --if-present test
+      - name: 5/5 Build
+        run: pnpm -r --if-present build

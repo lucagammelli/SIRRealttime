@@ -40,13 +40,13 @@ export function AdminApp() {
 function AdminLayout() {
   const { user, isAdmin, logout } = useAuth();
   const links = [
-    { to: 'live', label: 'Partita live' },
-    { to: 'partite', label: 'Partite' },
+    { to: '/admin/live', label: 'Partita live' },
+    { to: '/admin/partite', label: 'Partite' },
     ...(isAdmin
       ? [
-          { to: 'link', label: 'Link pubblici' },
-          { to: 'agenti', label: 'Agenti' },
-          { to: 'utenti', label: 'Utenti' },
+          { to: '/admin/link', label: 'Link pubblici' },
+          { to: '/admin/agenti', label: 'Agenti' },
+          { to: '/admin/utenti', label: 'Utenti' },
         ]
       : []),
   ];
@@ -87,14 +87,14 @@ function AdminLayout() {
       </header>
       <main className="mx-auto max-w-7xl px-3 py-4 sm:px-5">
         <Routes>
-          <Route index element={<Navigate to="live" replace />} />
+          <Route index element={<Navigate to="/admin/live" replace />} />
           <Route path="live" element={<LiveAdminPage />} />
           <Route path="partite" element={<MatchesPage />} />
           <Route path="partite/:id" element={<MatchDetailPage />} />
           <Route path="link" element={adminOnly(<ShareLinksPage />)} />
           <Route path="agenti" element={adminOnly(<AgentsPage />)} />
           <Route path="utenti" element={adminOnly(<UsersPage />)} />
-          <Route path="*" element={<Navigate to="live" replace />} />
+          <Route path="*" element={<Navigate to="/admin/live" replace />} />
         </Routes>
       </main>
     </div>

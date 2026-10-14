@@ -1,0 +1,19 @@
+node_modules/
+dist/
+build/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+apps/agent/config.json
+apps/agent/queue/
+*.exe
+.DS_Store
+
+# Claude: worktree dei job, registro e lucchetti (locali alla macchina)
+.claude/worktrees/
+.claude/job-attivi.tsv*
+.claude/unisci.lock*
+.claude/ci-*.log
+.claude/settings.local.json

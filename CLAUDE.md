@@ -14,7 +14,7 @@ file tocca più argomenti, leggili tutti). Nel rapporto si dice quali file di de
 | `apps/server/` (API, WebSocket, DB, autenticazione, token), `apps/agent/` (token, invio, config) | `docs/regole/sicurezza.md` |
 | `apps/web/` (pagine, componenti, grafici, stile) | `docs/regole/interfaccia.md` |
 | Documenti in `docs/` (non `docs/regole/`) | `docs/regole/documentazione.md` |
-| Rami, job, worktree, PR, CI, `scripts/`, `docker-compose.yml`, `.github/` | `docs/regole/test-job-rilasci.md` |
+| Rami, job, worktree, PR, CI, `scripts/`, `docker-compose.yml` | `docs/regole/test-job-rilasci.md` |
 
 ## Sezioni, aree e documenti
 | Sezione | Aree (prefissi di percorso) | Documento |
@@ -26,7 +26,7 @@ file tocca più argomenti, leggili tutti). Nel rapporto si dice quali file di de
 | Server | `apps/server/` | `docs/server.md` |
 | Portale | `apps/web/` | `docs/portale.md` |
 | Simulatore | `tools/dvw-simulator/` | `docs/simulatore.md` |
-| Infrastruttura | `package.json`, `pnpm-workspace.yaml`, `tsconfig*.json`, `docker-compose.yml`, `docker/`, `scripts/`, `.github/` | `docs/infrastruttura.md` |
+| Infrastruttura | `package.json`, `pnpm-workspace.yaml`, `tsconfig*.json`, `docker-compose.yml`, `docker/`, `scripts/` | `docs/infrastruttura.md` |
 
 ## Architettura (riassunto)
 - Monorepo **pnpm workspaces**, TypeScript ovunque, Node 24, ESM.
@@ -46,7 +46,7 @@ file tocca più argomenti, leggili tutti). Nel rapporto si dice quali file di de
 - **Sicurezza**: input validati con zod a ogni confine; token salvati solo come hash; niente segreti nel codice
   (solo `.env`, con `.env.example` aggiornato); nessun SQL a stringhe; nessun `dangerouslySetInnerHTML`.
 - **Test**: ogni modifica a parser, statistiche, ingest e diff dell'agente ha test vitest. Prima di una PR passa
-  `scripts/ci_locale.sh` (lint, typecheck, test, build).
+  `scripts/ci_locale.sh` (lint, typecheck, test, build). CI solo locale: non c'è CI su GitHub.
 - **Lingua**: codice e identificatori in inglese; testi a video, documenti, commit e PR in italiano.
 - **Lavoro con Claude**: un job = un ramo = un worktree (`scripts/job.sh`); la cartella principale resta su `main`
   e pulita. Dettaglio in `docs/regole/test-job-rilasci.md`.

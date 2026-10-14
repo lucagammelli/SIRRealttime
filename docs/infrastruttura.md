@@ -54,9 +54,9 @@ in `src/**/*.test.ts` e `test/**/*.test.ts`, ambiente `node`.
 - Prettier: `.prettierrc` e `.prettierignore`; `.editorconfig` per l'editor.
 
 ### CI
-`scripts/ci_locale.sh` e `.github/workflows/ci.yml` eseguono gli stessi 5 passi: 1/5 `pnpm install --frozen-lockfile`,
-2/5 `pnpm -r --if-present lint`, 3/5 typecheck, 4/5 test, 5/5 build. Il workflow gira su push in `main` e su ogni
-pull request, con Node 24 e corepack.
+La CI è solo locale: `scripts/ci_locale.sh` esegue 5 passi: 1/5 `pnpm install --frozen-lockfile`,
+2/5 `pnpm -r --if-present lint`, 3/5 typecheck, 4/5 test, 5/5 build. Non c'è CI su GitHub (nessuna GitHub Action);
+lo script va lanciato prima di ogni PR e da `scripts/job.sh unisci`. Richiede Node 24 e corepack.
 
 ## Configurazione
 - `.env.example` è ancora vuoto: nessuna variabile d'ambiente richiesta finora.
@@ -81,5 +81,5 @@ scripts/ci_locale.sh                  # i 5 passi della CI, da lanciare prima di
 - `tsconfig.base.json`, `packages/*/tsconfig.json`, `packages/*/tsconfig.build.json`
 - `vitest.shared.ts`, `packages/*/vitest.config.ts`
 - `eslint.config.js`, `.prettierrc`, `.editorconfig`
-- `scripts/ci_locale.sh`, `.github/workflows/ci.yml`, `.env.example`
+- `scripts/ci_locale.sh`, `.env.example`
 - Sezioni che ne dipendono: `docs/dvw-parser.md`, `docs/simulatore.md`

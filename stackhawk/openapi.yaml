@@ -1,0 +1,157 @@
+openapi: 3.0.3
+info:
+  title: SIRRealtime server
+  version: 0.1.0
+  description: >
+    Specifica ricavata a mano dalle rotte di apps/server/src/routes/*.ts e dagli schemi di packages/shared,
+    usata dalla scansione DAST (stackhawk.yml). Le rotte WebSocket (/ws/*) non sono incluse.
+servers:
+  - url: /
+paths:
+  /api/health:
+    get:
+      responses:
+        '200': { description: ok }
+  /api/auth/login:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, example: admin@sir.local }
+                password: { type: string, example: password-di-prova }
+      responses:
+        '200': { description: utente autenticato }
+        '401': { description: credenziali errate }
+  /api/auth/me:
+    get:
+      responses:
+        '200': { description: utente corrente }
+        '401': { description: non autenticato }
+  /api/ingest:
+    post:
+      security: [{ agentToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [protocol, matchKey, seq, kind, fromIndex, lines, contentHash]
+              properties:
+                protocol: { type: integer, example: 1 }
+                matchKey: { type: string, example: partita-dast }
+                seq: { type: integer, example: 1 }
+                kind: { type: string, enum: [append, snapshot], example: snapshot }
+                fromIndex: { type: integer, example: 0 }
+                lines: { type: array, items: { type: string }, example: ['*p01:00'] }
+                header: { type: string, example: "[3DATAVOLLEYSCOUT]" }
+                contentHash: { type: string, example: 0000000000000000000000000000000000000000000000000000000000000000 }
+      responses:
+        '200': { description: esito ingest }
+        '401': { description: token agente mancante o errato }
+  /api/public/{token}/state:
+    get:
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string, example: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA }
+      responses:
+        '200': { description: stato della partita }
+        '404': { description: link non valido }
+  /api/admin/matches:
+    get:
+      responses:
+        '200': { description: elenco partite }
+  /api/admin/matches/{id}:
+    get:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
+      responses:
+        '200': { description: dettaglio partita }
+        '404': { description: non trovata }
+  /api/admin/agents:
+    get:
+      responses:
+        '200': { description: elenco agenti }
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, example: agente-dast }
+      responses:
+        '200': { description: agente creato }
+  /api/admin/agents/{id}:
+    delete:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
+      responses:
+        '204': { description: revocato }
+        '404': { description: non trovato }
+  /api/admin/share-tokens:
+    get:
+      responses:
+        '200': { description: elenco link }
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label, matchId, expiresAt]
+              properties:
+                label: { type: string, example: link-dast }
+                matchId: { type: string, format: uuid, nullable: true, example: null }
+                expiresAt: { type: string, format: date-time, nullable: true, example: null }
+      responses:
+        '200': { description: link creato }
+  /api/admin/share-tokens/{id}:
+    delete:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
+      responses:
+        '204': { description: revocato }
+        '404': { description: non trovato }
+  /api/admin/users:
+    get:
+      responses:
+        '200': { description: elenco utenti }
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, role]
+              properties:
+                email: { type: string, example: viewer-dast@sir.local }
+                password: { type: string, example: password-lunga-di-prova }
+                role: { type: string, enum: [admin, viewer], example: viewer }
+      responses:
+        '200': { description: utente creato }
+components:
+  securitySchemes:
+    agentToken:
+      type: http
+      scheme: bearer

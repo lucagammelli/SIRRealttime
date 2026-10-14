@@ -1,0 +1,12 @@
+# Contesto della build Docker: solo i sorgenti, mai segreti o artefatti locali.
+**/node_modules
+**/dist
+**/coverage
+**/*.log
+.git
+.env
+.env.*
+!.env.example
+.claude
+docs
+samples

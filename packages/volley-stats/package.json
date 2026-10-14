@@ -22,5 +22,8 @@
   },
   "dependencies": {
     "@sir/dvw-parser": "workspace:*"
+  },
+  "devDependencies": {
+    "@sir/dvw-simulator": "workspace:*"
   }
 }

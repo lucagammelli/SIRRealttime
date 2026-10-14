@@ -1,2 +1,4 @@
-/** Name of this package; placeholder export until the message contracts are defined. */
-export const PACKAGE_NAME = '@sir/shared';
+export * from './admin.js';
+export * from './ingest.js';
+export * from './messages.js';
+export * from './strings.js';

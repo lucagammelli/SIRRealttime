@@ -49,6 +49,7 @@ Monorepo **pnpm workspaces**:
 - Output: `ParsedMatch { meta, teams, players, sets, actions[] }` con `rawLine` e indice per ogni azione.
 
 ## 2. Statistiche (`packages/volley-stats`)
+Dettaglio e regole di calcolo: `docs/statistiche.md`.
 Funzioni pure `computeMatchState(parsed)`:
 - Punteggio live per set, set vinti, servizio, rotazioni correnti, timeout/cambi usati.
 - Statistiche per giocatore e squadra: battuta (ace/errori), ricezione (positiva/perfetta %), attacco

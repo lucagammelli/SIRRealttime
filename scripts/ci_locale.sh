@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI in locale (docs/regole/test-job-rilasci.md): gli stessi passi di .github/workflows/ci.yml, da lanciare
+# CI in locale (docs/regole/test-job-rilasci.md): unica CI del progetto (non c'è CI su GitHub), da lanciare
 # prima di ogni PR dalla radice del repository (anche da un worktree).
 #
 # Uso: scripts/ci_locale.sh

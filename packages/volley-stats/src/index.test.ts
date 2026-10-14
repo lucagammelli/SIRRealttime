@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEPENDS_ON, PACKAGE_NAME } from './index.js';
+import { PACKAGE_NAME, parseEmptyMatch } from './index.js';
 
 describe('@sir/volley-stats', () => {
   it('exposes its package name', () => {
@@ -7,6 +7,6 @@ describe('@sir/volley-stats', () => {
   });
 
   it('resolves the parser workspace package', () => {
-    expect(DEPENDS_ON).toEqual(['@sir/dvw-parser']);
+    expect(parseEmptyMatch().scout).toEqual([]);
   });
 });

@@ -10,14 +10,22 @@
   (lo scoutman corregge un'azione): il diff dell'agente deve accorgersene (snapshot).
 
 ## Righe [3SCOUT]
-- Primo campo = codice. Azione: squadra (`*` casa, `a` ospite) + numero maglia (2 cifre) + fondamentale
-  (`S` battuta, `R` ricezione, `A` attacco, `B` muro, `D` difesa, `E` alzata, `F` free ball) + tipo
-  (`H M Q T U N O`) + valutazione (`# + ! - / =`) + campi estesi (combinazione/chiamata, zona partenza, zona arrivo,
-  sottozona, tocchi, extra). Campi mancanti = `~`.
+- Primo campo = codice. Azione, per posizione dei caratteri: 1 squadra (`*` casa, `a` ospite), 2-3 numero maglia,
+  4 fondamentale (`S` battuta, `R` ricezione, `A` attacco, `B` muro, `D` difesa, `E` alzata, `F` free ball),
+  5 tipo (`H M Q T U N O`), 6 valutazione (`# + ! - / =`), 7-8 combinazione/chiamata, 9 target dell'alzata,
+  10 zona di partenza, 11 zona di arrivo, 12 sottozona, 13 tipo di fondamentale, 14 numero di giocatori, poi extra.
+  Campi mancanti = `~`.
+- Suffisso `>...` (es. `*P05>LUp`, `*z3>LUp`): parte del codice, il parser lo salva in `suffix`.
 - Codici speciali: `*p`/`ap` + `HH:VV` punto con punteggio; `*z`/`az` + n rotazione (posizione del palleggiatore);
-  `*c`/`ac` + `OUT:IN` cambio; `*T`/`aT` timeout; `*P`/`aP` palleggiatore in campo; `**Nset` fine set N.
-- Campi dopo il codice: flag, ora `HH.MM.SS`, set, rotazione casa/ospite, tempo video, posizioni in campo dei
-  giocatori (6+6). Il parser tiene sempre `rawLine` e l'indice della riga.
+  `*c`/`ac` + `OUT:IN` cambio; `*T`/`aT` timeout; `*P`/`aP` palleggiatore in campo; `**Nset` fine set N;
+  codici verdi `*$$&H#` (`$$` + simbolo + resto) → `greenCode`.
+- Campi dopo il codice (layout DV4, indice 0 = codice): 1-3 flag (1 fase del punto `s`/`r`, 2 fase dell'attacco),
+  4-6 coordinate di partenza, intermedia e arrivo, 7 ora `HH.MM.SS`, 8 set, 9-10 posizione dei palleggiatori
+  casa/ospite, 11 file video, 12 tempo video, 14-19 giocatori di casa in posizione 1-6, 20-25 giocatori ospiti.
+  Il parser tiene sempre `rawLine` e l'indice della riga.
+- Giocatori `[3PLAYERS-H/V]` (DV4): 0 squadra, 1 maglia, 2 indice, 3-7 posizione di partenza nei set 1-5
+  (`*` = panchina), 8 id, 9 cognome, 10 nome, 11 soprannome, 12 ruolo speciale (`L`/`C`), 13 ruolo (1-5).
+- Dettaglio e punti ancora da verificare con un file reale: `docs/dvw-parser.md`.
 
 ## Regole del parser
 - Funzione pura `parseDvw(buffer | string)`; nessun I/O.

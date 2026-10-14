@@ -1,0 +1,26 @@
+{
+  "name": "@sir/volley-stats",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Funzioni pure: stato della partita e statistiche dalle azioni scout.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "@sir/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sir/dvw-parser": "workspace:*"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "@sir/dvw-simulator",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Genera e riproduce nel tempo file .dvw sintetici per simulare DataVolley.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "@sir/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "bin": {
+    "dvw-simulator": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sir/dvw-parser": "workspace:*",
+    "iconv-lite": "^0.7.3"
+  }
+}

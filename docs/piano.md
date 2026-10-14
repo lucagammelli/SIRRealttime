@@ -39,7 +39,8 @@ Monorepo **pnpm workspaces**:
 - File testo a sezioni: `[3DATAVOLLEYSCOUT]`, `[3MATCH]`, `[3TEAMS]`, `[3MORE]`, `[3SET]`,
   `[3PLAYERS-H]`, `[3PLAYERS-V]`, `[3ATTACKCOMBINATION]`, `[3SETTERCALL]`, `[3SCOUT]`.
 - Decodifica con `iconv-lite` (Windows‑1252/latin1, fallback UTF‑8).
-- Riga `[3SCOUT]`: codice principale + campi `;` (flag, ora, set, rotazioni, video time, posizioni giocatori).
+- Riga `[3SCOUT]`: codice principale + campi `;` nel layout DV4 (flag e fasi, coordinate, ora, set, posizione dei
+  palleggiatori, file e tempo video, giocatori di casa e ospiti in posizione 1-6; dettaglio in `docs/dvw-parser.md`).
   Codice: squadra (`*` casa / `a` ospite), numero giocatore, fondamentale (`S R A B D E F`),
   tipo (`H M Q T U N O`), valutazione (`# + ! - / =`), combinazione attacco/chiamata, zona partenza/arrivo/sottozona,
   campi estesi. Codici speciali: `*p`/`ap` punto con punteggio, `*z`/`az` rotazione, `*c`/`ac` cambio,

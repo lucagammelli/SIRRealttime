@@ -22,3 +22,13 @@ Una riga per decisione: data, scelta, motivo.
   resta lo stesso da una partita all'altra (`docs/server.md`).
 - 2026-10-14: specifica OpenAPI per la DAST scritta a mano in `stackhawk/openapi.yaml` (nessuna generazione dal codice
   per ora), da aggiornare quando cambiano le rotte (`docs/server.md`).
+- 2026-10-14: l'agente legge il `.dvw` con polling `fs.stat` invece di chokidar, perché sulle pennine USB/FAT gli eventi
+  del file system non sono affidabili (`docs/agente.md`).
+- 2026-10-14: criterio anti-troncamento con doppia lettura: un file senza a capo finale o con meno righe scout è inviato
+  solo se una seconda lettura stabile è identica, perché un file scritto a metà non deve cancellare la partita sul
+  server (`docs/agente.md`).
+- 2026-10-14: coda dell'agente in un file JSON per partita (`dataDir/matches/<matchKey>.json`), compattata in uno
+  snapshot oltre 20 messaggi, perché è semplice da scrivere in modo atomico e uno snapshot basta a riallineare il
+  server (`docs/agente.md`).
+- 2026-10-14: agente distribuito come eseguibile Node SEA (`postject`) e installato come servizio con NSSM, perché sul PC
+  di DataVolley non deve servire Node e il servizio parte da solo e si riavvia (`docs/agente.md`).

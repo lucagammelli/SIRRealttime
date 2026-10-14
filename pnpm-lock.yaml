@@ -188,6 +188,37 @@ importers:
         specifier: ^5.0.4
         version: 5.0.4(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15))
 
+  apps/agent:
+    dependencies:
+      '@sir/dvw-parser':
+        specifier: workspace:*
+        version: link:../../packages/dvw-parser
+      '@sir/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      pino:
+        specifier: ^10.4.0
+        version: 10.4.0
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@sir/dvw-simulator':
+        specifier: workspace:*
+        version: link:../../tools/dvw-simulator
+      '@sir/server':
+        specifier: workspace:*
+        version: link:../server
+      '@sir/volley-stats':
+        specifier: workspace:*
+        version: link:../../packages/volley-stats
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+
   apps/server:
     dependencies:
       '@fastify/cookie':

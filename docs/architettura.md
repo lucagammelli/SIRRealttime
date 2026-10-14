@@ -2,7 +2,7 @@
 
 ## A cosa serve
 Descrive come i pacchetti del monorepo si collegano e quali contratti usano. Il piano completo è in `docs/piano.md`;
-qui c'è lo stato attuale del codice. Il portale web e l'agente non esistono ancora (`apps/agent`, `apps/web`).
+qui c'è lo stato attuale del codice. Il portale web non esiste ancora (`apps/web`).
 
 ## Come funziona
 
@@ -15,14 +15,15 @@ DataVolley (.dvw riscritto per intero)
    → portale: mostra la partita
 ```
 
-1. L'agente separa il file con `splitDvwText` (header + righe di scout), confronta le righe precedenti con le nuove con
-   `diffScoutLines` (append se le precedenti sono un prefisso, altrimenti snapshot) e calcola `hashScoutLines`.
+1. L'agente (`docs/agente.md`) legge il file con polling, lo separa con `splitDvwText` (header + righe di scout),
+   confronta le righe precedenti con le nuove con `diffScoutLines` (append se le precedenti sono un prefisso, altrimenti
+   snapshot), calcola `hashScoutLines` e tiene in coda su disco ciò che il server non ha ancora confermato.
 2. Il server (`docs/server.md`) applica la richiesta, ricostruisce il testo con `buildDvwText`, lo legge con `parseDvw`
    e calcola `computeMatchState`. Lo stato è ricalcolato da zero a ogni ingest e inviato intero (`StateMessage`).
 3. Il portale riceve lo stato via WebSocket o con `GET /api/public/:token/state`.
 
-Oggi esistono server, contratti, parser, statistiche e simulatore; per provare il flusso senza agente si usano i test
-del server (`apps/server/test/ingest.test.ts`) e il simulatore (`docs/simulatore.md`).
+Oggi esistono agente, server, contratti, parser, statistiche e simulatore; il flusso si prova con l'agente e il
+simulatore (`docs/agente.md`) o con i test del server (`apps/server/test/ingest.test.ts`).
 
 ### Pacchetti e dipendenze
 
@@ -32,6 +33,7 @@ del server (`apps/server/test/ingest.test.ts`) e il simulatore (`docs/simulatore
 | `@sir/volley-stats` | `packages/volley-stats` | dvw-parser | punteggio e statistiche (`computeMatchState`) |
 | `@sir/shared` | `packages/shared` | dvw-parser, volley-stats | contratti: tipi e schemi zod |
 | `@sir/server` | `apps/server` | dvw-parser, volley-stats, shared | backend |
+| `@sir/agent` | `apps/agent` | dvw-parser, shared | agente Windows (`docs/agente.md`); dev-dependency: dvw-simulator, server, volley-stats (per i test) |
 | `@sir/dvw-simulator` | `tools/dvw-simulator` | dvw-parser | genera e "suona" file DVW sintetici; è anche dev-dependency di volley-stats, shared e server (per i test) |
 
 ### Contratti di `packages/shared`
@@ -90,6 +92,6 @@ pnpm --filter @sir/server test      # il flusso completo agente→server→WebSo
 ## Riferimenti
 - `packages/shared/src/ingest.ts`, `messages.ts`, `admin.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
-- `apps/server/src/ingest.ts`
-- `docs/piano.md`, `docs/server.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,
+- `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`
+- `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,
   `docs/infrastruttura.md`, `docs/decisioni.md`

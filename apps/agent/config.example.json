@@ -1,0 +1,12 @@
+{
+  "watchPath": "E:\\",
+  "serverUrl": "https://sir.example.it",
+  "agentToken": "<token agente creato nell'area admin del portale>",
+  "pollIntervalMs": 1000,
+  "stableMs": 700,
+  "dataDir": "C:\\SIRAgent\\data",
+  "logDir": "C:\\SIRAgent\\logs",
+  "logLevel": "info",
+  "snapshotRetryMs": 300000,
+  "retentionDays": 30
+}

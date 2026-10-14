@@ -1,0 +1,4 @@
+# Cartelle create eseguendo l’agente in sviluppo (dataDir e logDir di default) e dagli script di build.
+data/
+logs/
+build/

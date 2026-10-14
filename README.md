@@ -46,6 +46,7 @@ pubblici e Docker Compose sono in `docs/server.md`.
 
 - `docs/piano.md`: piano e architettura
 - `docs/architettura.md`: flusso dei dati, pacchetti e contratti
+- `docs/agente.md`: agente Windows (lettura del `.dvw`, coda offline, installazione come servizio)
 - `docs/server.md`: server (ingest, accessi, endpoint, WebSocket, database, Docker)
 - `docs/infrastruttura.md`: monorepo, build, test, CI, Docker
 - `docs/dvw-parser.md`: parser DVW

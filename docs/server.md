@@ -226,8 +226,8 @@ TOKEN_PUBBLICO="<token>"         # campo "token" della risposta di /api/admin/sh
 curl -s "$SERVER/api/public/$TOKEN_PUBBLICO/state"   # {"type":"noMatch"} finché nessuna partita è live
 ```
 
-Il token agente va nell'intestazione `Authorization: Bearer <token>` di `POST /api/ingest` (l'agente non è ancora
-scritto: per esempi di richieste complete vedere `apps/server/test/ingest.test.ts`).
+Il token agente va nell'intestazione `Authorization: Bearer <token>` di `POST /api/ingest` (l'agente è in
+`apps/agent`, vedi `docs/agente.md`; per esempi di richieste complete vedere `apps/server/test/ingest.test.ts`).
 
 ### Comandi del pacchetto (`apps/server/package.json`)
 

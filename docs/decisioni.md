@@ -10,3 +10,5 @@ Una riga per decisione: data, scelta, motivo.
 - 2026-10-14: CI solo locale con `scripts/ci_locale.sh`, nessuna GitHub Action (scelta di Luca).
 - 2026-10-14: campione sintetico (`samples/partita-sintetica.dvw`) generato dal simulatore, perché non ci sono ancora file
   DataVolley reali; i layout non confermati sono elencati in `docs/dvw-parser.md`.
+- 2026-10-14: statistiche ricalcolate da zero a ogni aggiornamento (funzione pura, ~ms), rapporti 0-1
+  (`docs/statistiche.md`).

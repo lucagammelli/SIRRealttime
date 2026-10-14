@@ -205,6 +205,10 @@ importers:
       '@sir/dvw-parser':
         specifier: workspace:*
         version: link:../dvw-parser
+    devDependencies:
+      '@sir/dvw-simulator':
+        specifier: workspace:*
+        version: link:../../tools/dvw-simulator
 
   tools/dvw-simulator:
     dependencies:

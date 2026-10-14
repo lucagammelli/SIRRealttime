@@ -11,8 +11,8 @@ rami, job e CI in `docs/regole/test-job-rilasci.md`.
 - **Node 24** (`engines.node` = `>=24` in `package.json`) e **pnpm 12.11.2**, fissato in `packageManager` e attivato
   con corepack.
 - **TypeScript `~6.0.3`** e non 7: è la versione compatibile con typescript-eslint 8.71 (vedi `docs/decisioni.md`).
-- Workspace (`pnpm-workspace.yaml`): `apps/*`, `packages/*`, `tools/*`. Oggi esistono `apps/server`, `packages/dvw-parser`,
-  `packages/shared`, `packages/volley-stats`, `tools/dvw-simulator` (vedi `docs/architettura.md`).
+- Workspace (`pnpm-workspace.yaml`): `apps/*`, `packages/*`, `tools/*`. Oggi esistono `apps/agent`, `apps/server`, `apps/web`,
+  `packages/dvw-parser`, `packages/shared`, `packages/volley-stats`, `tools/dvw-simulator` (vedi `docs/architettura.md`).
 
 ### Script radice
 Tutti ricorsivi sui pacchetti che hanno lo script (`pnpm -r --if-present`), tranne i due di formattazione.
@@ -75,21 +75,39 @@ binario della piattaforma come dipendenza opzionale.
 13.1.2. Un cambio di versione va controllato sulle intestazioni inviate dal server (`docs/server.md`).
 
 ### Docker
-- `docker-compose.yml` (radice): servizi `postgres` (immagine `postgres:17`, volume `pgdata`) e `server`
-  (porta 8090, pubblicata su `SERVER_BIND`, di default `127.0.0.1`). Dettagli e comandi in `docs/server.md`.
+- `docker-compose.yml` (radice): servizi `postgres` (immagine `postgres:17`, volume `pgdata`), `server` (porta 8090,
+  pubblicata su `SERVER_BIND`, di default `127.0.0.1`) e `web` (nginx con il portale, pubblicato su
+  `${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}`). `web` parte quando `server` è sano. nginx è l'unico ingresso per browser
+  e agente; `CORS_ORIGIN` e `PUBLIC_BASE_URL` di default seguono `WEB_PORT` e `TRUST_PROXY` vale `true`. Dettagli e
+  comandi in `docs/server.md`, il portale in `docs/portale.md`.
+- `docker/web.Dockerfile`, `docker/web.nginx.conf`, `docker/web.security-headers.conf`: immagine del portale (build Vite
+  con pnpm, poi `nginxinc/nginx-unprivileged` sulla porta 8080 con utente non root), proxy di `/api` e `/ws`, CSP.
 - `docker/server.Dockerfile`: build multi-stage con Node 24 slim. Lo stadio `build` esegue
   `pnpm install --frozen-lockfile`, `pnpm --filter "@sir/server..." build` e `pnpm --filter @sir/server deploy --prod /out`;
   lo stadio `runtime` copia `/out`, gira come utente `node` ed esegue `node dist/main.js` con un healthcheck su
   `/api/health`.
 - `.dockerignore`: esclude dal contesto `node_modules`, `dist`, `coverage`, log, `.git`, `.env` e `.env.*` (tranne
   `.env.example`), `.claude`, `docs` e `samples`.
-- Non ancora provati: l'immagine non è stata costruita per mancanza di spazio su disco.
+- Provato il 2026-10-14: `docker compose -p sirrealtime up -d --build` con `.env` da `.env.example`: `postgres`, `server`
+  e `web` healthy. Esiti completi del collaudo in `docs/portale.md`.
+
+### Dipendenze del portale (`apps/web`)
+`echarts` (`^6.0.0`) pesa circa 60 MB su disco in `node_modules` ma nel bundle entra solo ciò che è importato: circa
+185 KB gzip, in un chunk a parte (`echarts`, vedi `manualChunks` in `apps/web/vite.config.ts`) che resta in cache tra un
+rilascio e l'altro. Il bundle principale è di circa 132 KB gzip. Le altre dipendenze sono `react`, `react-dom`,
+`react-router`, `zod`, `tailwindcss` con `@tailwindcss/vite` (`docs/portale.md`, `docs/decisioni.md`).
 
 ## Configurazione
 - `.env.example` elenca le variabili del server (`DATABASE_URL`, `PORT`, `HOST`, `CORS_ORIGIN`, `COOKIE_SECURE`,
   `SESSION_TTL_HOURS`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `PUBLIC_BASE_URL`, `LOG_LEVEL`, `TRUST_PROXY`,
-  `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_ADMIN`, `MATCH_MAX_LINES`) e quelle di Docker Compose (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `SERVER_BIND`).
+  `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_ADMIN`, `MATCH_MAX_LINES`) e quelle di
+  Docker Compose (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `SERVER_BIND`, `WEB_BIND`, `WEB_PORT`).
   Descrizione e default in `docs/server.md`. Il file `.env` vero non va mai nel repository.
+- `CORS_ORIGIN`, `PUBLIC_BASE_URL` e `TRUST_PROXY` sono **commentate** in `.env.example` di proposito: lasciate così
+  valgono i default giusti per ogni modo di avvio (con compose `http://localhost:${WEB_PORT}` e `true`, perché il server
+  è dietro nginx; con `pnpm --filter @sir/server dev` e `vite dev` `http://localhost:5173` e `false`). Una riga attiva
+  nel `.env` li sovrascriverebbe anche in compose, e un `TRUST_PROXY=false` o un'origine sbagliata rompono rate limit e
+  login. Si decommentano solo per un dominio vero.
 
 ## Come si usa / si prova
 ```bash
@@ -111,5 +129,7 @@ scripts/ci_locale.sh                  # i 5 passi della CI, da lanciare prima di
 - `vitest.shared.ts`, `packages/*/vitest.config.ts`
 - `eslint.config.js`, `.prettierrc`, `.editorconfig`
 - `scripts/ci_locale.sh`, `.env.example`
-- `docker-compose.yml`, `docker/server.Dockerfile`, `.dockerignore`, `apps/server/vitest.config.ts`
-- Sezioni che ne dipendono: `docs/dvw-parser.md`, `docs/simulatore.md`, `docs/server.md`, `docs/architettura.md`
+- `docker-compose.yml`, `docker/server.Dockerfile`, `docker/web.Dockerfile`, `docker/web.nginx.conf`,
+  `docker/web.security-headers.conf`, `.dockerignore`, `apps/server/vitest.config.ts`
+- Sezioni che ne dipendono: `docs/dvw-parser.md`, `docs/simulatore.md`, `docs/server.md`, `docs/portale.md`,
+  `docs/architettura.md`

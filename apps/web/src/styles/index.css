@@ -1,0 +1,119 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* Tailwind utilities mapped on the tokens (bg-surface, text-muted, text-home…): no hand-written colours in components. */
+@theme inline {
+  --font-sans: var(--sir-font-sans);
+  --font-display: var(--sir-font-display);
+  --font-mono: var(--sir-font-mono);
+  --radius-card: var(--sir-radius);
+  --radius-panel: var(--sir-radius-lg);
+  --shadow-card: var(--sir-shadow);
+
+  --color-bg: var(--sir-bg);
+  --color-surface: var(--sir-surface);
+  --color-surface-2: var(--sir-surface-2);
+  --color-border: var(--sir-border);
+  --color-grid: var(--sir-grid);
+  --color-axis: var(--sir-axis);
+  --color-text: var(--sir-text);
+  --color-muted: var(--sir-text-muted);
+  --color-focus: var(--sir-focus);
+  --color-home: var(--sir-home);
+  --color-home-soft: var(--sir-home-soft);
+  --color-on-home: var(--sir-on-home);
+  --color-away: var(--sir-away);
+  --color-away-soft: var(--sir-away-soft);
+  --color-on-away: var(--sir-on-away);
+  --color-live: var(--sir-live);
+  --color-warn: var(--sir-warn);
+  --color-danger: var(--sir-danger);
+  --color-danger-soft: var(--sir-danger-soft);
+  --color-success-soft: var(--sir-success-soft);
+  --color-eval-perfect: var(--sir-eval-perfect);
+  --color-eval-positive: var(--sir-eval-positive);
+  --color-eval-ok: var(--sir-eval-ok);
+  --color-eval-negative: var(--sir-eval-negative);
+  --color-eval-poor: var(--sir-eval-poor);
+  --color-eval-error: var(--sir-eval-error);
+  --color-eval-none: var(--sir-eval-none);
+  --color-court: var(--sir-court);
+  --color-court-free: var(--sir-court-free);
+  --color-court-line: var(--sir-court-line);
+  --color-court-text: var(--sir-court-text);
+}
+
+@layer base {
+  html {
+    background: var(--sir-bg);
+    color: var(--sir-text);
+    font-family: var(--sir-font-sans);
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+  :focus-visible {
+    outline: 2px solid var(--sir-focus);
+    outline-offset: 2px;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Short animations at every point (≤ 600 ms), off with prefers-reduced-motion. */
+@keyframes sir-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes sir-flash {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes sir-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.sir-pop {
+  animation: sir-pop 450ms ease-out;
+}
+.sir-flash {
+  animation: sir-flash 400ms ease-out;
+}
+.sir-pulse {
+  animation: sir-pulse 1.6s ease-in-out infinite;
+}
+.sir-bar {
+  transition: width 500ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sir-pop,
+  .sir-flash,
+  .sir-pulse {
+    animation: none;
+  }
+  .sir-bar {
+    transition: none;
+  }
+}

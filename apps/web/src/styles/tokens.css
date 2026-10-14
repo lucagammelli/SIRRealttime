@@ -1,0 +1,130 @@
+/*
+ * Design tokens of the portal: the only place where colours, fonts and radii are written.
+ * Tailwind reads them through `@theme` in index.css; the ECharts theme reads them at runtime (charts/theme.ts).
+ * Light theme by default, dark with prefers-color-scheme or with the switch (`data-theme` on <html>).
+ * Text colours have a contrast of at least 4.5:1 on --sir-bg, --sir-surface and --sir-surface-2.
+ */
+:root {
+  --sir-font-sans:
+    'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Roboto, 'Noto Sans', Arial, sans-serif;
+  --sir-font-display: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', var(--sir-font-sans);
+  --sir-font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --sir-radius: 0.75rem;
+  --sir-radius-lg: 1.25rem;
+
+  --sir-bg: #eef2f7;
+  --sir-surface: #ffffff;
+  --sir-surface-2: #f5f7fb;
+  --sir-border: #d5dce6;
+  --sir-grid: #e3e8ef;
+  --sir-axis: #64748b;
+  --sir-text: #0f172a;
+  --sir-text-muted: #475569;
+  --sir-focus: #2563eb;
+  --sir-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 24px rgb(15 23 42 / 0.06);
+
+  /* Teams: the same in every view. */
+  --sir-home: #1d4ed8;
+  --sir-home-soft: #dbe5ff;
+  --sir-on-home: #ffffff;
+  --sir-away: #a21caf;
+  --sir-away-soft: #f7dcf9;
+  --sir-on-away: #ffffff;
+
+  /* Semantics. */
+  --sir-live: #15803d;
+  --sir-warn: #b45309;
+  --sir-danger: #b91c1c;
+  --sir-danger-soft: #fde2e2;
+  --sir-success-soft: #dcfce7;
+
+  /* Evaluations, from # (best) to = (error). */
+  --sir-eval-perfect: #15803d;
+  --sir-eval-positive: #65a30d;
+  --sir-eval-ok: #ca8a04;
+  --sir-eval-negative: #ea580c;
+  --sir-eval-poor: #c2410c;
+  --sir-eval-error: #dc2626;
+  --sir-eval-none: #94a3b8;
+
+  /* Court. */
+  --sir-court: #f6c58f;
+  --sir-court-free: #3d8f78;
+  --sir-court-line: #ffffff;
+  --sir-court-text: #3b2a16;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --sir-bg: #070c17;
+  --sir-surface: #0f1729;
+  --sir-surface-2: #16203a;
+  --sir-border: #26324d;
+  --sir-grid: #1e2942;
+  --sir-axis: #8b9ab3;
+  --sir-text: #e8edf6;
+  --sir-text-muted: #a3b0c5;
+  --sir-focus: #7aa7ff;
+  --sir-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.35);
+  --sir-home: #6ea2ff;
+  --sir-home-soft: #1a2b55;
+  --sir-on-home: #071230;
+  --sir-away: #ec7cf7;
+  --sir-away-soft: #3d1846;
+  --sir-on-away: #2a0730;
+  --sir-live: #4ade80;
+  --sir-warn: #fbbf24;
+  --sir-danger: #f87171;
+  --sir-danger-soft: #3d1414;
+  --sir-success-soft: #0f2e1c;
+  --sir-eval-perfect: #22c55e;
+  --sir-eval-positive: #a3e635;
+  --sir-eval-ok: #facc15;
+  --sir-eval-negative: #fb923c;
+  --sir-eval-poor: #f97316;
+  --sir-eval-error: #f87171;
+  --sir-eval-none: #64748b;
+  --sir-court: #9a6a3c;
+  --sir-court-free: #1f5547;
+  --sir-court-line: #f1f5f9;
+  --sir-court-text: #fff7ed;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --sir-bg: #070c17;
+    --sir-surface: #0f1729;
+    --sir-surface-2: #16203a;
+    --sir-border: #26324d;
+    --sir-grid: #1e2942;
+    --sir-axis: #8b9ab3;
+    --sir-text: #e8edf6;
+    --sir-text-muted: #a3b0c5;
+    --sir-focus: #7aa7ff;
+    --sir-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.35);
+    --sir-home: #6ea2ff;
+    --sir-home-soft: #1a2b55;
+    --sir-on-home: #071230;
+    --sir-away: #ec7cf7;
+    --sir-away-soft: #3d1846;
+    --sir-on-away: #2a0730;
+    --sir-live: #4ade80;
+    --sir-warn: #fbbf24;
+    --sir-danger: #f87171;
+    --sir-danger-soft: #3d1414;
+    --sir-success-soft: #0f2e1c;
+    --sir-eval-perfect: #22c55e;
+    --sir-eval-positive: #a3e635;
+    --sir-eval-ok: #facc15;
+    --sir-eval-negative: #fb923c;
+    --sir-eval-poor: #f97316;
+    --sir-eval-error: #f87171;
+    --sir-eval-none: #64748b;
+    --sir-court: #9a6a3c;
+    --sir-court-free: #1f5547;
+    --sir-court-line: #f1f5f9;
+    --sir-court-text: #fff7ed;
+    color-scheme: dark;
+  }
+}

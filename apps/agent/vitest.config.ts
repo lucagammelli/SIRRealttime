@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import type { Plugin } from 'vitest/config';
 import { defineConfig } from 'vitest/config';
 import shared, { SOURCE_CONDITION } from '../../vitest.shared.ts';
 
@@ -5,8 +7,20 @@ import shared, { SOURCE_CONDITION } from '../../vitest.shared.ts';
 // configuration, `require('ws')` inside @fastify/websocket would load the ESM wrapper of ws (no `WebSocket.Server`).
 const conditions = [SOURCE_CONDITION, 'node', 'default'];
 
+/** `import text from './x.ps1'` gives the text of the script, as esbuild `--loader:.ps1=text` in the bundle. */
+const ps1Text: Plugin = {
+  name: 'ps1-text',
+  enforce: 'pre',
+  load(id) {
+    const file = id.split('?')[0] ?? id;
+    if (!file.endsWith('.ps1')) return null;
+    return `export default ${JSON.stringify(readFileSync(file, 'utf8'))};`;
+  },
+};
+
 export default defineConfig({
   ...shared,
+  plugins: [ps1Text],
   resolve: { conditions },
   ssr: { resolve: { conditions } },
   test: { ...shared.test, testTimeout: 30_000, hookTimeout: 30_000 },

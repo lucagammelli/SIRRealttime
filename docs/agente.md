@@ -5,6 +5,8 @@
 per intero a ogni azione, ne estrae le righe `[3SCOUT]`, calcola la differenza rispetto a quanto già inviato e la manda
 al server con `POST /api/ingest` (token agente, HTTPS). Se la rete manca, i dati restano in una coda su disco e vengono
 inviati appena possibile. Il server e il suo protocollo sono in `docs/server.md`; i contratti in `packages/shared`.
+Il modo più semplice di usarlo è la **finestra** (doppio clic su `sir-agent.exe`): registrazione automatica
+dell'agente, cartella del `.dvw`, START e STOP, senza console. Il servizio NSSM (`--config`) resta per l'avvio automatico.
 
 ## Come funziona
 
@@ -79,11 +81,94 @@ visti come la **stessa partita**. L'agente si riallinea con uno snapshot (il ser
 | altri 4xx | richiesta scartata; se era un `append` si accoda subito uno snapshot, se era uno snapshot si riprova alla modifica successiva o dopo `snapshotRetryMs` |
 | 408, 429, 5xx, rete assente, risposta non valida | backoff come sopra, dati in coda: «server non raggiungibile: i dati restano in coda» (una volta, poi «server di nuovo raggiungibile») |
 
+### Finestra (`src/gui/`)
+- **Modi dell'eseguibile**: senza argomenti (doppio clic) o con `--gui` si apre la finestra; con `--config`, `--console`
+  o `--once` l'agente gira come prima. `--gui` insieme a `--once` o `--console` è un errore («--gui non si usa con
+  --once o --console», uscita 1). Fuori da Windows la finestra non si apre: messaggio e uscita 1. Il servizio NSSM
+  passa sempre `--config`, quindi non cambia (`scripts/installa-servizio.ps1`).
+- **Come è fatta**: una finestra WinForms disegnata da PowerShell (`src/gui/window.ps1`), scelta al posto di Electron o
+  di una pagina nel browser (`docs/decisioni.md`). L'agente (Node) ne scrive il testo in `<dataDir>/gui/window.ps1`
+  (UTF-8 con BOM) a **ogni avvio** e la lancia con `powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File`
+  (`powershellArgs`, `src/gui/host.ts`); le modifiche fatte a quel file si perdono. Il testo è incluso nell'eseguibile
+  (`--loader:.ps1=text` nello script `bundle`): la finestra funziona solo dall'exe impacchettato o dal bundle, non
+  dal `dist/` di `tsc`, che non contiene `window.ps1`.
+- **Dialogo**: righe JSON su stdin/stdout del processo PowerShell (`src/gui/protocol.ts`). Finestra → agente: `start`
+  (`watchPath`, `token` facoltativo), `stop`, `quit`, `register` (`name`), `cancelRegistration`; agente → finestra:
+  `init`, `state`, `log`, `error`, `registration`. Gli schemi
+  zod sono `.strict()`; le righe oltre 8 KB (`MAX_GUI_LINE`) o non valide sono scartate (nel log solo la lunghezza).
+  Se la finestra muore l'agente si ferma; se l'agente muore la finestra si chiude.
+- **Console**: quella nera di Node è nascosta solo se l'ha aperta il doppio clic (nella console ci sono soltanto
+  `sir-agent.exe` e `powershell.exe`); lanciato da un prompt, resta visibile.
+- **Cosa si vede**: «Cartella del .dvw» e «Sfoglia…» (menu: cartella, oppure singolo file `.dvw`; la ricerca parte dalla
+  prima pennina), «Server» (sola lettura, da `config.json`), la riga di registrazione (sotto), «Token agente (alternativa)»
+  (mascherato) con a fianco «salvato (…abcd)» o «mancante: incollalo», START, STOP, lo stato («Fermo: premi START per leggere il .dvw», «Avvio…», «In lettura: <file>»,
+  «In attesa del file .dvw», «Arresto…», con «server non raggiungibile» se serve), una riga con righe, coda e ultimo
+  invio, e il riquadro «Ultimi messaggi» (gli ultimi 200 del log, `LogSink`). START è attivo solo da fermo e con un
+  token salvato o incollato. Chiudendo la finestra durante la lettura compare «La lettura del .dvw è in corso: fermarla
+  e chiudere?». START è permesso anche mentre una registrazione è in attesa.
+- **Registrazione automatica** (`src/register.ts`, `GuiController.register`): alternativa a incollare il token.
+  - **Cosa si vede**: la riga «Nome agente» (precompilata con il nome del PC, massimo 100 caratteri) e «Registra»; in
+    attesa «Registra» diventa «Annulla». Sotto, il **codice di abbinamento** in caratteri grandi (Consolas) e una riga di
+    stato: «Scrivi il nome e premi «Registra», oppure incolla un token qui sotto» (iniziale), «In attesa di
+    abilitazione nel portale: Agenti → Richieste in attesa (scade gg/MM hh:mm)», «Abilitato: token salvato. Premi START»
+    (se la lettura è in corso: «Abilitato. Token salvato: vale dal prossimo START», perché l'agente già avviato tiene il
+    token con cui è partito), «Rifiutata nel portale: registra di nuovo o incolla un token», «Scaduta senza
+    abilitazione: registra di nuovo», «Token già consegnato in precedenza: registra di nuovo», «Errore: <motivo>».
+  - **Flusso**: «Registra» invia `POST /api/agents/registrations` (nome) e il server risponde con codice di abbinamento
+    e segreto; l'amministratore abilita la richiesta nel portale (pagina «Agenti», «Richieste in attesa»,
+    `docs/portale.md`, `docs/server.md`); ogni 5 s (`registrationPollMs`, una interrogazione alla volta)
+    l'agente chiede `POST /api/agents/registrations/status` col segreto come `Bearer`. All'abilitazione il token è scritto
+    in `config.json` (`saveToken`, come per il token incollato) e START si attiva. Le richieste hanno timeout di 10 s;
+    le risposte sono validate con gli schemi di `packages/shared`.
+  - **Server non raggiungibile durante l'attesa**: il codice resta visibile, la riga di stato diventa arancione con il
+    motivo e «nuovo tentativo tra 5 s»; l'attesa continua da sola.
+  - **Stato su disco**: `<dataDir>/registration.json` (scrittura atomica, `version` 1) conserva richiesta e segreto. Alla
+    riapertura della finestra l'attesa riprende e il codice torna visibile; un file non valido è cancellato.
+    Il file è cancellato a registrazione conclusa o su «Annulla».
+  - **Annulla e chiusura**: «Annulla» e la chiusura della finestra interrompono subito la richiesta in volo
+    (`AbortSignal`). Se il server aveva già abilitato e il token arriva dopo «Annulla», è **ignorato** e nel log compare
+    «token ricevuto dopo l'annullamento della registrazione: ignorato (revoca l'agente dal portale)» con `agentId`:
+    l'agente va revocato dal portale. **Limite noto**: chiudere proprio mentre il server consegna il token lo perde; alla
+    riapertura la registrazione risulta «Token già consegnato in precedenza»: registrarsi di nuovo e revocare dal portale
+    l'agente rimasto.
+  - **Rifiuti**: «Registra» è rifiutato durante la lettura («Ferma la lettura (STOP) prima di registrare l'agente») e con
+    una registrazione già in corso («Registrazione già in corso: premi «Annulla» per ricominciare»).
+  - **`config.json` minimo**: basta `serverUrl` (con `http` verso IP privato solo se `allowHttpPrivateNetwork` è
+    `true`, come per START); il resto della configurazione è completato al primo START.
+- **Pennina intatta** (`assertNotOnStick`, `src/config.ts`): START, «Registra» e la ripresa dell'attesa sono rifiutati
+  se `dataDir` o `logDir` stanno dentro `watchPath`. In modalità finestra, in quel caso, lo script e i log vanno in
+  `%TEMP%\SIRAgent` (`data`, `logs`) e la finestra mostra l'errore. **Avvertenza**: non avviare l'agente dalla pennina:
+  `config.json` (che contiene il token) e, con i percorsi relativi predefiniti, `data/` e `logs/` finirebbero lì.
+- **`config.json` mancante**: la finestra si apre ma mostra «config.json non trovato (…): scaricalo dall'area admin,
+  pagina «Agenti», e mettilo accanto a sir-agent.exe». Il file non è creato dalla finestra.
+- **START** (`GuiController`): salva `agentToken` (se incollato) e `watchPath` in `config.json` (`saveTokenToFile`,
+  `saveWatchPath` in `src/gui/config-file.ts`): conservano gli altri campi, validano prima con `parseConfig` (se non
+  è valido non scrivono nulla) e scrivono in modo atomico (`writeFileAtomic`). Poi prende il lucchetto e avvia
+  l'agente. **STOP** lo ferma; la coda resta su disco. Un errore compare sotto STOP in rosso.
+- **Il token non arriva mai in chiaro alla finestra**: nel messaggio `init` ci sono solo la presenza e gli ultimi 4
+  caratteri; ogni riga in uscita ha i token e i segreti di registrazione noti sostituiti con `[nascosto]`. Il log dell'agente ha la stessa
+  redazione anche per la copia mostrata nella finestra (`extraStream`, `src/logger.ts`).
+
+### Lucchetto (`src/lock.ts`)
+- Un solo agente per cartella dati: `<dataDir>/agent.lock` contiene `pid` e `startedAt`, creato in modo esclusivo.
+  Lo prendono la lettura continua (console e servizio) e la finestra; **non** `--once` (`installa-servizio.ps1` lo
+  lancia mentre il servizio può essere attivo).
+- **Finestra**: START è rifiutato se il lucchetto appartiene a un'altra istanza attiva («Un'altra istanza dell'agente è
+  già in lettura (pid N, per esempio il servizio SIRAgent): fermala prima di avviare questa»).
+- **Console e servizio**: non escono; scrivono nel log «un'altra istanza dell'agente è attiva (pid N): attendo» e
+  riprovano ogni 30 s fino allo stop (`waitForLock`), così NSSM non riavvia il servizio a ripetizione.
+- **Lucchetto stantio** (sostituito): pid uguale a quello del processo stesso; scritto prima dell'avvio del PC (margine
+  60 s); `startedAt` illeggibile; processo non più esistente. Limiti noti: un pid riassegnato a un altro programma
+  vivo nella stessa sessione di Windows sembra ancora attivo; con l'avvio rapido di Windows (Fast Startup) l'ora di
+  avvio non si azzera; due processi che sostituiscono lo stesso lucchetto stantio nello stesso istante possono
+  incrociarsi (non succede con un servizio e una finestra).
+
 ### Log (`src/logger.ts`)
 - File giornalieri `sir-agent-AAAA-MM-GG.log` (giorno UTC) in `logDir`, formato JSON (pino); oltre 10 MB il file continua in
   `.1`, `.2`…; i file più vecchi di 14 giorni sono cancellati.
 - Ogni 60 s una riga `stato`: `file`, `matchKey`, `lines`, `queue`, `lastSuccessAt`, `serverReachable`.
-- Il token non compare mai nei log (`REDACT_PATHS`, censurato come `[nascosto]`) e viaggia solo nell'intestazione.
+- Token e segreto di registrazione non compaiono mai nei log (`REDACT_PATHS`: `agentToken`, `authorization`, `secret`,
+  `token`, censurati come `[nascosto]`) e viaggiano solo nell'intestazione.
 - Messaggi principali: «agente avviato», «partita in lettura», «token agente non valido o revocato»,
   «file .dvw non disponibile (pennina tolta?): in attesa», «server non raggiungibile: i dati restano in coda»,
   «contenuto da confermare con una seconda lettura», «coda ripresa dal disco», «coda compattata in uno snapshot».
@@ -100,14 +185,14 @@ visti come la **stessa partita**. L'agente si riallinea con uno snapshot (il ser
 | `agentToken` | obbligatorio | 20-200 caratteri `A-Za-z0-9_-`, copiato intero dall'area admin |
 | `pollIntervalMs` | `1000` | intero 10-60000 |
 | `stableMs` | `700` | intero 0-60000 |
-| `dataDir` | `data` accanto all'eseguibile | coda e stato; **non dentro `watchPath`** |
+| `dataDir` | `data` accanto all'eseguibile | coda, stato, `agent.lock`, `registration.json` e `gui/window.ps1`; **non dentro `watchPath`**; **non deve essere scrivibile da altri utenti**, perché la finestra esegue lì uno script con `-ExecutionPolicy Bypass` (`C:\SIRAgent\data` va bene) |
 | `logDir` | `logs` accanto all'eseguibile | log; **non dentro `watchPath`** (se `watchPath` è un file, vale la sua cartella) |
 | `logLevel` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
 | `snapshotRetryMs` | `300000` | intero 1000-86400000; nuovo tentativo dello snapshot rifiutato (4xx/413) anche senza modifiche del file |
 | `retentionDays` | `30` | intero 1-3650; giorni dopo i quali il record di una partita ferma con coda vuota è cancellato all'avvio |
 
 L'agente invia a `ingestUrl(serverUrl)` (`apps/agent/src/sender.ts`): aggiunge `api/ingest` a `serverUrl`, con o senza `/`
-finale, e mantiene un eventuale prefisso di percorso. Quindi `https://<host>/` dà `https://<host>/api/ingest`, che nginx
+finale, e mantiene un eventuale prefisso di percorso (`apiUrl`, usata anche dalla registrazione). Quindi `https://<host>/` dà `https://<host>/api/ingest`, che nginx
 del portale inoltra al server; la porta 8090 del server non si espone in rete (`docs/portale.md`, `docs/server.md`).
 L'area admin (pagina «Agenti») propone un `config.json` già compilato con l'indirizzo del portale come `serverUrl`.
 
@@ -117,11 +202,13 @@ iniziale nel JSON è tollerato. Configurazione non valida: messaggio chiaro e co
 ## Come si usa / si prova
 
 ### CLI (`src/cli.ts`)
-`sir-agent [--config <file>] [--console] [--once] [--help]`
+`sir-agent` (finestra) · `sir-agent --gui [--config <file>]` · `sir-agent [--config <file>] [--console] [--once] [--help]`
 
 | Opzione | Effetto |
 |---|---|
-| `--config <file>` | file di configurazione |
+| (nessuna) | finestra, come `--gui` (doppio clic) |
+| `--gui` | finestra (solo Windows); non con `--once` o `--console` |
+| `--config <file>` | file di configurazione; da solo, lettura continua senza finestra |
 | `--console` | log anche sulla console |
 | `--once` | legge una volta (attesa massima `max(30 s, stableMs × 10)`), invia la coda ignorando il backoff e termina |
 | `--help` | aiuto |
@@ -176,7 +263,21 @@ configurazione non valida o errore. Senza `--once` il processo gira finché rice
    Write-Host "Codice di uscita: $LASTEXITCODE (0 inviato, 2 dati in coda, 3 nessun .dvw, 1 errore)"
    ```
 
-4. **Servizio** (PowerShell come amministratore): `apps\agent\scripts\installa-servizio.ps1` installa il servizio `SIRAgent`
+4. **Uso con il doppio clic** (senza servizio), passo per passo:
+   1. Metti `sir-agent.exe` in `C:\SIRAgent` e, accanto, il `config.json` scaricato dall'area admin (pagina «Agenti»)
+      con `serverUrl` già compilato.
+   2. Doppio clic su `sir-agent.exe`: si apre la finestra (la console nera sparisce).
+   3. Controlla «Server». Poi o **registra l'agente**: controlla «Nome agente», premi «Registra», comunica il codice di
+      abbinamento a chi gestisce il portale (area admin, pagina «Agenti», «Richieste in attesa») e aspetta
+      «Abilitato: token salvato. Premi START»; oppure incolla in «Token agente (alternativa)» il token dell'area admin
+      (se a fianco c'è «salvato (…abcd)» e vale ancora, lascia vuoto). Non avviare l'agente dalla pennina.
+   4. «Cartella del .dvw» → «Sfoglia…»: scegli la pennina (o la cartella) oppure un singolo `.dvw`.
+   5. START: lo stato diventa «In lettura: <file>»; righe, coda e ultimo invio si aggiornano. Gli errori compaiono in rosso.
+   6. STOP per fermare la lettura (la coda resta su disco e riparte al prossimo START). Per chiudere la finestra durante
+      la lettura si conferma la domanda.
+   Se il servizio `SIRAgent` è attivo, START è rifiutato: fermare prima il servizio.
+
+5. **Servizio** (PowerShell come amministratore): `apps\agent\scripts\installa-servizio.ps1` installa il servizio `SIRAgent`
    con NSSM (avvio automatico, riavvio dopo 5 s, uscita standard in `logs\servizio.log`). Prima di lanciarlo si
    compilano le variabili in cima allo script: `$Nssm` (percorso di `nssm.exe`, da nssm.cc, cartella `win64`),
    `$CartellaAgente` (`C:\SIRAgent`) e, se serve, `$NomeServizio`, `$NomeVisibile`, `$Descrizione`, `$TipoAvvio`,
@@ -251,13 +352,35 @@ Mai provati fuori da Linux; da verificare:
 - codici d'errore reali con la pennina tolta e con il file aperto da DataVolley (`ENOENT`, `EBUSY`, `EPERM`, `EACCES`);
 - data di modifica di FAT32 a 2 s: la rilettura ogni 10 s la copre;
 - `rename` della coda con antivirus attivo;
-- fine riga CRLF dei file DVW reali.
+- fine riga CRLF dei file DVW reali;
+- finestra: si apre col doppio clic, i testi con accenti e «…» sono leggibili (script con BOM, PowerShell 5.1), la console
+  nera sparisce col doppio clic e resta lanciando da un prompt;
+- «Sfoglia…» parte dalla prima pennina e accetta sia cartella sia file `.dvw`;
+- START con `config.json` mancante, con token assente o malformato, con cartella inesistente: messaggio rosso chiaro;
+- START salva `watchPath` e `agentToken` in `config.json` senza perdere gli altri campi; il token non compare né nella
+  finestra (solo «…abcd») né nel log;
+- STOP e chiusura durante la lettura (domanda di conferma), la coda resta su disco;
+- finestra aperta con il servizio `SIRAgent` attivo: START rifiutato; servizio avviato con la finestra in lettura: nel
+  log «un'altra istanza dell'agente è attiva» e nessun riavvio a ripetizione di NSSM;
+- lucchetto stantio dopo spegnimento forzato del PC: START funziona senza intervento;
+- antivirus o SmartScreen che bloccano l'esecuzione di `window.ps1` da `dataDir\gui`;
+- registrazione: «Registra», abilitazione nel portale → «Abilitato: token salvato. Premi START» e START attivo;
+- chiudere la finestra durante l'attesa e riaprirla → il codice di abbinamento torna visibile;
+- «Annulla» e poi una nuova registrazione;
+- server spento durante l'attesa → riga arancione con «nuovo tentativo tra 5 s», poi l'attesa riprende da sola;
+- agente avviato dalla pennina: errore mostrato nella finestra, script e log in `%TEMP%\SIRAgent`.
 
 ## Riferimenti
 - `apps/agent/src/`: `main.ts` (ingresso), `cli.ts` (`runCli`), `config.ts` (`parseConfig`, `loadConfig`),
   `watcher.ts` (`FileWatcher`), `dvw.ts` (`readDvw`, `suspicion`, `deriveMatchKey`), `sync.ts` (`planRequests`),
-  `store.ts` (`MatchStore`, `writeFileAtomic`), `sender.ts` (`Sender`, `GZIP_THRESHOLD_BYTES`), `agent.ts` (`Agent`,
-  `DEFAULT_TIMING`), `logger.ts` (`RotatingFileStream`, `createLogger`)
+  `store.ts` (`MatchStore`, `writeFileAtomic`), `sender.ts` (`Sender`, `apiUrl`, `GZIP_THRESHOLD_BYTES`),
+  `register.ts` (`RegistrationClient`, `RegistrationError`, `loadPendingRegistration`, `savePendingRegistration`,
+  `clearPendingRegistration`), `config.ts` anche `assertNotOnStick`, `agent.ts` (`Agent`,
+  `DEFAULT_TIMING`), `logger.ts` (`RotatingFileStream`, `createLogger`, opzione `extraStream`), `lock.ts`
+  (`acquireLock`, `waitForLock`, `LockError`)
+- finestra, `apps/agent/src/gui/`: `main.ts` (`runGui`), `host.ts` (`runGuiHost`, `powershellArgs`), `controller.ts`
+  (`GuiController`), `protocol.ts` (`GuiInMessageSchema`, `GuiOutMessageSchema`, `MAX_GUI_LINE`), `config-file.ts`
+  (`saveTokenToFile`, `saveWatchPath`, `registrationServerUrl`, `registrationDataDir`, `guiWritablePaths`), `log-sink.ts` (`LogSink`), `window.ps1`, `window-script.ts`
 - `apps/agent/config.example.json`, `apps/agent/scripts/build-exe.ps1`, `apps/agent/scripts/installa-servizio.ps1`
 - test: `apps/agent/test/` (`truncation.test.ts`, `resilience.test.ts`, `e2e.test.ts`, `store.test.ts`, `sync.test.ts`)
 - contratti: `packages/shared/src/ingest.ts`; server e token: `docs/server.md`; file DVW: `docs/dvw-parser.md`;

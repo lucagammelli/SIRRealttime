@@ -53,5 +53,10 @@ Una riga per decisione: data, scelta, motivo.
 - 2026-10-15: massimo 20 richieste di registrazione in attesa: un solo IP può riempirle in 2 minuti e bloccare le
   registrazioni fino a 24 h; accettato per un portale piccolo o in LAN, rimedio: rifiutare dal portale le richieste in
   coda (`docs/server.md`).
+- 2026-10-15: finestra dell'agente in WinForms disegnata da PowerShell invece di Electron o di una pagina nel browser,
+  perché serve un solo exe, nessuna dipendenza nativa nel bundle SEA e PowerShell c'è in ogni Windows
+  (`docs/agente.md`).
+- 2026-10-15: lucchetto `agent.lock` in `dataDir`, con attesa (nuovo tentativo ogni 30 s) in modo console/servizio,
+  perché evita due agenti sulla stessa coda senza far riavviare il servizio NSSM a ripetizione (`docs/agente.md`).
 - 2026-10-15: durata di un set chiuso presa da `[3SET]` invece che dalle ore delle righe, perché nei file reali tra la
   prima e l'ultima riga ci sono pause (110 minuti dalle ore contro i 20 ufficiali) (`docs/statistiche.md`).

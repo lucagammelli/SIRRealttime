@@ -22,10 +22,15 @@ export interface SenderOptions {
   fetch?: FetchLike;
 }
 
+/** URL of `path` (relative, e.g. `api/ingest`) on the server, keeping a path prefix of `serverUrl`. */
+export function apiUrl(serverUrl: string, path: string): string {
+  const base = serverUrl.endsWith('/') ? serverUrl : `${serverUrl}/`;
+  return new URL(path, base).toString();
+}
+
 /** URL of `POST /api/ingest`, keeping a path prefix of `serverUrl`. */
 export function ingestUrl(serverUrl: string): string {
-  const base = serverUrl.endsWith('/') ? serverUrl : `${serverUrl}/`;
-  return new URL('api/ingest', base).toString();
+  return apiUrl(serverUrl, 'api/ingest');
 }
 
 /** Sends ingest requests; the token only ever goes into the `Authorization` header. */

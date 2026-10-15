@@ -106,16 +106,29 @@ export interface LoggerOptions {
   level: LogLevel;
   logDir: string;
   console: boolean;
+  /** One more destination (the window of the agent), with the same level and the same redaction. */
+  extraStream?: { write: (chunk: string) => void };
 }
 
 /** Paths never written to the logs. */
-export const REDACT_PATHS = ['agentToken', '*.agentToken', 'authorization', '*.authorization', 'headers.authorization'];
+export const REDACT_PATHS = [
+  'agentToken',
+  '*.agentToken',
+  'authorization',
+  '*.authorization',
+  'headers.authorization',
+  'secret',
+  '*.secret',
+  'token',
+  '*.token',
+];
 
 export function createLogger(options: LoggerOptions): { logger: Logger; close: () => void } {
   const file = new RotatingFileStream({ dir: options.logDir });
-  const streams: pino.StreamEntry[] = [{ level: options.level === 'silent' ? 'fatal' : options.level, stream: file }];
-  if (options.console)
-    streams.push({ level: options.level === 'silent' ? 'fatal' : options.level, stream: process.stdout });
+  const level = options.level === 'silent' ? 'fatal' : options.level;
+  const streams: pino.StreamEntry[] = [{ level, stream: file }];
+  if (options.console) streams.push({ level, stream: process.stdout });
+  if (options.extraStream) streams.push({ level, stream: options.extraStream });
   const logger = pino(
     {
       level: options.level,

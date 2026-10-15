@@ -3,6 +3,7 @@ import {
   CreateShareTokenRequestSchema,
   CreateUserRequestSchema,
   LoginRequestSchema,
+  MatchDetailSchema,
   ServerMessageSchema,
   ShareTokenParamSchema,
 } from './index.js';
@@ -21,6 +22,35 @@ describe('ServerMessageSchema', () => {
     expect(ServerMessageSchema.safeParse({ type: 'hello' }).success).toBe(false);
     expect(ServerMessageSchema.safeParse({ type: 'state', matchId: ID, version: 1, state: null }).success).toBe(false);
     expect(ServerMessageSchema.safeParse({ type: 'state', matchId: 'x', version: 1, state: {} }).success).toBe(false);
+  });
+});
+
+describe('MatchDetailSchema', () => {
+  const detail = {
+    id: ID,
+    matchKey: 'partita-1',
+    live: false,
+    lineCount: 0,
+    version: 0,
+    homeName: null,
+    awayName: null,
+    setsWon: null,
+    status: null,
+    createdAt: '2026-10-14T10:00:00.000Z',
+    updatedAt: '2026-10-14T10:00:00.000Z',
+    lastSeq: -1,
+    contentHash: null,
+    state: null,
+  };
+  it('accepts a match without state and one with a state', () => {
+    expect(MatchDetailSchema.safeParse(detail).success).toBe(true);
+    expect(MatchDetailSchema.safeParse({ ...detail, lastSeq: 3, contentHash: 'ab', state: { sets: [] } }).success).toBe(
+      true,
+    );
+  });
+  it('rejects a state that is not an object and a seq below -1', () => {
+    expect(MatchDetailSchema.safeParse({ ...detail, state: [1] }).success).toBe(false);
+    expect(MatchDetailSchema.safeParse({ ...detail, lastSeq: -2 }).success).toBe(false);
   });
 });
 

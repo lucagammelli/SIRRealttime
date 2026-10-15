@@ -137,14 +137,14 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `DATABASE_URL` | obbligatoria | `postgres://…`, oppure `pglite:memory` / `pglite:<cartella>` (solo sviluppo e test) |
 | `PORT` | `8090` | porta HTTP |
 | `HOST` | `127.0.0.1` | indirizzo di ascolto (`0.0.0.0` nel container) |
-| `CORS_ORIGIN` | `http://localhost:5173` | unica origine ammessa da CORS e dal controllo `Origin` |
+| `CORS_ORIGIN` | `http://localhost:5173` (compose: `http://localhost:${WEB_PORT}`) | unica origine ammessa da CORS e dal controllo `Origin` |
 | `COOKIE_SECURE` | `true` | cookie con attributo `Secure` (`false` solo in sviluppo su http) |
 | `SESSION_TTL_HOURS` | `12` | durata della sessione (massimo 720) |
 | `ADMIN_EMAIL` | assente | primo admin; va impostata insieme a `ADMIN_PASSWORD` |
 | `ADMIN_PASSWORD` | assente | almeno 12 caratteri |
-| `PUBLIC_BASE_URL` | `http://localhost:5173` | base dei link pubblici `<base>/live/<token>` |
+| `PUBLIC_BASE_URL` | `http://localhost:5173` (compose: `http://localhost:${WEB_PORT}`) | base dei link pubblici `<base>/live/<token>` |
 | `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
-| `TRUST_PROXY` | `false` | `true` solo dietro un reverse proxy fidato |
+| `TRUST_PROXY` | `false` (compose: `true`) | `true` solo dietro un reverse proxy fidato (con compose, nginx del servizio `web`) |
 | `RATE_LIMIT_LOGIN` | `10` | richieste al minuto per IP su `/api/auth/login` (intero da 1 a 100000) |
 | `RATE_LIMIT_INGEST` | `600` | richieste al minuto per IP su `/api/ingest` (intero da 1 a 100000) |
 | `RATE_LIMIT_PUBLIC` | `120` | richieste al minuto per IP sulle rotte pubbliche (intero da 1 a 100000) |
@@ -154,7 +154,8 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 Le quattro `RATE_LIMIT_*` sono anche in `.env.example` e `docker-compose.yml`.
 
 Variabili solo per Docker Compose: `POSTGRES_DB` (`sir`), `POSTGRES_USER` (`sir`), `POSTGRES_PASSWORD` (obbligatoria),
-`SERVER_BIND` (`127.0.0.1`).
+`SERVER_BIND` (`127.0.0.1`, indirizzo su cui è pubblicata la 8090), `WEB_BIND` (`127.0.0.1`) e `WEB_PORT` (`8080`) per il
+portale (`docs/portale.md`).
 
 ### Database
 Schema in `apps/server/src/db/schema.ts` (Drizzle):
@@ -243,19 +244,28 @@ I test (`apps/server/test/`: `auth`, `config`, `hub`, `ingest`, `limits`, `publi
 di vitest vedi `docs/infrastruttura.md`.
 
 ### Docker Compose
-`docker-compose.yml` (nome progetto `sir-realtime`) ha due servizi:
+`docker-compose.yml` (nome progetto `sir-realtime`) ha tre servizi:
 
 - `postgres` (immagine `postgres:17`, volume `pgdata`, healthcheck `pg_isready`);
 - `server` (build da `docker/server.Dockerfile`, parte quando Postgres è sano, healthcheck su `/api/health`, porta
-  `${SERVER_BIND:-127.0.0.1}:8090:8090`). `DATABASE_URL` è composta da `POSTGRES_*`; `HOST` è `0.0.0.0`.
+  `${SERVER_BIND:-127.0.0.1}:8090:8090`). `DATABASE_URL` è composta da `POSTGRES_*`; `HOST` è `0.0.0.0`;
+  `CORS_ORIGIN` e `PUBLIC_BASE_URL` di default sono `http://localhost:${WEB_PORT:-8080}` e `TRUST_PROXY` è `true`;
+- `web` (nginx con il portale, `docker/web.Dockerfile`, parte quando il server è sano, porta
+  `${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:8080`): serve la SPA e inoltra `/api/` e `/ws/` al server, sovrascrivendo
+  `X-Forwarded-For` con l'IP reale del client (`docs/portale.md`).
+
+**Browser e agenti passano da nginx** (servizio `web`), anche per `POST /api/ingest`: a un agente in rete va data l'**URL
+del portale** come `serverUrl` (es. `https://<host>/`, vedi `docs/agente.md`). La porta 8090 resta su `127.0.0.1` per
+prove locali e scansioni: non va mai pubblicata su `0.0.0.0`, perché con `TRUST_PROXY=true` chi arriva direttamente al server
+potrebbe falsificare `X-Forwarded-For` ed eludere il rate limit.
 
 ```bash
 # --- variabili (nel file .env alla radice, copiato da .env.example) ---
 # POSTGRES_PASSWORD  obbligatoria: solo lettere, cifre, - e _ (entra nell'URL)
 # ADMIN_EMAIL        primo admin
 # ADMIN_PASSWORD     almeno 12 caratteri
-# CORS_ORIGIN        origine del portale
-# PUBLIC_BASE_URL    indirizzo pubblico del portale
+# WEB_BIND, WEB_PORT indirizzo e porta del portale (default 127.0.0.1 e 8080); CORS_ORIGIN e PUBLIC_BASE_URL le seguono
+# CORS_ORIGIN, PUBLIC_BASE_URL, TRUST_PROXY: da impostare solo con un dominio vero (https://...), altrimenti lasciarle commentate
 
 # --- comandi ---
 cd "/percorso/del/repository"   # radice del repository
@@ -265,8 +275,8 @@ docker compose logs -f server
 docker compose down             # i dati restano nel volume pgdata
 ```
 
-Stato della verifica: **Docker Compose non è ancora stato provato** (disco pieno durante lo sviluppo) e **PostgreSQL
-vero non è ancora stato provato**: finora tutto è verificato con PGlite.
+Stato della verifica: Docker Compose con PostgreSQL vero e nginx è stato provato il 2026-10-14 (collaudo e scansione
+DAST dello stack in `docs/portale.md`); i test automatici restano su PGlite.
 
 ### Scansione di sicurezza (DAST)
 Configurazione HawkScan (StackHawk) in `stackhawk.yml` alla radice; specifica OpenAPI in `stackhawk/openapi.yaml`,
@@ -317,7 +327,7 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
 «Validazione delle stringhe») e verificato: 0 errori 500 nella scansione finale.
 
 ## Riferimenti
-- `stackhawk.yml`, `stackhawk/openapi.yaml`
+- `stackhawk.yml`, `stackhawk-portale.yml` (stack completo, `docs/portale.md`), `stackhawk/openapi.yaml`
 - `apps/server/src/main.ts` (avvio), `app.ts` (`buildApp`, plugin, gestione errori), `config.ts` (`loadConfig`),
   `context.ts` (limiti, cookie `sir_session`), `ingest.ts` (`IngestService`), `hub.ts` (`LiveHub`, codici di chiusura),
   `security.ts` (`requireRole`, `browserWriteGuard`, `sameOriginGuard`, `authenticateAgent`), `state.ts`, `seed.ts`
@@ -325,5 +335,6 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
 - Database: `src/db/schema.ts`, `src/db/index.ts` (`createDatabase`), `src/db/pglite.ts`, `apps/server/drizzle/`
 - Contratti: `packages/shared/src/ingest.ts`, `messages.ts`, `admin.ts` (`docs/architettura.md`)
 - Calcoli: `docs/dvw-parser.md`, `docs/statistiche.md`; simulatore: `docs/simulatore.md`
+- Portale e nginx: `docs/portale.md` (`docker/web.nginx.conf`)
 - Infrastruttura e Docker: `docs/infrastruttura.md`; regole di sicurezza: `docs/regole/sicurezza.md`
 - Decisioni: `docs/decisioni.md`

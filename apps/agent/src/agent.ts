@@ -1,6 +1,6 @@
 import { INGEST_PROTOCOL, IngestRequestSchema, hashScoutLines } from '@sir/shared';
 import type { IngestRequest, IngestResponse } from '@sir/shared';
-import type { AgentConfig } from './config.js';
+import { usesPlainHttpOnPrivateNetwork, type AgentConfig } from './config.js';
 import type { DvwContent } from './dvw.js';
 import { bytesHash, deriveMatchKey, readDvw, suspicion } from './dvw.js';
 import type { Logger } from './logger.js';
@@ -133,6 +133,11 @@ export class Agent {
       { watchPath: this.config.watchPath, serverUrl: this.config.serverUrl, dataDir: this.config.dataDir },
       'agente avviato',
     );
+    if (usesPlainHttpOnPrivateNetwork(this.config.serverUrl, this.config.allowHttpPrivateNetwork)) {
+      this.log.warn(
+        `connessione senza cifratura verso ${new URL(this.config.serverUrl).host}: usare https in produzione`,
+      );
+    }
     while (!signal.aborted) {
       await this.step();
       await sleep(this.config.pollIntervalMs, signal);

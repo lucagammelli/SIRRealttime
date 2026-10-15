@@ -14,6 +14,8 @@ const SKILL_LABEL: Record<Skill, string> = {
 };
 
 const SETS_TO_WIN = 3;
+/** Un passo indietro dell'ora più lungo di 12 ore è il passaggio della mezzanotte. */
+const MIDNIGHT_GAP = 12 * 3600;
 
 const validPos = (n: number | undefined): number | null =>
   n !== undefined && Number.isInteger(n) && n >= 1 && n <= 6 ? n : null;
@@ -21,14 +23,15 @@ const validPos = (n: number | undefined): number | null =>
 function durationMinutes(times: number[]): number | null {
   const first = times[0];
   if (first === undefined || times.length < 2) return null;
-  // Il set può attraversare la mezzanotte: si "srotolano" le ore.
-  let prev = first;
+  // Il set può attraversare la mezzanotte: si "srotolano" le ore. Piccoli passi indietro (DataVolley scrive
+  // la rotazione qualche secondo prima del punto) non sono un cambio di giorno e si ignorano.
+  let latest = first;
   let offset = 0;
   for (const t of times) {
-    if (t + offset < prev) offset += 86400;
-    prev = t + offset;
+    if (latest - (t + offset) > MIDNIGHT_GAP) offset += 86400;
+    latest = Math.max(latest, t + offset);
   }
-  return Math.round((prev - first) / 60);
+  return Math.round((latest - first) / 60);
 }
 
 /** Riepilogo dei set. Il punteggio viene dall'ultima riga `point` del set, mai dal conteggio delle azioni. */
@@ -74,7 +77,8 @@ export function computeSets(parsed: ParsedMatch, tl: Timeline): SetSummary[] {
       finished,
       startTime: raw?.first ?? null,
       endTime: raw?.last ?? null,
-      durationMinutes: fromTimes ?? (finished && header !== undefined ? header : null),
+      // Set chiuso: vale la durata ufficiale di DataVolley ([3SET]), che non conta le pause; altrimenti dalle ore.
+      durationMinutes: finished && header !== undefined ? header : fromTimes,
     };
   });
 }

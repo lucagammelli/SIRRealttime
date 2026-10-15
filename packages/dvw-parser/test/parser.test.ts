@@ -179,6 +179,17 @@ describe('parseDvw', () => {
     expect(m.warnings).toEqual([]);
   });
 
+  it('[3SET] di un file reale: parziali con spazi, True sui set non giocati', () => {
+    const m = parseDvw(['[3SET]', 'True;8 -3;16-10;21-14;25-21;29;', 'True;;;;;;'].join('\r\n'));
+    expect(m.sets[0]).toMatchObject({
+      finished: true,
+      partials: ['8-3', '16-10', '21-14'],
+      finalScore: '25-21',
+      minutes: 29,
+    });
+    expect(m.sets[1]).toMatchObject({ finished: false, partials: [], finalScore: undefined });
+  });
+
   it('CRLF e LF equivalenti; extractScoutLines', () => {
     const lf = fixture.replace(/\r\n/g, '\n');
     const crlf = lf.replace(/\n/g, '\r\n');

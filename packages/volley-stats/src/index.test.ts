@@ -259,6 +259,62 @@ describe('casi costruiti a mano', () => {
     expect(state.sets[0]?.durationMinutes).toBe(30);
   });
 
+  it("durata: piccoli passi indietro dell'ora non sono la mezzanotte, quelli lunghi sì", () => {
+    const back = build([
+      row('*08SM-~~~14C', { time: '19.55.48', phase: 's' }),
+      row('*p01:00', { time: '19.57.28' }),
+      row('*z6', { time: '19.57.26' }),
+      row('*p02:00', { time: '20.20.48' }),
+    ]);
+    expect(back.sets[0]?.durationMinutes).toBe(25);
+    const night = build([row('*08SM-~~~14C', { time: '23.50.00', phase: 's' }), row('*p01:00', { time: '00.10.00' })]);
+    expect(night.sets[0]?.durationMinutes).toBe(20);
+  });
+
+  it('file reale: **Nset ha nel campo set il set successivo, ma chiude il set N', () => {
+    const lines: string[] = [];
+    for (let s = 1; s <= 3; s++) {
+      lines.push(
+        row('*08SM-~~~14C', { set: s, phase: 's' }),
+        row('*p25:20', { set: s }),
+        row(`**${s}set`, { set: s + 1 }),
+      );
+    }
+    const state = build(lines);
+    expect(state.sets.map((x) => `${x.number} ${x.homeScore}-${x.awayScore}`)).toEqual([
+      '1 25-20',
+      '2 25-20',
+      '3 25-20',
+    ]);
+    expect(state.status).toBe('finished');
+    expect(state.live).toMatchObject({ set: 3, homeScore: 25, awayScore: 20, servingTeam: null });
+    // a set 1 chiuso, il set 2 inizia con la prima riga che ha set 2
+    const between = build([row('*08SM-~~~14C', { phase: 's' }), row('*p25:20'), row('**1set', { set: 2 })]);
+    expect(between.sets).toHaveLength(1);
+    expect(between.status).toBe('inProgress');
+    const next = build([
+      row('*08SM-~~~14C', { phase: 's' }),
+      row('*p25:20'),
+      row('**1set', { set: 2 }),
+      row('*z1', { set: 2 }),
+      row('a05SM-~~~41C', { set: 2, phase: 's' }),
+    ]);
+    expect(next.sets.map((x) => x.number)).toEqual([1, 2]);
+    expect(next.live).toMatchObject({ set: 2, homeScore: 0, awayScore: 0, servingTeam: 'away' });
+  });
+
+  it('durata di un set chiuso: vale quella di [3SET]', () => {
+    const text = [
+      '[3SET]',
+      'True;8 -3;16-10;21-14;25-21;29;',
+      '[3SCOUT]',
+      row('*08SM-~~~14C', { time: '12.00.00', phase: 's' }),
+      row('*p25:21', { time: '14.00.00' }),
+      row('**1set', { time: '14.00.00', set: 2 }),
+    ].join('\r\n');
+    expect(computeMatchState(parseDvw(text)).sets[0]?.durationMinutes).toBe(29);
+  });
+
   it('partita finita a 3 set', () => {
     const lines: string[] = [];
     for (let s = 1; s <= 3; s++) {

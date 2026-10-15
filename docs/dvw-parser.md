@@ -111,7 +111,8 @@ Posizioni 1-based; `~` o carattere mancante = campo assente.
 
 ### `[3SET]`
 Una riga per set: `True|False;parziali;finale;minuti` (flag di set concluso, parziali tipo `8-6`, risultato finale,
-durata in minuti; celle vuote = non giocato). Il layout è ricostruito, da verificare su un file reale (sotto).
+durata in minuti; celle vuote = non giocato). Verificato su file reali: gli spazi nelle celle si tolgono (`8 -3` →
+`8-3`) e `True` su una riga senza punteggi (set non giocato) dà `finished: false`.
 
 ### Robustezza
 - Nessuna eccezione: una riga non riconosciuta diventa `{ kind: 'unknown', rawLine, ... }` più un avviso in `warnings`.
@@ -141,11 +142,14 @@ console.log(m.home?.name, m.away?.name, m.scout.length, 'righe,', m.warnings.len
 " "$FILE_DVW"
 ```
 
-## Da verificare con un file DataVolley reale
-Finora esistono solo file sintetici (`docs/decisioni.md`). Da confrontare con un file vero:
-- layout di `[3MATCH]`, `[3TEAMS]` e `[3SET]` (ordine e significato dei campi);
-- posizioni dei caratteri estesi del codice d'azione (dal 9 in poi: target alzata, zone, tipo di fondamentale, numero
-  di giocatori, extra).
+## Verifica con file DataVolley reali
+Il 2026-10-15 sono stati letti due file veri di DataVolley 4.03 (amichevoli della Sir Susa Scai Perugia, uno completo
+3-0 e un backup a set 1 chiuso; non sono nel repository). Risultato: nessuna riga `unknown`, nessun avviso; squadre,
+giocatori, ruoli, `[3SET]`, codici verdi `$$&`, suffissi `>LUp`, campi di fase `s`/`r`/`p` e zone 1-9 letti come
+previsto. Differenze trovate e gestite: parziali con spazi in `[3SET]`, `True` sui set non giocati, campo `set` della
+riga `**Nset` già sul set successivo (`docs/statistiche.md`), ore non sempre crescenti. Restano da capire i campi dopo
+il quarto di `[3MATCH]` e le celle esadecimali (`2416D69...`, i testi ricodificati) di `[3TEAMS]` e dei giocatori,
+che finiscono in `extra`.
 
 ## Riferimenti
 - `packages/dvw-parser/src/index.ts` (`parseDvw`, `extractScoutLines`), `src/decode.ts` (`decodeDvw`),

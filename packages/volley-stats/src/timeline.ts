@@ -50,11 +50,13 @@ export function buildTimeline(parsed: ParsedMatch): Timeline {
   const setter: Record<Side, number | null> = { home: null, away: null };
 
   for (const entry of parsed.scout) {
-    let set = validSet(entry.set)
-      ? entry.set
-      : entry.kind === 'setEnd' && validSet(entry.setNumber)
+    // La riga `**Nset` appartiene al set N: DataVolley nel suo campo set scrive già il set successivo.
+    let set =
+      entry.kind === 'setEnd' && validSet(entry.setNumber)
         ? entry.setNumber
-        : fallbackSet;
+        : validSet(entry.set)
+          ? entry.set
+          : fallbackSet;
     if (set < lastSet) set = lastSet;
     if (set !== lastSet) {
       server = null;

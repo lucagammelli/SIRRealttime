@@ -32,3 +32,5 @@ Una riga per decisione: data, scelta, motivo.
   server (`docs/agente.md`).
 - 2026-10-14: agente distribuito come eseguibile Node SEA (`postject`) e installato come servizio con NSSM, perché sul PC
   di DataVolley non deve servire Node e il servizio parte da solo e si riavvia (`docs/agente.md`).
+- 2026-10-15: durata di un set chiuso presa da `[3SET]` invece che dalle ore delle righe, perché nei file reali tra la
+  prima e l'ultima riga ci sono pause (110 minuti dalle ore contro i 20 ufficiali) (`docs/statistiche.md`).

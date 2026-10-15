@@ -29,16 +29,32 @@ export function isPrivateIPv4(hostname: string): boolean {
 }
 
 /** Syntax only; whether plain http is allowed depends on `allowHttpPrivateNetwork` (see the file schema). */
-export const ServerUrlSchema = z
-  .url()
-  .refine((value) => new URL(value).username === '' && new URL(value).password === '', {
-    message: 'serverUrl non può contenere credenziali',
-  });
+export const ServerUrlSchema = z.url().refine(
+  // zod runs the refinement also after a failed `url()`: an unparsable value is left to that issue.
+  (value) => !URL.canParse(value) || (new URL(value).username === '' && new URL(value).password === ''),
+  { message: 'serverUrl non può contenere credenziali' },
+);
 
 /** True when the agent will talk plain http to a private-network address on purpose (to warn at start-up). */
 export function usesPlainHttpOnPrivateNetwork(serverUrl: string, allow: boolean | undefined): boolean {
   const url = new URL(serverUrl);
   return allow === true && url.protocol === 'http:' && isPrivateIPv4(url.hostname);
+}
+
+/**
+ * Why the protocol of `url` is not allowed (message for the user), or `null`: https always, plain http only towards
+ * localhost, or towards literal private IPv4 addresses with `allowHttpPrivateNetwork`.
+ */
+export function serverUrlProtocolProblem(url: URL, allowHttpPrivateNetwork: boolean): string | null {
+  if (url.protocol === 'https:' || (url.protocol === 'http:' && LOCAL_HOSTS.has(url.hostname))) return null;
+  if (url.protocol === 'http:' && isPrivateIPv4(url.hostname)) {
+    if (allowHttpPrivateNetwork) return null;
+    return 'serverUrl: per http verso un IP privato imposta allowHttpPrivateNetwork: true (solo per prove in rete locale)';
+  }
+  if (url.protocol === 'http:') {
+    return 'serverUrl: http rifiutato verso un host pubblico o un nome host; usa https (http solo verso localhost o, con allowHttpPrivateNetwork, verso un IP privato)';
+  }
+  return 'serverUrl deve usare https (http solo verso localhost o 127.0.0.1)';
 }
 
 /** Same format accepted by the server (base64url, 20-200 characters). */
@@ -76,17 +92,8 @@ export const AgentConfigFileSchema = z
     } catch {
       return; // already reported by the field schema
     }
-    if (url.protocol === 'https:' || (url.protocol === 'http:' && LOCAL_HOSTS.has(url.hostname))) return;
-    let message = 'serverUrl deve usare https (http solo verso localhost o 127.0.0.1)';
-    if (url.protocol === 'http:' && isPrivateIPv4(url.hostname)) {
-      if (c.allowHttpPrivateNetwork) return;
-      message =
-        'serverUrl: per http verso un IP privato imposta allowHttpPrivateNetwork: true (solo per prove in rete locale)';
-    } else if (url.protocol === 'http:') {
-      message =
-        'serverUrl: http rifiutato verso un host pubblico o un nome host; usa https (http solo verso localhost o, con allowHttpPrivateNetwork, verso un IP privato)';
-    }
-    ctx.addIssue({ code: 'custom', path: ['serverUrl'], message });
+    const message = serverUrlProtocolProblem(url, c.allowHttpPrivateNetwork);
+    if (message) ctx.addIssue({ code: 'custom', path: ['serverUrl'], message });
   });
 export type AgentConfigFile = z.infer<typeof AgentConfigFileSchema>;
 
@@ -112,6 +119,22 @@ export function isInside(parent: string, child: string): boolean {
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }
 
+/**
+ * The watched folder (or the folder of the watched `.dvw` file) is the USB stick: nothing of ours is written there.
+ * Throws `ConfigError` when one of `dirs` (absolute paths, by field name) lies inside it.
+ */
+export function assertNotOnStick(watchPath: string, dirs: Record<string, string>): void {
+  const stick = /\.dvw$/i.test(watchPath) ? dirname(watchPath) : watchPath;
+  for (const [name, dir] of Object.entries(dirs)) {
+    if (isInside(stick, dir)) {
+      throw new ConfigError(
+        'CONFIG_INVALID',
+        `Configurazione non valida: ${name} non può stare dentro watchPath (${stick})`,
+      );
+    }
+  }
+}
+
 /** Validates the parsed JSON and resolves the paths against `baseDir` (folder of the executable). */
 export function parseConfig(raw: unknown, baseDir: string): AgentConfig {
   const parsed = AgentConfigFileSchema.safeParse(raw);
@@ -123,19 +146,7 @@ export function parseConfig(raw: unknown, baseDir: string): AgentConfig {
   const watchPath = resolve(baseDir, c.watchPath);
   const dataDir = resolve(baseDir, c.dataDir ?? 'data');
   const logDir = resolve(baseDir, c.logDir ?? 'logs');
-  // The watched folder (or the folder of the watched file) is the USB stick: nothing of ours is written there.
-  const stick = /\.dvw$/i.test(watchPath) ? dirname(watchPath) : watchPath;
-  for (const [name, dir] of [
-    ['dataDir', dataDir],
-    ['logDir', logDir],
-  ] as const) {
-    if (isInside(stick, dir)) {
-      throw new ConfigError(
-        'CONFIG_INVALID',
-        `Configurazione non valida: ${name} non può stare dentro watchPath (${stick})`,
-      );
-    }
-  }
+  assertNotOnStick(watchPath, { dataDir, logDir });
   return {
     watchPath,
     serverUrl: c.serverUrl,

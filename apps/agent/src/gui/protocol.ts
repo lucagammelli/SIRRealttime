@@ -1,3 +1,4 @@
+import { plainText } from '@sir/shared';
 import { z } from 'zod';
 
 /**
@@ -20,6 +21,9 @@ export const GuiInMessageSchema = z.discriminatedUnion('type', [
     .strict(),
   z.object({ type: z.literal('stop') }).strict(),
   z.object({ type: z.literal('quit') }).strict(),
+  /** Self-registration: same rules of the server for the name (trimmed, 1-100 characters, one line). */
+  z.object({ type: z.literal('register'), name: plainText(100) }).strict(),
+  z.object({ type: z.literal('cancelRegistration') }).strict(),
 ]);
 export type GuiInMessage = z.infer<typeof GuiInMessageSchema>;
 
@@ -34,6 +38,10 @@ const AgentStatusSchema = z.object({
   lastSuccessAt: z.string().nullable(),
   serverReachable: z.boolean(),
 });
+
+/** State of the self-registration shown in the window (`error`: the last attempt failed, see `message`). */
+export const REGISTRATION_STATES = ['none', 'pending', 'approved', 'rejected', 'expired', 'consumed', 'error'] as const;
+export type RegistrationState = (typeof REGISTRATION_STATES)[number];
 
 /** Agent → window. The token never travels in clear: only whether it is there and its last 4 characters. */
 export const GuiOutMessageSchema = z.discriminatedUnion('type', [
@@ -53,9 +61,20 @@ export const GuiOutMessageSchema = z.discriminatedUnion('type', [
     msg: z.string(),
   }),
   z.object({ type: z.literal('error'), message: z.string() }),
+  /** Never the registration secret nor the token. */
+  z.object({
+    type: z.literal('registration'),
+    state: z.enum(REGISTRATION_STATES),
+    name: z.string().optional(),
+    pairingCode: z.string().optional(),
+    /** ISO 8601 UTC; the window shows it in local time. */
+    expiresAt: z.string().optional(),
+    message: z.string().optional(),
+  }),
 ]);
 export type GuiOutMessage = z.infer<typeof GuiOutMessageSchema>;
 export type GuiLogMessage = Extract<GuiOutMessage, { type: 'log' }>;
+export type GuiRegistrationMessage = Extract<GuiOutMessage, { type: 'registration' }>;
 
 /** Parses one line from the window; `null` when it is not valid JSON or not a known message. */
 export function parseGuiLine(line: string): GuiInMessage | null {

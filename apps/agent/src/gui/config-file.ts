@@ -1,7 +1,16 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import type { AgentConfig, LogLevel } from '../config.js';
-import { AgentTokenSchema, ConfigError, LOG_LEVELS, parseConfig } from '../config.js';
+import {
+  AgentTokenSchema,
+  ConfigError,
+  LOG_LEVELS,
+  ServerUrlSchema,
+  assertNotOnStick,
+  parseConfig,
+  serverUrlProtocolProblem,
+} from '../config.js';
 import { writeFileAtomic } from '../store.js';
 import { errorCode } from '../util.js';
 
@@ -60,6 +69,73 @@ export function guiPaths(raw: RawConfig | null, baseDir: string): { dataDir: str
   return { dataDir: resolve(baseDir, dataDir), logDir: resolve(baseDir, logDir), level };
 }
 
+/**
+ * `serverUrl` of `config.json` checked as at START (syntax, no credentials, https or the allowed http), for the
+ * self-registration, which runs before the rest of the configuration is complete. Throws `ConfigError`.
+ */
+export function registrationServerUrl(raw: RawConfig): string {
+  const value = text(raw['serverUrl']).trim();
+  if (value === '') {
+    throw new ConfigError(
+      'CONFIG_INVALID',
+      'serverUrl mancante in config.json: scaricalo dall’area admin, pagina «Agenti»',
+    );
+  }
+  const parsed = ServerUrlSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new ConfigError(
+      'CONFIG_INVALID',
+      `Configurazione non valida: serverUrl: ${parsed.error.issues[0]?.message ?? 'non valido'}`,
+    );
+  }
+  const problem = serverUrlProtocolProblem(new URL(parsed.data), raw['allowHttpPrivateNetwork'] === true);
+  if (problem) throw new ConfigError('CONFIG_INVALID', `Configurazione non valida: ${problem}`);
+  return parsed.data;
+}
+
+/**
+ * Data folder of the self-registration (where `registration.json`, with the secret, is written), refused like at
+ * START when it lies on the USB stick of `watchPath` (an empty `watchPath` is not checked yet). Throws `ConfigError`.
+ */
+export function registrationDataDir(raw: RawConfig, baseDir: string): string {
+  const paths = guiPaths(raw, baseDir);
+  const watchPath = text(raw['watchPath']).trim();
+  if (watchPath !== '') {
+    assertNotOnStick(resolve(baseDir, watchPath), { dataDir: paths.dataDir, logDir: paths.logDir });
+  }
+  return paths.dataDir;
+}
+
+/** Where the window writes its script and logs when the configured folders are on the USB stick. */
+export const defaultFallbackDir = (): string => join(tmpdir(), 'SIRAgent');
+
+/**
+ * Folders of the window process (script `gui/window.ps1` and logs) that are safe to write: the configured ones, or
+ * `fallbackDir` when `dataDir` or `logDir` lies on the USB stick of `watchPath` (nothing is ever written there).
+ * `problem` is the message for the window in that case; START and «Registra» refuse the same configuration.
+ */
+export function guiWritablePaths(
+  raw: RawConfig | null,
+  baseDir: string,
+  fallbackDir: string = defaultFallbackDir(),
+): { dataDir: string; logDir: string; level: LogLevel; problem: string | null } {
+  const paths = guiPaths(raw, baseDir);
+  const watchPath = text(raw?.['watchPath']).trim();
+  if (watchPath === '') return { ...paths, problem: null };
+  try {
+    assertNotOnStick(resolve(baseDir, watchPath), { dataDir: paths.dataDir, logDir: paths.logDir });
+    return { ...paths, problem: null };
+  } catch (err) {
+    if (!(err instanceof ConfigError)) throw err;
+    return {
+      dataDir: join(fallbackDir, 'data'),
+      logDir: join(fallbackDir, 'logs'),
+      level: paths.level,
+      problem: `${err.message}: correggi config.json (intanto finestra e log in ${fallbackDir})`,
+    };
+  }
+}
+
 async function readForUpdate(file: string): Promise<RawConfig> {
   const current = await readConfigFile(file);
   if (current.kind === 'missing') throw new ConfigError('CONFIG_NOT_FOUND', current.message);
@@ -75,8 +151,8 @@ async function writeIfChanged(file: string, before: RawConfig, after: RawConfig)
 }
 
 /**
- * Saves `agentToken` in `config.json`, keeping every other field as it is (pasted in the window today, received
- * from the server by the self-registration later). Only the token format is checked: the rest is validated at START.
+ * Saves `agentToken` in `config.json`, keeping every other field as it is (pasted in the window, or received from
+ * the server by the self-registration). Only the token format is checked: the rest is validated at START.
  * Throws `ConfigError` when the file is missing or the token is not valid; returns the saved token.
  */
 export async function saveTokenToFile(file: string, token: string): Promise<string> {

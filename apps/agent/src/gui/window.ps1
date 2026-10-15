@@ -3,8 +3,8 @@
 # L'agente riscrive questo file a ogni avvio (dal testo incluso nell'eseguibile): le modifiche fatte qui si perdono.
 #
 # Protocollo: una riga JSON per messaggio.
-#   da stdin  (agente -> finestra): init, state, log, error
-#   su stdout (finestra -> agente): start {watchPath, token?}, stop, quit
+#   da stdin  (agente -> finestra): init, state, log, error, registration
+#   su stdout (finestra -> agente): start {watchPath, token?}, stop, quit, register {name}, cancelRegistration
 # Su stdout non deve finire nient'altro: ogni valore non usato va scartato con [void].
 
 # --- testi e dimensioni ---
@@ -12,8 +12,8 @@ $Titolo        = 'SIRRealtime – Agente'
 $MaxMessaggi   = 200          # righe tenute nella lista degli ultimi messaggi
 $IntervalloMs  = 100          # ogni quanto la finestra legge i messaggi arrivati dall'agente
 $Margine       = 12
-$ColonnaCampi  = 140
-$LarghezzaForm = 580
+$ColonnaCampi  = 170
+$LarghezzaForm = 640
 $AltezzaRiga   = 32
 $FineInput     = '::fine-input::'
 
@@ -75,6 +75,8 @@ $script:phase = 'waiting'      # prima di init: tutto disattivato
 $script:tokenPresent = $false
 $script:agentGone = $false
 $script:quitSent = $false
+$script:regState = 'none'      # stato della registrazione: none, pending, approved, rejected, expired, consumed, error
+$script:regBusy = $false       # «Registra» premuto, risposta dell'agente non ancora arrivata
 
 # --- finestra ---
 $form = New-Object System.Windows.Forms.Form
@@ -118,12 +120,45 @@ $txtServer.ReadOnly = $true
 $form.Controls.Add($txtServer)
 $y += $AltezzaRiga
 
-# Spazio riservato alla registrazione dell'agente (prossimo passo): riga «Nome agente» con il pulsante «Registra»,
-# codice di abbinamento di 6 caratteri e stato «in attesa di abilitazione». Le righe si aggiungono qui, facendo
-# avanzare $y come le altre: tutto quello che sta sotto si sposta da solo.
+# Riga: nome agente con «Registra» (durante l'attesa al suo posto c'è «Annulla»)
+[void](New-Label 'Nome agente' $Margine $y ($ColonnaCampi - $Margine))
+$txtName = New-Object System.Windows.Forms.TextBox
+$txtName.Location = New-Object System.Drawing.Point($ColonnaCampi, $y)
+$txtName.Size = New-Object System.Drawing.Size(($larghezzaCampo - 100), 23)
+$txtName.MaxLength = 100
+$txtName.Text = [string]$env:COMPUTERNAME
+$form.Controls.Add($txtName)
+$btnRegister = New-Object System.Windows.Forms.Button
+$btnRegister.Text = 'Registra'
+$btnRegister.Location = New-Object System.Drawing.Point(($LarghezzaForm - $Margine - 92), ($y - 1))
+$btnRegister.Size = New-Object System.Drawing.Size(92, 26)
+$form.Controls.Add($btnRegister)
+$btnCancelReg = New-Object System.Windows.Forms.Button
+$btnCancelReg.Text = 'Annulla'
+$btnCancelReg.Location = $btnRegister.Location
+$btnCancelReg.Size = $btnRegister.Size
+$btnCancelReg.Visible = $false
+$form.Controls.Add($btnCancelReg)
+$y += $AltezzaRiga
+
+# Riga: codice di abbinamento (grande, monospace) e stato della registrazione
+$lblPairing = New-Object System.Windows.Forms.Label
+$lblPairing.Location = New-Object System.Drawing.Point($ColonnaCampi, $y)
+$lblPairing.Size = New-Object System.Drawing.Size(130, 48)
+$lblPairing.Font = New-Object System.Drawing.Font('Consolas', 20, [System.Drawing.FontStyle]::Bold)
+$lblPairing.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+$form.Controls.Add($lblPairing)
+$lblRegState = New-Object System.Windows.Forms.Label
+$lblRegState.Location = New-Object System.Drawing.Point(($ColonnaCampi + 136), $y)
+$lblRegState.Size = New-Object System.Drawing.Size(($larghezzaCampo - 136), 48)
+$lblRegState.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+$lblRegState.Text = 'Scrivi il nome e premi «Registra», oppure incolla un token qui sotto'
+$lblRegState.ForeColor = [System.Drawing.Color]::DimGray
+$form.Controls.Add($lblRegState)
+$y += 54
 
 # Riga: token agente (mascherato; vuoto = resta quello salvato in config.json)
-[void](New-Label 'Token agente' $Margine $y ($ColonnaCampi - $Margine))
+[void](New-Label 'Token agente (alternativa)' $Margine $y ($ColonnaCampi - $Margine))
 $txtToken = New-Object System.Windows.Forms.TextBox
 $txtToken.Location = New-Object System.Drawing.Point($ColonnaCampi, $y)
 $txtToken.Size = New-Object System.Drawing.Size(($larghezzaCampo - 160), 23)
@@ -206,8 +241,67 @@ function Update-Controls {
     $txtFolder.Enabled = $idle
     $btnBrowse.Enabled = $idle
     $txtToken.Enabled = $idle
+    $waiting = ($script:regState -eq 'pending')
+    $txtName.Enabled = $idle -and -not $waiting -and -not $script:regBusy
+    $btnRegister.Visible = -not $waiting
+    $btnRegister.Enabled = $idle -and -not $script:regBusy -and $txtName.Text.Trim() -ne ''
+    $btnCancelReg.Visible = $waiting
     $btnStart.Enabled = $idle -and ($script:tokenPresent -or $txtToken.Text.Trim() -ne '')
     $btnStop.Enabled = ($script:phase -eq 'starting' -or $script:phase -eq 'running')
+}
+
+function Format-LocalDateTime($value) {
+    if ($null -eq $value -or [string]$value -eq '') { return '–' }
+    try {
+        if ($value -is [datetime]) {
+            $date = $value
+        } else {
+            $date = [datetime]::Parse([string]$value, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::RoundtripKind)
+        }
+        return $date.ToLocalTime().ToString('dd/MM HH:mm')
+    } catch {
+        return [string]$value
+    }
+}
+
+function Show-Registration($message) {
+    $script:regState = [string]$message.state
+    $script:regBusy = $false
+    $btnCancelReg.Enabled = $true
+    if ($message.name) { $txtName.Text = [string]$message.name }
+    $code = ''
+    $color = [System.Drawing.Color]::DimGray
+    switch ($script:regState) {
+        'none' { $text = 'Scrivi il nome e premi «Registra», oppure incolla un token qui sotto' }
+        'pending' {
+            $code = [string]$message.pairingCode
+            $text = 'In attesa di abilitazione nel portale: Agenti → Richieste in attesa (scade ' + (Format-LocalDateTime $message.expiresAt) + ')'
+            $color = [System.Drawing.Color]::DarkGoldenrod
+            if ($message.message) {
+                $text = $text + "`n" + [string]$message.message
+                $color = [System.Drawing.Color]::DarkOrange
+            }
+        }
+        'approved' {
+            $color = [System.Drawing.Color]::ForestGreen
+            if ($message.message) {
+                $text = 'Abilitato. ' + [string]$message.message
+            } else {
+                $text = 'Abilitato: token salvato. Premi START'
+            }
+        }
+        'rejected' { $text = 'Rifiutata nel portale: registra di nuovo o incolla un token'; $color = [System.Drawing.Color]::Firebrick }
+        'expired' { $text = 'Scaduta senza abilitazione: registra di nuovo'; $color = [System.Drawing.Color]::Firebrick }
+        'consumed' { $text = 'Token già consegnato in precedenza: registra di nuovo'; $color = [System.Drawing.Color]::Firebrick }
+        default {
+            $text = 'Errore: ' + [string]$message.message
+            $color = [System.Drawing.Color]::Firebrick
+        }
+    }
+    $lblPairing.Text = $code
+    $lblRegState.Text = $text
+    $lblRegState.ForeColor = $color
+    Update-Controls
 }
 
 function Show-State($phase, $status) {
@@ -258,7 +352,12 @@ function Receive-AgentMessage($message) {
         }
         'state' { Show-State $message.phase $message.status }
         'log' { Add-Log $message.time $message.level $message.msg }
-        'error' { Show-Error $message.message }
+        'error' {
+            $script:regBusy = $false
+            Show-Error $message.message
+            Update-Controls
+        }
+        'registration' { Show-Registration $message }
     }
 }
 
@@ -315,6 +414,28 @@ $btnBrowse.Add_Click({
 })
 
 $txtToken.Add_TextChanged({ Update-Controls })
+$txtName.Add_TextChanged({ Update-Controls })
+
+$btnRegister.Add_Click({
+    # Come il server: una riga, senza caratteri di controllo (un tab incollato diventa uno spazio).
+    $name = ($txtName.Text -replace '[\x00-\x1F\x7F]', ' ').Trim()
+    if ($name -eq '') {
+        Show-Error 'Scrivi il nome dell''agente (es. il nome del PC o del campo)'
+        return
+    }
+    Show-Error ''
+    $script:regBusy = $true
+    $lblPairing.Text = ''
+    $lblRegState.Text = 'Richiesta al server…'
+    $lblRegState.ForeColor = [System.Drawing.Color]::DimGray
+    Update-Controls
+    Send-AgentMessage @{ type = 'register'; name = $name }
+})
+
+$btnCancelReg.Add_Click({
+    $btnCancelReg.Enabled = $false
+    Send-AgentMessage @{ type = 'cancelRegistration' }
+})
 
 $btnStart.Add_Click({
     $folder = $txtFolder.Text.Trim()

@@ -111,7 +111,17 @@ export interface LoggerOptions {
 }
 
 /** Paths never written to the logs. */
-export const REDACT_PATHS = ['agentToken', '*.agentToken', 'authorization', '*.authorization', 'headers.authorization'];
+export const REDACT_PATHS = [
+  'agentToken',
+  '*.agentToken',
+  'authorization',
+  '*.authorization',
+  'headers.authorization',
+  'secret',
+  '*.secret',
+  'token',
+  '*.token',
+];
 
 export function createLogger(options: LoggerOptions): { logger: Logger; close: () => void } {
   const file = new RotatingFileStream({ dir: options.logDir });

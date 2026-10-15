@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import type { AddressInfo, Socket } from 'node:net';
 import { join } from 'node:path';
@@ -10,6 +10,8 @@ import { runGui } from '../src/gui/main.js';
 import type { GuiOutMessage } from '../src/gui/protocol.js';
 import { GuiOutMessageSchema } from '../src/gui/protocol.js';
 import { WINDOW_SCRIPT } from '../src/gui/window-script.js';
+import { ADMIN, login } from '../../server/test/helpers.js';
+import { registrationFile } from '../src/register.js';
 import { serverMatches, startLiveServer, tempDirs, waitFor } from './support.js';
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -124,6 +126,123 @@ describe('finestra (host + controller) con un finto powershell', () => {
     expect(w.messages.some((m) => m.type === 'log' && m.msg.includes('agente avviato'))).toBe(true);
     await expect(readFile(join(dirs.home, 'data', 'agent.lock'))).rejects.toThrow();
   }, 60_000);
+
+  it('registrazione con il server vero: codice, abilitazione dal portale, token salvato, START invia le righe', async () => {
+    const dirs = tempDirs();
+    cleanups.push(dirs.cleanup);
+    await mkdir(dirs.stick, { recursive: true });
+    await mkdir(dirs.home, { recursive: true });
+    const server = await startLiveServer();
+    cleanups.push(() => server.close());
+    const match = generateMatch({ seed: 5 });
+    await writeFile(join(dirs.stick, 'partita.dvw'), renderDvw(match, 12));
+    const configPath = join(dirs.home, 'config.json');
+    await writeFile(configPath, JSON.stringify({ serverUrl: server.url, pollIntervalMs: 10, stableMs: 20 }));
+    const ws = await windowServer();
+    cleanups.push(ws.close);
+    const exit = runGui({
+      baseDir: dirs.home,
+      configPath,
+      command: process.execPath,
+      args: () => [FAKE_WINDOW, String(ws.port)],
+      statusIntervalMs: 50,
+      registrationPollMs: 50,
+    });
+    const w = await ws.connected;
+    const lastRegistration = () => w.messages.flatMap((m) => (m.type === 'registration' ? [m] : [])).at(-1);
+    await waitFor(() => lastRegistration()?.state === 'none', 5000, 'init');
+
+    w.send({ type: 'register', name: 'PC campo prova' });
+    await waitFor(() => lastRegistration()?.state === 'pending', 10_000, 'pending');
+    const pairingCode = lastRegistration()?.pairingCode;
+    expect(pairingCode).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
+    const { secret } = JSON.parse(await readFile(registrationFile(join(dirs.home, 'data')), 'utf8')) as {
+      secret: string;
+    };
+
+    // L'admin trova la richiesta con lo stesso codice e la abilita.
+    const cookie = await login(server.app, ADMIN);
+    const list = await server.app.inject({ method: 'GET', url: '/api/admin/agent-registrations', headers: { cookie } });
+    const requests = list.json<{ id: string; name: string; pairingCode: string }[]>();
+    expect(requests).toMatchObject([{ name: 'PC campo prova', pairingCode }]);
+    const approve = await server.app.inject({
+      method: 'POST',
+      url: `/api/admin/agent-registrations/${requests[0]?.id ?? ''}/approve`,
+      headers: { cookie },
+      payload: {},
+    });
+    expect(approve.statusCode).toBe(200);
+
+    await waitFor(() => lastRegistration()?.state === 'approved', 10_000, 'approved');
+    expect(w.messages.filter((m) => m.type === 'init').at(-1)).toMatchObject({ token: { present: true } });
+    const saved = JSON.parse(await readFile(configPath, 'utf8')) as { agentToken: string };
+    expect(saved.agentToken).toMatch(/^[A-Za-z0-9_-]{20,200}$/);
+    await expect(readFile(registrationFile(join(dirs.home, 'data')))).rejects.toThrow();
+
+    w.send({ type: 'start', watchPath: dirs.stick });
+    await waitFor(async () => (await serverMatches(server))[0]?.lineCount === 12, 15_000, '12 righe');
+
+    w.send({ type: 'quit' });
+    expect(await exit).toBe(0);
+    const raw = w.raw.join('\n');
+    expect(raw).not.toContain(secret);
+    expect(raw).not.toContain(saved.agentToken);
+  }, 60_000);
+
+  it.each([
+    ['logDir', { logDir: 'pennina/logs' }],
+    ['dataDir', { dataDir: 'pennina/data' }],
+  ])(
+    '%s sulla pennina: niente scritto lì, finestra aperta con l’errore, START e Registra rifiutati',
+    async (_, extra) => {
+      const dirs = tempDirs();
+      cleanups.push(dirs.cleanup);
+      await mkdir(dirs.stick, { recursive: true });
+      await mkdir(dirs.home, { recursive: true });
+      const fallbackDir = join(dirs.root, 'sicura');
+      const configPath = join(dirs.home, 'config.json');
+      // percorsi relativi alla cartella dell'agente: `pennina/...` sta dentro watchPath
+      const stickFromHome = join(dirs.home, 'pennina');
+      await mkdir(stickFromHome, { recursive: true });
+      await writeFile(
+        configPath,
+        JSON.stringify({
+          watchPath: stickFromHome,
+          serverUrl: 'http://127.0.0.1:9',
+          agentToken: 'b'.repeat(43),
+          ...extra,
+        }),
+      );
+      const ws = await windowServer();
+      cleanups.push(ws.close);
+      const exit = runGui({
+        baseDir: dirs.home,
+        configPath,
+        command: process.execPath,
+        args: () => [FAKE_WINDOW, String(ws.port)],
+        fallbackDir,
+      });
+      const w = await ws.connected;
+      await waitFor(() => w.messages.some((m) => m.type === 'error'), 5000, 'errore');
+      expect(w.messages.find((m) => m.type === 'error')).toMatchObject({
+        message: expect.stringMatching(/non può stare dentro watchPath.*correggi config\.json/) as unknown,
+      });
+      w.send({ type: 'start', watchPath: stickFromHome });
+      await waitFor(() => w.messages.filter((m) => m.type === 'error').length >= 2, 5000, 'START rifiutato');
+      w.send({ type: 'register', name: 'PC' });
+      await waitFor(
+        () => w.messages.some((m) => m.type === 'registration' && m.state === 'error'),
+        5000,
+        'Registra rifiutato',
+      );
+      w.send({ type: 'quit' });
+      expect(await exit).toBe(0);
+      expect(await readdir(stickFromHome)).toEqual([]);
+      await expect(readFile(join(fallbackDir, 'data', 'gui', 'window.ps1'))).resolves.toBeDefined();
+      expect((await readdir(join(fallbackDir, 'logs'))).length).toBeGreaterThan(0);
+      expect(lastPhase(w)).toBe('idle');
+    },
+  );
 
   it("se la finestra muore durante la lettura, l'agente si ferma e il processo esce", async () => {
     const dirs = tempDirs();

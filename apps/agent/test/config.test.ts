@@ -57,6 +57,7 @@ describe('configurazione', () => {
 
   it('rifiuta credenziali nell’URL, campi sconosciuti, token corti e dataDir sulla pennina', () => {
     expect(issue({ ...valid, serverUrl: 'https://u:p@sir.example.it' })).toMatch(/credenziali/);
+    expect(issue({ ...valid, serverUrl: 'non un url' })).toMatch(/serverUrl/);
     expect(issue({ ...valid, intervallo: 5 })).toMatch(/Configurazione non valida/);
     expect(issue({ ...valid, agentToken: 'corto' })).toMatch(/agentToken/);
     expect(issue({ ...valid, dataDir: join(valid.watchPath, 'coda') })).toMatch(

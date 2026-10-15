@@ -2,7 +2,15 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ConfigError } from '../src/config.js';
-import { guiPaths, readConfigFile, saveTokenToFile, saveWatchPath, tokenInfo } from '../src/gui/config-file.js';
+import {
+  guiPaths,
+  guiWritablePaths,
+  readConfigFile,
+  registrationServerUrl,
+  saveTokenToFile,
+  saveWatchPath,
+  tokenInfo,
+} from '../src/gui/config-file.js';
 import { tempDirs } from './support.js';
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -82,5 +90,41 @@ describe('config.json dalla finestra', () => {
       level: 'debug',
     });
     expect(guiPaths({ logLevel: 'boh', dataDir: 3 }, '/a').level).toBe('info');
+  });
+
+  it('serverUrl per la registrazione: stesse regole di START', () => {
+    expect(registrationServerUrl({ serverUrl: 'https://sir.example.it/base' })).toBe('https://sir.example.it/base');
+    expect(registrationServerUrl({ serverUrl: 'http://localhost:3000' })).toBe('http://localhost:3000');
+    expect(registrationServerUrl({ serverUrl: 'http://192.168.1.5:3000', allowHttpPrivateNetwork: true })).toBe(
+      'http://192.168.1.5:3000',
+    );
+    for (const [raw, message] of [
+      [{}, /serverUrl mancante/],
+      [{ serverUrl: 'non un url' }, /serverUrl/],
+      [{ serverUrl: 'https://u:p@sir.example.it' }, /credenziali/],
+      [{ serverUrl: 'http://sir.example.it' }, /https/],
+      [{ serverUrl: 'http://192.168.1.5' }, /allowHttpPrivateNetwork/],
+    ] as const) {
+      expect(() => registrationServerUrl(raw)).toThrow(message);
+      expect(() => registrationServerUrl(raw)).toThrow(ConfigError);
+    }
+  });
+
+  it('cartelle della finestra: quelle configurate, o quella sicura se stanno sulla pennina', () => {
+    expect(guiWritablePaths({ watchPath: '/pen' }, '/a', '/sicura')).toEqual({
+      dataDir: '/a/data',
+      logDir: '/a/logs',
+      level: 'info',
+      problem: null,
+    });
+    expect(guiWritablePaths(null, '/a', '/sicura').problem).toBeNull();
+    for (const raw of [
+      { watchPath: '/pen', logDir: '/pen/logs' },
+      { watchPath: '/pen/partita.dvw', dataDir: '/pen/x' },
+    ]) {
+      const p = guiWritablePaths(raw, '/a', '/sicura');
+      expect(p).toMatchObject({ dataDir: '/sicura/data', logDir: '/sicura/logs' });
+      expect(p.problem).toMatch(/non può stare dentro watchPath \(\/pen\)/);
+    }
   });
 });

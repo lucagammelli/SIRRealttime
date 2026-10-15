@@ -5,18 +5,24 @@ import { breakPointCount, defaultMomentumSet, momentumSeries, momentumSets } fro
 import { momentumOption } from '../charts/options.ts';
 import { usePalette } from '../charts/usePalette.ts';
 import { teamShort } from '../lib/format.ts';
+import { useDeviceContext } from '../lib/useLayout.ts';
 import { Card, Empty, Segmented } from './ui.tsx';
 
-/** Lead point by point in a set, with break points highlighted and the set selector. */
+/**
+ * Lead point by point in a set, with break points highlighted and the set selector. On the phone the chart is simpler
+ * (lower, fewer labels) and the legend of the two teams goes under it.
+ */
 export function MomentumChart({
   state,
   className = '',
-  chartClassName = 'min-h-56 flex-1 sm:min-h-64',
+  chartClassName,
 }: {
   state: MatchState;
   className?: string;
   chartClassName?: string;
 }) {
+  const compact = useDeviceContext() === 'phone';
+  const chartClass = chartClassName ?? (compact ? 'h-44' : 'min-h-56 flex-1 sm:min-h-64');
   const sets = momentumSets(state);
   const [chosen, setChosen] = useState<number | null>(null);
   // Follows the live set until the user picks one.
@@ -27,7 +33,7 @@ export function MomentumChart({
     [state.teams],
   );
   const data = useMemo(() => (set === null ? [] : momentumSeries(state, set)), [state, set]);
-  const option = useMemo(() => momentumOption(data, palette, short), [data, palette, short]);
+  const option = useMemo(() => momentumOption(data, palette, short, compact), [data, palette, short, compact]);
   const bp = breakPointCount(data);
 
   return (
@@ -68,9 +74,21 @@ export function MomentumChart({
         <div className="flex min-h-0 flex-1 flex-col">
           <EChart
             option={option}
-            className={chartClassName}
+            className={chartClass}
             label={`Vantaggio punto per punto nel ${set}° set: ${data.length} punti giocati, break point ${short.home} ${bp.home}, ${short.away} ${bp.away}`}
           />
+          {compact && (
+            <ul aria-label="Legenda" className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold">
+              <li className="flex items-center gap-1.5 text-home">
+                <span aria-hidden="true" className="inline-block size-2.5 rounded-sm bg-home" />
+                {short.home} avanti (sopra)
+              </li>
+              <li className="flex items-center gap-1.5 text-away">
+                <span aria-hidden="true" className="inline-block size-2.5 rounded-sm bg-away" />
+                {short.away} avanti (sotto)
+              </li>
+            </ul>
+          )}
           <p className="mt-1 flex items-center gap-2 text-xs text-muted">
             <span aria-hidden="true" className="inline-block size-2.5 rounded-full border border-surface bg-axis" />I
             pallini segnano i break point (punto di chi è al servizio).

@@ -27,15 +27,24 @@ const firstIndex = (params: unknown): number | null => {
   return typeof first?.dataIndex === 'number' ? first.dataIndex : null;
 };
 
+/** Smaller axis labels of the simplified charts (phone). */
+const COMPACT_AXIS_FONT = 10;
+
 /**
  * Lead of the home team point by point (above 0: home ahead, below: away ahead), as a step area in the team colours,
  * with the break points marked by a dot of the team that scored.
+ * `compact` (phone): no labels inside the plot (the legend goes under the chart, in the page), fewer ticks.
  */
-export function momentumOption(data: MomentumDatum[], p: ChartPalette, short: Record<Side, string>): EChartsCoreOption {
+export function momentumOption(
+  data: MomentumDatum[],
+  p: ChartPalette,
+  short: Record<Side, string>,
+  compact = false,
+): EChartsCoreOption {
   const bound = leadBound(data);
   const withStart = [{ rally: 0, lead: 0, homeScore: 0, awayScore: 0 }, ...data];
   const last = data.length;
-  const grid = { left: 34, right: 14, top: 14, bottom: 30 };
+  const grid = compact ? { left: 24, right: 8, top: 8, bottom: 22 } : { left: 34, right: 14, top: 14, bottom: 30 };
   const label = (text: string, color: string) => ({
     type: 'text',
     silent: true,
@@ -44,17 +53,20 @@ export function momentumOption(data: MomentumDatum[], p: ChartPalette, short: Re
   return {
     grid,
     // Direct labels pinned to the plot area (no legend): home lead above the zero line, away lead below.
-    graphic: [
-      { ...label(`▲ ${richSafe(short.home)} avanti`, p.home), left: grid.left + 8, top: grid.top + 2 },
-      { ...label(`▼ ${richSafe(short.away)} avanti`, p.away), left: grid.left + 8, bottom: grid.bottom + 4 },
-    ],
+    graphic: compact
+      ? []
+      : [
+          { ...label(`▲ ${richSafe(short.home)} avanti`, p.home), left: grid.left + 8, top: grid.top + 2 },
+          { ...label(`▼ ${richSafe(short.away)} avanti`, p.away), left: grid.left + 8, bottom: grid.bottom + 4 },
+        ],
     xAxis: {
       type: 'value',
       min: 0,
       // Rounded to 5 so that the last tick never collides with the label of the maximum.
       max: Math.max(10, Math.ceil(last / 5) * 5),
       minInterval: 1,
-      axisLabel: { color: p.muted },
+      ...(compact ? { splitNumber: 3 } : {}),
+      axisLabel: { color: p.muted, ...(compact ? { fontSize: COMPACT_AXIS_FONT } : {}) },
       splitLine: { show: false },
     },
     yAxis: {
@@ -62,7 +74,11 @@ export function momentumOption(data: MomentumDatum[], p: ChartPalette, short: Re
       min: -bound,
       max: bound,
       minInterval: 1,
-      axisLabel: { formatter: (v: number) => String(Math.abs(v)) },
+      ...(compact ? { splitNumber: 2 } : {}),
+      axisLabel: {
+        formatter: (v: number) => String(Math.abs(v)),
+        ...(compact ? { fontSize: COMPACT_AXIS_FONT } : {}),
+      },
     },
     tooltip: {
       trigger: 'axis',
@@ -114,7 +130,7 @@ export function momentumOption(data: MomentumDatum[], p: ChartPalette, short: Re
       {
         type: 'scatter',
         name: 'break-point',
-        symbolSize: 9,
+        symbolSize: compact ? 6 : 9,
         data: data
           .filter((d) => d.breakPoint)
           .map((d) => ({
@@ -128,13 +144,17 @@ export function momentumOption(data: MomentumDatum[], p: ChartPalette, short: Re
   };
 }
 
-/** Points won (team colour) and lost (neutral) for each setter position. */
-export function rotationOption(data: RotationDatum[], side: Side, p: ChartPalette): EChartsCoreOption {
+/**
+ * Points won (team colour) and lost (neutral) for each setter position.
+ * `compact` (phone): no value labels over the bars, smaller axes (the legend goes under the chart, in the page).
+ */
+export function rotationOption(data: RotationDatum[], side: Side, p: ChartPalette, compact = false): EChartsCoreOption {
   const color = sideColor(p, side);
+  const axisFont = compact ? { fontSize: COMPACT_AXIS_FONT } : {};
   return {
-    grid: { left: 30, right: 8, top: 22, bottom: 26 },
-    xAxis: { type: 'category', data: data.map((d) => d.label) },
-    yAxis: { type: 'value', minInterval: 1 },
+    grid: compact ? { left: 22, right: 4, top: 8, bottom: 20 } : { left: 30, right: 8, top: 22, bottom: 26 },
+    xAxis: { type: 'category', data: data.map((d) => d.label), axisLabel: axisFont },
+    yAxis: { type: 'value', minInterval: 1, ...(compact ? { splitNumber: 2 } : {}), axisLabel: axisFont },
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
@@ -159,7 +179,7 @@ export function rotationOption(data: RotationDatum[], side: Side, p: ChartPalett
         name: 'Vinti',
         data: data.map((d) => d.won),
         itemStyle: { color, borderRadius: [4, 4, 0, 0] },
-        label: { show: true, position: 'top', color: p.text, fontSize: 11 },
+        label: { show: !compact, position: 'top', color: p.text, fontSize: 11 },
         barGap: '15%',
         barMaxWidth: 26,
       },
@@ -168,7 +188,7 @@ export function rotationOption(data: RotationDatum[], side: Side, p: ChartPalett
         name: 'Persi',
         data: data.map((d) => d.lost),
         itemStyle: { color: p.axis, opacity: 0.45, borderRadius: [4, 4, 0, 0] },
-        label: { show: true, position: 'top', color: p.muted, fontSize: 11 },
+        label: { show: !compact, position: 'top', color: p.muted, fontSize: 11 },
         barMaxWidth: 26,
       },
     ],

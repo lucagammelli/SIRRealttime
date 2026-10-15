@@ -1,5 +1,15 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, useState } from 'react';
+
+/**
+ * Cards inside this context become collapsible sections (phone layout of the match page): the title is a button with
+ * `aria-expanded`, the body is shown only while open.
+ */
+export interface CardCollapse {
+  collapsible: boolean;
+  defaultOpen: boolean;
+}
+export const CardCollapseContext = createContext<CardCollapse>({ collapsible: false, defaultOpen: true });
 
 /** Panel with a title: every block of the match page and of the admin area. */
 export function Card({
@@ -17,18 +27,53 @@ export function Card({
   className?: string;
   bodyClassName?: string;
 }) {
+  const collapse = useContext(CardCollapseContext);
+  const collapsible = collapse.collapsible && title !== undefined;
+  const [open, setOpen] = useState(collapse.defaultOpen);
+  const bodyId = useId();
+  const shown = !collapsible || open;
   return (
-    <section className={`flex min-w-0 flex-col rounded-panel border border-border bg-surface shadow-card ${className}`}>
+    <section
+      className={`sir-surface flex min-w-0 flex-col rounded-panel border border-border shadow-card ${className}`}
+    >
       {(title || actions) && (
-        <header className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4 sm:px-5">
-          <div className="min-w-0">
-            {title && <h2 className="font-display text-lg font-semibold uppercase tracking-wide text-text">{title}</h2>}
-            {subtitle && <p className="text-sm text-muted">{subtitle}</p>}
+        <header className={`flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 ${shown ? 'pt-4' : 'py-1'}`}>
+          <div className="min-w-0 flex-1">
+            {title &&
+              (collapsible ? (
+                <h2 className="font-display text-lg font-semibold uppercase tracking-wide text-text">
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    aria-controls={bodyId}
+                    onClick={() => setOpen((o) => !o)}
+                    className="flex min-h-11 w-full items-center justify-between gap-2 text-left uppercase"
+                  >
+                    {title}
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      className={`size-5 shrink-0 text-muted transition-transform motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
+                </h2>
+              ) : (
+                <h2 className="font-display text-lg font-semibold uppercase tracking-wide text-text">{title}</h2>
+              ))}
+            {subtitle && shown && <p className="text-sm text-muted">{subtitle}</p>}
           </div>
-          {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+          {actions && shown && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
         </header>
       )}
-      <div className={`min-h-0 flex-1 px-4 pb-4 pt-3 sm:px-5 ${bodyClassName}`}>{children}</div>
+      {/* Closed: the body stays as the target of aria-controls, empty (charts are built when it opens). */}
+      <div id={bodyId} hidden={!shown} className={`min-h-0 flex-1 px-4 pb-4 pt-3 sm:px-5 ${bodyClassName}`}>
+        {shown && children}
+      </div>
     </section>
   );
 }

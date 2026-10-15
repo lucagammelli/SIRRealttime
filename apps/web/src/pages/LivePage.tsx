@@ -6,6 +6,9 @@ import { LiveMatch } from '../components/LiveMatch.tsx';
 import { StatusScreen } from '../components/StatusScreen.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import type { ProbeResult } from '../lib/liveConnection.ts';
+import { useIdle, useTvRootClass, useWakeLock } from '../lib/tvScreen.ts';
+import { tvModeOf } from '../lib/layout.ts';
+import { useDevice } from '../lib/useLayout.ts';
 import { socketUrl, useLiveSocket } from '../lib/useLiveSocket.ts';
 import { useBrandName } from '../lib/branding.ts';
 import { teamName } from '../lib/format.ts';
@@ -40,14 +43,23 @@ export async function probeShareToken(token: string, fetchImpl: typeof fetch = f
   }
 }
 
-/** Public page `/live/:token`: only the match, no link to the reserved area. */
+/**
+ * Public page `/live/:token`: only the match, no link to the reserved area. Laid out for the device (`deviceFor`):
+ * smartphone (< 700 px), tablet, big screen (≥ 1600 × 800 px and 16:10, `?tv=1`, or full screen from tablet up; never
+ * with `?tv=0`): no scrolling, text scaled with the screen, pointer hidden after 3 s, screen kept on, rotation of the
+ * groups that the viewer can stop.
+ */
 export function LivePage() {
   const { token = '' } = useParams();
   const [search] = useSearchParams();
   const valid = SHARE_TOKEN_PATTERN.test(token);
-  const tvParam = search.get('tv') === '1';
   const [fullscreen, setFullscreen] = useState(false);
-  const tv = tvParam || fullscreen;
+  const [rotationPaused, setRotationPaused] = useState(false);
+  const device = useDevice(tvModeOf(search.get('tv')), fullscreen);
+  const tv = device === 'tv';
+  useTvRootClass(tv);
+  useWakeLock(tv);
+  const idle = useIdle(tv);
   const probe = useCallback(() => probeShareToken(token), [token]);
   const snapshot = useLiveSocket(valid ? socketUrl(`/ws/public/${encodeURIComponent(token)}`) : null, { probe });
 
@@ -83,42 +95,88 @@ export function LivePage() {
     );
   }
 
-  return (
-    <div className={`border-t-4 border-accent ${tv ? 'flex h-dvh flex-col overflow-hidden p-3 lg:p-5' : 'min-h-dvh'}`}>
-      <header
-        className={`flex items-center justify-between gap-3 ${tv ? 'pb-3' : 'mx-auto max-w-7xl px-3 pt-3 sm:px-5'}`}
-      >
-        <BrandMark />
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            aria-label={fullscreen ? 'Esci da schermo intero' : 'Schermo intero'}
-            title={fullscreen ? 'Esci da schermo intero' : 'Schermo intero'}
-            className="inline-flex h-9 items-center gap-2 rounded-card border border-border bg-surface px-2.5 text-sm font-medium text-text hover:bg-surface-2 sm:px-3"
+  const controls = (
+    <div
+      className={`flex items-center gap-2 transition-opacity focus-within:opacity-100 motion-reduce:transition-none ${idle ? 'opacity-0' : ''}`}
+    >
+      {tv && (
+        // WCAG 2.2.2: the viewer can stop the automatic change of screen (hidden with the pointer, never removed).
+        <button
+          type="button"
+          onClick={() => setRotationPaused((p) => !p)}
+          aria-pressed={rotationPaused}
+          // Toggle: the name stays the same, aria-pressed says whether it is stopped; the tooltip says what a click does.
+          aria-label="Ferma rotazione"
+          title={rotationPaused ? 'Riprendi rotazione' : 'Ferma rotazione'}
+          className="inline-flex h-9 items-center gap-2 rounded-card border border-border bg-surface px-2.5 text-sm font-medium text-text hover:bg-surface-2 sm:px-3"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="size-4"
+            aria-hidden="true"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
           >
-            <svg
-              viewBox="0 0 24 24"
-              className="size-4"
-              aria-hidden="true"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              {fullscreen ? (
-                <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
-              ) : (
-                <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
-              )}
-            </svg>
-            {/* Phones: icon only. */}
-            <span className="hidden sm:inline">{fullscreen ? 'Esci da schermo intero' : 'Schermo intero'}</span>
-          </button>
-          <ThemeToggle />
-        </div>
-      </header>
+            {rotationPaused ? <path d="M8 5l11 7-11 7z" /> : <path d="M9 5v14M15 5v14" />}
+          </svg>
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={toggleFullscreen}
+        aria-label={fullscreen ? 'Esci da schermo intero' : 'Schermo intero'}
+        title={fullscreen ? 'Esci da schermo intero' : 'Schermo intero'}
+        className="inline-flex h-9 items-center gap-2 rounded-card border border-border bg-surface px-2.5 text-sm font-medium text-text hover:bg-surface-2 sm:px-3"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className="size-4"
+          aria-hidden="true"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          {fullscreen ? (
+            <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
+          ) : (
+            <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+          )}
+        </svg>
+        {/* Phones and big screen: icon only. */}
+        <span className={tv ? 'sr-only' : 'hidden sm:inline'}>
+          {fullscreen ? 'Esci da schermo intero' : 'Schermo intero'}
+        </span>
+      </button>
+      <ThemeToggle />
+    </div>
+  );
+  // Big screen with a match: no page header, the logo and the buttons go in the scoreboard (one row less).
+  const inScoreboard = tv && data?.kind === 'state';
+
+  return (
+    <div
+      className={`border-t-4 border-accent ${tv ? 'flex h-dvh flex-col overflow-hidden p-3 lg:p-5' : 'min-h-dvh'} ${
+        idle ? 'cursor-none' : ''
+      }`}
+      data-device={device}
+    >
+      {!inScoreboard && (
+        <header
+          className={`flex items-center justify-between gap-3 ${tv ? 'pb-3' : 'mx-auto max-w-7xl px-3 pt-3 sm:px-5'}`}
+        >
+          <BrandMark />
+          {controls}
+        </header>
+      )}
       <main className={tv ? 'min-h-0 flex-1' : 'mx-auto max-w-7xl px-3 py-3 sm:px-5'}>
-        <LiveMatch snapshot={snapshot} tv={tv} />
+        <LiveMatch
+          snapshot={snapshot}
+          device={device}
+          brand={inScoreboard}
+          rotationPaused={rotationPaused}
+          {...(inScoreboard ? { controls } : {})}
+        />
       </main>
     </div>
   );

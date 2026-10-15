@@ -96,3 +96,11 @@ Una riga per decisione: data, scelta, motivo.
   serve una dipendenza nuova per il multipart (`docs/server.md`).
 - 2026-10-15: limiti delle immagini a 2 MB per file, 4096 px per lato e 50 MB per cliente (`ASSETS_QUOTA_MB`), perché
   loghi e sponsor sono piccoli e il disco del server è limitato (`docs/server.md`).
+- 2026-10-15: TV automatica solo con almeno 1600×800 px e proporzioni ≥ 16:10 (`?tv=1` la forza, `?tv=0` la esclude),
+  perché un monitor desktop non deve perdere lo scorrimento (`docs/portale.md`).
+- 2026-10-15: rotazione delle schermate TV con pulsante «Ferma rotazione», perché un cambio automatico va sempre
+  fermabile (WCAG 2.2.2) (`docs/portale.md`).
+- 2026-10-15: layout della pagina come elenco di blocchi per dispositivo (`defaultLayouts`), perché è la forma che
+  produrrà l'editor a blocchi (`docs/portale.md`).
+- 2026-10-15: nessun logo per squadra, si usa il logo del cliente, perché i dati non hanno loghi di squadra e ne
+  basta uno per cliente (`docs/portale.md`).

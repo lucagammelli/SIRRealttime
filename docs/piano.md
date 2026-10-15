@@ -119,7 +119,8 @@ dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in q
    immagini controllato (2 MB, 4096 px, 50 MB per cliente, SVG a lista di elementi ammessi), pagina «Grafica»
    (`docs/server.md`, `docs/portale.md`).
 4. `link-brevi-qr`: codice di condivisione breve (8 caratteri) e QR scaricabile.
-5. `portale-adattivo`: impaginazioni TV 16:9, tablet e smartphone, grafica più curata (in parallelo al punto 4).
+5. `portale-adattivo` (**fatto**): impaginazioni TV 16:9 con rotazione, tablet e smartphone, grafica più curata
+   (`docs/portale.md`); da provare su dispositivi veri.
 6. `layout-blocchi`: editor a blocchi per dispositivo.
 7. `pause-partita`: schermate di fine set, time-out e fine partita con riepilogo e sponsor.
 8. `avvisi-eventi`: messaggi rapidi sopra la pagina (ace, set point, match point…).

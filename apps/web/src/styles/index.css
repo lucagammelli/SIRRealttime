@@ -30,6 +30,7 @@
   --color-away-soft: var(--sir-away-soft);
   --color-on-away: var(--sir-on-away);
   --color-live: var(--sir-live);
+  --color-on-live: var(--sir-on-live);
   --color-warn: var(--sir-warn);
   --color-danger: var(--sir-danger);
   --color-danger-soft: var(--sir-danger-soft);
@@ -53,6 +54,8 @@
     color: var(--sir-text);
     font-family: var(--sir-font-sans);
     -webkit-text-size-adjust: 100%;
+    /* Phone: height of the sticky scoreboard (set by Scoreboard), so focus and anchors never end up under it. */
+    scroll-padding-top: var(--sir-sticky-offset, 0px);
   }
   body {
     margin: 0;
@@ -66,6 +69,29 @@
   .tabular {
     font-variant-numeric: tabular-nums;
   }
+  /* Big screen (`?tv=1`, full screen, ≥ 1600 px): every rem scales with the screen, readable at 4-5 m. */
+  html.sir-tv {
+    font-size: clamp(16px, min(1.25vw, 2.2vh), 48px);
+  }
+}
+
+/* Surfaces: light gradient of the brand colour from the top (the tokens keep the text contrast). */
+.sir-surface {
+  background-color: var(--sir-surface);
+  background-image: linear-gradient(180deg, var(--sir-glow-soft), transparent 10rem);
+}
+/* Scoreboard: the two team colours from the sides, the brand colour from the top. */
+.sir-scoreboard {
+  background-color: var(--sir-surface);
+  background-image:
+    linear-gradient(90deg, var(--sir-home-glow), transparent 38%, transparent 62%, var(--sir-away-glow)),
+    linear-gradient(180deg, var(--sir-glow), transparent 70%);
+}
+/* Horizontal scroll inside its card (wide tables on the phone): the page does not move with it. */
+.sir-scroll-x {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Short animations at every point (≤ 600 ms), off with prefers-reduced-motion. */
@@ -111,9 +137,14 @@
 .sir-bar {
   transition: width 500ms ease-out;
 }
+/* Change of group on the big screen. */
+.sir-fade {
+  animation: sir-flash 500ms ease-out;
+}
 @media (prefers-reduced-motion: reduce) {
   .sir-pop,
   .sir-flash,
+  .sir-fade,
   .sir-pulse {
     animation: none;
   }

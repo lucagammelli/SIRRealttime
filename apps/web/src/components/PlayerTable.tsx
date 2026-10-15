@@ -94,7 +94,13 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
       {rows.length === 0 ? (
         <Empty>Nessuna azione registrata.</Empty>
       ) : (
-        <div className="-mx-4 overflow-x-auto sm:-mx-5">
+        // Wide table: it scrolls sideways inside the card (focusable, so also with the keyboard), never the page.
+        <div
+          role="region"
+          aria-label="Tabella giocatori, scorrevole in orizzontale"
+          tabIndex={0}
+          className="sir-scroll-x -mx-4 max-w-[calc(100%+2rem)] sm:-mx-5 sm:max-w-[calc(100%+2.5rem)]"
+        >
           <table className="w-full min-w-[46rem] border-collapse text-sm tabular">
             <caption className="sr-only">
               Statistiche dei giocatori di {teamName(state.teams, side)}

@@ -24,9 +24,31 @@ connessioni. Con un token valido la pagina si collega a `/ws/public/<token>` e m
 Nell'intestazione ci sono il pulsante «Schermo intero» (diventa «Esci da schermo intero») e il cambio tema.
 La pagina pubblica non ha nessun collegamento all'area riservata.
 
-**Modalità maxischermo.** Con `?tv=1` nell'URL, oppure dopo «Schermo intero», il layout riempie lo schermo senza
-scorrimento: tabellone ingrandito, «Andamento del set» e «Confronto squadre» (compatto). Giocatori, mappe di campo e
-rotazioni non compaiono. Se la Fullscreen API non è disponibile o fallisce, il pulsante attiva comunque il layout.
+**Dispositivi e impaginazione** (`src/lib/layout.ts`, `useLayout.ts`, `components/BlockLayout.tsx`). `deviceFor` sceglie
+tra tre impaginazioni, con gli stessi blocchi della tabella sopra:
+
+| Dispositivo | Quando | Impaginazione |
+|---|---|---|
+| Telefono | larghezza sotto 700 px | una colonna; tabellone compatto fisso in alto con «Dettagli del set» (`ScoreFacts`); sezioni comprimibili (`Card` con `aria-expanded`), all'inizio aperta solo «Andamento del set»; grafici semplificati (legenda sotto, più bassi); tabella giocatori scorrevole in orizzontale («Tabella giocatori, scorrevole in orizzontale») |
+| Tablet | da 700 px, e sotto le soglie della TV | griglia a 6 colonne, due colonne di blocchi |
+| TV | da sola con almeno 1600 × 800 px e proporzioni ≥ 16:10; sempre con `?tv=1`; mai con `?tv=0`; con «Schermo intero» solo da tablet in su | senza scorrimento, testi scalati, rotazione dei gruppi |
+
+Un monitor desktop 4:3 o 16:10 basso resta quindi tablet e mantiene lo scorrimento. `defaultLayouts` è l'elenco dei
+blocchi per dispositivo (`{type, width, collapsed?}`, larghezza `full`, `half`, `third` o `twoThirds`): la base
+dell'editor a blocchi (lavoro `layout-blocchi`). Nell'area riservata `MatchView` usa al massimo l'impaginazione tablet.
+Il tabellone del telefono resta fisso in alto e `scroll-padding-top` segue la sua altezza (`useStickyOffset`, variabile
+`--sir-sticky-offset`), così le sezioni aperte non finiscono sotto di lui.
+
+**Modalità TV.** Classe `html.sir-tv`: corpo del testo `clamp(16px, min(1.25vw, 2.2vh), 48px)`, quindi ogni `rem` cresce
+con lo schermo (leggibile a 4-5 m). I blocchi sotto il tabellone sono divisi in gruppi in base all'altezza (`tvGroups`
+con `TV_BLOCK_MIN_REM`, altezze minime in rem **stimate**, da verificare su TV veri) e i gruppi ruotano ogni 12 s
+(`TV_ROTATION_MS`, `rotationIndex`) con l'indicatore «Schermata N di M». La rotazione si ferma con
+`prefers-reduced-motion` (resta il primo gruppo) e con il pulsante «Ferma rotazione» (`aria-pressed`; in pausa il
+`title` è «Riprendi rotazione» e riprende dalla schermata corrente), richiesto da WCAG 2.2.2. Dopo 3 s senza movimenti
+(`IDLE_CURSOR_MS`) cursore e pulsanti si nascondono, ma restano raggiungibili da tastiera. Lo schermo resta acceso con
+Screen Wake Lock (`useWakeLock`, `src/lib/tvScreen.ts`), rilasciato a pagina nascosta e richiesto di nuovo al ritorno.
+Senza intestazione e con partita in corso, il logo del cliente (`BrandMark`) e i pulsanti stanno nel tabellone. Se la
+Fullscreen API non è disponibile o fallisce, «Schermo intero» attiva comunque l'impaginazione.
 
 **Stati** (`src/components/LiveMatch.tsx`, `ConnectionBadge.tsx`, `StatusScreen.tsx`):
 
@@ -149,6 +171,14 @@ controlli in `docs/server.md`, «Grafica per cliente»).
   `src/lib/base64.ts`) a `POST /api/admin/assets`, poi `PUT /api/admin/branding` con «Salva».
 - **Limiti noti**: la testata dell'area riservata del superadmin ha la grafica del cliente dell'hostname, non quella del
   cliente attivo; un'immagine SVG non ammessa è rifiutata con un messaggio, non convertita.
+
+### Grafica del portale
+Strisce nei colori delle squadre, cifre del punteggio con animazione `sir-pop`, «IN DIRETTA» pieno (testo
+`--sir-on-live`), gradienti leggeri (`--sir-glow`, `--sir-glow-soft`, `--sir-home-glow`, `--sir-away-glow`, in
+`tokens.css`, derivati dai colori del cliente). Classi in `src/styles/index.css`: `.sir-surface`, `.sir-scoreboard`,
+`.sir-scroll-x` (scorrimento laterale), `.sir-fade` (dissolvenza). Con `prefers-reduced-motion` `sir-pop` e `.sir-fade`
+sono spente. Testi nei grafici: «Legenda», «X avanti (sopra/sotto)» nell'andamento del set, «Punti vinti» e «Punti persi»
+nelle rotazioni. Le squadre non hanno un logo proprio: nel tabellone si usa il logo del cliente.
 
 ### Tooltip e `richSafe`
 I tooltip di ECharts usano `renderMode: 'richText'` (`buildEchartsTheme`): sono disegnati nel canvas, senza HTML né stili
@@ -297,8 +327,11 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
 500 nei log.
 
 ### Da rifinire
-- in `?tv=1` il confronto squadre viene tagliato in fondo a 1080 px;
-- nella mappa di campo le frecce coprono le etichette delle zone.
+- nella mappa di campo le frecce coprono le etichette delle zone;
+- **da provare su dispositivi veri** (portale adattivo): TV 1920×1080 a 4-5 m (leggibilità, tabella e confronto non
+  tagliati, ritmo della rotazione, schermo acceso); tablet verticale e orizzontale; telefono 360 px (tabellone fisso,
+  sezioni, scorrimento laterale della tabella, contrasto dei gradienti in chiaro e scuro e con i colori del cliente).
+  Le altezze `TV_BLOCK_MIN_REM` sono stime.
 
 ## Riferimenti
 - `apps/web/src/App.tsx` (rotte), `main.tsx` (zod jitless, tema), `pages/LivePage.tsx`, `pages/admin/*`
@@ -308,6 +341,9 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
 - Grafica per cliente: `apps/web/src/lib/branding.ts` (`initBranding`, `writePalette`, `setTenantLook`, `useTenantLook`,
   `useBrandingRevision`, `useBrandName`), `lib/base64.ts`, `components/BrandMark.tsx`, `components/BrandingPreview.tsx`,
   `pages/admin/BrandingPage.tsx`; `packages/shared/src/colors.ts`, `assets.ts`, `tenant.ts`; API in `docs/server.md`
+- Portale adattivo: `apps/web/src/lib/layout.ts` (`deviceFor`, `tvModeOf`, `defaultLayouts`, `tvGroups`, `rotationIndex`),
+  `lib/useLayout.ts` (`useStickyOffset`), `lib/tvScreen.ts` (`useWakeLock`, `useIdle`), `components/BlockLayout.tsx`,
+  `components/ui.tsx` (`CardCollapseContext`), `styles/index.css`
 - `apps/web/src/components/` (`MatchView`, `LiveMatch`, `Scoreboard`, `MomentumChart`, `TeamComparison`, `PlayerTable`, `CourtMap`, `Rotations`)
 - `apps/web/src/charts/` (trasformazioni pure, `theme.ts` con `buildEchartsTheme` e `richSafe`), `src/styles/tokens.css`
 - `apps/web/vite.config.ts`, `apps/web/scripts/demo.ts`

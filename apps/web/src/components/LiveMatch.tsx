@@ -1,11 +1,29 @@
+import type { ReactNode } from 'react';
+import type { Device } from '../lib/layout.ts';
 import type { LiveSnapshot } from '../lib/liveConnection.ts';
 import { ConnectionBadge } from './ConnectionBadge.tsx';
 import { MatchView } from './MatchView.tsx';
 import { StatusScreen } from './StatusScreen.tsx';
 import { Spinner } from './ui.tsx';
 
-/** What a live socket shows: the match, or the right message for every state of the connection. */
-export function LiveMatch({ snapshot, tv = false }: { snapshot: LiveSnapshot; tv?: boolean }) {
+/**
+ * What a live socket shows: the match, or the right message for every state of the connection.
+ * `device` (public page) lays the match out for the screen, `brand` puts the logo of the client in the scoreboard and
+ * `controls` go next to the connection badge (big screen: no page header).
+ */
+export function LiveMatch({
+  snapshot,
+  device,
+  brand = false,
+  controls,
+  rotationPaused = false,
+}: {
+  snapshot: LiveSnapshot;
+  device?: Device;
+  brand?: boolean;
+  controls?: ReactNode;
+  rotationPaused?: boolean;
+}) {
   const { status, data, error } = snapshot;
   if (status === 'invalid') {
     return (
@@ -53,14 +71,32 @@ export function LiveMatch({ snapshot, tv = false }: { snapshot: LiveSnapshot; tv
       </StatusScreen>
     );
   }
+  const tv = device === 'tv';
   return (
-    <>
+    <div className={tv ? 'flex h-full min-h-0 flex-col' : ''}>
       {error && (
         <p role="alert" className="mb-3 rounded-card border border-warn bg-surface px-4 py-2 text-sm text-warn">
           Aggiornamento non disponibile: {error}
         </p>
       )}
-      <MatchView state={data.state} status={badge} tv={tv} />
-    </>
+      <div className={tv ? 'min-h-0 flex-1' : ''}>
+        <MatchView
+          state={data.state}
+          status={
+            controls ? (
+              <div className="flex items-center gap-2">
+                {badge}
+                {controls}
+              </div>
+            ) : (
+              badge
+            )
+          }
+          {...(device ? { device } : {})}
+          brand={brand}
+          rotationPaused={rotationPaused}
+        />
+      </div>
+    </div>
   );
 }

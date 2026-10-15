@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LiveSnapshot } from '../lib/liveConnection.ts';
 import { midMatchState, stateAfter } from '../test/fixtures.ts';
@@ -10,7 +10,25 @@ vi.mock('../charts/EChart.tsx', () => ({
   EChart: ({ label }: { label: string }) => <div role="img" aria-label={label} />,
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+/** `prefers-reduced-motion: reduce` on or off (jsdom has no matchMedia). */
+function stubReducedMotion(reduce: boolean): void {
+  vi.stubGlobal(
+    'matchMedia',
+    (query: string) =>
+      ({
+        matches: reduce && query.includes('reduced-motion'),
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }) as unknown as MediaQueryList,
+  );
+}
 
 const MATCH_ID = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
 const snap = (patch: Partial<LiveSnapshot>): LiveSnapshot => ({
@@ -55,10 +73,95 @@ describe('MatchView', () => {
     expect(screen.getByRole('radio', { name: '# Punto' }).getAttribute('aria-checked')).toBe('true');
   });
 
-  it('has a big-screen layout with only score, trend and comparison', () => {
-    render(<MatchView state={midMatchState()} tv />);
+  it('big screen: scoreboard always on top, the other blocks rotate in groups every 12 s', () => {
+    vi.useFakeTimers();
+    stubReducedMotion(false);
+    const { container } = render(<MatchView state={midMatchState()} device="tv" />);
+    expect(container.querySelector('[data-layout="tv"]')?.className).toContain('h-full');
+    expect(container.querySelector('[data-tv-area]')?.className).toContain('overflow-hidden');
+    const heading = (name: string) => screen.queryByRole('heading', { name });
     expect(screen.getByRole('region', { name: 'Tabellone' })).toBeTruthy();
+    // Without a measured height every row is a group: trend + comparison, players, court + rotations.
+    expect(heading('Andamento del set')).toBeTruthy();
+    expect(heading('Confronto squadre')).toBeTruthy();
+    expect(heading('Statistiche giocatori')).toBeNull();
+    expect(screen.getByRole('img', { name: 'Schermata 1 di 3' })).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(12_000);
+    });
+    expect(heading('Statistiche giocatori')).toBeTruthy();
+    expect(heading('Andamento del set')).toBeNull();
+    expect(screen.getByRole('region', { name: 'Tabellone' })).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(12_000);
+    });
+    expect(heading('Mappe di campo')).toBeTruthy();
+    expect(heading('Rotazioni')).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(12_000);
+    });
+    expect(heading('Andamento del set')).toBeTruthy();
+  });
+
+  it('big screen with reduced motion: the most important group stays, no rotation', () => {
+    vi.useFakeTimers();
+    stubReducedMotion(true);
+    render(<MatchView state={midMatchState()} device="tv" />);
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(screen.getByRole('heading', { name: 'Andamento del set' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Statistiche giocatori' })).toBeNull();
+    expect(screen.queryByRole('img', { name: /Schermata/ })).toBeNull();
+  });
+
+  it('phone: sticky compact scoreboard and collapsible sections', () => {
+    render(<MatchView state={midMatchState()} device="phone" />);
+    expect(screen.getByRole('region', { name: 'Tabellone' }).className).toContain('sticky');
+    expect(screen.getByLabelText('Dettagli del set')).toBeTruthy();
+    const toggle = (name: string) => screen.getByRole('button', { name });
+    // The trend starts open, the others closed.
+    expect(toggle('Andamento del set').getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText(/avanti \(sopra\)/)).toBeTruthy();
+    const players = toggle('Statistiche giocatori');
+    expect(players.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('table', { name: /Statistiche dei giocatori/ })).toBeNull();
+    const body = document.getElementById(players.getAttribute('aria-controls') ?? '');
+    expect(body?.hidden).toBe(true);
+    fireEvent.click(players);
+    expect(players.getAttribute('aria-expanded')).toBe('true');
+    expect(body?.hidden).toBe(false);
+    // The wide table scrolls inside its card.
+    const scroller = screen.getByRole('region', { name: /scorrevole in orizzontale/ });
+    expect(scroller.className).toContain('sir-scroll-x');
+    expect(within(scroller).getByRole('table')).toBeTruthy();
+    fireEvent.click(toggle('Andamento del set'));
+    expect(screen.queryByRole('img', { name: /Vantaggio punto per punto/ })).toBeNull();
+  });
+
+  it('phone: the page keeps the height of the sticky scoreboard free when it scrolls to an element', () => {
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ height: 120 } as DOMRect);
+    const { rerender, unmount } = render(<MatchView state={midMatchState()} device="phone" />);
+    const offset = () => document.documentElement.style.getPropertyValue('--sir-sticky-offset');
+    expect(offset()).toBe('132px');
+    rerender(<MatchView state={midMatchState()} device="tablet" />);
+    expect(offset()).toBe('');
+    rerender(<MatchView state={midMatchState()} device="phone" />);
+    expect(offset()).toBe('132px');
+    unmount();
+    expect(offset()).toBe('');
+    rect.mockRestore();
+  });
+
+  it('tablet: two columns with the scoreboard on top', () => {
+    const { container } = render(<MatchView state={midMatchState()} device="tablet" />);
+    const grid = container.querySelector('[data-layout="tablet"]');
+    expect(grid?.className).toContain('grid-cols-6');
+    const cells = Array.from(grid?.children ?? []);
+    expect(cells[0]?.className).toContain('col-span-6');
+    expect(within(cells[0] as HTMLElement).getByRole('region', { name: 'Tabellone' })).toBeTruthy();
+    expect(cells[1]?.className).toContain('col-span-3');
+    expect(screen.queryByRole('button', { name: 'Statistiche giocatori' })).toBeNull();
   });
 });
 

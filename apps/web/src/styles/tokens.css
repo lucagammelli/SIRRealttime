@@ -41,6 +41,8 @@
 
   /* Semantics. */
   --sir-live: #15803d;
+  /* Text on the «In diretta» badge (5.0:1 on --sir-live). */
+  --sir-on-live: #ffffff;
   --sir-warn: #b45309;
   --sir-danger: #b91c1c;
   --sir-danger-soft: #fde2e2;
@@ -60,6 +62,15 @@
   --sir-court-free: #3d8f78;
   --sir-court-line: #ffffff;
   --sir-court-text: #3b2a16;
+
+  /*
+   * Light gradients of the surfaces, tied to the brand and team colours (they follow the palette of the client).
+   * Tints stay low (≤ 14%) so that text keeps a contrast of at least 4.5:1 on top of them.
+   */
+  --sir-glow: color-mix(in oklab, var(--sir-primary) 12%, transparent);
+  --sir-glow-soft: color-mix(in oklab, var(--sir-primary) 5%, transparent);
+  --sir-home-glow: color-mix(in oklab, var(--sir-home) 14%, transparent);
+  --sir-away-glow: color-mix(in oklab, var(--sir-away) 14%, transparent);
   color-scheme: light;
 }
 
@@ -85,6 +96,7 @@
   --sir-away-soft: #3d1846;
   --sir-on-away: #2a0730;
   --sir-live: #4ade80;
+  --sir-on-live: #052e16;
   --sir-warn: #fbbf24;
   --sir-danger: #f87171;
   --sir-danger-soft: #3d1414;
@@ -100,6 +112,8 @@
   --sir-court-free: #1f5547;
   --sir-court-line: #f1f5f9;
   --sir-court-text: #fff7ed;
+  --sir-glow: color-mix(in oklab, var(--sir-primary) 14%, transparent);
+  --sir-glow-soft: color-mix(in oklab, var(--sir-primary) 6%, transparent);
   color-scheme: dark;
 }
 
@@ -126,6 +140,7 @@
     --sir-away-soft: #3d1846;
     --sir-on-away: #2a0730;
     --sir-live: #4ade80;
+    --sir-on-live: #052e16;
     --sir-warn: #fbbf24;
     --sir-danger: #f87171;
     --sir-danger-soft: #3d1414;
@@ -141,6 +156,8 @@
     --sir-court-free: #1f5547;
     --sir-court-line: #f1f5f9;
     --sir-court-text: #fff7ed;
+    --sir-glow: color-mix(in oklab, var(--sir-primary) 14%, transparent);
+    --sir-glow-soft: color-mix(in oklab, var(--sir-primary) 6%, transparent);
     color-scheme: dark;
   }
 }

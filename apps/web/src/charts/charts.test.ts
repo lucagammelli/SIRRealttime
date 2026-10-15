@@ -161,3 +161,21 @@ describe('theme', () => {
     expect([momentum.tooltip.renderMode, rotation.tooltip.renderMode]).toEqual(['richText', 'richText']);
   });
 });
+
+describe('simplified charts (phone)', () => {
+  it('drops the labels inside the plot and over the bars, with fewer ticks', () => {
+    const short = { home: 'A', away: 'B' };
+    type Momentum = { graphic: unknown[]; yAxis: { splitNumber?: number }; grid: { left: number } };
+    const full = momentumOption([], DEFAULT_PALETTE, short) as Momentum;
+    const compact = momentumOption([], DEFAULT_PALETTE, short, true) as Momentum;
+    expect(full.graphic).toHaveLength(2);
+    expect(compact.graphic).toHaveLength(0);
+    expect(compact.yAxis.splitNumber).toBe(2);
+    expect(compact.grid.left).toBeLessThan(full.grid.left);
+    type Rotation = { series: { label: { show: boolean } }[] };
+    const bars = (compactBars: boolean) =>
+      (rotationOption([], 'home', DEFAULT_PALETTE, compactBars) as Rotation).series.map((s) => s.label.show);
+    expect(bars(false)).toEqual([true, true]);
+    expect(bars(true)).toEqual([false, false]);
+  });
+});

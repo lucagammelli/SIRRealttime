@@ -1,6 +1,7 @@
 import type { MatchState, MatchStatus } from '@sir/volley-stats';
 import { z } from 'zod';
 import { MatchKeySchema } from './ingest.js';
+import { MatchStateSchema } from './messages.js';
 import { hasNoControlChars, plainText, safeString } from './strings.js';
 
 /** Public share token: random ≥ 128 bit, base64url. */
@@ -116,3 +117,10 @@ export interface MatchDetail extends MatchSummary {
   contentHash: string | null;
   state: MatchState | null;
 }
+
+/** Body of `GET /api/admin/matches/:id`. `lastSeq` is -1 before the first accepted ingest. */
+export const MatchDetailSchema = MatchSummarySchema.extend({
+  lastSeq: z.int().min(-1),
+  contentHash: z.string().nullable(),
+  state: MatchStateSchema.nullable(),
+}) satisfies z.ZodType<MatchDetail>;

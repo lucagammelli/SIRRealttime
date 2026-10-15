@@ -34,6 +34,9 @@ inviati appena possibile. Il server e il suo protocollo sono in `docs/server.md`
 corto di 10 caratteri. Senza data e ora si usa il nome del file (`file_<nome>_<hash>`). **Avvertenza**: se lo scoutman
 cambia data, ora o squadre a partita iniziata, la chiave cambia e sul server nasce **un'altra partita**; il link
 pubblico fisso (legato a una `matchId`) non la segue, il link «live» (`matchId` nullo, `docs/server.md`) sì.
+Vale anche al contrario: due file con data, ora e squadre uguali (succede con il simulatore, che usa un orario fisso) sono
+visti come la **stessa partita**. L'agente si riallinea con uno snapshot (il server risponde `needSnapshot`, log
+«server non allineato»); osservato nel collaudo del 2026-10-14.
 
 ### Differenze e sincronizzazione (`src/sync.ts`, `planRequests`)
 - Senza base (primo invio) o se una riga passata è cambiata: `snapshot` (header + tutte le righe); se le righe
@@ -92,7 +95,7 @@ pubblico fisso (legato a una `matchId`) non la segue, il link «live» (`matchId
 | Campo | Default | Regola |
 |---|---|---|
 | `watchPath` | obbligatorio | cartella (es. `E:\`) o singolo `.dvw` |
-| `serverUrl` | obbligatorio | `https` sempre; `http` solo verso `localhost`, `127.0.0.1`, `[::1]`; senza credenziali nell'URL |
+| `serverUrl` | obbligatorio | URL **del portale** (nginx), es. `https://<host>/`; `https` sempre; `http` solo verso `localhost`, `127.0.0.1`, `[::1]`; senza credenziali nell'URL |
 | `agentToken` | obbligatorio | 20-200 caratteri `A-Za-z0-9_-`, copiato intero dall'area admin |
 | `pollIntervalMs` | `1000` | intero 10-60000 |
 | `stableMs` | `700` | intero 0-60000 |
@@ -101,6 +104,11 @@ pubblico fisso (legato a una `matchId`) non la segue, il link «live» (`matchId
 | `logLevel` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
 | `snapshotRetryMs` | `300000` | intero 1000-86400000; nuovo tentativo dello snapshot rifiutato (4xx/413) anche senza modifiche del file |
 | `retentionDays` | `30` | intero 1-3650; giorni dopo i quali il record di una partita ferma con coda vuota è cancellato all'avvio |
+
+L'agente invia a `ingestUrl(serverUrl)` (`apps/agent/src/sender.ts`): aggiunge `api/ingest` a `serverUrl`, con o senza `/`
+finale, e mantiene un eventuale prefisso di percorso. Quindi `https://<host>/` dà `https://<host>/api/ingest`, che nginx
+del portale inoltra al server; la porta 8090 del server non si espone in rete (`docs/portale.md`, `docs/server.md`).
+L'area admin (pagina «Agenti») propone un `config.json` già compilato con l'indirizzo del portale come `serverUrl`.
 
 I percorsi relativi sono risolti rispetto alla cartella dell'eseguibile (in sviluppo, la cartella corrente). Un BOM
 iniziale nel JSON è tollerato. Configurazione non valida: messaggio chiaro e codice di uscita 1.
@@ -147,7 +155,7 @@ configurazione non valida o errore. Senza `--once` il processo gira finché rice
    # --- variabili ---
    $Dest      = "C:\SIRAgent"                       # cartella di installazione
    $WatchPath = "E:\"                               # pennina o cartella dei .dvw
-   $ServerUrl = "https://sir.example.it"            # indirizzo pubblico del server (https)
+   $ServerUrl = "https://sir.example.it/"           # indirizzo pubblico del portale (nginx, https); l'agente aggiunge api/ingest
    $Token     = "<token agente dell'area admin>"    # campo "token" della risposta di /api/admin/agents
 
    # --- comandi ---
@@ -188,7 +196,7 @@ Serve il server in sviluppo (`docs/server.md`, un terminale) e un token agente. 
 ```bash
 # --- variabili ---
 RADICE="/percorso/del/repository"      # radice del repository o del worktree
-SERVER="http://127.0.0.1:8090"         # server in sviluppo (http ammesso solo verso localhost)
+SERVER="http://127.0.0.1:8090"         # server in sviluppo (http ammesso solo verso localhost); con Docker, il portale http://localhost:8080
 TOKEN_AGENTE="<token agente>"          # campo "token" della risposta di POST /api/admin/agents
 CARTELLA_DVW="/tmp/sir-dvw"            # cartella osservata, dove il simulatore scrive il .dvw
 DATI="/tmp/sir-agent/data"             # dataDir (fuori da CARTELLA_DVW)

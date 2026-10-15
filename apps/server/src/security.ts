@@ -90,16 +90,21 @@ export function originAllowed(ctx: AppContext, request: FastifyRequest): boolean
   return origin === undefined || origin === ctx.config.corsOrigin;
 }
 
+/** sha256 of the `Authorization: Bearer <token>` of the request (agent token, registration secret); 401 if missing. */
+export function bearerHash(request: FastifyRequest): string {
+  const header = request.headers.authorization ?? '';
+  const match = /^Bearer ([A-Za-z0-9_-]{20,200})$/.exec(header);
+  if (!match?.[1]) throw unauthorized();
+  return hashToken(match[1]);
+}
+
 /**
  * preParsing of `/api/ingest` (after the rate limit, before the body is read): bearer token of a non-revoked agent,
  * looked up by its hash and compared again in constant time.
  */
 export function authenticateAgent(ctx: AppContext) {
   return async (request: FastifyRequest): Promise<void> => {
-    const header = request.headers.authorization ?? '';
-    const match = /^Bearer ([A-Za-z0-9_-]{20,200})$/.exec(header);
-    if (!match?.[1]) throw unauthorized();
-    const hash = hashToken(match[1]);
+    const hash = bearerHash(request);
     const [agent] = await ctx.db
       .select({ id: agents.id, tokenHash: agents.tokenHash })
       .from(agents)

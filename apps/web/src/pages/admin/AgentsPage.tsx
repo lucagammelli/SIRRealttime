@@ -1,27 +1,141 @@
-import type { CreateAgentResponse } from '@sir/shared';
-import { AgentSummarySchema, CreateAgentRequestSchema, CreateAgentResponseSchema } from '@sir/shared';
+import type { AgentRegistrationSummary, CreateAgentResponse } from '@sir/shared';
+import {
+  AgentRegistrationSummarySchema,
+  AgentSummarySchema,
+  CreateAgentRequestSchema,
+  CreateAgentResponseSchema,
+} from '@sir/shared';
 import type { FormEvent } from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { Button, Card, CopyButton, Empty, ErrorBox, SecretBox, Spinner } from '../../components/ui.tsx';
 import { apiCommand, apiRequest } from '../../lib/api.ts';
 import { formatDateTime } from '../../lib/format.ts';
+import type { AsyncState } from '../../lib/useAsync.ts';
 import { useAsync } from '../../lib/useAsync.ts';
 import { useApiError } from './auth.tsx';
 import { ConfirmButton, Field, inputClass } from './forms.tsx';
 
 const AgentListSchema = z.array(AgentSummarySchema);
+const RegistrationListSchema = z.array(AgentRegistrationSummarySchema);
+
+/** While the page is open, pending requests and agents are reloaded this often (the agent polls every 5 s too). */
+export const AGENTS_REFRESH_MS = 5000;
+
+/** Calls `tick` every `ms` while the browser tab is visible. */
+function useRefresh(tick: () => void, ms: number): void {
+  const latest = useRef(tick);
+  useEffect(() => {
+    latest.current = tick;
+  }, [tick]);
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState !== 'hidden') latest.current();
+    }, ms);
+    return () => clearInterval(id);
+  }, [ms]);
+}
 
 /** `config.json` of the agent for a new token (docs/agente.md); the server URL is the address of this portal. */
 export function agentConfigJson(token: string, serverUrl: string): string {
   return JSON.stringify({ watchPath: 'E:\\', serverUrl, agentToken: token }, null, 2);
 }
 
-/** Agent tokens: create (token shown once, with the config.json to copy), list, revoke. */
+/**
+ * Self-registration requests of the agents: the admin checks that the pairing code is the one shown on the PC and
+ * approves (the agent then collects its token by itself) or rejects.
+ */
+function PendingRegistrations({
+  registrations,
+  onChanged,
+}: {
+  registrations: AsyncState<AgentRegistrationSummary[]>;
+  onChanged: () => void;
+}) {
+  const errorMessage = useApiError();
+  const [deciding, setDeciding] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const decide = async (id: string, action: 'approve' | 'reject'): Promise<void> => {
+    setDeciding(id);
+    setError(null);
+    try {
+      const path = `/api/admin/agent-registrations/${encodeURIComponent(id)}/${action}`;
+      await apiRequest(path, AgentRegistrationSummarySchema, { method: 'POST' });
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setDeciding(null);
+      onChanged();
+    }
+  };
+
+  const list = registrations.data;
+  return (
+    <Card
+      title="Richieste in attesa"
+      subtitle="PC che hanno chiesto di registrarsi come agenti. Abilita solo se il codice è quello mostrato sul PC."
+    >
+      {registrations.loading && !list && <Spinner label="Caricamento delle richieste…" />}
+      {registrations.error !== null && (
+        <ErrorBox onRetry={registrations.reload}>{errorMessage(registrations.error)}</ErrorBox>
+      )}
+      {error && <ErrorBox>{error}</ErrorBox>}
+      {list && list.length === 0 && <Empty>Nessuna richiesta in attesa.</Empty>}
+      {list && list.length > 0 && (
+        <ul className="divide-y divide-grid" aria-label="Richieste in attesa">
+          {list.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <div className="min-w-0 space-y-1">
+                <p className="font-medium text-text">{r.name}</p>
+                <p className="text-xs text-muted">Codice di abbinamento</p>
+                <p className="font-mono text-3xl font-semibold tracking-[0.3em] text-text" data-testid="pairing-code">
+                  {r.pairingCode}
+                </p>
+                <p className="text-xs text-muted">
+                  Da {r.ip ?? 'indirizzo sconosciuto'} · richiesta {formatDateTime(r.createdAt)} · scade{' '}
+                  {formatDateTime(r.expiresAt)}
+                </p>
+              </div>
+              {deciding === r.id ? (
+                <Button disabled>Attendere…</Button>
+              ) : (
+                <span className="inline-flex flex-wrap gap-2">
+                  <Button variant="primary" disabled={deciding !== null} onClick={() => void decide(r.id, 'approve')}>
+                    Abilita
+                  </Button>
+                  <Button variant="danger" disabled={deciding !== null} onClick={() => void decide(r.id, 'reject')}>
+                    Rifiuta
+                  </Button>
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-xs text-muted">
+        Controlla che il codice sia quello mostrato sul PC con DataVolley prima di premere «Abilita»: l’agente riceve il
+        suo token da solo entro pochi secondi e compare nell’elenco degli agenti.
+      </p>
+    </Card>
+  );
+}
+
+/** Agent tokens: create (token shown once, with the config.json to copy), list, revoke; pending self-registrations. */
 export function AgentsPage() {
   const errorMessage = useApiError();
   const load = useCallback((signal: AbortSignal) => apiRequest('/api/admin/agents', AgentListSchema, { signal }), []);
   const agents = useAsync(load);
+  const loadRegistrations = useCallback(
+    (signal: AbortSignal) => apiRequest('/api/admin/agent-registrations', RegistrationListSchema, { signal }),
+    [],
+  );
+  const registrations = useAsync(loadRegistrations);
+  const refresh = useCallback(() => {
+    registrations.reload();
+    agents.reload();
+  }, [registrations.reload, agents.reload]);
+  useRefresh(refresh, AGENTS_REFRESH_MS);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -116,40 +230,45 @@ export function AgentsPage() {
         )}
       </Card>
 
-      <Card title="Agenti">
-        {agents.loading && !agents.data && <Spinner label="Caricamento degli agenti…" />}
-        {agents.error !== null && <ErrorBox onRetry={agents.reload}>{errorMessage(agents.error)}</ErrorBox>}
-        {listError && <ErrorBox>{listError}</ErrorBox>}
-        {agents.data && agents.data.length === 0 && <Empty>Nessun agente creato.</Empty>}
-        {agents.data && agents.data.length > 0 && (
-          <ul className="divide-y divide-grid">
-            {agents.data.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                <div className="min-w-0">
-                  <p className="font-medium text-text">
-                    {a.name}{' '}
-                    <span className={`ml-1 text-xs font-semibold uppercase ${a.revoked ? 'text-danger' : 'text-live'}`}>
-                      {a.revoked ? 'Revocato' : 'Attivo'}
-                    </span>
-                  </p>
-                  <p className="text-xs text-muted">
-                    Ultimo contatto {a.lastSeenAt ? formatDateTime(a.lastSeenAt) : 'mai'} · creato{' '}
-                    {formatDateTime(a.createdAt)}
-                  </p>
-                </div>
-                {!a.revoked && (
-                  <ConfirmButton
-                    label="Revoca"
-                    confirmLabel="Conferma revoca"
-                    busy={revoking === a.id}
-                    onConfirm={() => void revoke(a.id)}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      <div className="flex min-w-0 flex-col gap-4">
+        <PendingRegistrations registrations={registrations} onChanged={refresh} />
+        <Card title="Agenti">
+          {agents.loading && !agents.data && <Spinner label="Caricamento degli agenti…" />}
+          {agents.error !== null && <ErrorBox onRetry={agents.reload}>{errorMessage(agents.error)}</ErrorBox>}
+          {listError && <ErrorBox>{listError}</ErrorBox>}
+          {agents.data && agents.data.length === 0 && <Empty>Nessun agente creato.</Empty>}
+          {agents.data && agents.data.length > 0 && (
+            <ul className="divide-y divide-grid">
+              {agents.data.map((a) => (
+                <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-text">
+                      {a.name}{' '}
+                      <span
+                        className={`ml-1 text-xs font-semibold uppercase ${a.revoked ? 'text-danger' : 'text-live'}`}
+                      >
+                        {a.revoked ? 'Revocato' : 'Attivo'}
+                      </span>
+                    </p>
+                    <p className="text-xs text-muted">
+                      Ultimo contatto {a.lastSeenAt ? formatDateTime(a.lastSeenAt) : 'mai'} · creato{' '}
+                      {formatDateTime(a.createdAt)}
+                    </p>
+                  </div>
+                  {!a.revoked && (
+                    <ConfirmButton
+                      label="Revoca"
+                      confirmLabel="Conferma revoca"
+                      busy={revoking === a.id}
+                      onConfirm={() => void revoke(a.id)}
+                    />
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }

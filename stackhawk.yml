@@ -2,7 +2,8 @@
 # Avvio del target (PGlite in memoria, limiti alzati per non falsare la scansione):
 #   cd apps/server && DATABASE_URL=pglite:memory COOKIE_SECURE=false ADMIN_EMAIL=admin@sir.local \
 #   ADMIN_PASSWORD=password-di-prova CORS_ORIGIN=http://localhost:5173 RATE_LIMIT_LOGIN=100000 \
-#   RATE_LIMIT_ADMIN=100000 RATE_LIMIT_PUBLIC=100000 RATE_LIMIT_INGEST=100000 pnpm dev
+#   RATE_LIMIT_ADMIN=100000 RATE_LIMIT_PUBLIC=100000 RATE_LIMIT_INGEST=100000 \
+#   RATE_LIMIT_REGISTER=100000 pnpm dev
 # Assunzioni (scansione non interattiva): specifica OpenAPI ricavata a mano dalle rotte (stackhawk/openapi.yaml);
 # utente admin di prova; il logout è escluso per non chiudere la sessione; i WebSocket non sono coperti.
 app:
@@ -12,10 +13,10 @@ app:
   openApiConf:
     filePath: stackhawk/openapi.yaml
   excludePaths:
-    - "/api/auth/logout"
+    - '/api/auth/logout'
   authentication:
     loggedInIndicator: "\\Q\"role\"\\E"
-    loggedOutIndicator: "HTTP/1.1 401"
+    loggedOutIndicator: 'HTTP/1.1 401'
     usernamePassword:
       type: JSON
       loginPath: /api/auth/login
@@ -28,7 +29,7 @@ app:
         - sir_session
     testPath:
       path: /api/auth/me
-      success: ".*200.*"
+      success: '.*200.*'
 # Token agente (creato con POST /api/admin/agents sul server in prova) per raggiungere /api/ingest autenticati.
 # Le rotte admin usano il cookie di sessione e ignorano questo header.
 hawkAddOn:

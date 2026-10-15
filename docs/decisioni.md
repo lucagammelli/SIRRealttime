@@ -44,5 +44,14 @@ Una riga per decisione: data, scelta, motivo.
 - 2026-10-15: agente: `allowHttpPrivateNetwork` (default `false`) ammette http verso IPv4 privati letterali, mai verso nomi
   host o IP pubblici (un nome può risolversi in un IP pubblico), per provare in LAN senza https; warning all'avvio
   (`docs/agente.md`).
+- 2026-10-15: auto-registrazione degli agenti con codice di abbinamento e abilitazione dell'admin, perché evita di copiare
+  il token a mano sul PC (`docs/server.md`, `docs/portale.md`).
+- 2026-10-15: token dell'agente consegnato una sola volta e salvato solo come hash; dopo la consegna la richiesta passa a
+  `consumed`, perché un token non deve poter essere letto due volte (`docs/server.md`).
+- 2026-10-15: `POST /api/agents/registrations/status` sul limite dell'ingest (`RATE_LIMIT_INGEST`), perché l'agente
+  interroga ogni 5 s e il limite di creazione (10/min) lo bloccherebbe (`docs/server.md`).
+- 2026-10-15: massimo 20 richieste di registrazione in attesa: un solo IP può riempirle in 2 minuti e bloccare le
+  registrazioni fino a 24 h; accettato per un portale piccolo o in LAN, rimedio: rifiutare dal portale le richieste in
+  coda (`docs/server.md`).
 - 2026-10-15: durata di un set chiuso presa da `[3SET]` invece che dalle ore delle righe, perché nei file reali tra la
   prima e l'ultima riga ci sono pause (110 minuti dalle ore contro i 20 ufficiali) (`docs/statistiche.md`).

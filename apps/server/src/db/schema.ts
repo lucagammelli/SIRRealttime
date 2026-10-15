@@ -54,6 +54,35 @@ export const agents = pgTable('agents', {
   createdAt: createdAt(),
 });
 
+export const agentRegistrationStatus = pgEnum('agent_registration_status', [
+  'pending',
+  'approved',
+  'rejected',
+  'consumed',
+]);
+
+/** Self-registration requests of agents (`expired` is not stored: it is derived from `expiresAt`). */
+export const agentRegistrations = pgTable(
+  'agent_registrations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    /** sha256 hex of the registration secret kept by the agent. */
+    secretHash: text('secret_hash').notNull().unique(),
+    pairingCode: text('pairing_code').notNull(),
+    /** Client address of the request (shown to the admin). */
+    ip: text('ip'),
+    status: agentRegistrationStatus('status').notNull().default('pending'),
+    /** Agent created when the token was delivered (`consumed`). */
+    agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    /** Time of the approval or rejection. */
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+  },
+  (t) => [index('agent_registrations_status_idx').on(t.status, t.expiresAt)],
+);
+
 export const matches = pgTable(
   'matches',
   {
@@ -103,4 +132,14 @@ export const shareTokens = pgTable('share_tokens', {
   createdAt: createdAt(),
 });
 
-export const schema = { userRole, users, sessions, agents, matches, scoutLines, shareTokens };
+export const schema = {
+  userRole,
+  users,
+  sessions,
+  agents,
+  agentRegistrationStatus,
+  agentRegistrations,
+  matches,
+  scoutLines,
+  shareTokens,
+};

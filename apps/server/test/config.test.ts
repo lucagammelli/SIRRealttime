@@ -14,7 +14,7 @@ describe('loadConfig', () => {
       logLevel: 'info',
       trustProxy: false,
       matchMaxLines: 20_000,
-      rateLimits: { login: 10, ingest: 600, public: 120, admin: 300 },
+      rateLimits: { login: 10, ingest: 600, public: 120, admin: 300, register: 10 },
     });
   });
 
@@ -25,8 +25,9 @@ describe('loadConfig', () => {
       RATE_LIMIT_INGEST: '1200',
       RATE_LIMIT_PUBLIC: '60',
       RATE_LIMIT_ADMIN: '100',
+      RATE_LIMIT_REGISTER: '20',
     });
-    expect(c.rateLimits).toEqual({ login: 5, ingest: 1200, public: 60, admin: 100 });
+    expect(c.rateLimits).toEqual({ login: 5, ingest: 1200, public: 60, admin: 100, register: 20 });
     for (const value of ['0', '-1', '1.5', 'abc', '100001']) {
       expect(() => loadConfig({ DATABASE_URL: 'x', RATE_LIMIT_LOGIN: value })).toThrow(/RATE_LIMIT_LOGIN/);
     }

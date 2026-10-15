@@ -33,6 +33,7 @@ const EnvSchema = z
     RATE_LIMIT_INGEST: perMinute(DEFAULT_RATE_LIMITS.ingest),
     RATE_LIMIT_PUBLIC: perMinute(DEFAULT_RATE_LIMITS.public),
     RATE_LIMIT_ADMIN: perMinute(DEFAULT_RATE_LIMITS.admin),
+    RATE_LIMIT_REGISTER: perMinute(DEFAULT_RATE_LIMITS.register),
     MATCH_MAX_LINES: z.coerce.number().int().positive().max(1_000_000).default(20_000),
   })
   .refine((e) => (e.ADMIN_EMAIL === undefined) === (e.ADMIN_PASSWORD === undefined), {
@@ -88,6 +89,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       ingest: e.RATE_LIMIT_INGEST,
       public: e.RATE_LIMIT_PUBLIC,
       admin: e.RATE_LIMIT_ADMIN,
+      register: e.RATE_LIMIT_REGISTER,
     },
   };
 }

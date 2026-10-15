@@ -47,7 +47,7 @@ export async function startServer(
     config,
     db: database.db,
     logger: process.env.TEST_LOG ? { level: 'error' } : false,
-    rateLimits: { login: 1000, ingest: 10_000, public: 10_000, admin: 10_000, ...rateLimits },
+    rateLimits: { login: 1000, ingest: 10_000, public: 10_000, admin: 10_000, register: 10_000, ...rateLimits },
     now: () => now ?? new Date(),
   });
   await database.db.insert(users).values([

@@ -16,6 +16,7 @@ import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
 import { ingestRoutes } from './routes/ingest.js';
 import { publicRoutes } from './routes/public.js';
+import { registrationRoutes } from './routes/registration.js';
 import { browserWriteGuard, rejectNulBody } from './security.js';
 
 export interface AppOptions {
@@ -42,7 +43,14 @@ export function loggerOptions(level: string): LoggerOption {
   return {
     level,
     redact: {
-      paths: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]', '*.password', '*.token'],
+      paths: [
+        'req.headers.authorization',
+        'req.headers.cookie',
+        'res.headers["set-cookie"]',
+        '*.password',
+        '*.token',
+        '*.secret',
+      ],
       censor: '[omesso]',
     },
     serializers: {
@@ -116,6 +124,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   healthRoutes(app, ctx);
   ingestRoutes(app, ctx);
   publicRoutes(app, ctx);
+  registrationRoutes(app, ctx);
   // Checks with a cost or a rejection go in preParsing/preValidation/preHandler: the rate limit of a route is an
   // onRequest hook added after the others, so anything in onRequest would run before it and escape the count.
   await app.register((scope, _opts, done) => {

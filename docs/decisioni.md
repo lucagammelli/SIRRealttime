@@ -32,3 +32,6 @@ Una riga per decisione: data, scelta, motivo.
   server (`docs/agente.md`).
 - 2026-10-14: agente distribuito come eseguibile Node SEA (`postject`) e installato come servizio con NSSM, perché sul PC
   di DataVolley non deve servire Node e il servizio parte da solo e si riavvia (`docs/agente.md`).
+- 2026-10-15: agente: `allowHttpPrivateNetwork` (default `false`) ammette http verso IPv4 privati letterali, mai verso nomi
+  host o IP pubblici (un nome può risolversi in un IP pubblico), per provare in LAN senza https; warning all'avvio
+  (`docs/agente.md`).

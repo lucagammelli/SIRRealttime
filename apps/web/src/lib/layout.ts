@@ -1,10 +1,15 @@
 /**
- * Layout of the match page as a list of blocks, one list per device (pure functions, no DOM).
- * Today the lists are the defaults below; the block editor of the reserved area will produce the same shape.
+ * Layout of the match page as a list of blocks, one list per device (pure functions, no DOM). The shape of the
+ * blocks, their widths on 12 columns and the defaults are the contract of @sir/shared (`TenantLayoutSchema`): the
+ * client chooses them in the page «Pagina pubblica» of the reserved area.
  */
+import type { BlockType, LayoutBlock, LayoutDevice, TenantLayout } from '@sir/shared';
+import { defaultDeviceBlocks, LAYOUT_COLUMNS } from '@sir/shared';
+
+export type { BlockType, LayoutBlock };
 
 /** Device class of the screen: big screen 16:9, tablet (2 columns), smartphone (1 column). */
-export type Device = 'tv' | 'tablet' | 'phone';
+export type Device = LayoutDevice;
 
 /** Smallest width (CSS px) of a tablet: below it the page is a phone. */
 export const TABLET_MIN_WIDTH = 700;
@@ -40,48 +45,17 @@ export function deviceFor({ width, height }: Viewport, tv: TvMode = 'auto', full
   return base;
 }
 
-/** Blocks of the match page. */
-export const BLOCK_TYPES = ['scoreboard', 'momentum', 'comparison', 'players', 'court', 'rotations'] as const;
-export type BlockType = (typeof BLOCK_TYPES)[number];
-
-/** Share of the row taken by a block (on the phone every block is full width). */
-export type BlockWidth = 'full' | 'twoThirds' | 'half' | 'third';
-export const WIDTH_SHARE: Record<BlockWidth, number> = { full: 1, twoThirds: 2 / 3, half: 1 / 2, third: 1 / 3 };
-
-export interface LayoutBlock {
-  type: BlockType;
-  width: BlockWidth;
-  /** Phone only: the section starts closed. */
-  collapsed?: boolean;
-}
-
-/** Default order of the blocks, from the most important; the scoreboard always first. */
+/** Default order of the blocks, from the most important; the scoreboard always first (from the shared contract). */
 export const defaultLayouts: Record<Device, readonly LayoutBlock[]> = {
-  tv: [
-    { type: 'scoreboard', width: 'full' },
-    { type: 'momentum', width: 'twoThirds' },
-    { type: 'comparison', width: 'third' },
-    { type: 'players', width: 'full' },
-    { type: 'court', width: 'half' },
-    { type: 'rotations', width: 'half' },
-  ],
-  tablet: [
-    { type: 'scoreboard', width: 'full' },
-    { type: 'momentum', width: 'half' },
-    { type: 'comparison', width: 'half' },
-    { type: 'players', width: 'full' },
-    { type: 'court', width: 'half' },
-    { type: 'rotations', width: 'half' },
-  ],
-  phone: [
-    { type: 'scoreboard', width: 'full' },
-    { type: 'momentum', width: 'full' },
-    { type: 'comparison', width: 'full', collapsed: true },
-    { type: 'players', width: 'full', collapsed: true },
-    { type: 'court', width: 'full', collapsed: true },
-    { type: 'rotations', width: 'full', collapsed: true },
-  ],
+  tv: defaultDeviceBlocks('tv'),
+  tablet: defaultDeviceBlocks('tablet'),
+  phone: defaultDeviceBlocks('phone'),
 };
+
+/** Blocks shown on `device`: the visible ones of the layout of the client, or the defaults without a layout. */
+export function blocksFor(layout: TenantLayout | null | undefined, device: Device): readonly LayoutBlock[] {
+  return (layout ? layout[device] : defaultLayouts[device]).filter((b) => b.visible);
+}
 
 /**
  * Smallest height of a block on the big screen, in rem (the TV text scales with the screen, so do these). Below it the
@@ -94,6 +68,13 @@ export const TV_BLOCK_MIN_REM: Record<BlockType, number> = {
   players: 22,
   court: 22,
   rotations: 14,
+  logo: 6,
+  sponsor: 8,
+  message: 6,
+  qr: 14,
+  lastPoint: 6,
+  setScores: 6,
+  topPlayers: 14,
 };
 
 /** Blocks side by side on the big screen. */
@@ -101,21 +82,20 @@ export type LayoutRow = LayoutBlock[];
 /** Rows shown together on the big screen (one screen of the rotation). */
 export type LayoutGroup = LayoutRow[];
 
-/** Blocks in rows, in order: a block that does not fit in the width left starts a new row. */
+/** Blocks in rows, in order: a block that does not fit in the columns left starts a new row. */
 export function packRows(blocks: readonly LayoutBlock[]): LayoutRow[] {
   const rows: LayoutRow[] = [];
   let row: LayoutRow = [];
   let used = 0;
   for (const block of blocks) {
-    const share = WIDTH_SHARE[block.width];
-    // Tolerance: three thirds or 2/3 + 1/3 are a full row despite the floating point.
-    if (row.length > 0 && used + share > 1 + 1e-9) {
+    const columns = Math.min(LAYOUT_COLUMNS, Math.max(1, block.width));
+    if (row.length > 0 && used + columns > LAYOUT_COLUMNS) {
       rows.push(row);
       row = [];
       used = 0;
     }
     row.push(block);
-    used += share;
+    used += columns;
   }
   if (row.length > 0) rows.push(row);
   return rows;

@@ -100,7 +100,7 @@ paths:
   /api/public/tenant:
     get:
       responses:
-        '200': { description: grafica del cliente dell'hostname (nome, colori, percorsi dei loghi) }
+        '200': { description: "grafica del cliente dell'hostname: nome, colori, loghi e blocchi della pagina pubblica" }
         '404': { description: hostname senza cliente }
   /api/public/assets/{id}:
     get:
@@ -317,6 +317,24 @@ paths:
       responses:
         '200': { description: grafica salvata }
         '400': { description: colori non validi o immagine non del cliente }
+  /api/admin/layout:
+    get:
+      responses:
+        '200': { description: 'blocchi della pagina pubblica del cliente della sessione: TV, tablet, telefono' }
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tv: { $ref: '#/components/schemas/LayoutBlocks' }
+                tablet: { $ref: '#/components/schemas/LayoutBlocks' }
+                phone: { $ref: '#/components/schemas/LayoutBlocks' }
+      responses:
+        '200': { description: pagina pubblica salvata }
+        '400': { description: 'tipo di blocco sconosciuto, opzioni o larghezza non valide, immagine non del cliente' }
   /api/admin/assets:
     get:
       responses:
@@ -354,6 +372,41 @@ paths:
         '404': { description: non trovata }
         '409': { description: in uso nella grafica }
 components:
+  schemas:
+    LayoutBlocks:
+      type: array
+      maxItems: 24
+      items:
+        type: object
+        required: [id, type]
+        properties:
+          id: { type: string, pattern: '^[A-Za-z0-9_-]{1,40}$', example: messaggio }
+          type:
+            type: string
+            enum:
+              [
+                scoreboard,
+                momentum,
+                comparison,
+                players,
+                court,
+                rotations,
+                logo,
+                sponsor,
+                message,
+                qr,
+                lastPoint,
+                setScores,
+                topPlayers,
+              ]
+            example: message
+          width: { type: integer, minimum: 1, maximum: 12, example: 12 }
+          visible: { type: boolean, example: true }
+          collapsed: { type: boolean, example: false }
+          options:
+            type: object
+            description: 'opzioni del tipo: message text, qr caption, sponsor images e seconds, logo variant, topPlayers count e team'
+            example: { text: Benvenuti al palazzetto! }
   securitySchemes:
     agentToken:
       type: http

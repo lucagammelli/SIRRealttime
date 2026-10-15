@@ -23,6 +23,10 @@ connessioni. Con un valore valido la pagina si collega a `/ws/public/<token o co
 | Mappe di campo | frecce partenza → arrivo di attacchi e battute; filtri «Squadra», «Fondamentale» (Attacco, Battuta), «Giocatore», «Valutazione» |
 | Rotazioni | «Punti vinti e persi per posizione del palleggiatore» |
 
+Questi sei sono i blocchi predefiniti; il cliente può nasconderli, riordinarli e aggiungerne altri (Logo, Sponsor,
+Messaggio, Codice QR, Ultimo punto, Parziali dei set, Migliori giocatori) per ogni dispositivo, vedi «Pagina pubblica a
+blocchi».
+
 Nell'intestazione ci sono il pulsante «Schermo intero» (diventa «Esci da schermo intero») e il cambio tema.
 La pagina pubblica non ha nessun collegamento all'area riservata.
 
@@ -35,9 +39,9 @@ tra tre impaginazioni, con gli stessi blocchi della tabella sopra:
 | Tablet | da 700 px, e sotto le soglie della TV | griglia a 6 colonne, due colonne di blocchi |
 | TV | da sola con almeno 1600 × 800 px e proporzioni ≥ 16:10; sempre con `?tv=1`; mai con `?tv=0`; con «Schermo intero» solo da tablet in su | senza scorrimento, testi scalati, rotazione dei gruppi |
 
-Un monitor desktop 4:3 o 16:10 basso resta quindi tablet e mantiene lo scorrimento. `defaultLayouts` è l'elenco dei
-blocchi per dispositivo (`{type, width, collapsed?}`, larghezza `full`, `half`, `third` o `twoThirds`): la base
-dell'editor a blocchi (lavoro `layout-blocchi`). Nell'area riservata `MatchView` usa al massimo l'impaginazione tablet.
+Un monitor desktop 4:3 o 16:10 basso resta quindi tablet e mantiene lo scorrimento. `defaultLayouts` è l'elenco
+predefinito dei blocchi per dispositivo (da `defaultDeviceBlocks` di `@sir/shared`, larghezze 12/8/6/4 su 12 colonne come
+prima); il cliente può cambiarlo nella pagina «Pagina pubblica» (vedi «Pagina pubblica a blocchi»). Nell'area riservata `MatchView` usa al massimo l'impaginazione tablet.
 Il tabellone del telefono resta fisso in alto e `scroll-padding-top` segue la sua altezza (`useStickyOffset`, variabile
 `--sir-sticky-offset`), così le sezioni aperte non finiscono sotto di lui.
 
@@ -80,6 +84,7 @@ Prima si verifica la sessione («Verifica della sessione…»); senza sessione c
 | Agenti | `/admin/agenti` | solo admin | «Nuovo agente» («Crea token», mostrato una sola volta con «Copia config.json»), «Richieste in attesa» (vedi sotto), «Agenti», «Revoca» |
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, password di almeno 12 caratteri, ruolo), «Utenti» |
 | Grafica | `/admin/grafica` | solo admin (il superadmin lavora sul cliente scelto) | colori, nome e loghi del cliente, vedi «Grafica per cliente» |
+| Pagina pubblica | `/admin/pagina` | solo admin (il superadmin lavora sul cliente scelto) | blocchi della pagina della partita per TV, tablet e telefono, vedi «Pagina pubblica a blocchi» |
 | Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname; «Crea cliente»), «Clienti» con «Modifica» (nome e hostname, «Salva») |
 | Esci | - | tutti | chiude la sessione |
 
@@ -189,6 +194,55 @@ controlli in `docs/server.md`, «Grafica per cliente»).
   `src/lib/base64.ts`) a `POST /api/admin/assets`, poi `PUT /api/admin/branding` con «Salva».
 - **Limiti noti**: la testata dell'area riservata del superadmin ha la grafica del cliente dell'hostname, non quella del
   cliente attivo; un'immagine SVG non ammessa è rifiutata con un messaggio, non convertita.
+
+### Pagina pubblica a blocchi (editor «Pagina pubblica»)
+Ogni cliente sceglie quali blocchi mostra la pagina della partita, in che ordine e con che larghezza, separatamente per
+TV, tablet e telefono. Il contratto (`TenantLayoutSchema`, `docs/architettura.md`) e le rotte (`GET`/`PUT
+/api/admin/layout`, `docs/server.md`) sono altrove; il layout arriva al portale in `GET /api/public/tenant` (`layout`,
+letto da `initBranding` e tenuto in `lib/branding.ts`). Senza layout salvato (`{}`) valgono i blocchi predefiniti, cioè la
+pagina di prima.
+
+- **Disegno** (`MatchView` → `BlockLayout`): `blocksFor(layout, device)` prende i blocchi visibili del dispositivo e
+  ognuno è disegnato dal registro (`src/blocks/registry.tsx`, `BLOCKS`: etichetta, descrizione, larghezze, opzioni e
+  `render` per tipo). Tablet e TV usano una griglia a 12 colonne (`col-span-N` secondo `width`); sul telefono una colonna,
+  ogni blocco a tutta larghezza e, tranne il tabellone, comprimibile (`collapsed` = «Chiuso all'apertura»). Sulla TV il
+  tabellone sta sempre in alto e gli altri blocchi vanno in righe (`packRows`) e gruppi (`tvGroups`) che ruotano come
+  prima; `TV_BLOCK_MIN_REM` ha le altezze minime anche dei nuovi tipi. `LayoutScaleContext` (`lib/useLayout.ts`) dà la
+  scala dell'anteprima, così le misure restano quelle della pagina vera.
+- **Tipi di blocco**: Tabellone (uno solo, sempre a larghezza 12), Andamento del set, Confronto squadre, Statistiche
+  giocatori, Mappe di campo, Rotazioni (i sei di prima), più:
+
+| Blocco | Opzioni | Comportamento |
+|---|---|---|
+| Logo | Orizzontale / Quadrato | logo del cliente in un `<img>`; senza logo, il nome |
+| Sponsor | fino a 12 immagini del cliente, «Secondi per immagine» (3-60, predefinito 8) | immagini a rotazione con dissolvenza breve (nessuna con `prefers-reduced-motion`); si ferma con «Ferma rotazione» della TV; senza immagini: «Nessuna immagine sponsor scelta.» |
+| Messaggio | testo (al massimo 280 caratteri, una riga), «Dimensione» Normale / Grande | sempre testo semplice, mai HTML |
+| Codice QR | testo sopra il codice (al massimo 80 caratteri, predefinito «Segui la partita sul telefono») | QR del link della pagina aperta (origine + percorso, senza query come `?tv=1`); il codice breve sotto compare solo se la pagina è aperta con `/l/<codice>` |
+| Ultimo punto | - | squadra, punteggio e come è stato vinto (`LastPointBlock`) |
+| Parziali dei set | - | punteggio di ogni set (`SetScoresBlock`) |
+| Migliori giocatori | «Quanti» (1-10), «Squadra» Entrambe / Casa / Ospiti | classifica a punti di `topPlayers` (`docs/statistiche.md`); tabella Giocatore, Att, Muro, Ace, Punti |
+
+- **Pagina «Pagina pubblica»** (`src/pages/admin/LayoutPage.tsx`, rotta `/admin/pagina`, solo admin; titolo scheda
+  «Pagina pubblica · Area riservata»). Tre schede «TV», «Tablet», «Telefono». Per ogni blocco: maniglia ⠿ (trascinamento),
+  «Sposta su» e «Sposta giù», «Visibile», «Larghezza» (non sul telefono; i valori ammessi dipendono dal tipo, per esempio
+  «Metà (6/12)»), «Chiuso all'apertura» (solo telefono, non per il tabellone), le opzioni del tipo (per lo sponsor anche
+  «Carica immagine sponsor») e «Rimuovi». In fondo «Tipo di blocco» con «Aggiungi blocco» (in coda; il tabellone si può
+  aggiungere solo se manca; al massimo 24 blocchi, contatore «N di al massimo 24 blocchi.»), «Salva» (dopo il
+  salvataggio: «Pagina pubblica salvata: la vedono da subito tutti gli spettatori.») e «Ripristina predefinito», che
+  rimette i blocchi predefiniti **solo del dispositivo aperto**. I blocchi con opzioni non valide (per esempio testo
+  vuoto) sono evidenziati e «Salva» resta disattivato. Le modifiche sono logica pura in `layoutEditor.ts` (`moveBlock`,
+  `updateBlock`, `removeBlock`, `addBlock`, `resetDevice`, `layoutProblems`).
+- **Accessibilità**: spostamenti, aggiunte, rimozioni e ripristino sono annunciati in una regione `aria-live`
+  («Messaggio in posizione 2 di 6.», «Messaggio rimosso.»); dopo uno spostamento con la tastiera il focus resta sul
+  pulsante usato. Il trascinamento è un'aggiunta: tutto si fa anche con «Sposta su»/«Sposta giù».
+- **Anteprima**: scheda «Anteprima» con la pagina del dispositivo scelto, disegnata alla grandezza vera (1920×1080,
+  1024×768, 390×845) e ridotta, non interattiva, con le modifiche non ancora salvate. Usa la partita live del cliente
+  (`/ws/admin`: «Dati della partita live.») oppure, se non c'è, la «Partita d'esempio» (`src/blocks/sampleMatch.json`,
+  caricata solo dall'editor in un suo file separato; si rigenera con `pnpm --filter @sir/web sample-match`).
+- **Limiti noti**: l'avviso «Modifiche non salvate.» compare sempre, ma il browser chiede conferma solo alla chiusura della
+  scheda: cambiando voce del menu dell'area riservata le modifiche si perdono (come nella pagina «Grafica»). Una
+  immagine usata in un blocco sponsor non si può eliminare dalla pagina «Grafica» finché non viene tolta dal blocco.
+  Un layout salvato e poi non più valido (per esempio di versione futura) si legge come predefinito.
 
 ### Grafica del portale
 Strisce nei colori delle squadre, cifre del punteggio con animazione `sir-pop`, «IN DIRETTA» pieno (testo
@@ -323,6 +377,7 @@ Variabili e comandi di `docker compose` sono in `docs/server.md`; il portale è 
 | `pnpm --filter @sir/web preview` | serve la build sulla 5173 |
 | `pnpm --filter @sir/web demo` | demo (sopra) |
 | `pnpm --filter @sir/web test` | `vitest run` (jsdom) |
+| `pnpm --filter @sir/web sample-match` | rigenera `src/blocks/sampleMatch.json` (partita d'esempio dell'anteprima); un test ne verifica la coerenza |
 
 ### Collaudo del 2026-10-14
 - **Compose**: `docker compose -p sirrealtime up -d --build` con `.env` da `.env.example` (`POSTGRES_PASSWORD`, `ADMIN_*`,
@@ -362,7 +417,11 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
 - Grafica per cliente: `apps/web/src/lib/branding.ts` (`initBranding`, `writePalette`, `setTenantLook`, `useTenantLook`,
   `useBrandingRevision`, `useBrandName`), `lib/base64.ts`, `components/BrandMark.tsx`, `components/BrandingPreview.tsx`,
   `pages/admin/BrandingPage.tsx`; `packages/shared/src/colors.ts`, `assets.ts`, `tenant.ts`; API in `docs/server.md`
-- Portale adattivo: `apps/web/src/lib/layout.ts` (`deviceFor`, `tvModeOf`, `defaultLayouts`, `tvGroups`, `rotationIndex`),
+- Pagina pubblica a blocchi: `apps/web/src/blocks/` (`registry.tsx`: `BLOCKS`, `renderLayoutBlock`; `BrandBlocks.tsx`;
+  `MatchBlocks.tsx`; `sampleMatch.ts`, `sampleMatch.json`, `env.ts`), `components/BlockLayout.tsx`,
+  `pages/admin/LayoutPage.tsx`, `pages/admin/layoutEditor.ts`, `scripts/sample-match.ts`; contratto in
+  `packages/shared/src/layout.ts` (`docs/architettura.md`), API in `docs/server.md`, classifica in `docs/statistiche.md`
+- Portale adattivo: `apps/web/src/lib/layout.ts` (`deviceFor`, `tvModeOf`, `defaultLayouts`, `blocksFor`, `packRows`, `tvGroups`, `rotationIndex`),
   `lib/useLayout.ts` (`useStickyOffset`), `lib/tvScreen.ts` (`useWakeLock`, `useIdle`), `components/BlockLayout.tsx`,
   `components/ui.tsx` (`CardCollapseContext`), `styles/index.css`
 - Link breve e QR: `apps/web/src/qr/` (`qrImage.ts`, `qrCanvas.ts`, `ShareQr.tsx`), `pages/admin/ShareLinksPage.tsx`;

@@ -1,6 +1,22 @@
 import { describe, expect, it } from 'vitest';
+import type { LayoutBlockInput, TenantLayout } from '@sir/shared';
+import { LayoutBlockSchema, TenantLayoutSchema } from '@sir/shared';
 import type { LayoutBlock } from './layout.ts';
-import { defaultLayouts, deviceFor, packRows, rotationIndex, rowMinRem, tvGroups, tvModeOf } from './layout.ts';
+import {
+  blocksFor,
+  defaultLayouts,
+  deviceFor,
+  packRows,
+  rotationIndex,
+  rowMinRem,
+  tvGroups,
+  tvModeOf,
+} from './layout.ts';
+
+let next = 0;
+/** Block of the contract with its defaults (a new id each time). */
+const block = (b: Omit<LayoutBlockInput, 'id'>): LayoutBlock =>
+  LayoutBlockSchema.parse({ id: `b${(next += 1)}`, ...b });
 
 const types = (groups: LayoutBlock[][][]): string[][][] => groups.map((g) => g.map((r) => r.map((b) => b.type)));
 
@@ -47,7 +63,24 @@ describe('defaultLayouts', () => {
       expect(blocks[0]?.type).toBe('scoreboard');
       expect(new Set(blocks.map((b) => b.type)).size).toBe(6);
     }
-    expect(defaultLayouts.phone.every((b) => b.width === 'full')).toBe(true);
+    expect(defaultLayouts.phone.every((b) => b.width === 12)).toBe(true);
+  });
+});
+
+describe('blocksFor', () => {
+  it('uses the layout of the client for the device and leaves out the hidden blocks', () => {
+    const layout: TenantLayout = TenantLayoutSchema.parse({
+      tv: [
+        { id: 's', type: 'scoreboard' },
+        { id: 'q', type: 'qr', width: 4, visible: false },
+        { id: 'm', type: 'message', width: 8 },
+      ],
+      phone: [{ id: 'm', type: 'message' }],
+    });
+    expect(blocksFor(layout, 'tv').map((b) => b.id)).toEqual(['s', 'm']);
+    expect(blocksFor(layout, 'phone').map((b) => b.type)).toEqual(['message']);
+    expect(blocksFor(layout, 'tablet')).toEqual(defaultLayouts.tablet);
+    expect(blocksFor(null, 'tv')).toEqual(defaultLayouts.tv);
   });
 });
 
@@ -60,21 +93,19 @@ describe('packRows', () => {
       ['court', 'rotations'],
     ]);
     const thirds = packRows([
-      { type: 'momentum', width: 'third' },
-      { type: 'comparison', width: 'third' },
-      { type: 'court', width: 'third' },
-      { type: 'rotations', width: 'half' },
+      block({ type: 'momentum', width: 6 }),
+      block({ type: 'comparison', width: 4 }),
+      block({ type: 'qr', width: 3 }),
+      block({ type: 'court', width: 4 }),
+      block({ type: 'rotations', width: 4 }),
+      block({ type: 'logo', width: 4 }),
+      block({ type: 'players', width: 12 }),
     ]);
-    expect(thirds.map((r) => r.length)).toEqual([3, 1]);
+    expect(thirds.map((r) => r.length)).toEqual([2, 3, 1, 1]);
   });
 
   it('measures a row by its tallest block', () => {
-    expect(
-      rowMinRem([
-        { type: 'momentum', width: 'half' },
-        { type: 'players', width: 'half' },
-      ]),
-    ).toBe(22);
+    expect(rowMinRem([block({ type: 'momentum', width: 6 }), block({ type: 'players', width: 6 })])).toBe(22);
   });
 });
 
@@ -97,7 +128,7 @@ describe('tvGroups', () => {
     const groups = tvGroups(tv, 0);
     expect(groups).toHaveLength(3);
     expect(groups.flat(2).some((b) => b.type === 'scoreboard')).toBe(false);
-    expect(tvGroups([{ type: 'scoreboard', width: 'full' }], 30)).toEqual([]);
+    expect(tvGroups([block({ type: 'scoreboard' })], 30)).toEqual([]);
   });
 });
 

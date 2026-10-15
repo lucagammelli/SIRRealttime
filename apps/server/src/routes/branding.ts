@@ -4,6 +4,7 @@ import type {
   AssetSummary,
   BrandingImageSlot,
   BrandingResponse,
+  LayoutResponse,
   PublicTenantResponse,
   TenantBranding,
 } from '@sir/shared';
@@ -15,12 +16,15 @@ import {
   DEFAULT_BRAND_NAME,
   DEFAULT_TENANT_SLUG,
   IdParamSchema,
+  layoutImageIds,
   publicAssetPath,
   resolveBranding,
+  resolveLayout,
   TenantBrandingSchema,
+  TenantLayoutSchema,
   UploadAssetRequestSchema,
 } from '@sir/shared';
-import { desc, eq, ne, sql } from 'drizzle-orm';
+import { desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { readAssetFile, removeAssetFile, writeAssetFile } from '../assetStore.js';
@@ -38,7 +42,7 @@ type Tx = Parameters<Parameters<AppContext['db']['transaction']>[0]>[0];
 
 /** Body limit of the upload: the base64 text of a 2 MB image plus the rest of the JSON. */
 const UPLOAD_BODY_LIMIT = ASSET_MAX_BASE64_LENGTH + 1024;
-/** Key of the transaction lock (with the client) that serializes uploads, deletions and branding of one client. */
+/** Key of the transaction lock (with the client) that serializes uploads, deletions, branding and layout of a client. */
 const ASSET_LOCK_KEY = 0x53494153;
 /** The id of an image changes when its file changes: the file can stay in any cache for a year. */
 const IMMUTABLE = 'public, max-age=31536000, immutable';
@@ -77,7 +81,7 @@ async function usedBytes(tx: Tx | AppContext['db'], tenantId: string): Promise<n
 const SLOTS = Object.keys(BRANDING_IMAGE_SLOTS) as BrandingImageSlot[];
 
 /** Images used by a branding. */
-const usedIds = (branding: TenantBranding): string[] =>
+const brandingIds = (branding: TenantBranding): string[] =>
   SLOTS.map((slot) => branding[slot]).filter((id): id is string => id !== null);
 
 /**
@@ -100,6 +104,7 @@ export function brandingPublicRoutes(app: FastifyInstance, ctx: AppContext): voi
         logoMark: branding.logoMark ? publicAssetPath(branding.logoMark) : null,
         sponsorLogo: branding.sponsorLogo ? publicAssetPath(branding.sponsorLogo) : null,
       },
+      layout: resolveLayout(tenant.layout),
     };
   });
 
@@ -175,6 +180,43 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     forgetTenants(ctx);
     request.log.info({ tenantId, userId: request.user?.id }, 'grafica del cliente salvata');
     return brandingOf(tenantId);
+  });
+
+  const layoutOf = async (tenantId: string): Promise<LayoutResponse> => {
+    const tenant = await findTenant(ctx, { id: tenantId });
+    if (!tenant) throw notFound();
+    return { tenantName: tenant.name, layout: resolveLayout(tenant.layout) };
+  };
+
+  app.get('/api/admin/layout', admin, async (request): Promise<LayoutResponse> => layoutOf(adminTenantId(request)));
+
+  /**
+   * Replaces the layout of the public page (closed list of block types, options checked by the shared schema); every
+   * image of the blocks must be of this client.
+   */
+  app.put('/api/admin/layout', admin, async (request): Promise<LayoutResponse> => {
+    const tenantId = adminTenantId(request);
+    const layout = validate(TenantLayoutSchema, request.body);
+    const images = layoutImageIds(layout);
+    await ctx.db.transaction(async (tx) => {
+      await lockClient(tx, tenantId);
+      if (images.length > 0) {
+        const rows = await tx
+          .select({ id: assets.id })
+          .from(assets)
+          .where(tenantScope(assets, tenantId, inArray(assets.id, images)));
+        if (rows.length !== images.length) throw badRequest('Richiesta non valida: immagine non trovata');
+      }
+      const updated = await tx
+        .update(tenants)
+        .set({ layout })
+        .where(eq(tenants.id, tenantId))
+        .returning({ id: tenants.id });
+      if (updated.length === 0) throw notFound();
+    });
+    forgetTenants(ctx);
+    request.log.info({ tenantId, userId: request.user?.id }, 'pagina pubblica del cliente salvata');
+    return layoutOf(tenantId);
   });
 
   app.get('/api/admin/assets', admin, async (request): Promise<AssetListResponse> => {
@@ -253,7 +295,8 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
   );
 
   /**
-   * Deletes an image not used by the branding (409 otherwise); the file goes when no other row of the client uses it.
+   * Deletes an image not used by the branding or by the blocks of the public page (409 otherwise); the file goes when
+   * no other row of the client uses it.
    */
   app.delete('/api/admin/assets/:id', admin, async (request, reply) => {
     const tenantId = adminTenantId(request);
@@ -266,9 +309,14 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
         .where(tenantScope(assets, tenantId, eq(assets.id, id)))
         .limit(1);
       if (!row) throw notFound();
-      const [tenant] = await tx.select({ branding: tenants.branding }).from(tenants).where(eq(tenants.id, tenantId));
-      if (usedIds(resolveBranding(tenant?.branding)).includes(id))
+      const [tenant] = await tx
+        .select({ branding: tenants.branding, layout: tenants.layout })
+        .from(tenants)
+        .where(eq(tenants.id, tenantId));
+      if (brandingIds(resolveBranding(tenant?.branding)).includes(id))
         throw conflict('Immagine in uso nella grafica: toglila prima di eliminarla');
+      if (layoutImageIds(resolveLayout(tenant?.layout)).includes(id))
+        throw conflict('Immagine in uso nella pagina pubblica: toglila dal blocco sponsor prima di eliminarla');
       await tx.delete(assets).where(tenantScope(assets, tenantId, eq(assets.id, id)));
       const [twin] = await tx
         .select({ id: assets.id })

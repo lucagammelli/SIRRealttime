@@ -82,7 +82,7 @@ function Score({
   );
 }
 
-function Partials({ partials, compact = false }: { partials: SetPartial[]; compact?: boolean }) {
+export function Partials({ partials, compact = false }: { partials: SetPartial[]; compact?: boolean }) {
   if (partials.length === 0) return null;
   return (
     <ol

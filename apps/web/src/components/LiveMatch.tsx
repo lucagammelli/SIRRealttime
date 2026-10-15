@@ -1,4 +1,6 @@
+import type { TenantLayout } from '@sir/shared';
 import type { ReactNode } from 'react';
+import type { BlockBrand } from '../blocks/env.ts';
 import type { Device } from '../lib/layout.ts';
 import type { LiveSnapshot } from '../lib/liveConnection.ts';
 import { ConnectionBadge } from './ConnectionBadge.tsx';
@@ -9,7 +11,8 @@ import { Spinner } from './ui.tsx';
 /**
  * What a live socket shows: the match, or the right message for every state of the connection.
  * `device` (public page) lays the match out for the screen, `brand` puts the logo of the client in the scoreboard and
- * `controls` go next to the connection badge (big screen: no page header).
+ * `controls` go next to the connection badge (big screen: no page header). `layout` and `look`: the blocks and the
+ * graphics of the client (public page).
  */
 export function LiveMatch({
   snapshot,
@@ -17,12 +20,16 @@ export function LiveMatch({
   brand = false,
   controls,
   rotationPaused = false,
+  layout = null,
+  look = null,
 }: {
   snapshot: LiveSnapshot;
   device?: Device;
   brand?: boolean;
   controls?: ReactNode;
   rotationPaused?: boolean;
+  layout?: TenantLayout | null;
+  look?: BlockBrand | null;
 }) {
   const { status, data, error } = snapshot;
   if (status === 'invalid') {
@@ -95,6 +102,8 @@ export function LiveMatch({
           {...(device ? { device } : {})}
           brand={brand}
           rotationPaused={rotationPaused}
+          layout={layout}
+          look={look}
         />
       </div>
     </div>

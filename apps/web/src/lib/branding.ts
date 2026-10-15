@@ -1,4 +1,4 @@
-import type { BrandPalette, PublicTenantResponse } from '@sir/shared';
+import type { BrandPalette, PublicTenantResponse, TenantLayout } from '@sir/shared';
 import { brandPalette, DEFAULT_BRAND_NAME, PublicTenantResponseSchema } from '@sir/shared';
 import { useSyncExternalStore } from 'react';
 import type { ResolvedTheme } from './theme.ts';
@@ -13,6 +13,8 @@ export interface TenantLook {
   name: string;
   images: PublicTenantResponse['images'];
   palette: BrandPalette;
+  /** Blocks of the public page chosen by the client, for every device. */
+  layout: TenantLayout;
 }
 
 let look: TenantLook | null = null;
@@ -69,7 +71,12 @@ export function setTenantLook(next: TenantLook | null): void {
 
 /** Graphics of a client from the public answer. */
 export function tenantLookOf(tenant: PublicTenantResponse): TenantLook {
-  return { name: tenant.name, images: tenant.images, palette: brandPalette(tenant.branding.colors) };
+  return {
+    name: tenant.name,
+    images: tenant.images,
+    palette: brandPalette(tenant.branding.colors),
+    layout: tenant.layout,
+  };
 }
 
 /** Options of a load: `fresh` skips the HTTP cache (after a save in the reserved area). */

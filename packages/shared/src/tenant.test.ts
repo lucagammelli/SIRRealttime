@@ -93,14 +93,14 @@ describe('tenant requests', () => {
 });
 
 describe('tenant configuration documents', () => {
-  const schemas = [TenantLayoutSchema, TenantIntermissionsSchema, TenantOverlaysSchema];
+  const schemas = [TenantIntermissionsSchema, TenantOverlaysSchema];
 
   it('read the empty database default as the current version', () => {
     for (const schema of schemas) expect(schema.parse({})).toEqual({ version: TENANT_CONFIG_VERSION });
   });
 
   it('reject unknown keys and other versions', () => {
-    for (const schema of [...schemas, TenantBrandingSchema]) {
+    for (const schema of [...schemas, TenantBrandingSchema, TenantLayoutSchema]) {
       expect(schema.safeParse({ version: 1, extra: true }).success).toBe(false);
       expect(schema.safeParse({ version: 2 }).success).toBe(false);
     }

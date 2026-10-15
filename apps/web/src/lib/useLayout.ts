@@ -28,6 +28,12 @@ export const DeviceContext = createContext<Device>('tablet');
 export const useDeviceContext = (): Device => useContext(DeviceContext);
 
 /**
+ * Scale of the page drawn inside a reduced frame (preview of the editor, CSS transform): measured heights are divided
+ * by it, so the big screen groups its blocks as on the real screen.
+ */
+export const LayoutScaleContext = createContext(1);
+
+/**
  * Height (px) of an element, followed with ResizeObserver; 0 before the first measure, without the element or without
  * the API. `watch`: a value that changes when the element of `ref` is mounted or removed.
  */
@@ -72,9 +78,13 @@ const STICKY_MARGIN_PX = 12;
 
 /**
  * While the element of `ref` is mounted, the page keeps its height free on top when it scrolls to an element (focus
- * with the keyboard, anchors): nothing ends up under the sticky scoreboard of the phone.
+ * with the keyboard, anchors): nothing ends up under the sticky scoreboard of the phone. Never inside a scaled
+ * preview (LayoutScaleContext different from 1).
  */
-export function useStickyOffset(ref: RefObject<HTMLElement | null>, active: boolean): void {
+export function useStickyOffset(ref: RefObject<HTMLElement | null>, wanted: boolean): void {
+  // Inside a scaled preview (editor «Pagina pubblica») the page around is not this one: nothing is written on <html>.
+  const scale = useContext(LayoutScaleContext);
+  const active = wanted && scale === 1;
   const height = useElementHeight(ref, active);
   useEffect(() => {
     if (!active || height <= 0) return;

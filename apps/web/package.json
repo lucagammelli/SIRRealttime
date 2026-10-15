@@ -11,7 +11,8 @@
     "test": "vitest run",
     "dev": "vite",
     "preview": "vite preview",
-    "demo": "tsx --conditions=@sir/source scripts/demo.ts"
+    "demo": "tsx --conditions=@sir/source scripts/demo.ts",
+    "sample-match": "tsx --conditions=@sir/source scripts/sample-match.ts"
   },
   "dependencies": {
     "@sir/shared": "workspace:*",

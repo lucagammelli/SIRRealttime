@@ -1,6 +1,8 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { defaultBranding, TenantLayoutSchema } from '@sir/shared';
+import { setTenantLook, tenantLookOf } from '../lib/branding.ts';
 import type { LiveSnapshot } from '../lib/liveConnection.ts';
 import { TV_ROOT_CLASS } from '../lib/tvScreen.ts';
 import { midMatchState } from '../test/fixtures.ts';
@@ -48,6 +50,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  act(() => setTenantLook(null));
   vi.useRealTimers();
   vi.unstubAllGlobals();
   setWidth(1024);
@@ -157,5 +160,38 @@ describe('LivePage devices', () => {
       window.dispatchEvent(new Event('mousemove'));
     });
     expect(root?.className).not.toContain('cursor-none');
+  });
+});
+
+describe('LivePage layout of the client', () => {
+  it('shows the blocks chosen by the client for the device, the QR with the address of the page', () => {
+    const layout = TenantLayoutSchema.parse({
+      tablet: [
+        { id: 'tab', type: 'scoreboard' },
+        { id: 'msg', type: 'message', width: 8, options: { text: 'Benvenuti al PalaBarton!' } },
+        { id: 'qr', type: 'qr', width: 4 },
+      ],
+      phone: [{ id: 'msg', type: 'message', options: { text: 'Solo telefono' } }],
+    });
+    act(() =>
+      setTenantLook(
+        tenantLookOf({
+          name: 'Sir Safety',
+          branding: defaultBranding(),
+          images: { logoMain: null, logoMark: null, sponsorLogo: null },
+          layout,
+        }),
+      ),
+    );
+    setWidth(1024);
+    const tablet = renderAt();
+    expect(screen.getByText('Benvenuti al PalaBarton!')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Segui la partita sul telefono' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Andamento del set' })).toBeNull();
+    tablet.unmount();
+    setWidth(390, 844);
+    renderAt();
+    expect(screen.getByText('Solo telefono')).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Tabellone' })).toBeNull();
   });
 });

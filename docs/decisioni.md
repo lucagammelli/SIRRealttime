@@ -110,6 +110,14 @@ Una riga per decisione: data, scelta, motivo.
 - 2026-10-15: rotazione delle schermate TV con pulsante «Ferma rotazione», perché un cambio automatico va sempre
   fermabile (WCAG 2.2.2) (`docs/portale.md`).
 - 2026-10-15: layout della pagina come elenco di blocchi per dispositivo (`defaultLayouts`), perché è la forma che
-  produrrà l'editor a blocchi (`docs/portale.md`).
+  produrrà l'editor a blocchi, poi realizzato come contratto in `@sir/shared` (`docs/portale.md`).
+- 2026-10-15: larghezza dei blocchi da 1 a 12 su una griglia a 12 colonne (con i valori ammessi per tipo), perché 12 si
+  divide in metà, terzi e quarti e le impaginazioni di prima (12/8/6/4) restano esprimibili (`docs/architettura.md`).
+- 2026-10-15: layout come unione discriminata chiusa con opzioni per tipo (schema strict), perché il server non accetta mai
+  un tipo o un'opzione sconosciuti e il portale non interpreta HTML né testo libero (`docs/architettura.md`).
+- 2026-10-15: partita d'esempio dell'anteprima statica (`sampleMatch.json`), caricata solo dall'editor in un file a parte,
+  perché la pagina pubblica non deve pesare di più e l'editor funziona anche senza partita live (`docs/portale.md`).
+- 2026-10-15: classifica dei migliori giocatori (`topPlayers`) in `volley-stats` e non nel portale, perché i calcoli delle
+  statistiche stanno solo lì, sono testabili e non si duplicano (`docs/statistiche.md`).
 - 2026-10-15: nessun logo per squadra, si usa il logo del cliente, perché i dati non hanno loghi di squadra e ne
   basta uno per cliente (`docs/portale.md`).

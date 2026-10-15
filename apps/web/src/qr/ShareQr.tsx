@@ -8,8 +8,8 @@ import { qrSvg, svgDataUrl } from './qrImage.ts';
 export interface ShareQrProps {
   /** Address encoded in the QR (the short link). */
   url: string;
-  /** Canonical short code (shown under the QR as «K7M2-QX9P»). */
-  code: string;
+  /** Canonical short code (shown under the QR as «K7M2-QX9P»); missing: a long link, no text under the QR. */
+  code?: string;
   /** Square logo in the middle; default: the logoMark of the client in use; null: none. */
   logoSrc?: string | null;
   /** Buttons «Copia link», «Scarica QR (PNG)», «Scarica QR (SVG)»; false: only the QR (pause, maxischermo). */
@@ -35,7 +35,8 @@ function download(href: string, filename: string): void {
 export function ShareQr({ url, code, logoSrc, actions = true, imageClassName = 'h-auto w-36' }: ShareQrProps) {
   const look = useTenantLook();
   const logo = logoSrc === undefined ? (look?.images.logoMark ?? null) : logoSrc;
-  const caption = formatShortCode(code);
+  const caption = code ? formatShortCode(code) : '';
+  const fileName = `qr-${code ?? 'link'}`;
   const [loaded, setLoaded] = useState<{ src: string; dataUrl: string | null } | null>(null);
   const [pngBusy, setPngBusy] = useState(false);
   const [pngError, setPngError] = useState(false);
@@ -62,7 +63,7 @@ export function ShareQr({ url, code, logoSrc, actions = true, imageClassName = '
     setPngBusy(true);
     setPngError(false);
     try {
-      download(await qrPngDataUrl(url, { caption, logoDataUrl: logoDataUrl ?? null }), `qr-${code}.png`);
+      download(await qrPngDataUrl(url, { caption, logoDataUrl: logoDataUrl ?? null }), `${fileName}.png`);
     } catch {
       setPngError(true);
     } finally {
@@ -73,7 +74,11 @@ export function ShareQr({ url, code, logoSrc, actions = true, imageClassName = '
   return (
     <div className="flex flex-wrap items-start gap-3">
       {svg ? (
-        <img src={svg} alt={`Codice QR del link ${caption}`} className={`rounded-card ${imageClassName}`} />
+        <img
+          src={svg}
+          alt={caption ? `Codice QR del link ${caption}` : 'Codice QR del link'}
+          className={`rounded-card ${imageClassName}`}
+        />
       ) : (
         <div role="status" className={`animate-pulse rounded-card bg-surface-2 ${imageClassName} aspect-[1024/1184]`}>
           <span className="sr-only">Preparazione del codice QR…</span>
@@ -85,7 +90,7 @@ export function ShareQr({ url, code, logoSrc, actions = true, imageClassName = '
           <Button onClick={() => void savePng()} disabled={!svg || pngBusy}>
             {pngBusy ? 'Preparazione…' : 'Scarica QR (PNG)'}
           </Button>
-          <Button onClick={() => svg && download(svg, `qr-${code}.svg`)} disabled={!svg}>
+          <Button onClick={() => svg && download(svg, `${fileName}.svg`)} disabled={!svg}>
             Scarica QR (SVG)
           </Button>
           {pngError && (

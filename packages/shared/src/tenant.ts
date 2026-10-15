@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { AssetIdSchema } from './assets.js';
 import { BRAND_COLOR_KEYS, HexColorSchema } from './colors.js';
+import { TENANT_CONFIG_VERSION } from './configVersion.js';
+import { TenantLayoutSchema } from './layout.js';
 import { plainText } from './strings.js';
 
 /** Slug of the client always present (created by the migration and by the seed). */
@@ -37,12 +39,12 @@ export const HostnamesSchema = z
   .max(TENANT_MAX_HOSTNAMES)
   .refine((list) => new Set(list).size === list.length, { message: 'hostname ripetuto' });
 
-/** Version of the configuration documents of a client (branding, layout, intermissions, overlays). */
-export const TENANT_CONFIG_VERSION = 1;
+export { TENANT_CONFIG_VERSION };
 
 /**
  * Configuration document of a client stored as jsonb (`{}` by default): versioned, strict (unknown keys rejected).
- * Version 1 is still empty; the next jobs add their fields here, raising the version when the shape changes.
+ * Version 1 of intermissions and overlays is still empty; the next jobs add their fields here, raising the version
+ * when the shape changes. The layout has its own schema (layout.ts).
  */
 const versionedConfig = () =>
   z.strictObject({ version: z.literal(TENANT_CONFIG_VERSION).default(TENANT_CONFIG_VERSION) });
@@ -105,14 +107,14 @@ export const PublicTenantResponseSchema = z.object({
     logoMark: z.string().nullable(),
     sponsorLogo: z.string().nullable(),
   }),
+  /** Blocks of the public page for every device (missing in an older answer: the defaults). */
+  layout: TenantLayoutSchema.prefault({}),
 });
 export type PublicTenantResponse = z.infer<typeof PublicTenantResponseSchema>;
 
 /** `GET/PUT /api/admin/branding`: the branding of the client of the session (the body of PUT is the branding). */
 export const BrandingResponseSchema = z.object({ tenantName: z.string(), branding: TenantBrandingSchema });
 export type BrandingResponse = z.infer<typeof BrandingResponseSchema>;
-export const TenantLayoutSchema = versionedConfig();
-export type TenantLayout = z.infer<typeof TenantLayoutSchema>;
 export const TenantIntermissionsSchema = versionedConfig();
 export type TenantIntermissions = z.infer<typeof TenantIntermissionsSchema>;
 export const TenantOverlaysSchema = versionedConfig();

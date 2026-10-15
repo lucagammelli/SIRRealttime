@@ -40,8 +40,8 @@ appartiene a un cliente e nessuna query legge o cambia righe di un altro (filtro
 - **Produzione**: in nginx elencare i `server_name` espliciti dei clienti e chiudere il resto con un `default_server`
   (oggi `docker/web.nginx.conf` ha `server_name _`); i certificati https per ogni hostname sono a cura del deploy.
 - **Documenti di configurazione** (`branding`, `layout`, `intermissions`, `overlays`, jsonb): `branding` ha i campi della
-  grafica (vedi «Grafica per cliente»); gli altri tre sono schemi `{ version: 1 }` strict ancora vuoti, riempiti dai
-  lavori successivi (`docs/piano.md`).
+  grafica (vedi «Grafica per cliente»); `layout` quelli della pagina pubblica (vedi «Pagina pubblica a blocchi»); gli
+  altri due sono schemi `{ version: 1 }` strict ancora vuoti, riempiti dai lavori successivi (`docs/piano.md`).
 
 ### Grafica per cliente (`apps/server/src/routes/branding.ts`)
 Ogni cliente ha nome visualizzato, cinque colori e tre immagini (`TenantBrandingSchema`, `tenants.branding`). Il portale
@@ -77,6 +77,24 @@ resta 1.
 - **Limiti noti**: l'eliminazione di un'immagine cancella il file prima del commit, quindi in caso di errore rimane una
   riga orfana (rara): il file risponde 404 e il server scrive un warning. Nel superadmin la testata dell'area riservata
   mostra la grafica del cliente dell'hostname, non quella del cliente attivo.
+
+### Pagina pubblica a blocchi (`apps/server/src/routes/branding.ts`)
+Ogni cliente sceglie i blocchi della pagina della partita per TV, tablet e telefono (`TenantLayoutSchema`,
+`tenants.layout`; forma e tipi di blocco in `docs/architettura.md`, editor in `docs/portale.md`). `{}` è valido e vale i
+blocchi predefiniti (`resolveLayout`).
+
+- **Rotte admin** (ruolo `admin`; il superadmin lavora sul cliente attivo, `adminTenantId`): `GET /api/admin/layout` e
+  `PUT /api/admin/layout`; il corpo del `PUT` è il layout e la risposta è `LayoutResponse` (`tenantName`, `layout`). Corpo
+  al massimo 64 KB (limite predefinito del server). Il layout è validato con lo schema condiviso (tipi chiusi, opzioni
+  per tipo, id unici, un solo tabellone, larghezze ammesse, al massimo 24 blocchi per dispositivo): altrimenti 400.
+- **Immagini degli sponsor**: gli id in `options.images` dei blocchi `sponsor` (`layoutImageIds`) devono essere immagini
+  di quel cliente, controllate nella stessa transazione e sotto lo stesso lock per cliente di caricamenti, eliminazioni e
+  grafica; altrimenti 400. Dopo il salvataggio si svuota la cache degli hostname (`forgetTenants`).
+- **Rotta pubblica**: `layout` è anche in `GET /api/public/tenant` (`PublicTenantResponseSchema`), così il portale lo
+  legge con la grafica. Un layout non valido o di versione futura si legge come predefinito: quando `TENANT_CONFIG_VERSION`
+  salirà servirà una migrazione dei layout salvati.
+- **Eliminazione di un'immagine**: se è usata in un blocco sponsor, `DELETE /api/admin/assets/:id` risponde 409 «Immagine
+  in uso nella pagina pubblica: toglila dal blocco sponsor prima di eliminarla» (come per la grafica).
 
 ### Ingest (`POST /api/ingest`, protocollo 1)
 L'agente invia una richiesta `IngestRequest` (`packages/shared/src/ingest.ts`):
@@ -203,6 +221,8 @@ rifiutata dallo schema.
 | GET | `/api/public/:token/state` | link pubblico, `:token` è il token lungo o il codice breve (404 se non valido) | - |
 | GET | `/api/admin/branding` | sessione | admin |
 | PUT | `/api/admin/branding` | sessione | admin |
+| GET | `/api/admin/layout` | sessione | admin |
+| PUT | `/api/admin/layout` | sessione | admin |
 | GET | `/api/admin/assets` | sessione | admin |
 | POST | `/api/admin/assets` | sessione (corpo fino a ~2,7 MB) | admin |
 | DELETE | `/api/admin/assets/:id` | sessione | admin |
@@ -573,6 +593,8 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
 - Grafica: `src/routes/branding.ts` (`brandingPublicRoutes`, `brandingAdminRoutes`), `src/lib/images.ts` (`inspectImage`,
   `checkSvg`, `IMAGE_MAX_SIDE`), `src/assetStore.ts` (`writeAssetFile`, `readAssetFile`, `removeAssetFile`),
   `packages/shared/src/assets.ts`, `colors.ts`, `tenant.ts`; pagina «Grafica» in `docs/portale.md`
+- Pagina pubblica a blocchi: `src/routes/branding.ts` (`GET`/`PUT /api/admin/layout`), `packages/shared/src/layout.ts`
+  (`TenantLayoutSchema`, `resolveLayout`, `layoutImageIds`, `LayoutResponseSchema`); editor in `docs/portale.md`
 - Link brevi: `src/lib/shortCode.ts` (`deriveShortCode`, `shortCodeLookupHash`), `src/shareCodes.ts` (`insertShareToken`,
   `ensureShortCode`, `syncShortCodes`, `currentShortCode`), `src/lib/failureLimiter.ts` (`hasRecent`),
   `packages/shared/src/admin.ts` (`ShortCodeSchema`, `normalizeShortCode`, `formatShortCode`, `ShareTokenParamSchema`),

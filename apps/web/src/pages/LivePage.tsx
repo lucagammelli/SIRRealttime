@@ -1,5 +1,5 @@
 import { SHARE_TOKEN_PATTERN } from '@sir/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { BrandMark } from '../components/BrandMark.tsx';
 import { LiveMatch } from '../components/LiveMatch.tsx';
@@ -10,7 +10,7 @@ import { useIdle, useTvRootClass, useWakeLock } from '../lib/tvScreen.ts';
 import { tvModeOf } from '../lib/layout.ts';
 import { useDevice } from '../lib/useLayout.ts';
 import { socketUrl, useLiveSocket } from '../lib/useLiveSocket.ts';
-import { useBrandName } from '../lib/branding.ts';
+import { useBrandName, useTenantLook } from '../lib/branding.ts';
 import { teamName } from '../lib/format.ts';
 
 /** Wait when a 503/429 has no readable Retry-After. */
@@ -47,7 +47,8 @@ export async function probeShareToken(token: string, fetchImpl: typeof fetch = f
  * Public page `/live/:token`: only the match, no link to the reserved area. Laid out for the device (`deviceFor`):
  * smartphone (< 700 px), tablet, big screen (≥ 1600 × 800 px and 16:10, `?tv=1`, or full screen from tablet up; never
  * with `?tv=0`): no scrolling, text scaled with the screen, pointer hidden after 3 s, screen kept on, rotation of the
- * groups that the viewer can stop.
+ * groups that the viewer can stop. The blocks are the ones chosen by the client for the device (page «Pagina pubblica»
+ * of the reserved area), the defaults until its graphics are loaded.
  */
 export function LivePage() {
   const { token = '' } = useParams();
@@ -71,6 +72,11 @@ export function LivePage() {
 
   const data = snapshot.data;
   const brand = useBrandName();
+  const look = useTenantLook();
+  const blockBrand = useMemo(
+    () => (look ? { name: look.name, logoMain: look.images.logoMain, logoMark: look.images.logoMark } : null),
+    [look],
+  );
   useEffect(() => {
     if (data?.kind === 'state') {
       const s = data.state;
@@ -175,6 +181,8 @@ export function LivePage() {
           device={device}
           brand={inScoreboard}
           rotationPaused={rotationPaused}
+          layout={look?.layout ?? null}
+          look={blockBrand}
           {...(inScoreboard ? { controls } : {})}
         />
       </main>

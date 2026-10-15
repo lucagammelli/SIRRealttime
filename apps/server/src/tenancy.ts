@@ -16,6 +16,8 @@ export interface Tenant {
   hostnames: string[];
   /** Stored branding document (read it with `resolveBranding` of `@sir/shared`). */
   branding: Record<string, unknown>;
+  /** Stored layout of the public page (read it with `resolveLayout` of `@sir/shared`). */
+  layout: Record<string, unknown>;
 }
 
 const TENANT_COLUMNS = {
@@ -24,6 +26,7 @@ const TENANT_COLUMNS = {
   name: tenants.name,
   hostnames: tenants.hostnames,
   branding: tenants.branding,
+  layout: tenants.layout,
 };
 
 /**
@@ -88,7 +91,7 @@ async function resolveHost(ctx: AppContext, hostname: string | null): Promise<Te
 
 /**
  * Empties the hostname cache: a new or changed client may take a hostname that resolved to another one, and a saved
- * branding must reach the public pages at once.
+ * branding or layout must reach the public pages at once.
  */
 export function forgetTenants(ctx: AppContext): void {
   ctx.caches.hosts.clear();

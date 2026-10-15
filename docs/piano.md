@@ -123,7 +123,8 @@ dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in q
    il logo del cliente) generato nel browser (`docs/server.md`, `docs/portale.md`).
 5. `portale-adattivo` (**fatto**): impaginazioni TV 16:9 con rotazione, tablet e smartphone, grafica più curata
    (`docs/portale.md`); da provare su dispositivi veri.
-6. `layout-blocchi`: editor a blocchi per dispositivo.
+6. `layout-blocchi` (**fatto**): editor «Pagina pubblica» a blocchi per TV, tablet e telefono (13 tipi, larghezze su 12
+   colonne, anteprima, `GET`/`PUT /api/admin/layout`); `docs/portale.md`, `docs/server.md`, `docs/architettura.md`.
 7. `pause-partita`: schermate di fine set, time-out e fine partita con riepilogo e sponsor.
 8. `avvisi-eventi`: messaggi rapidi sopra la pagina (ace, set point, match point…).
 9. `agente-scaricabile`: exe scaricabile dal portale con la grafica del cliente.

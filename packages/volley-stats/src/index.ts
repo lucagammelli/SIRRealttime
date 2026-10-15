@@ -8,6 +8,8 @@ import type { MatchState, PlayerRef, TeamRef } from './types.js';
 import { computeZones } from './zones.js';
 
 export * from './types.js';
+export { topPlayers } from './leaders.js';
+export type { TopPlayer, TopPlayersOptions } from './leaders.js';
 
 const teamRef = (t: ParsedMatch['home']): TeamRef => ({ name: t?.name ?? null, code: t?.code ?? null });
 

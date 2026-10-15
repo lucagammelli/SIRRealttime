@@ -50,6 +50,11 @@ Il calcolo riparte da zero a ogni aggiornamento (nessuno stato conservato tra du
   errore dell'avversario (`=` o `/`), codice verde, altrimenti `punto`.
 - **Posizione del palleggiatore**: dalla riga `point`, valida se 1..6, altrimenti `null`.
 - **Zone**: solo attacco e battuta con zone di partenza e arrivo valide (1-9); la valutazione assente è contata come `~`.
+- **Migliori giocatori** (`topPlayers(state, { limit, team? })`, usata dal blocco «Migliori giocatori» del portale): funzione
+  pura che parte da `stats` e `players` già calcolati. Entrano solo i giocatori con almeno un punto (punti come sopra);
+  ordine: più punti, poi più attacchi vincenti, poi meno errori, poi la squadra di casa, poi il numero di maglia più basso
+  (ordine sempre uguale). `team` è `home`, `away` o `both` (predefinito); `limit` taglia l'elenco. Ogni voce ha squadra,
+  maglia, anagrafica (`null` se la maglia non è nell'elenco), punti, attacchi vincenti, muri vincenti, ace ed errori.
 
 ## Configurazione
 Nessuna: nessuna variabile né file di config.
@@ -81,5 +86,6 @@ Verifiche fatte:
 - `packages/volley-stats/src/momentum.ts`: `computeMomentum`, `pointType`, `effectiveServer`.
 - `packages/volley-stats/src/rotations.ts`: `computeRotations`.
 - `packages/volley-stats/src/zones.ts`: `computeZones`.
+- `packages/volley-stats/src/leaders.ts`: `topPlayers` (test in `leaders.test.ts`); blocco del portale in `docs/portale.md`.
 - `packages/volley-stats/src/util.ts`: `ratio`, `timeToSeconds`.
 - Parser e tipi di ingresso: `docs/dvw-parser.md`; piano: `docs/piano.md` §2.

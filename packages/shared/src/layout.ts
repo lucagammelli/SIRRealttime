@@ -1,0 +1,250 @@
+import { z } from 'zod';
+import { AssetIdSchema } from './assets.js';
+import { TENANT_CONFIG_VERSION } from './configVersion.js';
+import { plainText } from './strings.js';
+
+/**
+ * Layout of the public match page chosen by a client (jsonb `tenants.layout`): one ordered list of blocks per device.
+ * Every block has a stable id (for the reordering in the editor), a type from a closed list, a width on a 12-column
+ * grid (only the widths allowed for its type), a visibility switch and the options of its type.
+ */
+
+/** Device classes of the public page (see `deviceFor` of the portal). */
+export const LAYOUT_DEVICES = ['tv', 'tablet', 'phone'] as const;
+export type LayoutDevice = (typeof LAYOUT_DEVICES)[number];
+
+/** Columns of the grid of the page: a block takes 1-12 of them (on the phone every block is full width). */
+export const LAYOUT_COLUMNS = 12;
+/** Most blocks in the list of one device. */
+export const LAYOUT_MAX_BLOCKS = 24;
+
+/** Types of block, closed list: anything else is refused. */
+export const BLOCK_TYPES = [
+  'scoreboard',
+  'momentum',
+  'comparison',
+  'players',
+  'court',
+  'rotations',
+  'logo',
+  'sponsor',
+  'message',
+  'qr',
+  'lastPoint',
+  'setScores',
+  'topPlayers',
+] as const;
+export type BlockType = (typeof BLOCK_TYPES)[number];
+
+const ANY: readonly number[] = [3, 4, 6, 8, 12];
+const MEDIUM: readonly number[] = [4, 6, 8, 12];
+const WIDE: readonly number[] = [6, 8, 12];
+
+/** Widths (columns of LAYOUT_COLUMNS) allowed for each type: big tables and charts need room. */
+export const BLOCK_WIDTHS: Record<BlockType, readonly number[]> = {
+  scoreboard: [12],
+  momentum: WIDE,
+  comparison: MEDIUM,
+  players: WIDE,
+  court: MEDIUM,
+  rotations: MEDIUM,
+  logo: ANY,
+  sponsor: ANY,
+  message: ANY,
+  qr: ANY,
+  lastPoint: ANY,
+  setScores: MEDIUM,
+  topPlayers: MEDIUM,
+};
+
+/** Most images in the rotation of a sponsor block. */
+export const SPONSOR_MAX_IMAGES = 12;
+/** Seconds each sponsor image stays on screen: limits and default. */
+export const SPONSOR_MIN_SECONDS = 3;
+export const SPONSOR_MAX_SECONDS = 60;
+export const SPONSOR_DEFAULT_SECONDS = 8;
+/** Longest text of a message block. */
+export const MESSAGE_MAX_LENGTH = 280;
+/** Longest text under the QR code. */
+export const QR_CAPTION_MAX_LENGTH = 80;
+export const QR_DEFAULT_CAPTION = 'Segui la partita sul telefono';
+/** Most players in the «migliori giocatori» block. */
+export const TOP_PLAYERS_MAX = 10;
+
+const NoOptionsSchema = z.strictObject({});
+
+export const LogoOptionsSchema = z.strictObject({
+  /** `main`: horizontal logo of the branding; `mark`: square logo. */
+  variant: z.enum(['main', 'mark']).default('main'),
+});
+
+export const SponsorOptionsSchema = z.strictObject({
+  /** Images of the client (ids of `assets`, checked by the server), shown in turn. */
+  images: z
+    .array(AssetIdSchema)
+    .max(SPONSOR_MAX_IMAGES)
+    .refine((ids) => new Set(ids).size === ids.length, { message: 'immagine ripetuta' })
+    .default([]),
+  seconds: z.int().min(SPONSOR_MIN_SECONDS).max(SPONSOR_MAX_SECONDS).default(SPONSOR_DEFAULT_SECONDS),
+});
+
+export const MessageOptionsSchema = z.strictObject({
+  /** Plain text of the client (no HTML: shown as text). */
+  text: plainText(MESSAGE_MAX_LENGTH).default('Benvenuti al palazzetto!'),
+  size: z.enum(['normal', 'large']).default('normal'),
+});
+
+export const QrOptionsSchema = z.strictObject({
+  caption: plainText(QR_CAPTION_MAX_LENGTH).default(QR_DEFAULT_CAPTION),
+});
+
+export const TopPlayersOptionsSchema = z.strictObject({
+  count: z.int().min(1).max(TOP_PLAYERS_MAX).default(5),
+  team: z.enum(['both', 'home', 'away']).default('both'),
+});
+
+/** Options of every type (an empty object for the blocks without options). */
+export const BLOCK_OPTIONS = {
+  scoreboard: NoOptionsSchema,
+  momentum: NoOptionsSchema,
+  comparison: NoOptionsSchema,
+  players: NoOptionsSchema,
+  court: NoOptionsSchema,
+  rotations: NoOptionsSchema,
+  logo: LogoOptionsSchema,
+  sponsor: SponsorOptionsSchema,
+  message: MessageOptionsSchema,
+  qr: QrOptionsSchema,
+  lastPoint: NoOptionsSchema,
+  setScores: NoOptionsSchema,
+  topPlayers: TopPlayersOptionsSchema,
+} as const satisfies Record<BlockType, z.ZodType>;
+
+/** Stable id of a block inside the list of a device (letters, digits, `-` and `_`). */
+export const BlockIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,40}$/);
+
+const blockOf = <T extends BlockType, O extends z.ZodType>(type: T, options: O) =>
+  z.strictObject({
+    id: BlockIdSchema,
+    type: z.literal(type),
+    width: z.int().min(1).max(LAYOUT_COLUMNS).default(LAYOUT_COLUMNS),
+    visible: z.boolean().default(true),
+    /** Phone only: the section starts closed. */
+    collapsed: z.boolean().default(false),
+    /** Missing: the defaults of the type. */
+    options,
+  });
+
+export const LayoutBlockSchema = z.discriminatedUnion('type', [
+  blockOf('scoreboard', BLOCK_OPTIONS.scoreboard.prefault({})),
+  blockOf('momentum', BLOCK_OPTIONS.momentum.prefault({})),
+  blockOf('comparison', BLOCK_OPTIONS.comparison.prefault({})),
+  blockOf('players', BLOCK_OPTIONS.players.prefault({})),
+  blockOf('court', BLOCK_OPTIONS.court.prefault({})),
+  blockOf('rotations', BLOCK_OPTIONS.rotations.prefault({})),
+  blockOf('logo', BLOCK_OPTIONS.logo.prefault({})),
+  blockOf('sponsor', BLOCK_OPTIONS.sponsor.prefault({})),
+  blockOf('message', BLOCK_OPTIONS.message.prefault({})),
+  blockOf('qr', BLOCK_OPTIONS.qr.prefault({})),
+  blockOf('lastPoint', BLOCK_OPTIONS.lastPoint.prefault({})),
+  blockOf('setScores', BLOCK_OPTIONS.setScores.prefault({})),
+  blockOf('topPlayers', BLOCK_OPTIONS.topPlayers.prefault({})),
+]);
+export type LayoutBlock = z.output<typeof LayoutBlockSchema>;
+export type LayoutBlockInput = z.input<typeof LayoutBlockSchema>;
+/** Options of the block of type `T`. */
+export type BlockOptions<T extends BlockType> = z.output<(typeof BLOCK_OPTIONS)[T]>;
+
+/** Blocks of one device: unique ids, at most one scoreboard, widths allowed for each type. */
+export const DeviceBlocksSchema = z
+  .array(LayoutBlockSchema)
+  .max(LAYOUT_MAX_BLOCKS)
+  .superRefine((blocks, ctx) => {
+    const ids = new Set<string>();
+    let scoreboards = 0;
+    blocks.forEach((block, index) => {
+      if (ids.has(block.id)) ctx.addIssue({ code: 'custom', message: 'id ripetuto', path: [index, 'id'] });
+      ids.add(block.id);
+      if (block.type === 'scoreboard') scoreboards += 1;
+      if (!BLOCK_WIDTHS[block.type].includes(block.width))
+        ctx.addIssue({ code: 'custom', message: 'larghezza non ammessa', path: [index, 'width'] });
+    });
+    if (scoreboards > 1) ctx.addIssue({ code: 'custom', message: 'un solo tabellone per dispositivo' });
+  });
+
+/** Default page of every device (the portal before the editor): the six blocks of the match, the scoreboard first. */
+const DEFAULT_LAYOUT_INPUT: Record<LayoutDevice, LayoutBlockInput[]> = {
+  tv: [
+    { id: 'scoreboard', type: 'scoreboard', width: 12 },
+    { id: 'momentum', type: 'momentum', width: 8 },
+    { id: 'comparison', type: 'comparison', width: 4 },
+    { id: 'players', type: 'players', width: 12 },
+    { id: 'court', type: 'court', width: 6 },
+    { id: 'rotations', type: 'rotations', width: 6 },
+  ],
+  tablet: [
+    { id: 'scoreboard', type: 'scoreboard', width: 12 },
+    { id: 'momentum', type: 'momentum', width: 6 },
+    { id: 'comparison', type: 'comparison', width: 6 },
+    { id: 'players', type: 'players', width: 12 },
+    { id: 'court', type: 'court', width: 6 },
+    { id: 'rotations', type: 'rotations', width: 6 },
+  ],
+  phone: [
+    { id: 'scoreboard', type: 'scoreboard' },
+    { id: 'momentum', type: 'momentum' },
+    { id: 'comparison', type: 'comparison', collapsed: true },
+    { id: 'players', type: 'players', collapsed: true },
+    { id: 'court', type: 'court', collapsed: true },
+    { id: 'rotations', type: 'rotations', collapsed: true },
+  ],
+};
+
+/** Pure: the default blocks of a device (a new list at every call). */
+export function defaultDeviceBlocks(device: LayoutDevice): LayoutBlock[] {
+  return DeviceBlocksSchema.parse(DEFAULT_LAYOUT_INPUT[device]);
+}
+
+/** Pure: a block of `type` with the default options, the first allowed width not over `preferred` (12 if none). */
+export function newBlock(type: BlockType, id: string, preferred: number = LAYOUT_COLUMNS): LayoutBlock {
+  const widths = BLOCK_WIDTHS[type];
+  const width = [...widths].reverse().find((w) => w <= preferred) ?? widths[0] ?? LAYOUT_COLUMNS;
+  return LayoutBlockSchema.parse({ id, type, width });
+}
+
+/**
+ * Layout document of a client. Every device has a default (the empty document of the database reads as the default
+ * page); strict and versioned like the other configuration documents.
+ */
+export const TenantLayoutSchema = z.strictObject({
+  version: z.literal(TENANT_CONFIG_VERSION).default(TENANT_CONFIG_VERSION),
+  tv: DeviceBlocksSchema.default(() => defaultDeviceBlocks('tv')),
+  tablet: DeviceBlocksSchema.default(() => defaultDeviceBlocks('tablet')),
+  phone: DeviceBlocksSchema.default(() => defaultDeviceBlocks('phone')),
+});
+export type TenantLayout = z.output<typeof TenantLayoutSchema>;
+export type TenantLayoutInput = z.input<typeof TenantLayoutSchema>;
+
+/** Pure: the default layout of every device. */
+export function defaultLayout(): TenantLayout {
+  return TenantLayoutSchema.parse({});
+}
+
+/** Pure: a stored layout with the missing fields filled; an invalid one reads as the defaults. */
+export function resolveLayout(document: unknown): TenantLayout {
+  const parsed = TenantLayoutSchema.safeParse(document ?? {});
+  return parsed.success ? parsed.data : defaultLayout();
+}
+
+/** Pure: ids of the images used by the blocks of a layout (each once, in order of appearance). */
+export function layoutImageIds(layout: TenantLayout): string[] {
+  const ids = new Set<string>();
+  for (const device of LAYOUT_DEVICES)
+    for (const block of layout[device])
+      if (block.type === 'sponsor') for (const id of block.options.images) ids.add(id);
+  return [...ids];
+}
+
+/** `GET/PUT /api/admin/layout`: the layout of the client of the session (the body of PUT is the layout). */
+export const LayoutResponseSchema = z.object({ tenantName: z.string(), layout: TenantLayoutSchema });
+export type LayoutResponse = z.infer<typeof LayoutResponseSchema>;

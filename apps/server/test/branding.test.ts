@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AssetListResponse, AssetSummary, BrandingResponse, PublicTenantResponse } from '@sir/shared';
-import { ASSET_MAX_BYTES } from '@sir/shared';
+import { ASSET_MAX_BYTES, defaultLayout } from '@sir/shared';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
@@ -63,6 +63,7 @@ describe('public graphics of the client of the hostname', () => {
       name: 'CLUB-A',
       branding: { version: 1, displayName: null, colors: {}, logoMain: null, logoMark: null, sponsorLogo: null },
       images: { logoMain: null, logoMark: null, sponsorLogo: null },
+      layout: defaultLayout(),
     });
   });
 

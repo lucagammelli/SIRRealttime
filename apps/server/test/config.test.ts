@@ -18,6 +18,13 @@ describe('loadConfig', () => {
     });
   });
 
+  it('reads DEFAULT_TENANT_SLUG: default «predefinito», empty disables the fallback client', () => {
+    expect(loadConfig({ DATABASE_URL: 'x' }).defaultTenantSlug).toBe('predefinito');
+    expect(loadConfig({ DATABASE_URL: 'x', DEFAULT_TENANT_SLUG: 'club-a' }).defaultTenantSlug).toBe('club-a');
+    expect(loadConfig({ DATABASE_URL: 'x', DEFAULT_TENANT_SLUG: '' }).defaultTenantSlug).toBeNull();
+    expect(() => loadConfig({ DATABASE_URL: 'x', DEFAULT_TENANT_SLUG: 'Club A' })).toThrow(/DEFAULT_TENANT_SLUG/);
+  });
+
   it('reads the rate limits and rejects invalid values', () => {
     const c = loadConfig({
       DATABASE_URL: 'x',

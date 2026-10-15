@@ -10,6 +10,7 @@ import { verifyPassword } from '../lib/passwords.js';
 import { generateToken, hashToken } from '../lib/tokens.js';
 import { validate } from '../lib/validate.js';
 import { requireRole } from '../security.js';
+import { hostTenant, tenantRef } from '../tenancy.js';
 
 export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
   const cookieOptions = {
@@ -27,7 +28,11 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       const email = body.email.trim().toLowerCase();
       const [user] = await ctx.db.select().from(users).where(eq(users.email, email)).limit(1);
       const ok = await verifyPassword(user?.passwordHash, body.password);
-      if (!user || !ok) {
+      // A user of a client logs in only on the hostnames of that client; a superadmin on any.
+      const host = await hostTenant(ctx, request);
+      const sameClient =
+        user?.role === 'superadmin' || (user !== undefined && user.tenantId !== null && user.tenantId === host?.id);
+      if (!user || !ok || !sameClient) {
         request.log.warn('login fallito');
         throw new HttpError(401, 'INVALID_CREDENTIALS', 'Credenziali non valide');
       }
@@ -38,7 +43,8 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       await ctx.db.insert(sessions).values({ tokenHash: hashToken(token), userId: user.id, expiresAt });
       void reply.setCookie(SESSION_COOKIE, token, { ...cookieOptions, expires: expiresAt });
       request.log.info({ userId: user.id }, 'login');
-      return { id: user.id, email: user.email, role: user.role };
+      const tenantId = user.role === 'superadmin' ? (host?.id ?? null) : user.tenantId;
+      return { id: user.id, email: user.email, role: user.role, tenant: await tenantRef(ctx, tenantId) };
     },
   );
 
@@ -56,9 +62,10 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
   app.get(
     '/api/auth/me',
     { config: perMinute(ctx.rateLimits.admin), preHandler: requireRole(ctx, 'viewer') },
-    (request): MeResponse => {
-      if (!request.user) throw unauthorized();
-      return request.user;
+    async (request): Promise<MeResponse> => {
+      const user = request.user;
+      if (!user) throw unauthorized();
+      return { id: user.id, email: user.email, role: user.role, tenant: await tenantRef(ctx, request.adminTenantId) };
     },
   );
 }

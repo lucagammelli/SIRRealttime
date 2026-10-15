@@ -103,6 +103,29 @@ Funzioni pure `computeMatchState(parsed)`:
 6. Portale: pagina live pubblica, poi area admin.
 7. Test end‑to‑end con simulatore; poi validazione su un vero file DataVolley appena disponibile.
 
+## Fase Multi-cliente (dal 2026-10-15)
+Più società sportive (clienti) sulla stessa installazione, con dati separati e un superadmin sopra; il cliente si ricava
+dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in quest'ordine:
+
+1. `clienti-base` (**fatto**): tabella `tenants`, `tenant_id` su tutti i dati, ruolo superadmin, pagina «Clienti» e
+   selettore del cliente, una partita live per cliente.
+2. `scalabilita`: migliaia di spettatori: aggiornamenti differenziali sul WebSocket, compressione fatta una volta per
+   messaggio, limiti adatti al pubblico, riconnessioni senza valanghe, cache; più copie del server solo se servirà.
+   Prima degli altri perché cambia il protocollo del WebSocket.
+3. `clienti-grafica`: colori e due loghi per hostname, caricamento immagini controllato, pagina «Grafica».
+4. `link-brevi-qr`: codice di condivisione breve (8 caratteri) e QR scaricabile.
+5. `portale-adattivo`: impaginazioni TV 16:9, tablet e smartphone, grafica più curata (in parallelo al punto 4).
+6. `layout-blocchi`: editor a blocchi per dispositivo.
+7. `pause-partita`: schermate di fine set, time-out e fine partita con riepilogo e sponsor.
+8. `avvisi-eventi`: messaggi rapidi sopra la pagina (ace, set point, match point…).
+9. `agente-scaricabile`: exe scaricabile dal portale con la grafica del cliente.
+
+Piano completo e scelte di Luca nel piano approvato della fase.
+
+**Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
+PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo
+mostra con «autore sconosciuto».
+
 ## Verifica
 - Unit test (vitest) su parser (righe normali, speciali, malformate, encoding) e statistiche
   (punteggi/set coerenti con le righe `*p`).

@@ -5,7 +5,9 @@
 #   RATE_LIMIT_ADMIN=100000 RATE_LIMIT_PUBLIC=100000 RATE_LIMIT_INGEST=100000 \
 #   RATE_LIMIT_REGISTER=100000 pnpm dev
 # Assunzioni (scansione non interattiva): specifica OpenAPI ricavata a mano dalle rotte (stackhawk/openapi.yaml);
-# utente admin di prova; il logout è escluso per non chiudere la sessione; i WebSocket non sono coperti.
+# utente di prova = ADMIN_EMAIL, quindi superadmin (raggiunge anche /api/admin/tenants e lavora sul cliente
+# «Predefinito», quello degli hostname sconosciuti come localhost); il logout è escluso per non chiudere la sessione;
+# i WebSocket non sono coperti.
 app:
   applicationId: ${APP_ID:f32f36a0-c2c0-4f08-b702-d7f354926012}
   env: ${APP_ENV:Development}

@@ -44,11 +44,12 @@ export function ingestRoutes(app: FastifyInstance, ctx: AppContext): void {
       preParsing: [authenticateAgent(ctx), async (request, _reply, payload) => decodeBody(request, payload)],
     },
     async (request): Promise<IngestResponse> => {
-      const agentId = request.agentId;
-      if (!agentId) throw unauthorized();
+      const agent = request.agent;
+      if (!agent) throw unauthorized();
       const body = validate(IngestRequestSchema, request.body);
-      const { response, published } = await ctx.ingest.ingest(agentId, body);
-      if (published) ctx.hub.publish(published);
+      // The match belongs to the client of the agent, whatever the hostname.
+      const { response, published } = await ctx.ingest.ingest(agent, body);
+      if (published) ctx.hub.publish(agent.tenantId, published);
       request.log.info(
         { matchKey: body.matchKey, seq: body.seq, kind: body.kind, lines: body.lines.length, status: response.status },
         'ingest',

@@ -2,7 +2,7 @@ import { MeResponseSchema } from '@sir/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError, apiCommand, apiRequest, errorText } from './api.ts';
 
-const ME = { id: '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11', email: 'a@b.it', role: 'admin' };
+const ME = { id: '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11', email: 'a@b.it', role: 'admin', tenant: null };
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
@@ -34,6 +34,22 @@ describe('apiRequest', () => {
     const err = await apiCommand('/api/admin/users', { fetch }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect(errorText(err)).toContain('Server non raggiungibile');
+  });
+
+  it('sends PATCH with a JSON body', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(new Response(null, { status: 204 }));
+    await apiCommand('/api/admin/tenants/x', { method: 'PATCH', body: { name: 'A' }, fetch });
+    const init = fetch.mock.calls[0]?.[1];
+    expect(init?.method).toBe('PATCH');
+    expect(init?.headers).toMatchObject({ 'content-type': 'application/json' });
+    expect(init?.body).toBe('{"name":"A"}');
+  });
+
+  it('shows the server text of a 400 only when it asks to choose a client', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValueOnce(json(400, { error: 'Seleziona un cliente' }));
+    await expect(apiCommand('/api/admin/matches', { fetch })).rejects.toThrow('Seleziona un cliente.');
+    fetch.mockResolvedValueOnce(json(400, { error: 'Richiesta non valida: name' }));
+    await expect(apiCommand('/api/admin/agents', { fetch })).rejects.toThrow('Dati non validi: controlla i campi.');
   });
 
   it('sends DELETE without a body', async () => {

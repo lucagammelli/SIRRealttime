@@ -6,7 +6,12 @@ import { ApiError, apiCommand, apiRequest, errorText } from '../../lib/api.ts';
 
 interface AuthValue {
   user: MeResponse;
+  /** Admin of the client, or superadmin. */
   isAdmin: boolean;
+  /** Creates the clients and chooses the client the pages work on. */
+  isSuperadmin: boolean;
+  /** New data of the user (after the choice of the client). */
+  updateUser: (u: MeResponse) => void;
   logout: () => Promise<void>;
   /** To call on any 401 of an API call: back to the login. */
   sessionExpired: () => void;
@@ -78,8 +83,18 @@ export function useSession(): {
 
   const user = session.kind === 'user' ? session.user : null;
   const value = useMemo<AuthValue | null>(
-    () => (user ? { user, isAdmin: user.role === 'admin', logout, sessionExpired } : null),
-    [user, logout, sessionExpired],
+    () =>
+      user
+        ? {
+            user,
+            isAdmin: user.role === 'admin' || user.role === 'superadmin',
+            isSuperadmin: user.role === 'superadmin',
+            updateUser: setUser,
+            logout,
+            sessionExpired,
+          }
+        : null,
+    [user, setUser, logout, sessionExpired],
   );
   const provide = useCallback(
     (children: ReactNode) => <AuthContext.Provider value={value}>{children}</AuthContext.Provider>,

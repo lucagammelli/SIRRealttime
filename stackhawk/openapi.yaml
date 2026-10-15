@@ -212,6 +212,61 @@ paths:
                 role: { type: string, enum: [admin, viewer], example: viewer }
       responses:
         '200': { description: utente creato }
+  /api/admin/tenants:
+    get:
+      responses:
+        '200': { description: elenco clienti (solo superadmin) }
+        '403': { description: non superadmin }
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slug, name, hostnames]
+              properties:
+                slug: { type: string, pattern: '^[a-z0-9](?:[a-z0-9-]{0,48}[a-z0-9])?$', example: cliente-dast }
+                name: { type: string, example: Cliente DAST }
+                hostnames: { type: array, items: { type: string }, example: [dast.sir.local] }
+      responses:
+        '201': { description: cliente creato }
+        '409': { description: slug o hostname già usati }
+  /api/admin/tenants/{id}:
+    patch:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, example: Cliente DAST }
+                hostnames: { type: array, items: { type: string }, example: [dast.sir.local] }
+      responses:
+        '200': { description: cliente modificato }
+        '404': { description: non trovato }
+        '409': { description: hostname di un altro cliente }
+  /api/admin/active-tenant:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId: { type: string, format: uuid, nullable: true, example: null }
+      responses:
+        '200': { description: cliente su cui lavora il superadmin }
+        '403': { description: non superadmin }
+        '404': { description: cliente inesistente }
 components:
   securitySchemes:
     agentToken:

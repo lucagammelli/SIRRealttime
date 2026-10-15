@@ -1,3 +1,4 @@
+import type { UserRole } from '@sir/shared';
 import type { Config } from './config.js';
 import type { Db } from './db/index.js';
 import type { LiveHub } from './hub.js';
@@ -36,13 +37,22 @@ export const SESSION_COOKIE = 'sir_session';
 export interface SessionUser {
   id: string;
   email: string;
-  role: 'admin' | 'viewer';
+  role: UserRole;
+  /** Client of the user; null only for a superadmin. */
+  tenantId: string | null;
 }
 
 export interface ResolvedShareToken {
   id: string;
+  tenantId: string;
   matchId: string | null;
   expiresAt: Date | null;
+}
+
+/** Agent authenticated by its bearer token, with the client it belongs to. */
+export interface AuthenticatedAgent {
+  id: string;
+  tenantId: string;
 }
 
 declare module 'fastify' {
@@ -51,8 +61,13 @@ declare module 'fastify' {
     user: SessionUser | null;
     /** Expiry of that session (an admin WebSocket is closed when it passes). */
     sessionExpiresAt: Date | null;
+    /**
+     * Client the admin routes work on: the user's own, or for a superadmin the active one of the session, otherwise
+     * the client of the hostname (null if none). Set by `requireRole`.
+     */
+    adminTenantId: string | null;
     /** Agent authenticated by its bearer token (`/api/ingest`). */
-    agentId: string | null;
+    agent: AuthenticatedAgent | null;
     /** Share token of a public request. */
     shareToken: ResolvedShareToken | null;
   }

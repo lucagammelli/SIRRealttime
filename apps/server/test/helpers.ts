@@ -3,14 +3,15 @@ import { decodeDvw } from '@sir/dvw-parser';
 import type { GeneratedMatch } from '@sir/dvw-simulator';
 import { renderDvw } from '@sir/dvw-simulator';
 import type { IngestRequest } from '@sir/shared';
-import { diffScoutLines, hashScoutLines, splitDvwText } from '@sir/shared';
+import { DEFAULT_TENANT_SLUG, diffScoutLines, hashScoutLines, splitDvwText } from '@sir/shared';
+import { eq } from 'drizzle-orm';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import type { RateLimits } from '../src/context.js';
 import { SESSION_COOKIE } from '../src/context.js';
 import type { Database } from '../src/db/index.js';
-import { agents, users } from '../src/db/index.js';
+import { agents, tenants, users } from '../src/db/index.js';
 import { createPgliteDatabase } from '../src/db/pglite.js';
 import { hashPassword } from '../src/lib/passwords.js';
 import { generateToken, hashToken } from '../src/lib/tokens.js';
@@ -18,16 +19,22 @@ import { generateToken, hashToken } from '../src/lib/tokens.js';
 export const ORIGIN = 'http://portale.test';
 export const ADMIN = { email: 'admin@sir.test', password: 'password-admin-1' };
 export const VIEWER = { email: 'viewer@sir.test', password: 'password-viewer-1' };
+export const SUPERADMIN = { email: 'super@sir.test', password: 'password-super-1' };
 
 export interface TestServer {
   app: FastifyInstance;
   database: Database;
+  /** Id of the client «Predefinito» (created by the migration): ADMIN and VIEWER belong to it. */
+  tenantId: string;
   /** Moves the server clock (share token and session expiry). */
   setNow(date: Date | null): void;
   close(): Promise<void>;
 }
 
-/** App on an isolated in-memory PGlite database, with an admin and a viewer; `env` adds configuration variables. */
+/**
+ * App on an isolated in-memory PGlite database, with an admin and a viewer of the client «Predefinito» and a
+ * superadmin; `env` adds configuration variables.
+ */
 export async function startServer(
   rateLimits: Partial<RateLimits> = {},
   env: Record<string, string> = {},
@@ -50,13 +57,25 @@ export async function startServer(
     rateLimits: { login: 1000, ingest: 10_000, public: 10_000, admin: 10_000, register: 10_000, ...rateLimits },
     now: () => now ?? new Date(),
   });
+  const [tenant] = await database.db
+    .select({ id: tenants.id })
+    .from(tenants)
+    .where(eq(tenants.slug, DEFAULT_TENANT_SLUG));
+  if (!tenant) throw new Error('default tenant missing');
   await database.db.insert(users).values([
-    { email: ADMIN.email, passwordHash: await hashPassword(ADMIN.password), role: 'admin' },
-    { email: VIEWER.email, passwordHash: await hashPassword(VIEWER.password), role: 'viewer' },
+    { tenantId: tenant.id, email: ADMIN.email, passwordHash: await hashPassword(ADMIN.password), role: 'admin' },
+    { tenantId: tenant.id, email: VIEWER.email, passwordHash: await hashPassword(VIEWER.password), role: 'viewer' },
+    {
+      tenantId: null,
+      email: SUPERADMIN.email,
+      passwordHash: await hashPassword(SUPERADMIN.password),
+      role: 'superadmin',
+    },
   ]);
   return {
     app,
     database,
+    tenantId: tenant.id,
     setNow: (d) => {
       now = d;
     },
@@ -67,20 +86,51 @@ export async function startServer(
   };
 }
 
-/** Logs in and returns the `Cookie` header of the session. */
-export async function login(app: FastifyInstance, who: { email: string; password: string }): Promise<string> {
-  const res = await app.inject({ method: 'POST', url: '/api/auth/login', payload: who });
+/** Logs in (on the hostname `host`, default: the inject default) and returns the `Cookie` header of the session. */
+export async function login(
+  app: FastifyInstance,
+  who: { email: string; password: string },
+  host?: string,
+): Promise<string> {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/auth/login',
+    payload: who,
+    ...(host ? { headers: { host } } : {}),
+  });
   if (res.statusCode !== 200) throw new Error(`login ${res.statusCode}`);
   const cookie = res.cookies.find((c) => c.name === SESSION_COOKIE);
   if (!cookie) throw new Error('no session cookie');
   return `${SESSION_COOKIE}=${cookie.value}`;
 }
 
-/** Agent inserted directly in the database; returns its clear token. */
-export async function createAgent(server: TestServer, revoked = false): Promise<string> {
+/** Agent inserted directly in the database (default: client «Predefinito»); returns its clear token. */
+export async function createAgent(server: TestServer, revoked = false, tenantId = server.tenantId): Promise<string> {
   const token = generateToken();
-  await server.database.db.insert(agents).values({ name: 'pc-test', tokenHash: hashToken(token), revoked });
+  await server.database.db.insert(agents).values({ tenantId, name: 'pc-test', tokenHash: hashToken(token), revoked });
   return token;
+}
+
+/** Client inserted directly in the database; returns its id. */
+export async function createTenant(server: TestServer, slug: string, hostnames: string[]): Promise<string> {
+  const [row] = await server.database.db
+    .insert(tenants)
+    .values({ slug, name: slug.toUpperCase(), hostnames })
+    .returning({ id: tenants.id });
+  if (!row) throw new Error('tenant not inserted');
+  return row.id;
+}
+
+/** User of a client inserted directly in the database. */
+export async function createUser(
+  server: TestServer,
+  who: { email: string; password: string },
+  role: 'admin' | 'viewer',
+  tenantId: string,
+): Promise<void> {
+  await server.database.db
+    .insert(users)
+    .values({ tenantId, email: who.email, passwordHash: await hashPassword(who.password), role });
 }
 
 export function ingest(

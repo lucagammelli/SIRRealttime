@@ -20,7 +20,7 @@ function mockServer(role: 'admin' | 'viewer'): void {
     'fetch',
     vi.fn((input: string) => {
       const url = input;
-      const body = url === '/api/auth/me' ? { id: USER_ID, email: 'a@b.it', role } : [];
+      const body = url === '/api/auth/me' ? { id: USER_ID, email: 'a@b.it', role, tenant: null } : [];
       return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
     }),
   );

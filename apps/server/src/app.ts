@@ -17,6 +17,7 @@ import { healthRoutes } from './routes/health.js';
 import { ingestRoutes } from './routes/ingest.js';
 import { publicRoutes } from './routes/public.js';
 import { registrationRoutes } from './routes/registration.js';
+import { tenantRoutes } from './routes/tenants.js';
 import { browserWriteGuard, rejectNulBody } from './security.js';
 
 export interface AppOptions {
@@ -92,7 +93,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
 
   app.decorateRequest('user', null);
   app.decorateRequest('sessionExpiresAt', null);
-  app.decorateRequest('agentId', null);
+  app.decorateRequest('adminTenantId', null);
+  app.decorateRequest('agent', null);
   app.decorateRequest('shareToken', null);
   // Only JSON bodies are accepted.
   app.removeContentTypeParser('text/plain');
@@ -113,7 +115,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(fastifyCors, {
     origin: config.corsOrigin,
     credentials: true,
-    methods: ['GET', 'POST', 'DELETE'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   });
   await app.register(fastifyCookie);
   // Per client IP (behind a proxy, with TRUST_PROXY=true); a request without address shares one bucket.
@@ -131,6 +133,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     scope.addHook('preParsing', browserWriteGuard(ctx));
     authRoutes(scope, ctx);
     adminRoutes(scope, ctx);
+    tenantRoutes(scope, ctx);
     done();
   });
 

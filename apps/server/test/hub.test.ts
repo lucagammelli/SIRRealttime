@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 import type { StateMessage } from '@sir/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
-import type { Grant } from '../src/hub.js';
+import type { Grant, Target } from '../src/hub.js';
 import { CLOSE_SESSION_GONE, CLOSE_TOKEN_GONE, HEARTBEAT_MS, LiveHub, MAX_BUFFERED_BYTES } from '../src/hub.js';
 
 /** Minimal stand-in of a `ws` socket that records what the hub does with it. */
@@ -42,9 +42,15 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function add(grant: Grant, expiresAt: Date | null = null): FakeSocket {
+const TENANT = 't-a';
+
+function add(
+  grant: Grant,
+  expiresAt: Date | null = null,
+  target: Target = { kind: 'live', tenantId: TENANT },
+): FakeSocket {
   const socket = new FakeSocket();
-  hub.add({ socket: socket as unknown as WebSocket, target: { kind: 'live' }, grant, expiresAt });
+  hub.add({ socket: socket as unknown as WebSocket, target, grant, expiresAt });
   return socket;
 }
 
@@ -53,7 +59,7 @@ describe('LiveHub', () => {
     const slow = add({ kind: 'share', shareTokenId: 's1' });
     const fast = add({ kind: 'share', shareTokenId: 's1' });
     slow.bufferedAmount = MAX_BUFFERED_BYTES + 1;
-    hub.publish(state(1));
+    hub.publish(TENANT, state(1));
     expect(slow.terminated).toBe(true);
     expect(slow.sent).toEqual([]);
     expect(fast.sent).toHaveLength(1);
@@ -88,5 +94,26 @@ describe('LiveHub', () => {
     vi.advanceTimersByTime(HEARTBEAT_MS);
     expect(dead.terminated).toBe(true);
     expect(alive.terminated).toBe(false);
+  });
+
+  it('sends the live match of a client only to the clients of that client', () => {
+    const mineLive = add({ kind: 'share', shareTokenId: 's1' });
+    const otherLive = add({ kind: 'share', shareTokenId: 's2' }, null, { kind: 'live', tenantId: 't-b' });
+    // Same match id, but followed under another client: never delivered.
+    const otherFixed = add({ kind: 'share', shareTokenId: 's3' }, null, {
+      kind: 'match',
+      tenantId: 't-b',
+      matchId: 'm1',
+    });
+    const mineFixed = add({ kind: 'share', shareTokenId: 's4' }, null, {
+      kind: 'match',
+      tenantId: TENANT,
+      matchId: 'm1',
+    });
+    hub.publish(TENANT, state(1));
+    expect(mineLive.sent).toHaveLength(1);
+    expect(mineFixed.sent).toHaveLength(1);
+    expect(otherLive.sent).toEqual([]);
+    expect(otherFixed.sent).toEqual([]);
   });
 });

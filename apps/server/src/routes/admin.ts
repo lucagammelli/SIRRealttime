@@ -14,7 +14,7 @@ import {
   CreateUserRequestSchema,
   IdParamSchema,
 } from '@sir/shared';
-import { and, desc, eq, gt } from 'drizzle-orm';
+import { desc, eq, gt } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { AppContext } from '../context.js';
 import { perMinute, SESSION_COOKIE } from '../context.js';
@@ -25,6 +25,7 @@ import { generateToken, hashToken } from '../lib/tokens.js';
 import { validate } from '../lib/validate.js';
 import { requireRole, sameOriginGuard } from '../security.js';
 import { currentMessage } from '../state.js';
+import { adminTenantId, findTenant, publicBaseUrlFor, tenantScope } from '../tenancy.js';
 
 type MatchRow = typeof matches.$inferSelect;
 type AgentRow = typeof agents.$inferSelect;
@@ -77,29 +78,44 @@ const shareSummary = (s: ShareRow): ShareTokenSummary => ({
   createdAt: iso(s.createdAt),
 });
 
-/** Reserved area: matches for every logged-in user, everything else only for `admin`. */
+/**
+ * Reserved area: matches for every logged-in user, everything else only for `admin` (and `superadmin`). Every query
+ * is limited to the client of the session (`adminTenantId`) with `tenantScope`: an id of another client is a 404.
+ */
 export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
   const viewer = { config: perMinute(ctx.rateLimits.admin), preHandler: requireRole(ctx, 'viewer') };
   const admin = { config: perMinute(ctx.rateLimits.admin), preHandler: requireRole(ctx, 'admin') };
 
-  app.get('/api/admin/matches', viewer, async (): Promise<MatchSummary[]> => {
-    const rows = await ctx.db.select().from(matches).orderBy(desc(matches.updatedAt)).limit(MATCH_LIST_LIMIT);
+  app.get('/api/admin/matches', viewer, async (request): Promise<MatchSummary[]> => {
+    const tenantId = adminTenantId(request);
+    const rows = await ctx.db
+      .select()
+      .from(matches)
+      .where(tenantScope(matches, tenantId))
+      .orderBy(desc(matches.updatedAt))
+      .limit(MATCH_LIST_LIMIT);
     return rows.map(matchSummary);
   });
 
   app.get('/api/admin/matches/:id', viewer, async (request): Promise<MatchDetail> => {
+    const tenantId = adminTenantId(request);
     const { id } = validate(IdParamSchema, request.params);
-    const [m] = await ctx.db.select().from(matches).where(eq(matches.id, id)).limit(1);
+    const [m] = await ctx.db
+      .select()
+      .from(matches)
+      .where(tenantScope(matches, tenantId, eq(matches.id, id)))
+      .limit(1);
     if (!m) throw notFound();
     return { ...matchSummary(m), lastSeq: m.lastSeq, contentHash: m.contentHash, state: m.state };
   });
 
   app.post('/api/admin/agents', admin, async (request, reply): Promise<CreateAgentResponse> => {
+    const tenantId = adminTenantId(request);
     const body = validate(CreateAgentRequestSchema, request.body);
     const token = generateToken();
     const [row] = await ctx.db
       .insert(agents)
-      .values({ name: body.name, tokenHash: hashToken(token) })
+      .values({ tenantId, name: body.name, tokenHash: hashToken(token) })
       .returning();
     if (!row) throw new Error('agent not inserted');
     request.log.info({ agentId: row.id }, 'token agente creato');
@@ -107,28 +123,42 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
     return { ...agentSummary(row), token };
   });
 
-  app.get('/api/admin/agents', admin, async (): Promise<AgentSummary[]> => {
-    const rows = await ctx.db.select().from(agents).orderBy(desc(agents.createdAt));
+  app.get('/api/admin/agents', admin, async (request): Promise<AgentSummary[]> => {
+    const tenantId = adminTenantId(request);
+    const rows = await ctx.db
+      .select()
+      .from(agents)
+      .where(tenantScope(agents, tenantId))
+      .orderBy(desc(agents.createdAt));
     return rows.map(agentSummary);
   });
 
   app.delete('/api/admin/agents/:id', admin, async (request, reply) => {
+    const tenantId = adminTenantId(request);
     const { id } = validate(IdParamSchema, request.params);
     const rows = await ctx.db
       .update(agents)
       .set({ revoked: true })
-      .where(eq(agents.id, id))
+      .where(tenantScope(agents, tenantId, eq(agents.id, id)))
       .returning({ id: agents.id });
     if (rows.length === 0) throw notFound();
     request.log.info({ agentId: id }, 'token agente revocato');
     return reply.code(204).send();
   });
 
-  app.get('/api/admin/agent-registrations', admin, async (): Promise<AgentRegistrationSummary[]> => {
+  app.get('/api/admin/agent-registrations', admin, async (request): Promise<AgentRegistrationSummary[]> => {
+    const tenantId = adminTenantId(request);
     const rows = await ctx.db
       .select()
       .from(agentRegistrations)
-      .where(and(eq(agentRegistrations.status, 'pending'), gt(agentRegistrations.expiresAt, ctx.now())))
+      .where(
+        tenantScope(
+          agentRegistrations,
+          tenantId,
+          eq(agentRegistrations.status, 'pending'),
+          gt(agentRegistrations.expiresAt, ctx.now()),
+        ),
+      )
       .orderBy(desc(agentRegistrations.createdAt));
     return rows.map(registrationSummary);
   });
@@ -136,13 +166,16 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
   /** Approves or rejects a pending, not expired request (404 otherwise); the agent collects its token later. */
   const decide = (status: 'approved' | 'rejected', message: string) =>
     async function (request: FastifyRequest): Promise<AgentRegistrationSummary> {
+      const tenantId = adminTenantId(request);
       const { id } = validate(IdParamSchema, request.params);
       const now = ctx.now();
       const [row] = await ctx.db
         .update(agentRegistrations)
         .set({ status, decidedAt: now })
         .where(
-          and(
+          tenantScope(
+            agentRegistrations,
+            tenantId,
             eq(agentRegistrations.id, id),
             eq(agentRegistrations.status, 'pending'),
             gt(agentRegistrations.expiresAt, now),
@@ -158,35 +191,49 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
   app.post('/api/admin/agent-registrations/:id/reject', admin, decide('rejected', 'registrazione agente rifiutata'));
 
   app.post('/api/admin/share-tokens', admin, async (request, reply): Promise<CreateShareTokenResponse> => {
+    const tenantId = adminTenantId(request);
     const body = validate(CreateShareTokenRequestSchema, request.body);
     const expiresAt = body.expiresAt === null ? null : new Date(body.expiresAt);
     if (expiresAt && expiresAt <= ctx.now()) throw badRequest('Richiesta non valida: expiresAt');
     if (body.matchId) {
-      const [m] = await ctx.db.select({ id: matches.id }).from(matches).where(eq(matches.id, body.matchId)).limit(1);
+      const [m] = await ctx.db
+        .select({ id: matches.id })
+        .from(matches)
+        .where(tenantScope(matches, tenantId, eq(matches.id, body.matchId)))
+        .limit(1);
       if (!m) throw badRequest('Richiesta non valida: matchId');
     }
+    const tenant = await findTenant(ctx, { id: tenantId });
     const token = generateToken();
     const [row] = await ctx.db
       .insert(shareTokens)
-      .values({ tokenHash: hashToken(token), matchId: body.matchId, label: body.label, expiresAt })
+      .values({ tenantId, tokenHash: hashToken(token), matchId: body.matchId, label: body.label, expiresAt })
       .returning();
     if (!row) throw new Error('share token not inserted');
     request.log.info({ shareTokenId: row.id }, 'link pubblico creato');
     void reply.code(201);
-    return { ...shareSummary(row), token, url: `${ctx.config.publicBaseUrl}/live/${token}` };
+    // The link works only on a hostname of the client: its URL uses one of them.
+    const base = publicBaseUrlFor(ctx.config.publicBaseUrl, tenant?.hostnames ?? []);
+    return { ...shareSummary(row), token, url: `${base}/live/${token}` };
   });
 
-  app.get('/api/admin/share-tokens', admin, async (): Promise<ShareTokenSummary[]> => {
-    const rows = await ctx.db.select().from(shareTokens).orderBy(desc(shareTokens.createdAt));
+  app.get('/api/admin/share-tokens', admin, async (request): Promise<ShareTokenSummary[]> => {
+    const tenantId = adminTenantId(request);
+    const rows = await ctx.db
+      .select()
+      .from(shareTokens)
+      .where(tenantScope(shareTokens, tenantId))
+      .orderBy(desc(shareTokens.createdAt));
     return rows.map(shareSummary);
   });
 
   app.delete('/api/admin/share-tokens/:id', admin, async (request, reply) => {
+    const tenantId = adminTenantId(request);
     const { id } = validate(IdParamSchema, request.params);
     const rows = await ctx.db
       .update(shareTokens)
       .set({ revoked: true })
-      .where(eq(shareTokens.id, id))
+      .where(tenantScope(shareTokens, tenantId, eq(shareTokens.id, id)))
       .returning({ id: shareTokens.id });
     if (rows.length === 0) throw notFound();
     ctx.hub.closeShareToken(id);
@@ -194,14 +241,17 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
     return reply.code(204).send();
   });
 
+  /** Users of the client of the session (a superadmin creates them in the client it works on). */
   app.post('/api/admin/users', admin, async (request, reply): Promise<UserSummary> => {
+    const tenantId = adminTenantId(request);
     const body = validate(CreateUserRequestSchema, request.body);
+    // Emails are unique among all the clients (a login finds the user by email alone).
     const [existing] = await ctx.db.select({ id: users.id }).from(users).where(eq(users.email, body.email)).limit(1);
     if (existing) throw conflict('Utente già esistente');
     const passwordHash = await hashPassword(body.password);
     const [row] = await ctx.db
       .insert(users)
-      .values({ email: body.email, passwordHash, role: body.role })
+      .values({ tenantId, email: body.email, passwordHash, role: body.role })
       .onConflictDoNothing({ target: users.email })
       .returning();
     if (!row) throw conflict('Utente già esistente');
@@ -210,8 +260,9 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
     return { id: row.id, email: row.email, role: row.role, createdAt: iso(row.createdAt) };
   });
 
-  app.get('/api/admin/users', admin, async (): Promise<UserSummary[]> => {
-    const rows = await ctx.db.select().from(users).orderBy(users.createdAt);
+  app.get('/api/admin/users', admin, async (request): Promise<UserSummary[]> => {
+    const tenantId = adminTenantId(request);
+    const rows = await ctx.db.select().from(users).where(tenantScope(users, tenantId)).orderBy(users.createdAt);
     return rows.map((u) => ({ id: u.id, email: u.email, role: u.role, createdAt: iso(u.createdAt) }));
   });
 
@@ -223,11 +274,13 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
     { config: viewer.config, preHandler: [sameOrigin, viewer.preHandler], websocket: true },
     (socket, request) => {
       const token = request.cookies[SESSION_COOKIE];
-      if (!token) {
+      const tenantId = request.adminTenantId;
+      if (!token || !tenantId) {
         socket.close(1008);
         return;
       }
-      const target = { kind: 'live' } as const;
+      // The live match of the client of the session (a superadmin who changes client reconnects).
+      const target = { kind: 'live', tenantId } as const;
       const grant = { kind: 'session', sessionHash: hashToken(token) } as const;
       ctx.hub.add({ socket, target, grant, expiresAt: request.sessionExpiresAt });
       currentMessage(ctx, target).then(

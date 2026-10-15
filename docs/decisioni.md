@@ -58,5 +58,17 @@ Una riga per decisione: data, scelta, motivo.
   (`docs/agente.md`).
 - 2026-10-15: lucchetto `agent.lock` in `dataDir`, con attesa (nuovo tentativo ogni 30 s) in modo console/servizio,
   perché evita due agenti sulla stessa coda senza far riavviare il servizio NSSM a ripetizione (`docs/agente.md`).
+- 2026-10-15: clienti (tenant) separati con un superadmin che li gestisce, perché più società devono usare la stessa
+  installazione senza vedere i dati degli altri (`docs/server.md`).
+- 2026-10-15: il cliente si ricava dall'header `Host` (impostato da nginx con `$host`) e mai da `X-Forwarded-Host`, perché
+  un client non deve poter scegliere il proprio cliente attraverso il proxy (`docs/server.md`).
+- 2026-10-15: il cliente su cui lavora il superadmin sta nella sessione (`sessions.active_tenant_id`), perché deve valere
+  anche per il WebSocket `/ws/admin`, che non può portare un parametro per richiesta (`docs/server.md`).
+- 2026-10-15: una partita live per cliente (non più una in tutto il sistema), perché i clienti sono indipendenti
+  (`docs/server.md`).
+- 2026-10-15: email utente unica su tutti i clienti; limite noto: il 409 rivela che l'email esiste in un altro cliente
+  (`docs/server.md`).
+- 2026-10-15: unicità degli hostname controllata dal server sotto lock e non da un vincolo del database; in futuro una
+  tabella `tenant_hostnames` con UNIQUE (`docs/server.md`).
 - 2026-10-15: durata di un set chiuso presa da `[3SET]` invece che dalle ore delle righe, perché nei file reali tra la
   prima e l'ultima riga ci sono pause (110 minuti dalle ore contro i 20 ufficiali) (`docs/statistiche.md`).

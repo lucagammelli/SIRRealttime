@@ -1,4 +1,4 @@
-import { PASSWORD_MIN_LENGTH } from '@sir/shared';
+import { DEFAULT_TENANT_SLUG, PASSWORD_MIN_LENGTH, TenantSlugSchema } from '@sir/shared';
 import { z } from 'zod';
 import type { RateLimits } from './context.js';
 import { DEFAULT_RATE_LIMITS } from './context.js';
@@ -35,6 +35,7 @@ const EnvSchema = z
     RATE_LIMIT_ADMIN: perMinute(DEFAULT_RATE_LIMITS.admin),
     RATE_LIMIT_REGISTER: perMinute(DEFAULT_RATE_LIMITS.register),
     MATCH_MAX_LINES: z.coerce.number().int().positive().max(1_000_000).default(20_000),
+    DEFAULT_TENANT_SLUG: TenantSlugSchema.default(DEFAULT_TENANT_SLUG),
   })
   .refine((e) => (e.ADMIN_EMAIL === undefined) === (e.ADMIN_PASSWORD === undefined), {
     message: 'ADMIN_EMAIL e ADMIN_PASSWORD vanno impostate insieme',
@@ -56,6 +57,8 @@ export interface Config {
   matchMaxLines: number;
   /** Requests per minute and per IP of each route group. */
   rateLimits: RateLimits;
+  /** Client of an unknown hostname; null (DEFAULT_TENANT_SLUG set but empty): unknown hostnames get 404. */
+  defaultTenantSlug: string | null;
 }
 
 export class ConfigError extends Error {
@@ -71,6 +74,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     throw new ConfigError(`Configurazione non valida: ${names}`);
   }
   const e = parsed.data;
+  // Empty is not "unset" here: it disables the fallback client.
+  const noDefaultTenant = env.DEFAULT_TENANT_SLUG === '';
   return {
     databaseUrl: e.DATABASE_URL,
     port: e.PORT,
@@ -91,5 +96,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       admin: e.RATE_LIMIT_ADMIN,
       register: e.RATE_LIMIT_REGISTER,
     },
+    defaultTenantSlug: noDefaultTenant ? null : e.DEFAULT_TENANT_SLUG,
   };
 }

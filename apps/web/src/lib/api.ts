@@ -37,8 +37,17 @@ async function serverMessage(res: Response): Promise<string | null> {
   }
 }
 
+/** Server message of a 400 only when it asks to choose a client (the other 400s keep the generic text). */
+async function clientChoiceMessage(res: Response): Promise<string | null> {
+  const message = await serverMessage(res);
+  return message === NO_TENANT_MESSAGE ? message : null;
+}
+
+/** Answer of the admin routes to a superadmin that has no client to work on. */
+export const NO_TENANT_MESSAGE = 'Seleziona un cliente';
+
 export interface RequestOptions {
-  method?: 'GET' | 'POST' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   signal?: AbortSignal;
   fetch?: typeof fetch;
@@ -48,7 +57,7 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
   const method = options.method ?? 'GET';
   const headers: Record<string, string> = { accept: 'application/json' };
   let body: string | undefined;
-  if (method === 'POST') {
+  if (method === 'POST' || method === 'PATCH') {
     headers['content-type'] = 'application/json';
     body = JSON.stringify(options.body ?? {});
   }
@@ -67,7 +76,9 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
     throw new ApiError(0, 'Server non raggiungibile: controlla la connessione e riprova.');
   }
   if (!res.ok) {
-    const fromServer = res.status === 409 ? await serverMessage(res) : null;
+    // 409 explains the conflict; 400 «Seleziona un cliente» (superadmin without client) is shown as it is.
+    const fromServer =
+      res.status === 409 ? await serverMessage(res) : res.status === 400 ? await clientChoiceMessage(res) : null;
     const base =
       STATUS_MESSAGES[res.status] ??
       (res.status >= 500 ? 'Errore del server: riprova più tardi.' : 'Richiesta non riuscita.');

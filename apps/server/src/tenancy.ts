@@ -1,0 +1,110 @@
+import type { TenantRef } from '@sir/shared';
+import { isValidHostname } from '@sir/shared';
+import type { SQL } from 'drizzle-orm';
+import { and, arrayContains, eq, sql } from 'drizzle-orm';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
+import type { FastifyRequest } from 'fastify';
+import type { AppContext } from './context.js';
+import { tenants } from './db/index.js';
+import { HttpError } from './lib/errors.js';
+
+/** Client as needed by the routes (hostname resolution, Origin check, links). */
+export interface Tenant {
+  id: string;
+  slug: string;
+  name: string;
+  hostnames: string[];
+}
+
+const TENANT_COLUMNS = { id: tenants.id, slug: tenants.slug, name: tenants.name, hostnames: tenants.hostnames };
+
+/**
+ * Pure: hostname of a `Host` header (lower case, without port and trailing dot); null when missing or not valid
+ * (IPv6 literals included: they never match a client).
+ */
+export function hostnameFromHeader(host: string | undefined): string | null {
+  if (host === undefined) return null;
+  let name = host.trim().toLowerCase();
+  if (name.startsWith('[')) return null;
+  const colon = name.lastIndexOf(':');
+  if (colon !== -1) {
+    if (!/^\d{1,5}$/.test(name.slice(colon + 1))) return null;
+    name = name.slice(0, colon);
+  }
+  if (name.endsWith('.')) name = name.slice(0, -1);
+  return isValidHostname(name) ? name : null;
+}
+
+/** Client with exactly this hostname, or the client of `slug`; null if none. */
+export async function findTenant(
+  ctx: AppContext,
+  by: { hostname: string } | { slug: string } | { id: string },
+): Promise<Tenant | null> {
+  const where =
+    'hostname' in by
+      ? arrayContains(tenants.hostnames, [by.hostname])
+      : 'slug' in by
+        ? eq(tenants.slug, by.slug)
+        : eq(tenants.id, by.id);
+  const [row] = await ctx.db.select(TENANT_COLUMNS).from(tenants).where(where).limit(1);
+  return row ?? null;
+}
+
+const resolved = new WeakMap<FastifyRequest, Promise<Tenant | null>>();
+
+/**
+ * Client of the request hostname (looked up once per request): the client that lists the hostname, otherwise the
+ * one of DEFAULT_TENANT_SLUG, otherwise null. The hostname is the `Host` header as forwarded by nginx
+ * (`proxy_set_header Host $host`); `X-Forwarded-Host` is never read, so a client cannot choose it through the proxy.
+ */
+export function hostTenant(ctx: AppContext, request: FastifyRequest): Promise<Tenant | null> {
+  let pending = resolved.get(request);
+  if (!pending) {
+    pending = resolveHost(ctx, hostnameFromHeader(request.headers.host));
+    resolved.set(request, pending);
+  }
+  return pending;
+}
+
+async function resolveHost(ctx: AppContext, hostname: string | null): Promise<Tenant | null> {
+  const known = hostname ? await findTenant(ctx, { hostname }) : null;
+  if (known) return known;
+  const slug = ctx.config.defaultTenantSlug;
+  return slug ? findTenant(ctx, { slug }) : null;
+}
+
+/**
+ * The one filter by client of every query on a table with `tenant_id`: `tenant_id = tenantId AND ...conditions`.
+ * Rows of other clients are never read, changed or deleted, whatever id the request carries.
+ */
+export function tenantScope(
+  table: { tenantId: AnyPgColumn },
+  tenantId: string,
+  ...conditions: (SQL | undefined)[]
+): SQL {
+  return and(eq(table.tenantId, tenantId), ...conditions) ?? sql`false`;
+}
+
+/** Client of an admin route (set by `requireRole`); 400 for a superadmin with no client to work on. */
+export function adminTenantId(request: FastifyRequest): string {
+  if (request.adminTenantId) return request.adminTenantId;
+  throw new HttpError(400, 'NO_TENANT', 'Seleziona un cliente');
+}
+
+export async function tenantRef(ctx: AppContext, id: string | null): Promise<TenantRef | null> {
+  if (!id) return null;
+  const tenant = await findTenant(ctx, { id });
+  return tenant ? { id: tenant.id, slug: tenant.slug, name: tenant.name } : null;
+}
+
+/**
+ * Pure: base URL of the public links of a client. PUBLIC_BASE_URL when its hostname belongs to the client (or the
+ * client has no hostnames); otherwise the first hostname of the client, with scheme and port of PUBLIC_BASE_URL.
+ */
+export function publicBaseUrlFor(publicBaseUrl: string, hostnames: readonly string[]): string {
+  const base = new URL(publicBaseUrl);
+  const first = hostnames[0];
+  if (first === undefined || hostnames.includes(base.hostname.toLowerCase())) return publicBaseUrl;
+  base.hostname = first;
+  return base.toString().replace(/\/+$/, '');
+}

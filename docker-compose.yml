@@ -41,6 +41,8 @@ services:
       # Dietro nginx (servizio web), che sovrascrive X-Forwarded-For con l'IP reale del client.
       TRUST_PROXY: ${TRUST_PROXY:-true}
       MATCH_MAX_LINES: ${MATCH_MAX_LINES:-20000}
+      # Senza i due punti: impostata vuota nel .env resta vuota (hostname sconosciuti = 404).
+      DEFAULT_TENANT_SLUG: ${DEFAULT_TENANT_SLUG-predefinito}
       RATE_LIMIT_LOGIN: ${RATE_LIMIT_LOGIN:-10}
       RATE_LIMIT_INGEST: ${RATE_LIMIT_INGEST:-600}
       RATE_LIMIT_PUBLIC: ${RATE_LIMIT_PUBLIC:-120}

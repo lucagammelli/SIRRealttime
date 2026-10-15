@@ -1,7 +1,8 @@
 import type { MatchState } from '@sir/volley-stats';
 import { z } from 'zod';
 
-const MatchStateSchema = z.custom<MatchState>((v) => typeof v === 'object' && v !== null && !Array.isArray(v), {
+/** Match state computed by `@sir/volley-stats`: only checked to be an object (it comes from the server). */
+export const MatchStateSchema = z.custom<MatchState>((v) => typeof v === 'object' && v !== null && !Array.isArray(v), {
   message: 'stato della partita non valido',
 });
 

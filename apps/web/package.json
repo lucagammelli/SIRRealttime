@@ -1,0 +1,41 @@
+{
+  "name": "@sir/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Portale: partita in tempo reale (pagina pubblica) e area riservata.",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "dev": "vite",
+    "preview": "vite preview",
+    "demo": "tsx --conditions=@sir/source scripts/demo.ts"
+  },
+  "dependencies": {
+    "@sir/shared": "workspace:*",
+    "@sir/volley-stats": "workspace:*",
+    "echarts": "^6.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router": "^7.9.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@sir/agent": "workspace:*",
+    "@sir/dvw-parser": "workspace:*",
+    "@sir/dvw-simulator": "workspace:*",
+    "@sir/server": "workspace:*",
+    "@tailwindcss/vite": "^4.1.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/dom": "^10.4.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "jsdom": "^27.0.0",
+    "tailwindcss": "^4.1.0",
+    "tsx": "^4.23.15",
+    "vite": "^7.1.0"
+  }
+}

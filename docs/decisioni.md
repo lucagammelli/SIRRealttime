@@ -32,6 +32,15 @@ Una riga per decisione: data, scelta, motivo.
   server (`docs/agente.md`).
 - 2026-10-14: agente distribuito come eseguibile Node SEA (`postject`) e installato come servizio con NSSM, perché sul PC
   di DataVolley non deve servire Node e il servizio parte da solo e si riavvia (`docs/agente.md`).
+- 2026-10-14: portale con React + Vite + Tailwind 4 + ECharts, perché i grafici (andamento, confronto, rotazioni) sono
+  molti e interattivi, i token di stile stanno in un solo file CSS e ECharts finisce in un chunk a parte in cache
+  (`docs/portale.md`, `docs/infrastruttura.md`).
+- 2026-10-14: CSP rigida senza `unsafe-inline` né `unsafe-eval`, con zod in modalità `jitless` e tooltip ECharts
+  `richText` disegnati nel canvas (testi filtrati da `richSafe`), perché il token del link è nell'URL e la pagina è
+  pubblica: uno script iniettato non deve poter girare (`docs/portale.md`).
+- 2026-10-14: nginx (servizio `web`) come unico ingresso, con il server pubblicato solo su `127.0.0.1`, perché nginx
+  sovrascrive `X-Forwarded-For` con l'IP reale e così `TRUST_PROXY=true` non si può aggirare; anche l'agente usa l'URL del
+  portale (`docs/portale.md`, `docs/server.md`).
 - 2026-10-15: agente: `allowHttpPrivateNetwork` (default `false`) ammette http verso IPv4 privati letterali, mai verso nomi
   host o IP pubblici (un nome può risolversi in un IP pubblico), per provare in LAN senza https; warning all'avvio
   (`docs/agente.md`).

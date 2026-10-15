@@ -7,7 +7,7 @@ statistiche in un portale web. Il progetto è un monorepo TypeScript; il piano c
 
 - Node 24
 - corepack (incluso in Node), che attiva il pnpm fissato in `package.json`
-- Docker e Docker Compose solo per eseguire il server con Postgres (vedi `docs/server.md`)
+- Docker e Docker Compose solo per eseguire server, Postgres e portale (nginx) insieme (vedi `docs/server.md`)
 
 ## Comandi
 
@@ -42,12 +42,33 @@ DATABASE_URL="pglite:memory" COOKIE_SECURE="false" \
 Il server ascolta su `http://127.0.0.1:8090` (controllo: `/api/health`). Variabili, endpoint, login, token agente, link
 pubblici e Docker Compose sono in `docs/server.md`.
 
+## Portale in sviluppo
+
+La demo avvia server, agente e una partita simulata in un solo processo; il portale si avvia in un secondo terminale e
+si apre su `http://localhost:5173` (gli indirizzi dei link sono stampati dalla demo):
+
+```bash
+# --- variabili ---
+DEMO_SPEED="15" # accelerazione della partita simulata
+
+# --- comandi (primo terminale) ---
+DEMO_SPEED="$DEMO_SPEED" pnpm --filter @sir/web demo
+```
+
+```bash
+# --- comandi (secondo terminale) ---
+pnpm --filter @sir/web dev
+```
+
+Pagine, variabili della demo, Docker e punti ancora da verificare sono in `docs/portale.md`.
+
 ## Documenti
 
 - `docs/piano.md`: piano e architettura
 - `docs/architettura.md`: flusso dei dati, pacchetti e contratti
 - `docs/agente.md`: agente Windows (lettura del `.dvw`, coda offline, installazione come servizio)
 - `docs/server.md`: server (ingest, accessi, endpoint, WebSocket, database, Docker)
+- `docs/portale.md`: portale web (pagina pubblica, area riservata, demo, nginx)
 - `docs/infrastruttura.md`: monorepo, build, test, CI, Docker
 - `docs/dvw-parser.md`: parser DVW
 - `docs/simulatore.md`: simulatore DataVolley

@@ -25,9 +25,12 @@ Il calcolo riparte da zero a ogni aggiornamento (nessuno stato conservato tra du
 ### Regole di calcolo
 - **Punteggio**: solo dalle righe `point`; mai dal conteggio delle azioni.
 - **Set di una riga**: il campo `set` della riga; se manca, il set corrente, che avanza dopo `**Nset`. Valori fuori
-  da 1..5 sono ignorati.
+  da 1..5 sono ignorati. La riga `**Nset` appartiene sempre al set N: nei file reali il suo campo `set` contiene già
+  il set successivo, che quindi compare solo con la sua prima riga.
 - **Set concluso**: se c'è `setEnd` oppure esiste un set successivo. Il vincitore è chi ha il punteggio più alto.
-- **Durata**: dalle ore delle righe (mezzanotte gestita); se non ricavabile, dai minuti di `[3SET]`.
+- **Durata**: set chiuso → minuti di `[3SET]` (durata ufficiale di DataVolley, senza le pause); set in corso o senza
+  quel valore → dalle ore delle righe. Un passo indietro dell'ora oltre 12 ore è la mezzanotte; quelli brevi (la
+  rotazione scritta qualche secondo prima del punto) si ignorano.
 - **`status`**: `notStarted` senza azioni né punti; `inProgress` appena c'è una riga; `finished` con 3 set vinti.
 - **Squadra al servizio** (`live.servingTeam`): chi ha vinto l'ultimo punto; una battuta scritta dopo prevale; dopo la
   fine di un set è `null` fino alla prima battuta del set seguente.

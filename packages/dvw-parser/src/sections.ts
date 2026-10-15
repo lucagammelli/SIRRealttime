@@ -83,12 +83,13 @@ const SCORE = /^(\d+)-(\d+)$/;
 
 export function parseSets(lines: string[]): SetInfo[] {
   // Riga: True|False;parziale1;parziale2;parziale3;finale;minuti;  (celle vuote = non giocato)
+  // I file reali scrivono i parziali anche con spazi (`8 -3`) e mettono `True` anche sui set non giocati.
   return nonEmpty(lines).map((l, i) => {
-    const f = l.split(';').map((x) => x.trim());
+    const f = l.split(';').map((x) => x.replace(/\s+/g, ''));
     const flag = f[0]?.toLowerCase();
-    const finished = flag === 'true' ? true : flag === 'false' ? false : undefined;
-    const cells = (finished === undefined ? f : f.slice(1)).filter((x) => x !== '');
+    const cells = (flag === 'true' || flag === 'false' ? f.slice(1) : f).filter((x) => x !== '');
     const scores = cells.filter((x) => SCORE.test(x));
+    const finished = flag === 'true' ? scores.length > 0 : flag === 'false' ? false : undefined;
     const others = cells.filter((x) => !SCORE.test(x));
     const minutes =
       others.length > 0 && /^\d+$/.test(others[others.length - 1] ?? '') ? Number(others.pop()) : undefined;

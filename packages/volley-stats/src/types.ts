@@ -30,7 +30,7 @@ export interface SetSummary {
   /** Ora della prima e dell'ultima riga del set (`HH.MM.SS`), se presenti. */
   startTime: string | null;
   endTime: string | null;
-  /** Durata in minuti: dalle ore delle righe, altrimenti dalla sezione [3SET]; `null` se non ricavabile. */
+  /** Durata in minuti: set chiuso dalla sezione [3SET], altrimenti dalle ore delle righe; `null` se non ricavabile. */
   durationMinutes: number | null;
 }
 

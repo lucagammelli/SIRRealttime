@@ -2,6 +2,7 @@ export * from './admin.js';
 export * from './assets.js';
 export * from './colors.js';
 export * from './ingest.js';
+export * from './intermissions.js';
 export * from './layout.js';
 export * from './messages.js';
 export * from './patch.js';

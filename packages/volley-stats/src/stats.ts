@@ -107,6 +107,9 @@ function toLine(c: Counts): StatLine {
   };
 }
 
+/** Riga di statistiche senza azioni (tutto a zero, rapporti `null`). */
+export const emptyStatLine = (): StatLine => toLine(emptyCounts());
+
 interface Bucket {
   total: Counts;
   bySet: Map<number, Counts>;

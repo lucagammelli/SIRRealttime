@@ -2,6 +2,7 @@ import { SHARE_TOKEN_PATTERN } from '@sir/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { BrandMark } from '../components/BrandMark.tsx';
+import { Intermission } from '../components/Intermission.tsx';
 import { LiveMatch } from '../components/LiveMatch.tsx';
 import { StatusScreen } from '../components/StatusScreen.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
@@ -10,7 +11,7 @@ import { useIdle, useTvRootClass, useWakeLock } from '../lib/tvScreen.ts';
 import { tvModeOf } from '../lib/layout.ts';
 import { useDevice } from '../lib/useLayout.ts';
 import { socketUrl, useLiveSocket } from '../lib/useLiveSocket.ts';
-import { useBrandName, useTenantLook } from '../lib/branding.ts';
+import { useBrandName, useTenantIntermissions, useTenantLook } from '../lib/branding.ts';
 import { teamName } from '../lib/format.ts';
 
 /** Wait when a 503/429 has no readable Retry-After. */
@@ -48,7 +49,9 @@ export async function probeShareToken(token: string, fetchImpl: typeof fetch = f
  * smartphone (< 700 px), tablet, big screen (≥ 1600 × 800 px and 16:10, `?tv=1`, or full screen from tablet up; never
  * with `?tv=0`): no scrolling, text scaled with the screen, pointer hidden after 3 s, screen kept on, rotation of the
  * groups that the viewer can stop. The blocks are the ones chosen by the client for the device (page «Pagina pubblica»
- * of the reserved area), the defaults until its graphics are loaded.
+ * of the reserved area), the defaults until its graphics are loaded. In the pauses of the match (time-out, end of set,
+ * end of match) the pause chosen by the client (page «Pause e sponsor») goes over the page or at its bottom: none while
+ * its graphics are loading, the default pauses when they cannot be loaded.
  */
 export function LivePage() {
   const { token = '' } = useParams();
@@ -73,6 +76,7 @@ export function LivePage() {
   const data = snapshot.data;
   const brand = useBrandName();
   const look = useTenantLook();
+  const intermissions = useTenantIntermissions();
   const blockBrand = useMemo(
     () => (look ? { name: look.name, logoMain: look.images.logoMain, logoMark: look.images.logoMark } : null),
     [look],
@@ -186,6 +190,18 @@ export function LivePage() {
           {...(inScoreboard ? { controls } : {})}
         />
       </main>
+      {data?.kind === 'state' && (
+        <Intermission
+          key={data.matchId}
+          state={data.state}
+          config={intermissions}
+          device={device}
+          paused={rotationPaused}
+          onTogglePaused={() => setRotationPaused((p) => !p)}
+          look={blockBrand}
+          sponsorLogo={look?.images.sponsorLogo ?? null}
+        />
+      )}
     </div>
   );
 }

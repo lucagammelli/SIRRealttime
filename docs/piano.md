@@ -125,7 +125,10 @@ dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in q
    (`docs/portale.md`); da provare su dispositivi veri.
 6. `layout-blocchi` (**fatto**): editor «Pagina pubblica» a blocchi per TV, tablet e telefono (13 tipi, larghezze su 12
    colonne, anteprima, `GET`/`PUT /api/admin/layout`); `docs/portale.md`, `docs/server.md`, `docs/architettura.md`.
-7. `pause-partita`: schermate di fine set, time-out e fine partita con riepilogo e sponsor.
+7. `pause-partita` (**fatto**): schermate di time-out, fine set e fine partita con riepilogo, MVP e sponsor, a tutto
+   schermo o a banda per dispositivo; pausa propria per i set 1-4, pagina «Pause e sponsor», `GET`/`PUT
+   /api/admin/intermissions`, fase della partita in `volley-stats` (`docs/statistiche.md`, `docs/architettura.md`,
+   `docs/server.md`, `docs/portale.md`).
 8. `avvisi-eventi`: messaggi rapidi sopra la pagina (ace, set point, match point…).
 9. `agente-scaricabile`: exe scaricabile dal portale con la grafica del cliente.
 

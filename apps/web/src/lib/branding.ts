@@ -1,5 +1,5 @@
-import type { BrandPalette, PublicTenantResponse, TenantLayout } from '@sir/shared';
-import { brandPalette, DEFAULT_BRAND_NAME, PublicTenantResponseSchema } from '@sir/shared';
+import type { BrandPalette, PublicTenantResponse, TenantIntermissions, TenantLayout } from '@sir/shared';
+import { brandPalette, DEFAULT_BRAND_NAME, defaultIntermissions, PublicTenantResponseSchema } from '@sir/shared';
 import { useSyncExternalStore } from 'react';
 import type { ResolvedTheme } from './theme.ts';
 import { currentTheme, subscribeThemeEvents } from './theme.ts';
@@ -15,9 +15,16 @@ export interface TenantLook {
   palette: BrandPalette;
   /** Blocks of the public page chosen by the client, for every device. */
   layout: TenantLayout;
+  /** Pauses of the public page (time-out, end of set, end of match). */
+  intermissions: TenantIntermissions;
 }
 
 let look: TenantLook | null = null;
+/** Load of the graphics: still loading, loaded (`look` set), or failed (the portal defaults). */
+export type TenantLookStatus = 'loading' | 'loaded' | 'failed';
+let status: TenantLookStatus = 'loading';
+/** Pauses used when the graphics cannot be loaded: the defaults of the shared contract. */
+const DEFAULT_INTERMISSIONS: TenantIntermissions = defaultIntermissions();
 /** Bumped at every change of the variables: the charts read the palette again. */
 let revision = 0;
 const listeners = new Set<() => void>();
@@ -61,9 +68,13 @@ function refresh(): void {
   for (const listener of listeners) listener();
 }
 
-/** Applies the graphics of a client (null: back to the defaults) and follows the light/dark switch. */
+/**
+ * Applies the graphics of a client and follows the light/dark switch. Null: back to the defaults, as before any load
+ * (status `loading`).
+ */
 export function setTenantLook(next: TenantLook | null): void {
   look = next;
+  status = next ? 'loaded' : 'loading';
   setFavicon(next?.images.logoMark ?? null);
   unsubscribeTheme ??= subscribeThemeEvents(refresh);
   refresh();
@@ -76,6 +87,7 @@ export function tenantLookOf(tenant: PublicTenantResponse): TenantLook {
     images: tenant.images,
     palette: brandPalette(tenant.branding.colors),
     layout: tenant.layout,
+    intermissions: tenant.intermissions,
   };
 }
 
@@ -104,10 +116,17 @@ export async function loadTenantLook(options: LoadOptions = {}): Promise<TenantL
   }
 }
 
-/** Loads and applies the graphics of the client (at start, and again after a save). */
+/**
+ * Loads and applies the graphics of the client (at start, and again after a save). A failure keeps graphics already
+ * loaded; without them the status becomes `failed` (the portal defaults, pauses included).
+ */
 export async function initBranding(options: LoadOptions = {}): Promise<void> {
   const loaded = await loadTenantLook(options);
   if (loaded) setTenantLook(loaded);
+  else if (status !== 'loaded') {
+    status = 'failed';
+    for (const listener of listeners) listener();
+  }
 }
 
 function subscribe(listener: () => void): () => void {
@@ -122,6 +141,26 @@ export function useTenantLook(): TenantLook | null {
     () => look,
     () => null,
   );
+}
+
+/** Status of the load of the graphics of the client. */
+export function useTenantLookStatus(): TenantLookStatus {
+  return useSyncExternalStore(
+    subscribe,
+    () => status,
+    () => 'loading',
+  );
+}
+
+/**
+ * Pauses of the public page: the ones of the client once its graphics are loaded, the defaults when the load failed,
+ * none (null) while it is still loading.
+ */
+export function useTenantIntermissions(): TenantIntermissions | null {
+  const current = useTenantLook();
+  const state = useTenantLookStatus();
+  if (current) return current.intermissions;
+  return state === 'failed' ? DEFAULT_INTERMISSIONS : null;
 }
 
 /** Changes at every new set of variables (graphics or theme): key for re-reading the palette of the charts. */

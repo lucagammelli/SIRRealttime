@@ -85,6 +85,7 @@ Prima si verifica la sessione («Verifica della sessione…»); senza sessione c
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, password di almeno 12 caratteri, ruolo), «Utenti» |
 | Grafica | `/admin/grafica` | solo admin (il superadmin lavora sul cliente scelto) | colori, nome e loghi del cliente, vedi «Grafica per cliente» |
 | Pagina pubblica | `/admin/pagina` | solo admin (il superadmin lavora sul cliente scelto) | blocchi della pagina della partita per TV, tablet e telefono, vedi «Pagina pubblica a blocchi» |
+| Pause e sponsor | `/admin/pause` | solo admin (il superadmin lavora sul cliente scelto) | schermate di time-out, fine set e fine partita, vedi «Pause della partita» |
 | Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname; «Crea cliente»), «Clienti» con «Modifica» (nome e hostname, «Salva») |
 | Esci | - | tutti | chiude la sessione |
 
@@ -243,6 +244,57 @@ pagina di prima.
   scheda: cambiando voce del menu dell'area riservata le modifiche si perdono (come nella pagina «Grafica»). Una
   immagine usata in un blocco sponsor non si può eliminare dalla pagina «Grafica» finché non viene tolta dal blocco.
   Un layout salvato e poi non più valido (per esempio di versione futura) si legge come predefinito.
+
+### Pause della partita (schermate di time-out, fine set e fine partita)
+Quando la partita ha una pausa il portale mostra una schermata con riepilogo e sponsor. Il portale non decide nulla: la
+fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la configurazione del cliente da
+`intermissions` di `GET /api/public/tenant` (`docs/architettura.md`, «Pause della partita»; `docs/server.md`).
+
+- **Quando compare** (`components/Intermission.tsx`, montato da `LivePage.tsx` sotto la pagina): per `timeout`, `setBreak` e
+  `matchEnd`, se la pausa è attiva (`intermissionFor`) e ha almeno una diapositiva da mostrare. Parte dopo il ritardo
+  `delaySeconds` della pausa (il tabellone mostra prima la fine del set); **non si applica a chi apre la pagina durante
+  una pausa**, che la vede subito. Si chiude da sola alla prima azione dopo (la fase torna `rally`); la fine partita
+  resta finché lo spettatore non la chiude. Sotto la pausa la pagina continua ad aggiornarsi.
+- **Chiusura a mano**: una pausa chiusa a mano non si riapre; la pausa successiva (`describePause` dà una chiave per ogni
+  pausa: set, squadra e numero del time-out) sì.
+- **Tutto schermo**: finestra di dialogo (`role="dialog"`, `aria-modal`) sopra la pagina con i pulsanti «Torna alla
+  partita» e (con più diapositive) «Ferma rotazione»; Esc chiude, il focus va su «Torna alla partita», resta intrappolato
+  nella finestra e torna dov'era alla chiusura.
+- **Banda**: fissa in basso, una riga compatta con titolo, diapositiva, punti indicatori (per i lettori di schermo «Schermata N di M»), «Ferma rotazione»
+  e «Chiudi»; non prende il focus (un messaggio `role="status"` avvisa i lettori di schermo). Sul telefono e sul tablet
+  la pagina ha uno spazio vuoto sotto di pari altezza, così la banda non copre il tabellone.
+- **Titoli** (`pauseTitle`): «Fine N° set», «Time-out <squadra>», «Fine partita».
+- **Rotazione**: le diapositive girano ognuna per i suoi secondi. «Ferma rotazione» (`aria-pressed`, `title` «Riprendi
+  rotazione») è lo stesso interruttore della rotazione della TV; con `prefers-reduced-motion` la rotazione è ferma e il
+  pulsante non c'è.
+- **Diapositive** (`blocks/IntermissionSlides.tsx`, `renderSlide`, a tutto schermo o compatte): «Riepilogo del set»
+  (`setRecap`: punteggio, tabella per squadra con punti, attacco, efficienza, battuta, ricezione, muri, errori e «Migliore
+  del set»), «Risultato» (set vinti e parziali), «MVP» (`matchMvp`: maglia, nome, punti, attacchi vincenti, muri, ace,
+  efficienza d'attacco), «Parziali dei set», «Sponsor», «Messaggio», «Codice QR», «Logo» (gli ultimi quattro come i blocchi
+  omonimi, `docs/portale.md` «Pagina pubblica a blocchi»). Le diapositive senza nulla da mostrare sono saltate
+  (`visibleSlides`): lo sponsor senza immagini usa il logo sponsor della grafica, e se non c'è nemmeno quello è saltato;
+  il riepilogo senza il set, l'MVP senza giocatori con punti, i parziali senza set. **Conseguenza**: la pausa time-out di
+  default (solo sponsor) non compare se il cliente non ha né immagini sponsor né logo sponsor.
+- **Caricamento della grafica** (`useTenantIntermissions` in `lib/branding.ts`, stato caricamento/caricata/fallita):
+  finché `GET /api/public/tenant` non risponde non si mostra nessuna pausa; se fallisce valgono i predefiniti.
+- **Pagina «Pause e sponsor»** (`src/pages/admin/IntermissionsPage.tsx`, rotta `/admin/pause`, solo admin; titolo scheda
+  «Pause e sponsor · Area riservata»). Schede «Time-out», «Fine set», «Fine partita»; per «Fine set» una seconda fila
+  «Tutti i set», «1° set»…«4° set» con la casella «Pausa propria per la fine del N° set» (senza, quel set usa «Tutti i
+  set»). Per ogni pausa: «Pausa attiva», «Come si mostra» (per TV, tablet e telefono «Tutto schermo» o «Banda in basso»),
+  «Ritardo prima della pausa (secondi)», elenco di diapositive riordinabili con «Sposta su» e «Sposta giù» (niente
+  trascinamento), «Secondi sullo schermo», le opzioni del tipo (come nell'editor a blocchi, anche «Carica immagine
+  sponsor») e «Rimuovi»; in fondo «Tipo di diapositiva» con «Aggiungi diapositiva» (al massimo 12). «Salva» (dopo:
+  «Pause salvate: valgono da subito per tutti gli spettatori.»), «Ripristina predefinito» (solo della pausa aperta),
+  avviso «Modifiche non salvate.»; «Salva» è disattivato se una pausa attiva non ha diapositive o un testo è vuoto. Le
+  modifiche sono logica pura in `intermissionEditor.ts` (`moveSlide`, `addSlide`, `removeSlide`, `updateSlide`,
+  `setOwnPause`, `resetPause`, `pauseProblems`). Spostamenti e aggiunte sono annunciati in una regione `aria-live`.
+- **Anteprima**: scheda «Anteprima» con la pagina del dispositivo scelto e la pausa mostrata subito, con le modifiche non
+  salvate (`previewState` mette nello stato la fase della pausa aperta). Usa la partita live del cliente o la «Partita
+  d'esempio» (`src/blocks/sampleMatch.json`, rigenerata con `pnpm --filter @sir/web sample-match`, ora in 2° set con un
+  set chiuso).
+- **Limiti noti**: come nella pagina «Grafica», cambiando voce del menu le modifiche non salvate si perdono (il browser
+  chiede conferma solo alla chiusura della scheda). Un'immagine usata in una diapositiva sponsor non si può eliminare dalla
+  pagina «Grafica» finché non viene tolta. Da provare su dispositivi veri (TV a 4-5 m, telefono con la banda).
 
 ### Grafica del portale
 Strisce nei colori delle squadre, cifre del punteggio con animazione `sir-pop`, «IN DIRETTA» pieno (testo
@@ -421,6 +473,11 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
   `MatchBlocks.tsx`; `sampleMatch.ts`, `sampleMatch.json`, `env.ts`), `components/BlockLayout.tsx`,
   `pages/admin/LayoutPage.tsx`, `pages/admin/layoutEditor.ts`, `scripts/sample-match.ts`; contratto in
   `packages/shared/src/layout.ts` (`docs/architettura.md`), API in `docs/server.md`, classifica in `docs/statistiche.md`
+- Pause della partita: `apps/web/src/components/Intermission.tsx` (`Intermission`), `blocks/IntermissionSlides.tsx`
+  (`renderSlide`, `SLIDE_LABELS`), `lib/intermission.ts` (`phaseOf`, `describePause`, `activePause`, `visibleSlides`,
+  `pauseTitle`, `previewState`), `lib/branding.ts` (`useTenantIntermissions`), `pages/admin/IntermissionsPage.tsx`,
+  `pages/admin/intermissionEditor.ts`; contratto in `packages/shared/src/intermissions.ts` (`docs/architettura.md`), fase e
+  riepiloghi in `packages/volley-stats/src/phase.ts`, `recap.ts` (`docs/statistiche.md`), API in `docs/server.md`
 - Portale adattivo: `apps/web/src/lib/layout.ts` (`deviceFor`, `tvModeOf`, `defaultLayouts`, `blocksFor`, `packRows`, `tvGroups`, `rotationIndex`),
   `lib/useLayout.ts` (`useStickyOffset`), `lib/tvScreen.ts` (`useWakeLock`, `useIdle`), `components/BlockLayout.tsx`,
   `components/ui.tsx` (`CardCollapseContext`), `styles/index.css`

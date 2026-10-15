@@ -4,6 +4,7 @@ import type {
   AssetSummary,
   BrandingImageSlot,
   BrandingResponse,
+  IntermissionsResponse,
   LayoutResponse,
   PublicTenantResponse,
   TenantBranding,
@@ -16,11 +17,14 @@ import {
   DEFAULT_BRAND_NAME,
   DEFAULT_TENANT_SLUG,
   IdParamSchema,
+  intermissionImageIds,
   layoutImageIds,
   publicAssetPath,
   resolveBranding,
+  resolveIntermissions,
   resolveLayout,
   TenantBrandingSchema,
+  TenantIntermissionsSchema,
   TenantLayoutSchema,
   UploadAssetRequestSchema,
 } from '@sir/shared';
@@ -42,7 +46,10 @@ type Tx = Parameters<Parameters<AppContext['db']['transaction']>[0]>[0];
 
 /** Body limit of the upload: the base64 text of a 2 MB image plus the rest of the JSON. */
 const UPLOAD_BODY_LIMIT = ASSET_MAX_BASE64_LENGTH + 1024;
-/** Key of the transaction lock (with the client) that serializes uploads, deletions, branding and layout of a client. */
+/**
+ * Key of the transaction lock (with the client) that serializes uploads, deletions, branding, layout and pauses of a
+ * client.
+ */
 const ASSET_LOCK_KEY = 0x53494153;
 /** The id of an image changes when its file changes: the file can stay in any cache for a year. */
 const IMMUTABLE = 'public, max-age=31536000, immutable';
@@ -80,6 +87,16 @@ async function usedBytes(tx: Tx | AppContext['db'], tenantId: string): Promise<n
 
 const SLOTS = Object.keys(BRANDING_IMAGE_SLOTS) as BrandingImageSlot[];
 
+/** Under the lock of the client: every image of `ids` is of this client (400 otherwise). */
+async function requireOwnImages(tx: Tx, tenantId: string, ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const rows = await tx
+    .select({ id: assets.id })
+    .from(assets)
+    .where(tenantScope(assets, tenantId, inArray(assets.id, ids)));
+  if (rows.length !== ids.length) throw badRequest('Richiesta non valida: immagine non trovata');
+}
+
 /** Images used by a branding. */
 const brandingIds = (branding: TenantBranding): string[] =>
   SLOTS.map((slot) => branding[slot]).filter((id): id is string => id !== null);
@@ -105,6 +122,7 @@ export function brandingPublicRoutes(app: FastifyInstance, ctx: AppContext): voi
         sponsorLogo: branding.sponsorLogo ? publicAssetPath(branding.sponsorLogo) : null,
       },
       layout: resolveLayout(tenant.layout),
+      intermissions: resolveIntermissions(tenant.intermissions),
     };
   });
 
@@ -200,13 +218,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const images = layoutImageIds(layout);
     await ctx.db.transaction(async (tx) => {
       await lockClient(tx, tenantId);
-      if (images.length > 0) {
-        const rows = await tx
-          .select({ id: assets.id })
-          .from(assets)
-          .where(tenantScope(assets, tenantId, inArray(assets.id, images)));
-        if (rows.length !== images.length) throw badRequest('Richiesta non valida: immagine non trovata');
-      }
+      await requireOwnImages(tx, tenantId, images);
       const updated = await tx
         .update(tenants)
         .set({ layout })
@@ -217,6 +229,39 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     forgetTenants(ctx);
     request.log.info({ tenantId, userId: request.user?.id }, 'pagina pubblica del cliente salvata');
     return layoutOf(tenantId);
+  });
+
+  const intermissionsOf = async (tenantId: string): Promise<IntermissionsResponse> => {
+    const tenant = await findTenant(ctx, { id: tenantId });
+    if (!tenant) throw notFound();
+    return { tenantName: tenant.name, intermissions: resolveIntermissions(tenant.intermissions) };
+  };
+
+  app.get('/api/admin/intermissions', admin, async (request): Promise<IntermissionsResponse> =>
+    intermissionsOf(adminTenantId(request)),
+  );
+
+  /**
+   * Replaces the pauses of the public page (closed list of slide types, options, durations and delays checked by the
+   * shared schema); every image of the sponsor slides must be of this client.
+   */
+  app.put('/api/admin/intermissions', admin, async (request): Promise<IntermissionsResponse> => {
+    const tenantId = adminTenantId(request);
+    const intermissions = validate(TenantIntermissionsSchema, request.body);
+    const images = intermissionImageIds(intermissions);
+    await ctx.db.transaction(async (tx) => {
+      await lockClient(tx, tenantId);
+      await requireOwnImages(tx, tenantId, images);
+      const updated = await tx
+        .update(tenants)
+        .set({ intermissions })
+        .where(eq(tenants.id, tenantId))
+        .returning({ id: tenants.id });
+      if (updated.length === 0) throw notFound();
+    });
+    forgetTenants(ctx);
+    request.log.info({ tenantId, userId: request.user?.id }, 'pause della pagina pubblica salvate');
+    return intermissionsOf(tenantId);
   });
 
   app.get('/api/admin/assets', admin, async (request): Promise<AssetListResponse> => {
@@ -295,7 +340,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
   );
 
   /**
-   * Deletes an image not used by the branding or by the blocks of the public page (409 otherwise); the file goes when
+   * Deletes an image not used by the branding, the blocks or the pauses of the public page (409 otherwise); the file goes when
    * no other row of the client uses it.
    */
   app.delete('/api/admin/assets/:id', admin, async (request, reply) => {
@@ -310,13 +355,15 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
         .limit(1);
       if (!row) throw notFound();
       const [tenant] = await tx
-        .select({ branding: tenants.branding, layout: tenants.layout })
+        .select({ branding: tenants.branding, layout: tenants.layout, intermissions: tenants.intermissions })
         .from(tenants)
         .where(eq(tenants.id, tenantId));
       if (brandingIds(resolveBranding(tenant?.branding)).includes(id))
         throw conflict('Immagine in uso nella grafica: toglila prima di eliminarla');
       if (layoutImageIds(resolveLayout(tenant?.layout)).includes(id))
         throw conflict('Immagine in uso nella pagina pubblica: toglila dal blocco sponsor prima di eliminarla');
+      if (intermissionImageIds(resolveIntermissions(tenant?.intermissions)).includes(id))
+        throw conflict('Immagine in uso nelle pause: toglila dalla diapositiva sponsor prima di eliminarla');
       await tx.delete(assets).where(tenantScope(assets, tenantId, eq(assets.id, id)));
       const [twin] = await tx
         .select({ id: assets.id })

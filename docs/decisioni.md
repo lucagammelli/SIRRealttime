@@ -119,5 +119,19 @@ Una riga per decisione: data, scelta, motivo.
   perché la pagina pubblica non deve pesare di più e l'editor funziona anche senza partita live (`docs/portale.md`).
 - 2026-10-15: classifica dei migliori giocatori (`topPlayers`) in `volley-stats` e non nel portale, perché i calcoli delle
   statistiche stanno solo lì, sono testabili e non si duplicano (`docs/statistiche.md`).
+- 2026-10-15: fase della partita (pausa, gioco, fine set) calcolata solo dalle righe del `.dvw`, mai dall'orologio, perché
+  deve essere uguale per ogni spettatore, riproducibile nei test e non dipendere dall'ora dei dispositivi
+  (`docs/statistiche.md`).
+- 2026-10-15: regola dell'MVP: più punti, poi efficienza d'attacco (senza attacchi conta meno di tutti), poi meno errori,
+  poi casa, poi maglia più bassa, perché l'ordine deve essere sempre uguale e spiegabile al pubblico
+  (`docs/statistiche.md`).
+- 2026-10-15: la pausa di un singolo set sostituisce per intero quella generica di fine set, senza fusione dei campi,
+  perché è prevedibile per chi la configura e l'anteprima mostra esattamente ciò che vedrà il pubblico
+  (`docs/architettura.md`).
+- 2026-10-15: ritorno alla partita fisso alla prima azione dopo la pausa e non configurabile, perché una schermata
+  rimasta sopra il gioco farebbe perdere i punti al pubblico (`docs/portale.md`).
+- 2026-10-15: le pause hanno un valore predefinito anche senza grafica caricata (e valgono se `GET /api/public/tenant`
+  fallisce), perché un cliente nuovo deve avere le schermate senza configurare nulla; in caricamento non se ne mostra
+  nessuna, per non far lampeggiare pause sbagliate (`docs/portale.md`).
 - 2026-10-15: nessun logo per squadra, si usa il logo del cliente, perché i dati non hanno loghi di squadra e ne
   basta uno per cliente (`docs/portale.md`).

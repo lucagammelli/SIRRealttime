@@ -100,7 +100,10 @@ paths:
   /api/public/tenant:
     get:
       responses:
-        '200': { description: "grafica del cliente dell'hostname: nome, colori, loghi e blocchi della pagina pubblica" }
+        '200':
+          {
+            description: "grafica del cliente dell'hostname: nome, colori, loghi, blocchi e pause della pagina pubblica",
+          }
         '404': { description: hostname senza cliente }
   /api/public/assets/{id}:
     get:
@@ -335,6 +338,35 @@ paths:
       responses:
         '200': { description: pagina pubblica salvata }
         '400': { description: 'tipo di blocco sconosciuto, opzioni o larghezza non valide, immagine non del cliente' }
+  /api/admin/intermissions:
+    get:
+      responses:
+        '200':
+          { description: 'pause della pagina pubblica del cliente della sessione: time-out, fine set, fine partita' }
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                timeout: { $ref: '#/components/schemas/Intermission' }
+                setBreak: { $ref: '#/components/schemas/Intermission' }
+                setBreakBySet:
+                  type: object
+                  properties:
+                    '1': { $ref: '#/components/schemas/Intermission' }
+                    '2': { $ref: '#/components/schemas/Intermission' }
+                    '3': { $ref: '#/components/schemas/Intermission' }
+                    '4': { $ref: '#/components/schemas/Intermission' }
+                matchEnd: { $ref: '#/components/schemas/Intermission' }
+      responses:
+        '200': { description: pause salvate }
+        '400':
+          {
+            description: 'tipo di diapositiva sconosciuto, durata o ritardo fuori dai limiti, immagine non del cliente',
+          }
   /api/admin/assets:
     get:
       responses:
@@ -370,7 +402,7 @@ paths:
       responses:
         '204': { description: eliminata }
         '404': { description: non trovata }
-        '409': { description: in uso nella grafica }
+        '409': { description: 'in uso nella grafica, nella pagina pubblica o nelle pause' }
 components:
   schemas:
     LayoutBlocks:
@@ -407,6 +439,34 @@ components:
             type: object
             description: 'opzioni del tipo: message text, qr caption, sponsor images e seconds, logo variant, topPlayers count e team'
             example: { text: Benvenuti al palazzetto! }
+    Intermission:
+      type: object
+      properties:
+        enabled: { type: boolean, example: true }
+        modes:
+          type: object
+          properties:
+            tv: { type: string, enum: [fullscreen, banner], example: fullscreen }
+            tablet: { type: string, enum: [fullscreen, banner], example: fullscreen }
+            phone: { type: string, enum: [fullscreen, banner], example: banner }
+        delaySeconds: { type: integer, minimum: 0, maximum: 60, example: 5 }
+        slides:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            required: [id, type]
+            properties:
+              id: { type: string, pattern: '^[A-Za-z0-9_-]{1,40}$', example: grazie }
+              type:
+                type: string
+                enum: [setSummary, finalResult, mvp, setScores, sponsor, message, qr, logo]
+                example: message
+              seconds: { type: integer, minimum: 3, maximum: 60, example: 8 }
+              options:
+                type: object
+                description: 'opzioni come i blocchi: message text e size, qr caption, sponsor images e seconds, logo variant'
+                example: { text: Grazie per aver seguito la partita }
   securitySchemes:
     agentToken:
       type: http

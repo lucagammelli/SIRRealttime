@@ -21,6 +21,7 @@ Il calcolo riparte da zero a ogni aggiornamento (nessuno stato conservato tra du
 - `momentum`: `sets[]` punto per punto, più `home` e `away` (break point, side-out, serie più lunghe).
 - `rotations`: per squadra, 6 righe (posizione 1-6 del palleggiatore).
 - `zones`: per squadra mappe `attack` e `serve` (celle partenza → arrivo), anche per giocatore in `players`.
+- `phase` (`MatchPhase`): fase della partita per le pause del portale, vedi «Fase della partita».
 
 ### Regole di calcolo
 - **Punteggio**: solo dalle righe `point`; mai dal conteggio delle azioni.
@@ -56,6 +57,38 @@ Il calcolo riparte da zero a ogni aggiornamento (nessuno stato conservato tra du
   (ordine sempre uguale). `team` è `home`, `away` o `both` (predefinito); `limit` taglia l'elenco. Ogni voce ha squadra,
   maglia, anagrafica (`null` se la maglia non è nell'elenco), punti, attacchi vincenti, muri vincenti, ace ed errori.
 
+### Fase della partita (`phase`, `computePhase` in `phase.ts`)
+Dice al portale se si sta giocando o se c'è una pausa (`docs/portale.md`, «Pause della partita»). Si ricava **solo dalle
+righe del `.dvw`**: nessun orologio, quindi è deterministica e uguale per tutti gli spettatori. I tipi sono in
+`types.ts`.
+
+| `kind` | Quando | Dati |
+|---|---|---|
+| `preMatch` | nessuna azione né punto (`status` `notStarted`) | - |
+| `rally` | l'ultima riga di gioco (azione o punto) è la più recente | `set` |
+| `timeout` | dopo l'ultima azione o punto, e dopo l'ultimo `**Nset`, c'è una riga time-out (`*T`/`aT`) | `set`, `team` (chi l'ha chiamato; l'ultimo se l'hanno chiamato tutte e due), `teamTimeouts` (numero del time-out di quella squadra nel set, questo compreso), `homeScore`, `awayScore` |
+| `setBreak` | un set è chiuso da `**Nset` e dopo non c'è alcuna azione o punto | `set` (appena chiuso), `nextSet`, `winner`, `homeScore`, `awayScore` |
+| `matchEnd` | `status` `finished` | `winner`, `setsWon`, `lastSet` |
+
+- **Chiusura della pausa**: la chiude la prima azione o il primo punto dopo. DataVolley scrive rally e punto insieme, quindi
+  il ritorno al gioco è netto. Cambi, rotazioni, palleggiatori, codici verdi e righe illeggibili (`unknown`, anche l'ultima
+  riga troncata di un file salvato a metà) **non** cambiano la fase.
+- **Fine set**: vale solo con il set davvero chiuso (`tl.endedSets`). Un time-out dopo `**Nset` sostituisce la pausa di fine
+  set fino alla prima azione.
+- **Fine partita**: solo con `**Nset` e 3 set vinti (`status` `finished`), quindi vale anche per il 15-13 al quinto set e per
+  i vantaggi.
+
+### Riepilogo del set e MVP (`recap.ts`)
+- `setRecap(state, set)`: funzione pura sul solo set `set` (null se il set non c'è). Dà punteggio ufficiale (righe `point`),
+  `winner`, `finished`, `durationMinutes`, le statistiche di squadra **del solo set** (`teams`, righe `StatLine`) e il
+  migliore del set (`best`, il primo di `topPlayers` sulle statistiche del solo set; null senza punti).
+  `emptyStatLine()` (`stats.ts`) dà la riga a zero per un set senza azioni di una squadra.
+- `matchMvp(state)`: funzione pura, deterministica. Candidati: i giocatori della squadra vincitrice a partita finita;
+  altrimenti, o se nessuno dei vincitori ha punti, quelli di tutte e due le squadre; solo chi ha almeno un punto. Ordine: più
+  punti, poi migliore efficienza d'attacco (chi non ha attacchi conta meno di tutti), poi meno errori, poi la squadra di
+  casa, poi il numero di maglia più basso. Ogni `Mvp` estende la voce di `topPlayers` con `attackTotal` e
+  `attackEfficiency`. Null se nessuno ha punti.
+
 ## Configurazione
 Nessuna: nessuna variabile né file di config.
 
@@ -87,5 +120,8 @@ Verifiche fatte:
 - `packages/volley-stats/src/rotations.ts`: `computeRotations`.
 - `packages/volley-stats/src/zones.ts`: `computeZones`.
 - `packages/volley-stats/src/leaders.ts`: `topPlayers` (test in `leaders.test.ts`); blocco del portale in `docs/portale.md`.
+- `packages/volley-stats/src/phase.ts`: `computePhase` (test in `phase.test.ts`); tipi `MatchPhase`, `MatchPhaseKind` in `types.ts`.
+- `packages/volley-stats/src/recap.ts`: `setRecap`, `matchMvp`, tipi `SetRecap`, `Mvp` (test in `recap.test.ts`); schermate in
+  `docs/portale.md`, configurazione in `docs/architettura.md`.
 - `packages/volley-stats/src/util.ts`: `ratio`, `timeToSeconds`.
 - Parser e tipi di ingresso: `docs/dvw-parser.md`; piano: `docs/piano.md` §2.

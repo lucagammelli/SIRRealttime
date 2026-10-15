@@ -1,5 +1,6 @@
 import type { ParsedMatch, PlayerInfo } from '@sir/dvw-parser';
 import { computeMomentum } from './momentum.js';
+import { computePhase } from './phase.js';
 import { computeRotations } from './rotations.js';
 import { computeLive, computeSets, computeSetsWon, computeStatus } from './score.js';
 import { computeStats } from './stats.js';
@@ -10,6 +11,8 @@ import { computeZones } from './zones.js';
 export * from './types.js';
 export { topPlayers } from './leaders.js';
 export type { TopPlayer, TopPlayersOptions } from './leaders.js';
+export { matchMvp, setRecap } from './recap.js';
+export type { Mvp, SetRecap } from './recap.js';
 
 const teamRef = (t: ParsedMatch['home']): TeamRef => ({ name: t?.name ?? null, code: t?.code ?? null });
 
@@ -36,16 +39,18 @@ export function computeMatchState(parsed: ParsedMatch): MatchState {
   const tl = buildTimeline(parsed);
   const sets = computeSets(parsed, tl);
   const setsWon = computeSetsWon(sets);
+  const status = computeStatus(tl, setsWon);
   return {
     teams: { home: teamRef(parsed.home), away: teamRef(parsed.away) },
     players: { home: playerRefs(parsed.homePlayers), away: playerRefs(parsed.awayPlayers) },
     sets,
     setsWon,
-    status: computeStatus(tl, setsWon),
+    status,
     live: computeLive(tl),
     stats: computeStats(tl.resolved),
     momentum: computeMomentum(tl.points),
     rotations: computeRotations(tl.points),
     zones: computeZones(tl.resolved),
+    phase: computePhase(tl, sets, status, setsWon),
   };
 }

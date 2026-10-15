@@ -18,6 +18,8 @@ export interface Tenant {
   branding: Record<string, unknown>;
   /** Stored layout of the public page (read it with `resolveLayout` of `@sir/shared`). */
   layout: Record<string, unknown>;
+  /** Stored pauses of the public page (read it with `resolveIntermissions` of `@sir/shared`). */
+  intermissions: Record<string, unknown>;
 }
 
 const TENANT_COLUMNS = {
@@ -27,6 +29,7 @@ const TENANT_COLUMNS = {
   hostnames: tenants.hostnames,
   branding: tenants.branding,
   layout: tenants.layout,
+  intermissions: tenants.intermissions,
 };
 
 /**

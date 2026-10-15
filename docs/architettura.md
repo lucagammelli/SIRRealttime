@@ -111,7 +111,7 @@ Auto-registrazione dell'agente (`registration.ts`): `PAIRING_CODE_ALPHABET`, `PA
 Clienti (`tenant.ts`): `DEFAULT_TENANT_SLUG` (`predefinito`), `TENANT_SLUG_PATTERN`, `TenantSlugSchema`,
 `TENANT_MAX_HOSTNAMES` (20), `isValidHostname`, `HostnameSchema`, `HostnamesSchema`, `TENANT_CONFIG_VERSION` (1) e i
 quattro documenti di configurazione `TenantBrandingSchema`, `TenantLayoutSchema`, `TenantIntermissionsSchema`,
-`TenantOverlaysSchema` (strict, con `version`; gli ultimi tre per ora senza altri campi), `TenantRefSchema`, `TenantSummarySchema`,
+`TenantOverlaysSchema` (strict, con `version`; `TenantOverlaysSchema` per ora senza altri campi), `TenantRefSchema`, `TenantSummarySchema`,
 `CreateTenantRequestSchema`, `UpdateTenantRequestSchema`, `SetActiveTenantRequestSchema`. Regole di funzionamento in
 `docs/server.md` («Clienti»), pagine in `docs/portale.md`.
 
@@ -146,6 +146,26 @@ opzioni predefinite), `LayoutResponseSchema` (`GET`/`PUT /api/admin/layout`); `P
 `layout`. `TENANT_CONFIG_VERSION` ora sta in `configVersion.ts`. Server in `docs/server.md` («Pagina pubblica a blocchi»),
 editor in `docs/portale.md`, classifica in `docs/statistiche.md`.
 
+Pause della partita (`intermissions.ts`): `TenantIntermissionsSchema` / `TenantIntermissions` = `{ version, timeout,
+setBreak, setBreakBySet, matchEnd }`. Tre tipi di pausa (`INTERMISSION_KINDS`: `timeout`, `setBreak`, `matchEnd`, come i
+`kind` di `MatchPhase` in `docs/statistiche.md`). Ogni pausa ha `enabled`, `modes` (per `tv`, `tablet`, `phone`:
+`fullscreen` o `banner`, `INTERMISSION_MODES`), `delaySeconds` (0-`INTERMISSION_MAX_DELAY_SECONDS` = 60) e `slides`
+(al massimo `INTERMISSION_MAX_SLIDES` = 12, id unici). Una pausa attiva ha almeno una diapositiva. Tipi di diapositiva
+(`SLIDE_TYPES`): `setSummary`, `finalResult`, `mvp`, `setScores` (senza opzioni) e `sponsor`, `message`, `qr`, `logo`
+(le stesse opzioni dei blocchi omonimi, `SLIDE_OPTIONS` da `BLOCK_OPTIONS`); ogni diapositiva ha `seconds` (3-60,
+predefinito 8: `SLIDE_MIN_SECONDS`, `SLIDE_MAX_SECONDS`, `SLIDE_DEFAULT_SECONDS`). `setBreakBySet` (chiavi `'1'`-`'4'`,
+`SET_BREAK_SETS`) dà a un set una pausa propria che **sostituisce per intero** quella generica `setBreak`, senza fonderla;
+il 5° set chiude la partita e usa `matchEnd`. Il ritorno alla partita non è configurabile: avviene alla prima azione.
+`{}` vale i predefiniti (`defaultIntermissions`, `defaultIntermission(kind)`): time-out a banda su ogni dispositivo con una
+diapositiva sponsor (10 s); fine set a tutto schermo su TV e tablet e a banda sul telefono, ritardo 5 s, con
+`setSummary` (12 s) e sponsor (8 s); fine partita a tutto schermo su ogni dispositivo, ritardo 5 s, con `finalResult`,
+`mvp`, un messaggio `THANKS_MESSAGE` («Grazie per aver seguito la partita», grande) e sponsor. Funzioni pure:
+`resolveIntermissions` (un documento non valido vale i predefiniti), `intermissionFor(config, kind, set?)` (la pausa da
+usare, null se spenta o senza diapositive), `allIntermissions`, `intermissionImageIds` (immagini delle diapositive
+sponsor, per i controlli del server). `IntermissionsResponseSchema` (`GET`/`PUT /api/admin/intermissions`);
+`PublicTenantResponseSchema` contiene anche `intermissions`. Server in `docs/server.md` («Pause della partita»),
+schermate ed editor in `docs/portale.md`, fase e riepiloghi in `docs/statistiche.md`.
+
 Ogni schema ha il tipo omonimo senza `Schema` (`z.infer`). Dettagli d'uso: `docs/server.md`.
 
 ### Regole
@@ -171,7 +191,7 @@ pnpm --filter @sir/server test      # il flusso completo agente→server→WebSo
 ```
 
 ## Riferimenti
-- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `configVersion.ts`, `index.ts`
+- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `configVersion.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
 - `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`, `apps/web/src/App.tsx`
 - `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/portale.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,

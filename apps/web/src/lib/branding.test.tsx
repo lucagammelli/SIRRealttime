@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PublicTenantResponse } from '@sir/shared';
-import { brandPalette, DEFAULT_BRAND_COLORS, defaultLayout } from '@sir/shared';
+import { brandPalette, DEFAULT_BRAND_COLORS, defaultIntermissions, defaultLayout } from '@sir/shared';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { usePalette } from '../charts/usePalette.ts';
@@ -18,6 +18,7 @@ const tenant = (colors: PublicTenantResponse['branding']['colors'], logos = fals
   branding: { version: 1, displayName: null, colors, logoMain: null, logoMark: null, sponsorLogo: null },
   images: { logoMain: logos ? LOGO : null, logoMark: logos ? MARK : null, sponsorLogo: null },
   layout: defaultLayout(),
+  intermissions: defaultIntermissions(),
 });
 
 const rootVar = (name: string): string => document.documentElement.style.getPropertyValue(name);

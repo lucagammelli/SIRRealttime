@@ -1,4 +1,12 @@
-import type { AssetListResponse, BlockType, LayoutBlock, LayoutDevice, TenantLayout } from '@sir/shared';
+import type {
+  AssetListResponse,
+  AssetSummary,
+  BlockType,
+  BrandingResponse,
+  LayoutBlock,
+  LayoutDevice,
+  TenantLayout,
+} from '@sir/shared';
 import {
   ASSET_MAX_BYTES,
   AssetListResponseSchema,
@@ -51,14 +59,24 @@ const WIDTH_NAMES: Record<number, string> = {
 };
 const widthLabel = (w: number): string => `${WIDTH_NAMES[w] ?? 'Colonne'} (${w}/12)`;
 
-const SPONSOR_SECONDS = [3, 4, 5, 6, 8, 10, 12, 15, 20, 30, 45, 60].filter(
+export const SPONSOR_SECONDS = [3, 4, 5, 6, 8, 10, 12, 15, 20, 30, 45, 60].filter(
   (s) => s >= SPONSOR_MIN_SECONDS && s <= SPONSOR_MAX_SECONDS,
 );
 /** Example short link encoded by the QR of the preview. */
 const PREVIEW_CODE = 'K7M2QX9P';
 const ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml';
 
-const selectClass = `${inputClass} w-auto`;
+export const selectClass = `${inputClass} w-auto`;
+
+/** Text shown when a chosen image is over the limit (nothing is sent). */
+export const IMAGE_TOO_LARGE = 'Immagine troppo grande: al massimo 2 MB.';
+
+/** Uploads a sponsor image of the client; null when the file is over ASSET_MAX_BYTES (nothing sent). */
+export async function uploadSponsorImage(file: File): Promise<AssetSummary | null> {
+  if (file.size > ASSET_MAX_BYTES) return null;
+  const data = await fileToBase64(file);
+  return apiRequest('/api/admin/assets', AssetSummarySchema, { method: 'POST', body: { kind: 'sponsor', data } });
+}
 
 /** Width (px) of an element, followed with ResizeObserver; 0 before the first measure. */
 function useElementWidth(ref: RefObject<HTMLElement | null>): number {
@@ -75,22 +93,28 @@ function useElementWidth(ref: RefObject<HTMLElement | null>): number {
   return width;
 }
 
+/** Example short link encoded by the QR of the previews. */
+export const previewPageUrl = (): string => `${window.location.origin}/l/${PREVIEW_CODE}`;
+
 /**
  * The page of one device, drawn at its real size and scaled into a frame with the proportions of the screen. Not
- * interactive (`inert`): it only shows what the public page will look like.
+ * interactive (`inert`): it only shows what the public page will look like. `children` go over the page, inside the
+ * frame (an element `fixed` there stays in the frame: the scaled box is its containing block).
  */
-function DevicePreview({
+export function DevicePreview({
   device,
   layout,
   state,
   look,
   source,
+  children,
 }: {
   device: LayoutDevice;
-  layout: TenantLayout;
+  layout: TenantLayout | null;
   state: MatchState;
   look: BlockBrand | null;
   source: string;
+  children?: ReactNode;
 }) {
   const frame = useRef<HTMLDivElement>(null);
   const measured = useElementWidth(frame);
@@ -120,9 +144,10 @@ function DevicePreview({
                 brand={tv}
                 layout={layout}
                 look={look}
-                pageUrl={`${window.location.origin}/l/${PREVIEW_CODE}`}
+                pageUrl={previewPageUrl()}
               />
             </div>
+            {children}
           </LayoutScaleContext.Provider>
         </div>
       </div>
@@ -131,8 +156,8 @@ function DevicePreview({
   );
 }
 
-/** Options of a block, by type. */
-function BlockOptionsEditor({
+/** Options of a block, by type (also the options of the slides of the pauses, which are the same). */
+export function BlockOptionsEditor({
   block,
   onChange,
   assets,
@@ -529,17 +554,13 @@ function LayoutEditor({
   const upload = async (file: File, block: LayoutBlock): Promise<void> => {
     setError(null);
     setDone(null);
-    if (file.size > ASSET_MAX_BYTES) {
-      setError('Immagine troppo grande: al massimo 2 MB.');
-      return;
-    }
     setUploading(block.id);
     try {
-      const data = await fileToBase64(file);
-      const asset = await apiRequest('/api/admin/assets', AssetSummarySchema, {
-        method: 'POST',
-        body: { kind: 'sponsor', data },
-      });
+      const asset = await uploadSponsorImage(file);
+      if (!asset) {
+        setError(IMAGE_TOO_LARGE);
+        return;
+      }
       setDraft((d) =>
         updateBlock(d, device, block.id, (b) =>
           b.type === 'sponsor' && !b.options.images.includes(asset.id) && b.options.images.length < SPONSOR_MAX_IMAGES
@@ -743,6 +764,15 @@ function LayoutEditor({
   );
 }
 
+/** Graphics of the client of the session for the blocks of the previews (logo and QR). */
+export function blockBrandOf(b: BrandingResponse): BlockBrand {
+  return {
+    name: b.branding.displayName ?? b.tenantName,
+    logoMain: b.branding.logoMain ? publicAssetPath(b.branding.logoMain) : null,
+    logoMark: b.branding.logoMark ? publicAssetPath(b.branding.logoMark) : null,
+  };
+}
+
 /** Page «Pagina pubblica» (admin): the blocks of the public match page of the client, by device. */
 export function LayoutPage() {
   const errorMessage = useApiError();
@@ -766,15 +796,7 @@ export function LayoutPage() {
     document.title = 'Pagina pubblica · Area riservata';
   }, []);
 
-  const look = useMemo((): BlockBrand | null => {
-    const b = branding.data;
-    if (!b) return null;
-    return {
-      name: b.branding.displayName ?? b.tenantName,
-      logoMain: b.branding.logoMain ? publicAssetPath(b.branding.logoMain) : null,
-      logoMark: b.branding.logoMark ? publicAssetPath(b.branding.logoMark) : null,
-    };
-  }, [branding.data]);
+  const look = useMemo(() => (branding.data ? blockBrandOf(branding.data) : null), [branding.data]);
 
   for (const part of [layout, branding]) {
     if (part.error !== null) return <ErrorBox onRetry={part.reload}>{errorMessage(part.error)}</ErrorBox>;

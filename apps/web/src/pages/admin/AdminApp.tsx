@@ -10,6 +10,7 @@ import { useAsync } from '../../lib/useAsync.ts';
 import { AgentsPage } from './AgentsPage.tsx';
 import { BrandingPage } from './BrandingPage.tsx';
 import { useAuth, useSession } from './auth.tsx';
+import { IntermissionsPage } from './IntermissionsPage.tsx';
 import { LayoutPage } from './LayoutPage.tsx';
 import { LiveAdminPage } from './LiveAdminPage.tsx';
 import { LoginPage } from './LoginPage.tsx';
@@ -64,6 +65,7 @@ function AdminLayout() {
           { to: '/admin/utenti', label: 'Utenti' },
           { to: '/admin/grafica', label: 'Grafica' },
           { to: '/admin/pagina', label: 'Pagina pubblica' },
+          { to: '/admin/pause', label: 'Pause e sponsor' },
         ]
       : []),
     ...(isSuperadmin ? [{ to: '/admin/clienti', label: 'Clienti' }] : []),
@@ -119,6 +121,7 @@ function AdminLayout() {
           <Route path="utenti" element={adminOnly(<UsersPage />)} />
           <Route path="grafica" element={adminOnly(<BrandingPage />)} />
           <Route path="pagina" element={adminOnly(<LayoutPage />)} />
+          <Route path="pause" element={adminOnly(<IntermissionsPage />)} />
           <Route path="clienti" element={superadminOnly(<TenantsPage tenants={tenants} />)} />
           <Route path="*" element={<Navigate to="/admin/live" replace />} />
         </Routes>

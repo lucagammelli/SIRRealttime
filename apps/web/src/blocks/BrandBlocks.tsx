@@ -22,27 +22,33 @@ export function LogoBlock({ options, env }: { options: BlockOptions<'logo'>; env
   );
 }
 
+/** Index of the image on screen among `count` images, one every `seconds` (still with `paused` or a single image). */
+export function useImageRotation(count: number, seconds: number, paused: boolean): number {
+  const [index, setIndex] = useState(0);
+  const rotating = count > 1 && !paused;
+  useEffect(() => {
+    if (!rotating) return;
+    const id = setInterval(() => setIndex((i) => i + 1), seconds * 1000);
+    return () => clearInterval(id);
+  }, [rotating, seconds]);
+  return count > 0 ? index % count : 0;
+}
+
 /**
  * Sponsor images of the client in turn, each for `seconds` (stopped with the rotation of the big screen). The image
  * changes with a short fade, none with reduced motion.
  */
 export function SponsorBlock({ options, env }: { options: BlockOptions<'sponsor'>; env: BlockEnv }) {
   const { images, seconds } = options;
-  const [index, setIndex] = useState(0);
-  const rotating = images.length > 1 && !env.paused;
-  useEffect(() => {
-    if (!rotating) return;
-    const id = setInterval(() => setIndex((i) => i + 1), seconds * 1000);
-    return () => clearInterval(id);
-  }, [rotating, seconds]);
-  const current = images.length > 0 ? images[index % images.length] : undefined;
+  const index = useImageRotation(images.length, seconds, env.paused);
+  const current = images[index];
   return (
     <Card title="Sponsor" className={FILL} bodyClassName="flex items-center justify-center">
       {current ? (
         <img
           key={current}
           src={publicAssetPath(current)}
-          alt={`Sponsor ${(index % images.length) + 1} di ${images.length}`}
+          alt={`Sponsor ${index + 1} di ${images.length}`}
           className="sir-fade max-h-40 w-auto max-w-full object-contain"
         />
       ) : (

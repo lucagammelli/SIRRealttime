@@ -40,8 +40,9 @@ appartiene a un cliente e nessuna query legge o cambia righe di un altro (filtro
 - **Produzione**: in nginx elencare i `server_name` espliciti dei clienti e chiudere il resto con un `default_server`
   (oggi `docker/web.nginx.conf` ha `server_name _`); i certificati https per ogni hostname sono a cura del deploy.
 - **Documenti di configurazione** (`branding`, `layout`, `intermissions`, `overlays`, jsonb): `branding` ha i campi della
-  grafica (vedi «Grafica per cliente»); `layout` quelli della pagina pubblica (vedi «Pagina pubblica a blocchi»); gli
-  altri due sono schemi `{ version: 1 }` strict ancora vuoti, riempiti dai lavori successivi (`docs/piano.md`).
+  grafica (vedi «Grafica per cliente»); `layout` quelli della pagina pubblica (vedi «Pagina pubblica a blocchi»);
+  `intermissions` le pause (vedi «Pause della partita»); `overlays` è ancora uno schema `{ version: 1 }` strict vuoto,
+  riempito dai lavori successivi (`docs/piano.md`).
 
 ### Grafica per cliente (`apps/server/src/routes/branding.ts`)
 Ogni cliente ha nome visualizzato, cinque colori e tre immagini (`TenantBrandingSchema`, `tenants.branding`). Il portale
@@ -95,6 +96,24 @@ blocchi predefiniti (`resolveLayout`).
   salirà servirà una migrazione dei layout salvati.
 - **Eliminazione di un'immagine**: se è usata in un blocco sponsor, `DELETE /api/admin/assets/:id` risponde 409 «Immagine
   in uso nella pagina pubblica: toglila dal blocco sponsor prima di eliminarla» (come per la grafica).
+
+### Pause della partita (`apps/server/src/routes/branding.ts`)
+Ogni cliente sceglie cosa vede il pubblico durante i time-out, a fine set e a fine partita (`TenantIntermissionsSchema`,
+`tenants.intermissions`; forma, predefiniti e regole in `docs/architettura.md`, schermate ed editor in `docs/portale.md`).
+La fase della partita (`state.phase`) è calcolata da `@sir/volley-stats` (`docs/statistiche.md`): il server non decide
+nulla, la fase viaggia nello stato come ogni altro campo. `{}` è valido e vale i predefiniti (`resolveIntermissions`).
+
+- **Rotte admin** (ruolo `admin`; il superadmin lavora sul cliente attivo, `adminTenantId`): `GET /api/admin/intermissions`
+  e `PUT /api/admin/intermissions`; il corpo del `PUT` è il documento delle pause e la risposta è `IntermissionsResponse`
+  (`tenantName`, `intermissions`). Validazione con lo schema condiviso (tipi di diapositiva chiusi, durate 3-60 s, ritardo
+  0-60 s, al massimo 12 diapositive, una pausa attiva con almeno una diapositiva): altrimenti 400.
+- **Immagini degli sponsor**: gli id delle diapositive `sponsor` (`intermissionImageIds`) devono essere immagini di quel
+  cliente, controllate nella stessa transazione e sotto lo stesso lock per cliente di caricamenti, eliminazioni, grafica e
+  layout; altrimenti 400. Dopo il salvataggio si svuota la cache degli hostname (`forgetTenants`).
+- **Rotta pubblica**: `intermissions` è anche in `GET /api/public/tenant` (`PublicTenantResponseSchema`), con i predefiniti
+  se il cliente non ha configurato nulla.
+- **Eliminazione di un'immagine**: se è usata in una diapositiva sponsor, `DELETE /api/admin/assets/:id` risponde 409
+  «Immagine in uso nelle pause: toglila dalla diapositiva sponsor prima di eliminarla».
 
 ### Ingest (`POST /api/ingest`, protocollo 1)
 L'agente invia una richiesta `IngestRequest` (`packages/shared/src/ingest.ts`):
@@ -223,6 +242,8 @@ rifiutata dallo schema.
 | PUT | `/api/admin/branding` | sessione | admin |
 | GET | `/api/admin/layout` | sessione | admin |
 | PUT | `/api/admin/layout` | sessione | admin |
+| GET | `/api/admin/intermissions` | sessione | admin |
+| PUT | `/api/admin/intermissions` | sessione | admin |
 | GET | `/api/admin/assets` | sessione | admin |
 | POST | `/api/admin/assets` | sessione (corpo fino a ~2,7 MB) | admin |
 | DELETE | `/api/admin/assets/:id` | sessione | admin |
@@ -595,6 +616,9 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
   `packages/shared/src/assets.ts`, `colors.ts`, `tenant.ts`; pagina «Grafica» in `docs/portale.md`
 - Pagina pubblica a blocchi: `src/routes/branding.ts` (`GET`/`PUT /api/admin/layout`), `packages/shared/src/layout.ts`
   (`TenantLayoutSchema`, `resolveLayout`, `layoutImageIds`, `LayoutResponseSchema`); editor in `docs/portale.md`
+- Pause della partita: `src/routes/branding.ts` (`GET`/`PUT /api/admin/intermissions`, `GET /api/public/tenant`),
+  `packages/shared/src/intermissions.ts` (`TenantIntermissionsSchema`, `resolveIntermissions`, `intermissionImageIds`,
+  `IntermissionsResponseSchema`), test `apps/server/test/intermissions.test.ts`; schermate in `docs/portale.md`
 - Link brevi: `src/lib/shortCode.ts` (`deriveShortCode`, `shortCodeLookupHash`), `src/shareCodes.ts` (`insertShareToken`,
   `ensureShortCode`, `syncShortCodes`, `currentShortCode`), `src/lib/failureLimiter.ts` (`hasRecent`),
   `packages/shared/src/admin.ts` (`ShortCodeSchema`, `normalizeShortCode`, `formatShortCode`, `ShareTokenParamSchema`),

@@ -168,6 +168,41 @@ export interface TeamZones extends ZoneMaps {
   players: Record<string, ZoneMaps>;
 }
 
+/**
+ * Fase della partita ricavata solo dalle righe scout (mai dall'orologio), per le pause del portale:
+ * - `preMatch`: nessuna azione e nessun punto;
+ * - `rally`: si gioca (l'ultima riga di gioco è un'azione o un punto);
+ * - `timeout`: dopo l'ultima riga di gioco c'è un time-out (`*T`/`aT`); cambi, rotazioni e palleggiatori scritti dopo
+ *   non lo chiudono, la prima azione o il primo punto sì;
+ * - `setBreak`: un set è chiuso (`**Nset`) e il successivo non ha ancora azioni né punti (un time-out lo chiude);
+ * - `matchEnd`: una squadra ha vinto 3 set.
+ */
+export type MatchPhase =
+  | { kind: 'preMatch' }
+  | { kind: 'rally'; set: number }
+  | {
+      kind: 'timeout';
+      set: number;
+      /** Squadra che ha chiamato il time-out (l'ultima, se l'hanno chiamato tutte e due). */
+      team: Side;
+      /** Time-out di quella squadra nel set, questo compreso. */
+      teamTimeouts: number;
+      homeScore: number;
+      awayScore: number;
+    }
+  | {
+      kind: 'setBreak';
+      /** Set appena chiuso. */
+      set: number;
+      nextSet: number;
+      winner: Side | null;
+      homeScore: number;
+      awayScore: number;
+    }
+  | { kind: 'matchEnd'; winner: Side | null; setsWon: Record<Side, number>; lastSet: number };
+
+export type MatchPhaseKind = MatchPhase['kind'];
+
 export interface MatchState {
   teams: Record<Side, TeamRef>;
   players: Record<Side, PlayerRef[]>;
@@ -179,4 +214,6 @@ export interface MatchState {
   momentum: Momentum;
   rotations: Record<Side, RotationStat[]>;
   zones: Record<Side, TeamZones>;
+  /** Fase della partita (pause del portale); manca negli stati salvati prima che esistesse. */
+  phase: MatchPhase;
 }

@@ -1,10 +1,11 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultBranding, TenantLayoutSchema } from '@sir/shared';
-import { setTenantLook, tenantLookOf } from '../lib/branding.ts';
+import { defaultBranding, defaultIntermissions, TenantLayoutSchema } from '@sir/shared';
+import { initBranding, setTenantLook, tenantLookOf } from '../lib/branding.ts';
 import type { LiveSnapshot } from '../lib/liveConnection.ts';
 import { TV_ROOT_CLASS } from '../lib/tvScreen.ts';
+import { previewState } from '../lib/intermission.ts';
 import { midMatchState } from '../test/fixtures.ts';
 import { LivePage } from './LivePage.tsx';
 
@@ -180,6 +181,7 @@ describe('LivePage layout of the client', () => {
           branding: defaultBranding(),
           images: { logoMain: null, logoMark: null, sponsorLogo: null },
           layout,
+          intermissions: defaultIntermissions(),
         }),
       ),
     );
@@ -193,5 +195,71 @@ describe('LivePage layout of the client', () => {
     renderAt();
     expect(screen.getByText('Solo telefono')).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'Tabellone' })).toBeNull();
+  });
+});
+
+describe('LivePage pauses of the client', () => {
+  it('opened during the end of a set: the pause of the client over the page, Esc goes back to the match', () => {
+    const data = snapshot.data;
+    if (data?.kind !== 'state') throw new Error('stato mancante');
+    const previous = data.state;
+    data.state = previewState(previous, 'setBreak', 1);
+    try {
+      act(() =>
+        setTenantLook(
+          tenantLookOf({
+            name: 'Sir Safety',
+            branding: defaultBranding(),
+            images: { logoMain: null, logoMark: null, sponsorLogo: null },
+            layout: TenantLayoutSchema.parse({}),
+            intermissions: defaultIntermissions(),
+          }),
+        ),
+      );
+      setWidth(1024);
+      renderAt();
+      expect(screen.getByRole('dialog', { name: 'Fine 1° set' })).toBeTruthy();
+      expect(screen.getByRole('region', { name: 'Tabellone' })).toBeTruthy();
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.queryByRole('dialog')).toBeNull();
+    } finally {
+      data.state = previous;
+    }
+  });
+});
+
+describe('LivePage pauses without the graphics of the client', () => {
+  /** Runs `body` with the state of the snapshot at the end of the 1st set. */
+  async function atEndOfSet(body: () => Promise<void> | void): Promise<void> {
+    const data = snapshot.data;
+    if (data?.kind !== 'state') throw new Error('stato mancante');
+    const previous = data.state;
+    data.state = previewState(previous, 'setBreak', 1);
+    try {
+      await body();
+    } finally {
+      data.state = previous;
+    }
+  }
+
+  it('while the graphics are loading: no pause', async () => {
+    await atEndOfSet(() => {
+      setWidth(1024);
+      renderAt();
+      expect(screen.getByRole('region', { name: 'Tabellone' })).toBeTruthy();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
+  it('graphics not available (404): the default pause shows', async () => {
+    await atEndOfSet(async () => {
+      const notFound = vi.fn(() => Promise.resolve(new Response('{"error":"Non trovato"}', { status: 404 })));
+      await act(() => initBranding({ fetch: notFound as unknown as typeof fetch }));
+      expect(notFound).toHaveBeenCalledTimes(1);
+      setWidth(1024);
+      renderAt();
+      expect(screen.getByRole('dialog', { name: 'Fine 1° set' })).toBeTruthy();
+      expect(screen.getByText('Riepilogo del 1° set')).toBeTruthy();
+    });
   });
 });

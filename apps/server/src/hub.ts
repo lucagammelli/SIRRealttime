@@ -1,8 +1,8 @@
 import type { ServerMessage, StateMessage } from '@sir/shared';
 import type { WebSocket } from 'ws';
 
-/** What a client follows: a fixed match, or whichever match is live. */
-export type Target = { kind: 'match'; matchId: string } | { kind: 'live' };
+/** What a client follows: a fixed match, or whichever match is live, always within one client (tenant). */
+export type Target = { kind: 'match'; tenantId: string; matchId: string } | { kind: 'live'; tenantId: string };
 
 /** What lets a client stay connected: closed when it is revoked (or the session ends) and when it expires. */
 export type Grant = { kind: 'share'; shareTokenId: string } | { kind: 'session'; sessionHash: string };
@@ -58,10 +58,11 @@ export class LiveHub {
     this.deliver(entry, message, JSON.stringify(message));
   }
 
-  /** New state of `matchId`, which has just become the live match. */
-  publish(message: StateMessage): void {
+  /** New state of `matchId`, which has just become the live match of the client `tenantId`. */
+  publish(tenantId: string, message: StateMessage): void {
     const text = JSON.stringify(message);
     for (const entry of this.entries.values()) {
+      if (entry.target.tenantId !== tenantId) continue;
       const follows = entry.target.kind === 'live' || entry.target.matchId === message.matchId;
       if (follows) this.deliver(entry, message, text);
     }

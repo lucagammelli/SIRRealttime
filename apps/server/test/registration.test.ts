@@ -339,7 +339,8 @@ describe('logs', () => {
     await database.migrate();
     await database.db
       .insert(users)
-      .values({ email: ADMIN.email, passwordHash: await hashPassword(ADMIN.password), role: 'admin' });
+      // A superadmin without client: it works on the client of the hostname («Predefinito», the default).
+      .values({ email: ADMIN.email, passwordHash: await hashPassword(ADMIN.password), role: 'superadmin' });
     const options = loggerOptions('info');
     if (typeof options !== 'object') throw new Error('logger options expected');
     const app = await buildApp({

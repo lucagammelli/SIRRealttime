@@ -8,6 +8,38 @@ lettura tramite link pubblici. I contratti sono in `packages/shared` (vedi `docs
 
 ## Come funziona
 
+### Clienti (multi-cliente)
+Il server serve più **clienti** (tenant, tabella `tenants`) separati: ogni agente, registrazione, partita, link e utente
+appartiene a un cliente e nessuna query legge o cambia righe di un altro (filtro unico `tenantScope`,
+`apps/server/src/tenancy.ts`).
+
+- **Cliente della richiesta** (`hostTenant`): quello che elenca nel suo `hostnames` l'hostname dell'header `Host`
+  (porta, maiuscole e punto finale sono normalizzati da `hostnameFromHeader`); se nessuno lo elenca vale il cliente di
+  `DEFAULT_TENANT_SLUG` (default `predefinito`). nginx imposta `Host` con `$host`; `X-Forwarded-Host` non è **mai** letto.
+  Con `DEFAULT_TENANT_SLUG` vuota un hostname sconosciuto dà 404 sulle rotte pubbliche e sulla registrazione degli agenti,
+  e il login è possibile solo al superadmin.
+- **Ruoli**: `superadmin` (senza cliente: crea i clienti e lavora su uno alla volta), `admin` e `viewer` (di un solo
+  cliente). Un utente di un cliente entra e resta valido solo dagli hostname del proprio cliente (al login e a ogni
+  richiesta); il superadmin da ogni hostname. Il superadmin nasce da `ADMIN_EMAIL`/`ADMIN_PASSWORD` (se l'utente esiste
+  già viene promosso e tiene la password); la creazione utenti non accetta `superadmin` (`TenantUserRoleSchema`).
+  L'email utente è unica su **tutti** i clienti (limite noto: il 409 rivela che esiste in un altro cliente).
+- **Cliente su cui lavora il superadmin**: `POST /api/admin/active-tenant` (`{ tenantId }`, `null` = torna al cliente
+  dell'hostname) lo salva nella sessione (`sessions.active_tenant_id`), quindi vale per ogni rotta admin e per
+  `/ws/admin`. Senza cliente le rotte admin rispondono 400 «Seleziona un cliente». Un admin su queste rotte: 403.
+- **Gestione clienti** (solo superadmin): `GET`/`POST /api/admin/tenants`, `PATCH /api/admin/tenants/:id` (nome e
+  hostname; lo slug non cambia). L'unicità degli hostname fra tutti i clienti è controllata dal server sotto lock
+  (`pg_advisory_xact_lock`), non da un vincolo del database (conflitto: 409).
+- **Ingest e WebSocket**: l'ingest usa il cliente dell'agente; la partita live è una per cliente
+  (`matches_one_live_per_tenant_idx`) e `hub.publish(tenantId, …)` spinge lo stato solo ai WebSocket di quel cliente. La
+  registrazione degli agenti appartiene al cliente dell'hostname da cui arriva.
+- **Origin ammessi** (`originAllowed`): `CORS_ORIGIN` oppure un hostname del cliente dell'host della richiesta.
+- **Link pubblici**: l'URL usa `PUBLIC_BASE_URL` se il suo hostname è del cliente (o il cliente non ha hostname), altrimenti
+  il primo hostname del cliente con schema e porta di `PUBLIC_BASE_URL` (`publicBaseUrlFor`).
+- **Produzione**: in nginx elencare i `server_name` espliciti dei clienti e chiudere il resto con un `default_server`
+  (oggi `docker/web.nginx.conf` ha `server_name _`); i certificati https per ogni hostname sono a cura del deploy.
+- **Documenti di configurazione** (`branding`, `layout`, `intermissions`, `overlays`, jsonb): schemi `{ version: 1 }`
+  strict ancora vuoti, riempiti dai lavori successivi (`docs/piano.md`).
+
 ### Ingest (`POST /api/ingest`, protocollo 1)
 L'agente invia una richiesta `IngestRequest` (`packages/shared/src/ingest.ts`):
 
@@ -27,8 +59,8 @@ Esiti (`IngestResponse`: `status`, `seq`, `lineCount`, `contentHash` facoltativo
 
 Passi (`apps/server/src/ingest.ts`, `IngestService.ingest`), tutti in una transazione:
 
-1. lock avvisorio `pg_advisory_xact_lock` (le ingest sono serializzate: una sola partita live, nessun deadlock);
-2. riga `matches` creata se manca (per `matchKey`) e letta con `for update`;
+1. lock avvisorio `pg_advisory_xact_lock` (le ingest sono serializzate: una sola partita live per cliente, nessun deadlock);
+2. riga `matches` creata se manca (per cliente e `matchKey`) e letta con `for update`;
 3. controlli `duplicate` / `needSnapshot` (tabella sopra);
 4. righe finali = precedenti + nuove (append) oppure solo le nuove (snapshot); se superano `MATCH_MAX_LINES` risposta 413
    (`MATCH_TOO_MANY_LINES`) e rollback;
@@ -36,9 +68,9 @@ Passi (`apps/server/src/ingest.ts`, `IngestService.ingest`), tutti in una transa
 6. scrittura delle sole righe cambiate: con `snapshot` si cancellano e si reinseriscono le righe dopo il prefisso comune;
 7. ricostruzione del file con `buildDvwText(header, righe)` (header + `[3SCOUT]` + righe), poi `parseDvw` e
    `computeMatchState`: lo stato è **ricalcolato da zero a ogni ingest**;
-8. la partita diventa la sola `live` (le altre vanno a `live = false`; indice univoco parziale `matches_one_live_idx`),
-   `version` aumenta di 1, `state` è salvato;
-9. dopo il commit lo stato intero (`StateMessage`) è inviato a tutti i client WebSocket che seguono la partita.
+8. la partita diventa la sola `live` del cliente (le altre dello stesso cliente vanno a `live = false`; indice univoco
+   parziale `matches_one_live_per_tenant_idx`), `version` aumenta di 1, `state` è salvato;
+9. dopo il commit lo stato intero (`StateMessage`) è inviato ai client WebSocket di quel cliente che seguono la partita.
 
 Una piccola cache in memoria (4 partite, verificata con `version` e `lineCount`) evita di rileggere tutte le righe a ogni
 richiesta; la fonte di verità resta il database.
@@ -80,9 +112,10 @@ rifiutata dallo schema.
   4404). Nei log il token è mascherato (`/api/public/[token]`).
 - **Sessioni admin e viewer**: login con email e password (argon2id) su `/api/auth/login`; cookie `sir_session`
   (`httpOnly`, `SameSite=Lax`, `Secure` secondo `COOKIE_SECURE`), durata `SESSION_TTL_HOURS`. Ruoli: `viewer` (vede le
-  partite) e `admin` (tutto il resto). Le scritture dal browser (`POST`/`DELETE` su `/api/auth/*` e `/api/admin/*`)
-  richiedono corpo JSON e, se presente, `Origin` uguale a `CORS_ORIGIN` (protezione CSRF). Il primo admin si crea
-  all'avvio da `ADMIN_EMAIL` / `ADMIN_PASSWORD`, solo se non esiste nessun utente.
+  partite), `admin` (tutto il resto del proprio cliente) e `superadmin` (anche i clienti; vedi «Clienti»). Le scritture
+  dal browser (`POST`/`PATCH`/`DELETE` su `/api/auth/*` e `/api/admin/*`) richiedono corpo JSON e, se presente, un `Origin`
+  ammesso (`CORS_ORIGIN` o un hostname del cliente; protezione CSRF). Il primo superadmin si crea all'avvio da
+  `ADMIN_EMAIL` / `ADMIN_PASSWORD`, solo se non esiste già un superadmin.
 - Risposte d'errore: `{ "error": "<testo>" }` (`ApiErrorSchema`), mai stack trace.
 
 ### Endpoint
@@ -95,7 +128,11 @@ rifiutata dallo schema.
 | POST | `/api/agents/registrations/status` | rate limit ingest, `Origin`, segreto di registrazione | agente in registrazione |
 | POST | `/api/auth/login` | rate limit login | - |
 | POST | `/api/auth/logout` | rate limit admin | - (chiude i WebSocket della sessione) |
-| GET | `/api/auth/me` | sessione | viewer |
+| GET | `/api/auth/me` | sessione (risposta con `tenant`, il cliente corrente) | viewer |
+| GET | `/api/admin/tenants` | sessione | superadmin |
+| POST | `/api/admin/tenants` | sessione | superadmin |
+| PATCH | `/api/admin/tenants/:id` | sessione | superadmin |
+| POST | `/api/admin/active-tenant` | sessione | superadmin |
 | GET | `/api/public/:token/state` | link pubblico (404 se non valido) | - |
 | GET | `/api/admin/matches` | sessione | viewer |
 | GET | `/api/admin/matches/:id` | sessione | viewer |
@@ -128,10 +165,10 @@ Messaggi server→client (`ServerMessage`):
 
 Il client non deve inviare nulla (payload massimo 4 KB). Codici di chiusura: `4401` sessione admin terminata (logout o
 scadenza), `4404` link pubblico revocato o scaduto, `1008` richiesta senza credenziali valide dopo l'upgrade, `1001`
-arresto del server. `/ws/admin` rifiuta (403) un `Origin` diverso da `CORS_ORIGIN`, perché CORS non vale per i WebSocket.
+arresto del server. `/ws/admin` rifiuta (403) un `Origin` non ammesso (`CORS_ORIGIN` o hostname del cliente), perché CORS non vale per i WebSocket.
 Un client con più di 1 MB ancora da inviare è disconnesso subito (troppo lento). L'heartbeat gira ogni 30 s: manda un
 ping, disconnette chi non ha risposto al precedente e chiude i client con credenziale scaduta o revocata.
-`/ws/admin` segue sempre la partita live.
+`/ws/admin` segue sempre la partita live del cliente della sessione (il superadmin che cambia cliente si riconnette).
 
 ### Rate limit
 Per indirizzo IP e per minuto. Default (`DEFAULT_RATE_LIMITS`, `apps/server/src/context.ts`), modificabili con le variabili
@@ -165,12 +202,13 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `DATABASE_URL` | obbligatoria | `postgres://…`, oppure `pglite:memory` / `pglite:<cartella>` (solo sviluppo e test) |
 | `PORT` | `8090` | porta HTTP |
 | `HOST` | `127.0.0.1` | indirizzo di ascolto (`0.0.0.0` nel container) |
-| `CORS_ORIGIN` | `http://localhost:5173` (compose: `http://localhost:${WEB_PORT}`) | unica origine ammessa da CORS e dal controllo `Origin` |
+| `CORS_ORIGIN` | `http://localhost:5173` (compose: `http://localhost:${WEB_PORT}`) | origine ammessa da CORS e dal controllo `Origin`, oltre agli hostname del cliente dell'host |
 | `COOKIE_SECURE` | `true` | cookie con attributo `Secure` (`false` solo in sviluppo su http) |
 | `SESSION_TTL_HOURS` | `12` | durata della sessione (massimo 720) |
-| `ADMIN_EMAIL` | assente | primo admin; va impostata insieme a `ADMIN_PASSWORD` |
+| `ADMIN_EMAIL` | assente | primo superadmin (se l'utente esiste viene promosso e tiene la password); va impostata insieme a `ADMIN_PASSWORD` |
+| `DEFAULT_TENANT_SLUG` | `predefinito` | cliente degli hostname sconosciuti; vuota: 404 sulle rotte pubbliche e sulla registrazione, login solo per il superadmin |
 | `ADMIN_PASSWORD` | assente | almeno 12 caratteri |
-| `PUBLIC_BASE_URL` | `http://localhost:5173` (compose: `http://localhost:${WEB_PORT}`) | base dei link pubblici `<base>/live/<token>` |
+| `PUBLIC_BASE_URL` | `http://localhost:5173` (compose: `http://localhost:${WEB_PORT}`) | base dei link pubblici `<base>/live/<token>` (se il suo hostname non è del cliente si usa il primo hostname del cliente) |
 | `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
 | `TRUST_PROXY` | `false` (compose: `true`) | `true` solo dietro un reverse proxy fidato (con compose, nginx del servizio `web`) |
 | `RATE_LIMIT_LOGIN` | `10` | richieste al minuto per IP su `/api/auth/login` (intero da 1 a 100000) |
@@ -191,13 +229,17 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 
 | Tabella | Contenuto |
 |---|---|
-| `users` | `email` (minuscola, unica), `password_hash` (argon2id), `role` (`admin`/`viewer`) |
-| `sessions` | `token_hash` (sha256 del cookie), `user_id`, `expires_at` |
-| `agents` | `name`, `token_hash`, `revoked`, `last_seen_at` |
-| `matches` | `match_key` (unica), `header`, `line_count`, `content_hash`, `last_seq`, `agent_id`, `live`, `state` (jsonb), `version` |
+| `tenants` | `slug` (unico), `name`, `hostnames` (`text[]` con indice GIN, unici fra clienti per controllo del server), `branding`, `layout`, `intermissions`, `overlays` (jsonb, default `{}`), `created_at` (migrazione `0002_tenants.sql`) |
+| `users` | `tenant_id` (null solo per il superadmin; CHECK `superadmin` ⇔ `tenant_id` nullo), `email` (minuscola, unica su tutti i clienti), `password_hash` (argon2id), `role` (`superadmin`/`admin`/`viewer`) |
+| `sessions` | `token_hash` (sha256 del cookie), `user_id`, `expires_at`, `active_tenant_id` (cliente scelto dal superadmin, `ON DELETE SET NULL`) |
+| `agents` | `tenant_id`, `name`, `token_hash`, `revoked`, `last_seen_at` |
+| `matches` | `tenant_id`, `match_key` (unica per `tenant_id` + `match_key`), `header`, `line_count`, `content_hash`, `last_seq`, `agent_id`, `live` (una per cliente), `state` (jsonb), `version` |
 | `scout_lines` | `match_id`, `idx`, `text` (chiave primaria `match_id` + `idx`) |
-| `share_tokens` | `token_hash`, `match_id` (null: segue la live), `label`, `expires_at`, `revoked` |
-| `agent_registrations` | `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at` (migrazione `0001_agent_registrations.sql`) |
+| `share_tokens` | `tenant_id`, `token_hash`, `match_id` (null: segue la live), `label`, `expires_at`, `revoked` |
+| `agent_registrations` | `tenant_id`, `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at` (migrazione `0001_agent_registrations.sql`) |
+
+La migrazione `0002_tenants.sql` crea il cliente «Predefinito» (slug `predefinito`), gli assegna tutti i dati esistenti e
+solo dopo rende `tenant_id` NOT NULL.
 
 Le migrazioni generate (`pnpm --filter @sir/server db:generate`) stanno in `apps/server/drizzle` e sono applicate
 all'avvio (`database.migrate()` in `src/main.ts`). Il driver dipende da `DATABASE_URL` (`src/db/index.ts`,
@@ -211,7 +253,7 @@ Il database in memoria si perde a ogni riavvio. Primo terminale:
 ```bash
 # --- variabili ---
 RADICE="/percorso/del/repository"        # radice del repository o del worktree del job
-ADMIN_EMAIL_DEV="admin@example.com"      # email del primo admin (creato all'avvio)
+ADMIN_EMAIL_DEV="admin@example.com"      # email del superadmin (creato o promosso all'avvio)
 ADMIN_PASSWORD_DEV="password-di-prova-1" # almeno 12 caratteri
 
 # --- comandi ---
@@ -289,7 +331,7 @@ Il token agente va nell'intestazione `Authorization: Bearer <token>` di `POST /a
 | `pnpm --filter @sir/server test` | `vitest run` con PGlite in memoria, non serve Postgres |
 | `pnpm --filter @sir/server db:generate` | `drizzle-kit generate` dopo una modifica a `schema.ts` |
 
-I test (`apps/server/test/`: `auth`, `config`, `hub`, `ingest`, `limits`, `public`, `registration`) usano PGlite. Per la configurazione
+I test (`apps/server/test/`: `auth`, `config`, `hub`, `ingest`, `limits`, `migration`, `public`, `registration`, `tenants`) usano PGlite. Per la configurazione
 di vitest vedi `docs/infrastruttura.md`.
 
 ### Docker Compose
@@ -311,7 +353,7 @@ potrebbe falsificare `X-Forwarded-For` ed eludere il rate limit.
 ```bash
 # --- variabili (nel file .env alla radice, copiato da .env.example) ---
 # POSTGRES_PASSWORD  obbligatoria: solo lettere, cifre, - e _ (entra nell'URL)
-# ADMIN_EMAIL        primo admin
+# ADMIN_EMAIL        superadmin (creato o promosso all'avvio)
 # ADMIN_PASSWORD     almeno 12 caratteri
 # WEB_BIND, WEB_PORT indirizzo e porta del portale (default 127.0.0.1 e 8080); CORS_ORIGIN e PUBLIC_BASE_URL le seguono
 # CORS_ORIGIN, PUBLIC_BASE_URL, TRUST_PROXY: da impostare solo con un dominio vero (https://...), altrimenti lasciarle commentate
@@ -382,7 +424,9 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
   `context.ts` (limiti, cookie `sir_session`), `ingest.ts` (`IngestService`), `hub.ts` (`LiveHub`, codici di chiusura),
   `security.ts` (`requireRole`, `browserWriteGuard`, `sameOriginGuard`, `authenticateAgent`, `bearerHash` condivisa con
   l'ingest), `lib/tokens.ts` (`generatePairingCode`), `state.ts`, `seed.ts`
-- Rotte: `src/routes/health.ts`, `ingest.ts`, `auth.ts`, `admin.ts`, `public.ts`, `registration.ts`
+- Clienti: `src/tenancy.ts` (`hostTenant`, `hostnameFromHeader`, `tenantScope`, `adminTenantId`, `publicBaseUrlFor`),
+  `src/routes/tenants.ts`, `packages/shared/src/tenant.ts`, `src/seed.ts`
+- Rotte: `src/routes/health.ts`, `ingest.ts`, `auth.ts`, `admin.ts`, `public.ts`, `registration.ts`, `tenants.ts`
 - Database: `src/db/schema.ts`, `src/db/index.ts` (`createDatabase`), `src/db/pglite.ts`, `apps/server/drizzle/`
 - Contratti: `packages/shared/src/ingest.ts`, `messages.ts`, `admin.ts`, `registration.ts` (`docs/architettura.md`)
 - Calcoli: `docs/dvw-parser.md`, `docs/statistiche.md`; simulatore: `docs/simulatore.md`

@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -17,17 +18,61 @@ import {
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
-export const userRole = pgEnum('user_role', ['admin', 'viewer']);
+/** jsonb configuration document of a client, `{}` by default; its shape is checked by the schemas of `@sir/shared`. */
+const tenantConfig = (name: string) =>
+  jsonb(name)
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default(sql`'{}'::jsonb`);
 
-export const users = pgTable('users', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  /** Always lower case. */
-  email: text('email').notNull().unique(),
-  /** argon2id. */
-  passwordHash: text('password_hash').notNull(),
-  role: userRole('role').notNull(),
-  createdAt: createdAt(),
-});
+/** Clients (tenants): every other table belongs to one of them. */
+export const tenants = pgTable(
+  'tenants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    slug: text('slug').notNull().unique(),
+    name: text('name').notNull(),
+    /** Lower case, without port; unique among all the clients (checked by the routes under a lock). */
+    hostnames: text('hostnames')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    branding: tenantConfig('branding'),
+    layout: tenantConfig('layout'),
+    intermissions: tenantConfig('intermissions'),
+    overlays: tenantConfig('overlays'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('tenants_hostnames_idx').using('gin', t.hostnames)],
+);
+
+/** Order of the values: as added by the migrations (`superadmin` came last). */
+export const userRole = pgEnum('user_role', ['admin', 'viewer', 'superadmin']);
+
+const tenantId = () =>
+  uuid('tenant_id')
+    .notNull()
+    .references(() => tenants.id);
+
+export const users = pgTable(
+  'users',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** null only for a superadmin (check constraint). */
+    tenantId: uuid('tenant_id').references(() => tenants.id),
+    /** Always lower case; unique among all the clients. */
+    email: text('email').notNull().unique(),
+    /** argon2id. */
+    passwordHash: text('password_hash').notNull(),
+    role: userRole('role').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('users_tenant_idx').on(t.tenantId),
+    // role::text: the new enum value cannot be used as such in the migration that adds it.
+    check('users_tenant_role_check', sql`((${t.role})::text = 'superadmin') = (${t.tenantId} is null)`),
+  ],
+);
 
 export const sessions = pgTable(
   'sessions',
@@ -38,21 +83,28 @@ export const sessions = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
+    /** Client chosen by a superadmin (`POST /api/admin/active-tenant`); null for the others. */
+    activeTenantId: uuid('active_tenant_id').references(() => tenants.id, { onDelete: 'set null' }),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     createdAt: createdAt(),
   },
   (t) => [index('sessions_user_idx').on(t.userId)],
 );
 
-export const agents = pgTable('agents', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(),
-  /** sha256 hex of the bearer token. */
-  tokenHash: text('token_hash').notNull().unique(),
-  revoked: boolean('revoked').notNull().default(false),
-  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
-  createdAt: createdAt(),
-});
+export const agents = pgTable(
+  'agents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: tenantId(),
+    name: text('name').notNull(),
+    /** sha256 hex of the bearer token. */
+    tokenHash: text('token_hash').notNull().unique(),
+    revoked: boolean('revoked').notNull().default(false),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('agents_tenant_idx').on(t.tenantId)],
+);
 
 export const agentRegistrationStatus = pgEnum('agent_registration_status', [
   'pending',
@@ -66,6 +118,8 @@ export const agentRegistrations = pgTable(
   'agent_registrations',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    /** Client of the hostname the request came to: the agent is created there. */
+    tenantId: tenantId(),
     name: text('name').notNull(),
     /** sha256 hex of the registration secret kept by the agent. */
     secretHash: text('secret_hash').notNull().unique(),
@@ -80,14 +134,17 @@ export const agentRegistrations = pgTable(
     /** Time of the approval or rejection. */
     decidedAt: timestamp('decided_at', { withTimezone: true }),
   },
-  (t) => [index('agent_registrations_status_idx').on(t.status, t.expiresAt)],
+  (t) => [index('agent_registrations_status_idx').on(t.tenantId, t.status, t.expiresAt)],
 );
 
 export const matches = pgTable(
   'matches',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    matchKey: text('match_key').notNull().unique(),
+    /** Client of the agent that sent the match. */
+    tenantId: tenantId(),
+    /** Unique within the client. */
+    matchKey: text('match_key').notNull(),
     /** Text of the DVW file before `[3SCOUT]`; null until the first snapshot. */
     header: text('header'),
     lineCount: integer('line_count').notNull().default(0),
@@ -101,8 +158,10 @@ export const matches = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex('matches_one_live_idx')
-      .on(t.live)
+    uniqueIndex('matches_tenant_match_key_idx').on(t.tenantId, t.matchKey),
+    // One live match per client.
+    uniqueIndex('matches_one_live_per_tenant_idx')
+      .on(t.tenantId)
       .where(sql`${t.live}`),
   ],
 );
@@ -119,20 +178,27 @@ export const scoutLines = pgTable(
   (t) => [primaryKey({ columns: [t.matchId, t.idx] })],
 );
 
-export const shareTokens = pgTable('share_tokens', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  /** sha256 hex of the public token. */
-  tokenHash: text('token_hash').notNull().unique(),
-  /** null: the link follows the live match. */
-  matchId: uuid('match_id').references(() => matches.id, { onDelete: 'cascade' }),
-  label: text('label').notNull(),
-  /** null: no expiry. */
-  expiresAt: timestamp('expires_at', { withTimezone: true }),
-  revoked: boolean('revoked').notNull().default(false),
-  createdAt: createdAt(),
-});
+export const shareTokens = pgTable(
+  'share_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** The link works only on the hostnames of this client. */
+    tenantId: tenantId(),
+    /** sha256 hex of the public token. */
+    tokenHash: text('token_hash').notNull().unique(),
+    /** null: the link follows the live match of the client. */
+    matchId: uuid('match_id').references(() => matches.id, { onDelete: 'cascade' }),
+    label: text('label').notNull(),
+    /** null: no expiry. */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    revoked: boolean('revoked').notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [index('share_tokens_tenant_idx').on(t.tenantId)],
+);
 
 export const schema = {
+  tenants,
   userRole,
   users,
   sessions,

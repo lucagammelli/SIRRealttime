@@ -26,6 +26,10 @@ su `127.0.0.1`; anche l'agente invia a `<URL del portale>/api/ingest`.
 3. Il portale (`docs/portale.md`) riceve lo stato via WebSocket, con `GET /api/public/:token/state` come sonda del link, e
    lo disegna senza ricalcolare nulla.
 
+Il sistema è **multi-cliente**: ogni dato appartiene a un cliente, ricavato dall'hostname della richiesta (agenti e
+registrazioni, partite, link, utenti; una partita live per cliente) e il superadmin sceglie su quale lavorare
+(`docs/server.md`).
+
 Oggi esistono agente, server, portale, contratti, parser, statistiche e simulatore; il flusso si prova con l'agente e il
 simulatore (`docs/agente.md`) o con i test del server (`apps/server/test/ingest.test.ts`).
 
@@ -42,7 +46,7 @@ simulatore (`docs/agente.md`) o con i test del server (`apps/server/test/ingest.
 | `@sir/dvw-simulator` | `tools/dvw-simulator` | dvw-parser | genera e "suona" file DVW sintetici; è anche dev-dependency di volley-stats, shared e server (per i test) |
 
 ### Contratti di `packages/shared`
-Esportati da `packages/shared/src/index.ts` (`admin.ts`, `ingest.ts`, `messages.ts`, `registration.ts`).
+Esportati da `packages/shared/src/index.ts` (`admin.ts`, `ingest.ts`, `messages.ts`, `registration.ts`, `tenant.ts`).
 
 Ingest (`ingest.ts`):
 
@@ -66,8 +70,9 @@ Messaggi (`messages.ts`):
 Amministrazione (`admin.ts`):
 
 - `SHARE_TOKEN_PATTERN`, `ShareTokenParamSchema`, `IdParamSchema`, `PASSWORD_MIN_LENGTH` (12);
-- utenti e sessioni: `UserRoleSchema` / `UserRole`, `LoginRequestSchema`, `MeResponseSchema`, `CreateUserRequestSchema`,
-  `UserSummarySchema`;
+- utenti e sessioni: `UserRoleSchema` / `UserRole` (`superadmin` | `admin` | `viewer`), `TenantUserRoleSchema` (`admin` |
+  `viewer`: i ruoli assegnabili dall'area riservata), `LoginRequestSchema`, `MeResponseSchema` (con `tenant`, il cliente
+  corrente o `null`), `CreateUserRequestSchema`, `UserSummarySchema`;
 - agenti: `CreateAgentRequestSchema`, `AgentSummarySchema`, `CreateAgentResponseSchema`;
 - richieste di registrazione degli agenti (lato admin): `AgentRegistrationStateSchema` (`pending` | `approved` |
   `rejected` | `consumed`), `AgentRegistrationSummarySchema`;
@@ -80,6 +85,13 @@ Auto-registrazione dell'agente (`registration.ts`): `PAIRING_CODE_ALPHABET`, `PA
 `CreateRegistrationRequestSchema` (`name`), `CreateRegistrationResponseSchema` (`registrationId`, `secret`, `pairingCode`,
 `expiresAt`), `RegistrationStatusResponseSchema` (unione su `status`: `pending`, `approved` con `token` e `agentId`,
 `consumed`, `rejected`, `expired`). Flusso e regole in `docs/server.md`, pagina di abilitazione in `docs/portale.md`.
+
+Clienti (`tenant.ts`): `DEFAULT_TENANT_SLUG` (`predefinito`), `TENANT_SLUG_PATTERN`, `TenantSlugSchema`,
+`TENANT_MAX_HOSTNAMES` (20), `isValidHostname`, `HostnameSchema`, `HostnamesSchema`, `TENANT_CONFIG_VERSION` (1) e i
+quattro documenti di configurazione `TenantBrandingSchema`, `TenantLayoutSchema`, `TenantIntermissionsSchema`,
+`TenantOverlaysSchema` (strict, `{ version: 1 }`, per ora senza altri campi), `TenantRefSchema`, `TenantSummarySchema`,
+`CreateTenantRequestSchema`, `UpdateTenantRequestSchema`, `SetActiveTenantRequestSchema`. Regole di funzionamento in
+`docs/server.md` («Clienti»), pagine in `docs/portale.md`.
 
 Ogni schema ha il tipo omonimo senza `Schema` (`z.infer`). Dettagli d'uso: `docs/server.md`.
 
@@ -106,7 +118,7 @@ pnpm --filter @sir/server test      # il flusso completo agente→server→WebSo
 ```
 
 ## Riferimenti
-- `packages/shared/src/ingest.ts`, `messages.ts`, `admin.ts`, `index.ts`
+- `packages/shared/src/ingest.ts`, `messages.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
 - `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`, `apps/web/src/App.tsx`
 - `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/portale.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,

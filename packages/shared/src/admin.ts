@@ -4,6 +4,7 @@ import { MatchKeySchema } from './ingest.js';
 import { MatchStateSchema } from './messages.js';
 import { PairingCodeSchema } from './registration.js';
 import { hasNoControlChars, plainText, safeString } from './strings.js';
+import { TenantRefSchema } from './tenant.js';
 
 /** Public share token: random ≥ 128 bit, base64url. */
 export const SHARE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{22,128}$/;
@@ -11,8 +12,12 @@ export const ShareTokenParamSchema = z.object({ token: z.string().regex(SHARE_TO
 
 export const IdParamSchema = z.object({ id: z.uuid() });
 
-export const UserRoleSchema = z.enum(['admin', 'viewer']);
+/** `superadmin`: no client, creates the clients and works on any of them; `admin`/`viewer`: users of one client. */
+export const UserRoleSchema = z.enum(['superadmin', 'admin', 'viewer']);
 export type UserRole = z.infer<typeof UserRoleSchema>;
+/** Roles that can be given from the admin area (a superadmin comes only from ADMIN_EMAIL). */
+export const TenantUserRoleSchema = z.enum(['admin', 'viewer']);
+export type TenantUserRole = z.infer<typeof TenantUserRoleSchema>;
 
 const EmailSchema = z
   .email()
@@ -29,13 +34,22 @@ export const LoginRequestSchema = z.object({
 });
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 
-export const MeResponseSchema = z.object({ id: z.uuid(), email: z.string(), role: UserRoleSchema });
+/**
+ * Logged-in user. `tenant`: the client the admin pages work on (the user's own; for a superadmin the one chosen
+ * with `POST /api/admin/active-tenant`, otherwise the client of the hostname; null if none).
+ */
+export const MeResponseSchema = z.object({
+  id: z.uuid(),
+  email: z.string(),
+  role: UserRoleSchema,
+  tenant: TenantRefSchema.nullable(),
+});
 export type MeResponse = z.infer<typeof MeResponseSchema>;
 
 export const CreateUserRequestSchema = z.object({
   email: EmailSchema,
   password: PasswordSchema(PASSWORD_MIN_LENGTH),
-  role: UserRoleSchema,
+  role: TenantUserRoleSchema,
 });
 export type CreateUserRequest = z.infer<typeof CreateUserRequestSchema>;
 

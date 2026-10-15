@@ -3,11 +3,16 @@ import type { IngestRequest, IngestResponse, StateMessage } from '@sir/shared';
 import { buildDvwText, hashScoutLines } from '@sir/shared';
 import { computeMatchState } from '@sir/volley-stats';
 import { and, asc, eq, gte, ne, sql } from 'drizzle-orm';
+import type { AuthenticatedAgent } from './context.js';
 import type { Db } from './db/index.js';
 import { matches, scoutLines } from './db/index.js';
 import { HttpError } from './lib/errors.js';
+import { tenantScope } from './tenancy.js';
 
-/** Key of the transaction advisory lock that serializes ingests (one live match, no deadlocks). */
+/**
+ * Key of the transaction advisory lock that serializes the ingests of one client (one live match per client, no
+ * deadlocks: a transaction takes only this lock); the second key is a hash of the client id.
+ */
 const INGEST_LOCK_KEY = 0x53495231;
 const INSERT_CHUNK = 1000;
 const CACHE_SIZE = 4;
@@ -55,13 +60,23 @@ export class IngestService {
     private readonly maxLines: number,
   ) {}
 
-  async ingest(agentId: string, req: IngestRequest): Promise<IngestOutcome> {
+  /** The match is `req.matchKey` of the client of the agent: agents of other clients never touch it. */
+  async ingest(agent: AuthenticatedAgent, req: IngestRequest): Promise<IngestOutcome> {
+    const { tenantId } = agent;
+    const agentId = agent.id;
     let result: { outcome: IngestOutcome; cache?: CacheEntry };
     try {
       result = await this.db.transaction(async (tx): Promise<{ outcome: IngestOutcome; cache?: CacheEntry }> => {
-        await tx.execute(sql`select pg_advisory_xact_lock(${INGEST_LOCK_KEY})`);
-        await tx.insert(matches).values({ matchKey: req.matchKey }).onConflictDoNothing({ target: matches.matchKey });
-        const [row] = await tx.select().from(matches).where(eq(matches.matchKey, req.matchKey)).for('update');
+        await tx.execute(sql`select pg_advisory_xact_lock(${INGEST_LOCK_KEY}, hashtext(${tenantId}))`);
+        await tx
+          .insert(matches)
+          .values({ tenantId, matchKey: req.matchKey })
+          .onConflictDoNothing({ target: [matches.tenantId, matches.matchKey] });
+        const [row] = await tx
+          .select()
+          .from(matches)
+          .where(tenantScope(matches, tenantId, eq(matches.matchKey, req.matchKey)))
+          .for('update');
         if (!row) throw new Error('match row not found after insert');
 
         if (req.seq <= row.lastSeq) return { outcome: { response: describe(row, 'duplicate'), published: null } };
@@ -89,7 +104,7 @@ export class IngestService {
         await tx
           .update(matches)
           .set({ live: false })
-          .where(and(eq(matches.live, true), ne(matches.id, row.id)));
+          .where(tenantScope(matches, tenantId, eq(matches.live, true), ne(matches.id, row.id)));
         await tx
           .update(matches)
           .set({

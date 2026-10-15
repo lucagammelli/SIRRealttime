@@ -5,12 +5,17 @@ import type { AppContext } from '../context.js';
 import { perMinute } from '../context.js';
 import { notFound } from '../lib/errors.js';
 import { currentMessage, resolveShareToken, targetOf } from '../state.js';
+import { hostTenant } from '../tenancy.js';
 
-/** Read-only public access with a share token; any invalid, revoked or expired token is a plain 404. */
+/**
+ * Read-only public access with a share token of the client of the hostname; any invalid, revoked or expired token,
+ * a token of another client and a hostname without client are a plain 404.
+ */
 export function publicRoutes(app: FastifyInstance, ctx: AppContext): void {
   const resolve = async (request: FastifyRequest): Promise<void> => {
     const parsed = ShareTokenParamSchema.safeParse(request.params);
-    const share = parsed.success ? await resolveShareToken(ctx, parsed.data.token) : null;
+    const tenant = parsed.success ? await hostTenant(ctx, request) : null;
+    const share = parsed.success && tenant ? await resolveShareToken(ctx, tenant.id, parsed.data.token) : null;
     if (!share) throw notFound();
     request.shareToken = share;
   };

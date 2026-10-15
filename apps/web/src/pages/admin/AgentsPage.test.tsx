@@ -37,7 +37,7 @@ function mockServer(initial: AgentRegistrationSummary[]): {
     vi.fn((url: string, init?: RequestInit) => {
       const method = init?.method ?? 'GET';
       calls.push({ url, method });
-      if (url === '/api/auth/me') return json({ id: USER_ID, email: 'a@b.it', role: 'admin' });
+      if (url === '/api/auth/me') return json({ id: USER_ID, email: 'a@b.it', role: 'admin', tenant: null });
       if (url === '/api/admin/agent-registrations') return json(registrations);
       const decided = /^\/api\/admin\/agent-registrations\/([^/]+)\/(approve|reject)$/.exec(url);
       if (decided && method === 'POST') {

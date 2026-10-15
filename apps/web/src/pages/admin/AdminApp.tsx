@@ -1,8 +1,11 @@
+import type { TenantSummary } from '@sir/shared';
 import type { ReactElement } from 'react';
+import { useCallback } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router';
 import { StatusScreen } from '../../components/StatusScreen.tsx';
 import { ThemeToggle } from '../../components/ThemeToggle.tsx';
 import { Button, Spinner } from '../../components/ui.tsx';
+import { useAsync } from '../../lib/useAsync.ts';
 import { AgentsPage } from './AgentsPage.tsx';
 import { useAuth, useSession } from './auth.tsx';
 import { LiveAdminPage } from './LiveAdminPage.tsx';
@@ -10,7 +13,10 @@ import { LoginPage } from './LoginPage.tsx';
 import { MatchDetailPage } from './MatchDetailPage.tsx';
 import { MatchesPage } from './MatchesPage.tsx';
 import { ShareLinksPage } from './ShareLinksPage.tsx';
+import { loadTenants, TenantSelector, TenantsPage } from './TenantsPage.tsx';
 import { UsersPage } from './UsersPage.tsx';
+
+const ROLE_TEXT = { superadmin: 'superadmin', admin: 'amministratore', viewer: 'sola lettura' } as const;
 
 /** Reserved area `/admin/*`: login, then pages by role (a viewer sees only the matches). */
 export function AdminApp() {
@@ -38,7 +44,13 @@ export function AdminApp() {
 }
 
 function AdminLayout() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, isSuperadmin, logout } = useAuth();
+  // The clients (superadmin only), shared by the selector and the «Clienti» page.
+  const load = useCallback(
+    (signal: AbortSignal): Promise<TenantSummary[]> => (isSuperadmin ? loadTenants(signal) : Promise.resolve([])),
+    [isSuperadmin],
+  );
+  const tenants = useAsync(load);
   const links = [
     { to: '/admin/live', label: 'Partita live' },
     { to: '/admin/partite', label: 'Partite' },
@@ -49,8 +61,10 @@ function AdminLayout() {
           { to: '/admin/utenti', label: 'Utenti' },
         ]
       : []),
+    ...(isSuperadmin ? [{ to: '/admin/clienti', label: 'Clienti' }] : []),
   ];
   const adminOnly = (element: ReactElement) => (isAdmin ? element : <Navigate to="/admin/live" replace />);
+  const superadminOnly = (element: ReactElement) => (isSuperadmin ? element : <Navigate to="/admin/live" replace />);
   return (
     <div className="min-h-dvh">
       <header className="border-b border-border bg-surface">
@@ -74,9 +88,14 @@ function AdminLayout() {
               </NavLink>
             ))}
           </nav>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {isSuperadmin ? (
+              <TenantSelector tenants={tenants} />
+            ) : (
+              user.tenant && <span className="text-xs font-medium text-text">{user.tenant.name}</span>
+            )}
             <span className="hidden text-xs text-muted md:inline">
-              {user.email} · {user.role === 'admin' ? 'amministratore' : 'sola lettura'}
+              {user.email} · {ROLE_TEXT[user.role]}
             </span>
             <Button variant="ghost" onClick={() => void logout().catch(() => undefined)}>
               Esci
@@ -86,7 +105,8 @@ function AdminLayout() {
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-3 py-4 sm:px-5">
-        <Routes>
+        {/* A new client remounts every page: data and the admin WebSocket follow the choice. */}
+        <Routes key={user.tenant?.id ?? 'nessun-cliente'}>
           <Route index element={<Navigate to="/admin/live" replace />} />
           <Route path="live" element={<LiveAdminPage />} />
           <Route path="partite" element={<MatchesPage />} />
@@ -94,6 +114,7 @@ function AdminLayout() {
           <Route path="link" element={adminOnly(<ShareLinksPage />)} />
           <Route path="agenti" element={adminOnly(<AgentsPage />)} />
           <Route path="utenti" element={adminOnly(<UsersPage />)} />
+          <Route path="clienti" element={superadminOnly(<TenantsPage tenants={tenants} />)} />
           <Route path="*" element={<Navigate to="/admin/live" replace />} />
         </Routes>
       </main>

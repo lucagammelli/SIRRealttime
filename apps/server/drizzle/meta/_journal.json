@@ -15,6 +15,13 @@
       "when": 1792062032848,
       "tag": "0001_agent_registrations",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792091917387,
+      "tag": "0002_tenants",
+      "breakpoints": true
     }
   ]
 }

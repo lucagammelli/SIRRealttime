@@ -100,9 +100,15 @@ rilascio e l'altro. Il bundle principale è di circa 132 KB gzip. Le altre dipen
 ## Configurazione
 - `.env.example` elenca le variabili del server (`DATABASE_URL`, `PORT`, `HOST`, `CORS_ORIGIN`, `COOKIE_SECURE`,
   `SESSION_TTL_HOURS`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `PUBLIC_BASE_URL`, `LOG_LEVEL`, `TRUST_PROXY`,
-  `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`, `MATCH_MAX_LINES`) e quelle di
+  `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`, `MATCH_MAX_LINES`, `DEFAULT_TENANT_SLUG`) e quelle di
   Docker Compose (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `SERVER_BIND`, `WEB_BIND`, `WEB_PORT`).
   Descrizione e default in `docs/server.md`. Il file `.env` vero non va mai nel repository.
+- `DEFAULT_TENANT_SLUG` (cliente degli hostname sconosciuti, default `predefinito`) è commentata in `.env.example` e
+  passata dal servizio `server` di `docker-compose.yml` con `${DEFAULT_TENANT_SLUG-predefinito}`: se in `.env` è
+  definita ma vuota resta vuota (hostname sconosciuto = 404, `docs/server.md`).
+- Multi-cliente in produzione: nginx (`docker/web.nginx.conf`, oggi `server_name _`) va configurato con i `server_name`
+  espliciti dei clienti e un `default_server` per il resto, passando `Host $host` al server; i certificati https per ogni
+  hostname sono a cura del deploy.
 - `CORS_ORIGIN`, `PUBLIC_BASE_URL` e `TRUST_PROXY` sono **commentate** in `.env.example` di proposito: lasciate così
   valgono i default giusti per ogni modo di avvio (con compose `http://localhost:${WEB_PORT}` e `true`, perché il server
   è dietro nginx; con `pnpm --filter @sir/server dev` e `vite dev` `http://localhost:5173` e `false`). Una riga attiva

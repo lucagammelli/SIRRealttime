@@ -1,4 +1,4 @@
-import type { UserRole } from '@sir/shared';
+import type { TenantUserRole, UserRole } from '@sir/shared';
 import { CreateUserRequestSchema, PASSWORD_MIN_LENGTH, UserSummarySchema } from '@sir/shared';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
@@ -7,20 +7,25 @@ import { Button, Card, Empty, ErrorBox, Spinner } from '../../components/ui.tsx'
 import { apiRequest } from '../../lib/api.ts';
 import { formatDateTime } from '../../lib/format.ts';
 import { useAsync } from '../../lib/useAsync.ts';
-import { useApiError } from './auth.tsx';
+import { useApiError, useAuth } from './auth.tsx';
 import { Field, inputClass } from './forms.tsx';
 
 const UserListSchema = z.array(UserSummarySchema);
-const ROLE_LABEL: Record<UserRole, string> = { admin: 'Amministratore', viewer: 'Sola lettura' };
+const ROLE_LABEL: Record<UserRole, string> = {
+  superadmin: 'Superadmin',
+  admin: 'Amministratore',
+  viewer: 'Sola lettura',
+};
 
-/** Users of the reserved area (admin only). */
+/** Users of the client of the session (admin only; a superadmin manages the client chosen in the bar). */
 export function UsersPage() {
   const errorMessage = useApiError();
+  const { user: me } = useAuth();
   const load = useCallback((signal: AbortSignal) => apiRequest('/api/admin/users', UserListSchema, { signal }), []);
   const users = useAsync(load);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('viewer');
+  const [role, setRole] = useState<TenantUserRole>('viewer');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -57,7 +62,7 @@ export function UsersPage() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-      <Card title="Nuovo utente">
+      <Card title="Nuovo utente" subtitle={me.tenant ? `Cliente: ${me.tenant.name}` : undefined}>
         <form onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
           <Field label="Email">
             <input

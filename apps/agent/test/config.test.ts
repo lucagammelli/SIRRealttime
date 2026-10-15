@@ -35,10 +35,24 @@ describe('configurazione', () => {
 
   it('rifiuta http verso un host remoto, accetta http verso localhost e 127.0.0.1', () => {
     expect(issue({ ...valid, serverUrl: 'http://sir.example.it' })).toMatch(/https/);
-    expect(issue({ ...valid, serverUrl: 'http://192.168.1.10:3000' })).toMatch(/https/);
+    expect(issue({ ...valid, serverUrl: 'http://192.168.1.10:3000' })).toMatch(/allowHttpPrivateNetwork/);
     expect(issue({ ...valid, serverUrl: 'ftp://localhost' })).toMatch(/https/);
     expect(parseConfig({ ...valid, serverUrl: 'http://localhost:3000' }, BASE).serverUrl).toBe('http://localhost:3000');
     expect(parseConfig({ ...valid, serverUrl: 'http://127.0.0.1:3000' }, BASE).serverUrl).toBe('http://127.0.0.1:3000');
+  });
+
+  it('http verso IP privati solo con allowHttpPrivateNetwork', () => {
+    const on = { ...valid, allowHttpPrivateNetwork: true };
+    for (const host of ['192.168.1.10:8085', '10.0.0.5', '172.20.1.1']) {
+      const url = `http://${host}`;
+      expect(parseConfig({ ...on, serverUrl: url }, BASE).serverUrl).toBe(url);
+      expect(issue({ ...valid, serverUrl: url })).toMatch(/allowHttpPrivateNetwork: true/);
+    }
+    expect(issue({ ...on, serverUrl: 'http://172.32.0.1' })).toMatch(/rifiutato/);
+    expect(issue({ ...on, serverUrl: 'http://8.8.8.8' })).toMatch(/rifiutato/);
+    expect(issue({ ...on, serverUrl: 'http://portale.lan' })).toMatch(/rifiutato/);
+    expect(parseConfig({ ...on, serverUrl: 'https://portale.lan' }, BASE).serverUrl).toBe('https://portale.lan');
+    expect(parseConfig({ ...valid, serverUrl: 'http://localhost:3000' }, BASE).allowHttpPrivateNetwork).toBe(false);
   });
 
   it('rifiuta credenziali nell’URL, campi sconosciuti, token corti e dataDir sulla pennina', () => {

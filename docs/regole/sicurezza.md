@@ -21,7 +21,9 @@
 ## Segreti
 - Solo in `.env` (mai nel repository); `.env.example` elenca tutte le variabili con un commento.
 - Agente: token in `config.json` accanto all'eseguibile, file escluso da git; comunicazione solo HTTPS
-  (HTTP ammesso solo verso `localhost` in sviluppo).
+  (HTTP ammesso solo verso `localhost` in sviluppo; eccezione: con `allowHttpPrivateNetwork: true` nel
+  `config.json` dell'agente, HTTP anche verso IPv4 privati 10/8, 172.16/12, 192.168/16, solo per prove in LAN;
+  in produzione sempre HTTPS).
 
 ## Verifica
 - Dopo modifiche a server o portale si esegue la scansione DAST (HawkScan) sul server in esecuzione e si correggono

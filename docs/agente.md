@@ -95,7 +95,8 @@ visti come la **stessa partita**. L'agente si riallinea con uno snapshot (il ser
 | Campo | Default | Regola |
 |---|---|---|
 | `watchPath` | obbligatorio | cartella (es. `E:\`) o singolo `.dvw` |
-| `serverUrl` | obbligatorio | URL **del portale** (nginx), es. `https://<host>/`; `https` sempre; `http` solo verso `localhost`, `127.0.0.1`, `[::1]`; senza credenziali nell'URL |
+| `serverUrl` | obbligatorio | URL **del portale** (nginx), es. `https://<host>/`; `https` sempre; `http` solo verso `localhost`, `127.0.0.1`, `[::1]` o, con `allowHttpPrivateNetwork`, verso IPv4 privati; senza credenziali nell'URL |
+| `allowHttpPrivateNetwork` | `false` | ammette `http` verso IPv4 letterali privati (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), mai verso nomi host o IP pubblici. **Solo per prove in rete locale; in produzione https.** All'avvio con `http` attivo l'agente scrive un warning («connessione senza cifratura verso `<host>`: usare https in produzione»). Assente in `config.example.json` (il JSON non ammette commenti) |
 | `agentToken` | obbligatorio | 20-200 caratteri `A-Za-z0-9_-`, copiato intero dall'area admin |
 | `pollIntervalMs` | `1000` | intero 10-60000 |
 | `stableMs` | `700` | intero 0-60000 |
@@ -228,6 +229,20 @@ pnpm --filter @sir/agent dev --config "$CONFIG"      # sir-agent da sorgente, co
 `pnpm --filter @sir/agent bundle` produce `apps/agent/build/sir-agent.cjs`, avviabile con `node` e le stesse opzioni.
 Con `--corrections` il simulatore riscrive righe passate: l'agente invia uno snapshot. Lo stato si legge con
 `GET /api/public/:token/state` (`docs/server.md`). Test dell'agente: `pnpm --filter @sir/agent test`.
+
+### Prova in LAN senza https
+Per un portale raggiungibile solo in http su rete locale (es. `http://192.168.104.102:8085`), `config.json` su Windows:
+
+```json
+{
+  "watchPath": "E:\\",
+  "serverUrl": "http://192.168.104.102:8085",
+  "allowHttpPrivateNetwork": true,
+  "agentToken": "<token agente creato nell'area admin del portale>"
+}
+```
+
+Con un nome host, un IPv6 o un IP pubblico la configurazione è rifiutata; sono accettate anche le forme ottali e decimali dell'IP privato (es. `http://0300.0250.0.1`, `http://3232235777`), perché normalizzate allo stesso indirizzo. Il token non compare mai nei log.
 
 ### Da provare su Windows vero
 Mai provati fuori da Linux; da verificare:

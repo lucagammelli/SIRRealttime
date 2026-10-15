@@ -108,6 +108,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
       shares: new TtlCache(LOOKUP_CACHE_TTL_MS, LOOKUP_CACHE_ENTRIES, now),
     },
     publicFailures: new FailureLimiter(rateLimits.publicInvalid, 60_000, now),
+    shortCodeFailures: new FailureLimiter(rateLimits.shortCodeInvalidTotal, 60_000, now),
     resync: new ResyncScheduler(now),
     now,
   };

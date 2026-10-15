@@ -193,6 +193,14 @@ export const shareTokens = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }),
     revoked: boolean('revoked').notNull().default(false),
     createdAt: createdAt(),
+    /**
+     * Keyed hash (`shortCodeLookupHash`: HMAC with a key derived from SHARE_CODE_SECRET) of the short code (`/l/<code>`). The code is never stored: it is the HMAC of the id with
+     * SHARE_CODE_SECRET (and `short_code_salt`), so the admin can see it again. null: not assigned yet (links
+     * created before the short codes get one at the server start or at the next list).
+     */
+    shortCodeHash: text('short_code_hash').unique(),
+    /** Counter mixed into the HMAC: raised only when the code of salt 0 collides with the one of another link. */
+    shortCodeSalt: integer('short_code_salt').notNull().default(0),
   },
   (t) => [index('share_tokens_tenant_idx').on(t.tenantId)],
 );

@@ -118,7 +118,9 @@ dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in q
 3. `clienti-grafica` (**fatto**): colori, nome e loghi (orizzontale, quadrato, sponsor) per hostname, caricamento
    immagini controllato (2 MB, 4096 px, 50 MB per cliente, SVG a lista di elementi ammessi), pagina «Grafica»
    (`docs/server.md`, `docs/portale.md`).
-4. `link-brevi-qr`: codice di condivisione breve (8 caratteri) e QR scaricabile.
+4. `link-brevi-qr` (**fatto**): codice di condivisione breve (8 caratteri, `/l/<codice>`) derivato con HMAC da
+   `SHARE_CODE_SECRET`, limite globale dei codici sbagliati, log di nginx mascherati e QR scaricabile (PNG e SVG, con
+   il logo del cliente) generato nel browser (`docs/server.md`, `docs/portale.md`).
 5. `portale-adattivo` (**fatto**): impaginazioni TV 16:9 con rotazione, tablet e smartphone, grafica più curata
    (`docs/portale.md`); da provare su dispositivi veri.
 6. `layout-blocchi`: editor a blocchi per dispositivo.

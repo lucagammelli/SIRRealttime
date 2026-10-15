@@ -43,7 +43,7 @@ simulatore (`docs/agente.md`) o con i test del server (`apps/server/test/ingest.
 | `@sir/shared` | `packages/shared` | dvw-parser, volley-stats | contratti: tipi e schemi zod |
 | `@sir/server` | `apps/server` | dvw-parser, volley-stats, shared | backend |
 | `@sir/agent` | `apps/agent` | dvw-parser, shared | agente Windows (`docs/agente.md`); dev-dependency: dvw-simulator, server, volley-stats (per i test) |
-| `@sir/web` | `apps/web` | shared, volley-stats | portale: pagina pubblica `/live/:token` e area `/admin` (`docs/portale.md`); dev-dependency: agent, server, dvw-parser, dvw-simulator (solo per la demo) |
+| `@sir/web` | `apps/web` | shared, volley-stats | portale: pagina pubblica `/live/:token` e `/l/:token` (codice breve) e area `/admin` (`docs/portale.md`); dev-dependency: agent, server, dvw-parser, dvw-simulator (solo per la demo) |
 | `@sir/carico` | `tools/carico` | dvw-parser, volley-stats, shared | prova di carico dei WebSocket pubblici (`docs/infrastruttura.md`) |
 | `@sir/dvw-simulator` | `tools/dvw-simulator` | dvw-parser | genera e "suona" file DVW sintetici; è anche dev-dependency di volley-stats, shared e server (per i test) |
 
@@ -85,14 +85,20 @@ Aggiornamenti differenziali (`patch.ts`, funzioni pure e deterministiche, senza 
 
 Amministrazione (`admin.ts`):
 
-- `SHARE_TOKEN_PATTERN`, `ShareTokenParamSchema`, `IdParamSchema`, `PASSWORD_MIN_LENGTH` (12);
+- `SHARE_TOKEN_PATTERN` (token lungo di almeno 22 caratteri, oppure codice breve di al più 9, anche minuscolo e con il
+  trattino a metà), `ShareTokenParamSchema` (il parametro diventa `{ kind: 'token' | 'code', value }`, tipo `ShareAccess`),
+  `IdParamSchema`, `PASSWORD_MIN_LENGTH` (12);
+- codici brevi dei link pubblici: `SHORT_CODE_LENGTH` (8), `ShortCodeSchema`, `normalizeShortCode` (forma canonica
+  maiuscola senza trattino), `formatShortCode` (`K7M2-QX9P`); alfabeto `PAIRING_CODE_ALPHABET` (`docs/server.md`, «Link
+  breve e codice»);
 - utenti e sessioni: `UserRoleSchema` / `UserRole` (`superadmin` | `admin` | `viewer`), `TenantUserRoleSchema` (`admin` |
   `viewer`: i ruoli assegnabili dall'area riservata), `LoginRequestSchema`, `MeResponseSchema` (con `tenant`, il cliente
   corrente o `null`), `CreateUserRequestSchema`, `UserSummarySchema`;
 - agenti: `CreateAgentRequestSchema`, `AgentSummarySchema`, `CreateAgentResponseSchema`;
 - richieste di registrazione degli agenti (lato admin): `AgentRegistrationStateSchema` (`pending` | `approved` |
   `rejected` | `consumed`), `AgentRegistrationSummarySchema`;
-- link pubblici: `CreateShareTokenRequestSchema`, `ShareTokenSummarySchema`, `CreateShareTokenResponseSchema`;
+- link pubblici: `CreateShareTokenRequestSchema`, `ShareTokenSummarySchema` (con `shortCode` e `shortUrl`, `null` se il
+  link è revocato), `CreateShareTokenResponseSchema`;
 - partite: `MatchSummarySchema` / `MatchSummary`, `MatchDetailSchema` / `MatchDetail` (estende il riepilogo con `lastSeq`,
   `contentHash` e `state`, che è `MatchStateSchema` o `null`); è la risposta di `GET /api/admin/matches/:id`, usata dal
   dettaglio partita del portale.

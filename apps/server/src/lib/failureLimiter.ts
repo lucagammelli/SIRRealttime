@@ -25,6 +25,12 @@ export class FailureLimiter {
     return w.count >= this.max ? left : 0;
   }
 
+  /** True when `key` has failures in the current window (blocked or not). */
+  hasRecent(key: string): boolean {
+    const w = this.windows.get(key);
+    return w !== undefined && w.resetAt > this.now().getTime() && w.count > 0;
+  }
+
   /** Records a failure of `key`. */
   fail(key: string): void {
     const t = this.now().getTime();

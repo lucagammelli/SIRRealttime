@@ -87,7 +87,13 @@ binario della piattaforma come dipendenza opzionale.
   auto`, `worker_rlimit_nofile 40000`, `worker_connections 16384`, `multi_accept on` (pid e file temporanei in `/tmp`).
   Il servizio `web` di `docker-compose.yml` ha `ulimits.nofile` a 65536 (soft e hard), altrimenti nginx non può aprire
   tanti descrittori. Sintassi verificata con nginx 1.28; **da ricontrollare al primo build** con la 1.29 unprivileged
-  (`docker compose up -d --build`, poi `docker compose logs web`). Dettagli in `docs/portale.md`.
+  (`docker compose up -d --build`, poi `docker compose logs web`). Dettagli in `docs/portale.md`. Il suo `log_format
+  main` maschera token e codici brevi nel percorso (`/l/[codice]`, `/live/[token]`, `/api|ws/public/[token]`) e il
+  Referer (`[omesso]`).
+- `SHARE_CODE_SECRET` in `docker-compose.yml` (servizio `server`) è `${SHARE_CODE_SECRET:?…}`: **senza la variabile nel
+  `.env` falliscono tutti i comandi `docker compose`**, anche `down`, `logs` e `config`. Cambiarla cambia tutti i
+  codici brevi (QR stampati inutilizzabili). `RATE_LIMIT_SHORT_CODE_INVALID` ha default 1000. Generazione in
+  `docs/server.md`, «Docker Compose».
 - Volumi: `pgdata` (database) e `assets` (immagini dei clienti, montato su `/data/assets` nel servizio `server`, con
   `ASSETS_DIR=/data/assets` e `ASSETS_QUOTA_MB`, default 50). Le immagini non stanno nel database: il backup copia anche
   il volume `assets`. nginx accetta corpi fino a 3 MB (`client_max_body_size 3m`) per il caricamento di un'immagine
@@ -105,12 +111,13 @@ binario della piattaforma come dipendenza opzionale.
 `echarts` (`^6.0.0`) pesa circa 60 MB su disco in `node_modules` ma nel bundle entra solo ciò che è importato: circa
 185 KB gzip, in un chunk a parte (`echarts`, vedi `manualChunks` in `apps/web/vite.config.ts`) che resta in cache tra un
 rilascio e l'altro. Il bundle principale è di circa 132 KB gzip. Le altre dipendenze sono `react`, `react-dom`,
-`react-router`, `zod`, `tailwindcss` con `@tailwindcss/vite` (`docs/portale.md`, `docs/decisioni.md`).
+`react-router`, `zod`, `qrcode` (QR dei link brevi, generato nel browser), `tailwindcss` con `@tailwindcss/vite`
+(`docs/portale.md`, `docs/decisioni.md`); in sviluppo anche `@types/qrcode` e `jsqr` (decodifica il QR nei test).
 
 ## Configurazione
 - `.env.example` elenca le variabili del server (`DATABASE_URL`, `PORT`, `HOST`, `CORS_ORIGIN`, `COOKIE_SECURE`,
   `SESSION_TTL_HOURS`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `PUBLIC_BASE_URL`, `LOG_LEVEL`, `TRUST_PROXY`,
-  `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_PUBLIC_WS`, `RATE_LIMIT_PUBLIC_INVALID`, `RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`,
+  `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_PUBLIC_WS`, `RATE_LIMIT_PUBLIC_INVALID`, `RATE_LIMIT_SHORT_CODE_INVALID`, `RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`, `SHARE_CODE_SECRET`,
   `WS_MAX_PER_IP`, `WS_MAX_TOTAL`, `MATCH_MAX_LINES`, `DEFAULT_TENANT_SLUG`, `ASSETS_DIR`, `ASSETS_QUOTA_MB`) e quelle di
   Docker Compose (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `SERVER_BIND`, `WEB_BIND`, `WEB_PORT`).
   Descrizione e default in `docs/server.md`. Il file `.env` vero non va mai nel repository.

@@ -49,7 +49,7 @@ paths:
                 kind: { type: string, enum: [append, snapshot], example: snapshot }
                 fromIndex: { type: integer, example: 0 }
                 lines: { type: array, items: { type: string }, example: ['*p01:00'] }
-                header: { type: string, example: "[3DATAVOLLEYSCOUT]" }
+                header: { type: string, example: '[3DATAVOLLEYSCOUT]' }
                 contentHash: { type: string, example: 0000000000000000000000000000000000000000000000000000000000000000 }
       responses:
         '200': { description: esito ingest }
@@ -78,7 +78,10 @@ paths:
             schema:
               type: object
       responses:
-        '200': { description: 'stato della richiesta: pending, approved (token una volta sola), consumed, rejected, expired' }
+        '200':
+          {
+            description: 'stato della richiesta: pending, approved (token una volta sola), consumed, rejected, expired',
+          }
         '401': { description: segreto di registrazione mancante o errato }
   /api/public/{token}/state:
     get:
@@ -86,10 +89,14 @@ paths:
         - name: token
           in: path
           required: true
+          description: >-
+            token lungo del link (base64url, 22-128 caratteri) oppure codice breve di 8 caratteri senza 0/O/1/I
+            (anche minuscolo e con un trattino a metà, es. K7M2-QX9P)
           schema: { type: string, example: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA }
       responses:
         '200': { description: stato della partita }
         '404': { description: link non valido }
+        '429': { description: 'troppi link sbagliati da questo IP, o troppi codici brevi sbagliati da tutti gli IP' }
   /api/public/tenant:
     get:
       responses:
@@ -184,7 +191,8 @@ paths:
   /api/admin/share-tokens:
     get:
       responses:
-        '200': { description: elenco link }
+        '200':
+          { description: 'elenco link, con shortCode e shortUrl (<base del cliente>/l/<codice>; null se revocato)' }
     post:
       requestBody:
         required: true
@@ -198,7 +206,7 @@ paths:
                 matchId: { type: string, format: uuid, nullable: true, example: null }
                 expiresAt: { type: string, format: date-time, nullable: true, example: null }
       responses:
-        '200': { description: link creato }
+        '201': { description: 'link creato: token e url (una volta sola), shortCode e shortUrl' }
   /api/admin/share-tokens/{id}:
     delete:
       parameters:

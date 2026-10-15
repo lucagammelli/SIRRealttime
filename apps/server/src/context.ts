@@ -21,6 +21,11 @@ export interface RateLimits {
   admin: number;
   /** Self-registration requests of agents (`POST /api/agents/registrations`). */
   register: number;
+  /**
+   * Unknown short codes per minute from all the IPs together: past this, until the minute ends, every short code
+   * that is not already known valid (cached) gets 429, whatever the IP.
+   */
+  shortCodeInvalidTotal: number;
 }
 
 export const DEFAULT_RATE_LIMITS: RateLimits = {
@@ -31,6 +36,7 @@ export const DEFAULT_RATE_LIMITS: RateLimits = {
   publicInvalid: 120,
   admin: 300,
   register: 10,
+  shortCodeInvalidTotal: 1000,
 };
 
 /** Most public WebSockets open at the same time, per client IP and in total. */
@@ -51,7 +57,7 @@ export const LOOKUP_CACHE_TTL_MS = 30_000;
 export interface LookupCaches {
   /** Client of a hostname (`''`: no valid hostname), null: none. */
   hosts: TtlCache<string, Tenant | null>;
-  /** Valid share tokens, by `<tenantId>:<sha256 of the token>`. */
+  /** Valid share tokens, by `<tenantId>:<sha256 of the token>` (short codes: `<tenantId>:c:<keyed hash of the code>`). */
   shares: TtlCache<string, ResolvedShareToken>;
 }
 
@@ -68,6 +74,8 @@ export interface AppContext {
   caches: LookupCaches;
   /** Failures of the public routes per IP (`rateLimits.publicInvalid` per minute). */
   publicFailures: FailureLimiter;
+  /** Unknown short codes of all the IPs together (`rateLimits.shortCodeInvalidTotal` per minute, one key). */
+  shortCodeFailures: FailureLimiter;
   /** Pacing of the full states sent because of `resync` (per socket and per IP). */
   resync: ResyncScheduler;
   now: () => Date;

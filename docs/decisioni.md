@@ -70,6 +70,15 @@ Una riga per decisione: data, scelta, motivo.
   (`docs/server.md`).
 - 2026-10-15: unicità degli hostname controllata dal server sotto lock e non da un vincolo del database; in futuro una
   tabella `tenant_hostnames` con UNIQUE (`docs/server.md`).
+- 2026-10-15: codice breve dei link derivato con HMAC (`SHARE_CODE_SECRET`) e salvato solo come HMAC di lookup, perché
+  rispetta «token solo come hash» e permette di riscaricare il QR (`docs/server.md`).
+- 2026-10-15: limite globale dei codici brevi sbagliati applicato solo agli IP con errori recenti, perché un flusso di
+  codici errati non deve poter bloccare gli spettatori (DoS); limite noto: IP condiviso con un errore recente
+  (`docs/server.md`).
+- 2026-10-15: log di nginx con token e codici brevi mascherati (`/l/[codice]`, `/live/[token]`, Referer `[omesso]`),
+  perché nei log i link darebbero accesso alla partita (`docs/portale.md`).
+- 2026-10-15: QR generato nel browser (libreria `qrcode`), senza servizi esterni, perché il link non deve uscire dal
+  portale e il logo del cliente si disegna in locale (`docs/portale.md`).
 - 2026-10-15: aggiornamenti differenziali (patch) sul WebSocket con stato intero di riserva (patch oltre il 50% dello
   stato, client senza la `baseVersion`), perché con migliaia di spettatori lo stato intero a ogni punto costava 35 KB
   per spettatore (`docs/server.md`, `docs/architettura.md`).

@@ -8,9 +8,11 @@ Non calcola nulla: riceve dal server lo `MatchState` di `@sir/volley-stats` (`do
 
 ## Come funziona
 
-### Pagina pubblica `/live/:token` (`src/pages/LivePage.tsx`)
-Un token che non rispetta `SHARE_TOKEN_PATTERN` (`@sir/shared`) mostra subito «Link non valido o scaduto», senza aprire
-connessioni. Con un token valido la pagina si collega a `/ws/public/<token>` e mostra (`src/components/MatchView.tsx`):
+### Pagina pubblica `/live/:token` e `/l/:token` (`src/pages/LivePage.tsx`)
+La stessa pagina risponde a due rotte (`src/App.tsx`): `/live/:token` (token lungo) e `/l/:token` (codice breve, come
+`/l/K7M2QX9P`; accettati anche minuscole e il trattino a metà). Un valore che non rispetta `SHARE_TOKEN_PATTERN`
+(`@sir/shared`: token di almeno 22 caratteri o codice breve) mostra subito «Link non valido o scaduto», senza aprire
+connessioni. Con un valore valido la pagina si collega a `/ws/public/<token o codice>` e mostra (`src/components/MatchView.tsx`):
 
 | Blocco | Contenuto |
 |---|---|
@@ -74,7 +76,7 @@ Prima si verifica la sessione («Verifica della sessione…»); senza sessione c
 |---|---|---|---|
 | Partita live | `/admin/live` | admin e viewer | la partita live via `/ws/admin`, con gli stessi componenti della pagina pubblica |
 | Partite | `/admin/partite`, `/admin/partite/:id` | admin e viewer | elenco delle partite ricevute e dettaglio (`MatchDetailSchema`: «Stato», «Righe di scout», «Versione», «Aggiornata») |
-| Link pubblici | `/admin/link` | solo admin | «Nuovo link pubblico» (etichetta, partita o live, «Scadenza (facoltativa)»), «Link creati», «Revoca» |
+| Link pubblici | `/admin/link` | solo admin | «Nuovo link pubblico» (etichetta, partita o live, «Scadenza (facoltativa)»), «Link creati» (per i link attivi «Link breve», codice e QR, vedi «Link breve e QR»), «Revoca» |
 | Agenti | `/admin/agenti` | solo admin | «Nuovo agente» («Crea token», mostrato una sola volta con «Copia config.json»), «Richieste in attesa» (vedi sotto), «Agenti», «Revoca» |
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, password di almeno 12 caratteri, ruolo), «Utenti» |
 | Grafica | `/admin/grafica` | solo admin (il superadmin lavora sul cliente scelto) | colori, nome e loghi del cliente, vedi «Grafica per cliente» |
@@ -87,6 +89,22 @@ Prima si verifica la sessione («Verifica della sessione…»); senza sessione c
 (`Routes` con `key` sul cliente). Finché non ne sceglie uno, le pagine che lavorano su un cliente mostrano l'errore
 «Seleziona un cliente». Un admin o un viewer vede solo il proprio cliente e non ha né selettore né voce «Clienti»; un
 utente di un cliente può accedere solo dagli hostname del proprio cliente.
+
+### Link breve e QR (`src/qr/`, `pages/admin/ShareLinksPage.tsx`)
+Ogni link attivo ha un link breve `<base>/l/<codice>` (codice di 8 lettere, mostrato `K7M2-QX9P`; server in
+`docs/server.md`, «Link breve e codice»). Nella pagina «Link pubblici»: alla creazione, sotto il link lungo (mostrato
+una sola volta), compare anche «Link breve (sempre disponibile nell’elenco, con il QR)»; in «Link creati» ogni link
+**attivo** mostra «Link breve», il codice e l'anteprima del QR con i pulsanti «Copia link», «Scarica QR (PNG)» e
+«Scarica QR (SVG)». Un link revocato o scaduto non li mostra.
+
+- **Il QR è generato nel browser**, senza servizi esterni (libreria `qrcode` 1.5.4), con correzione d'errore H (si può
+  perdere circa il 30% del simbolo). Sempre nero su bianco, qualunque sia il tema, perché va stampato e inquadrato.
+- **PNG** di 1024 px (`qrPngDataUrl`, `src/qr/qrCanvas.ts`): QR con il **logo quadrato** del cliente (`logoMark`, da
+  «Grafica per cliente») al centro e il codice scritto sotto; se il logo non si carica ne fa a meno. **SVG** con gli
+  stessi elementi (`qrSvg`, `src/qr/qrImage.ts`, funzioni pure: matrice, impaginazione, pixel).
+- `ShareQr` (`src/qr/ShareQr.tsx`) è riutilizzabile: con `actions={false}` mostra solo il QR (pensato per pause e
+  maxischermo); `logoSrc` sceglie un altro logo o `null` per nessuno.
+- Dipendenze: `qrcode`, `@types/qrcode` e `jsqr` (solo dev, decodifica il QR nei test).
 
 **Richieste in attesa** (`PendingRegistrations` in `apps/web/src/pages/admin/AgentsPage.tsx`): i PC che si sono
 auto-registrati come agenti (`docs/server.md`). Ogni richiesta mostra nome, «Codice di abbinamento» (6 caratteri, in
@@ -232,7 +250,10 @@ usa `COOKIE_SECURE=false`, `CORS_ORIGIN` e `PUBLIC_BASE_URL` = `http://localhost
   `worker_rlimit_nofile 40000`, `worker_connections 16384` e `multi_accept on`, perché ogni WebSocket pubblico occupa due
   connessioni (client e server) e `WS_MAX_TOTAL` di default è 6000. Il servizio `web` di `docker-compose.yml` alza il
   limite di file aperti a 65536 (`ulimits`, `nofile`). Sintassi verificata con nginx 1.28: da ricontrollare al primo
-  build con la 1.29 unprivileged dell'immagine.
+  build con la 1.29 unprivileged dell'immagine. Definisce anche il `log_format main`, che **maschera** nei log di accesso
+  i segreti nel percorso (due `map`, senza distinzione di maiuscole): `$request_uri` diventa `/l/[codice]`,
+  `/live/[token]`, `/api/public/[token]/…` o `/ws/public/[token]/…` (restano leggibili `/api/public/tenant` e
+  `/api/public/assets/`), e il Referer con quei percorsi diventa `[omesso]`.
 - `docker/web.nginx.conf`: serve la SPA (ogni percorso non-file riceve `index.html`, senza cache; `/assets/` con cache
   immutabile), fa da proxy di `/api/` e `/ws/` verso `server:8090`, risponde a `/healthz`, accetta corpi fino a 3 MB
   (l'ingest dell'agente ne ammette 2 sul filo). Sovrascrive `X-Forwarded-For` con l'IP reale del client e passa
@@ -344,6 +365,8 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
 - Portale adattivo: `apps/web/src/lib/layout.ts` (`deviceFor`, `tvModeOf`, `defaultLayouts`, `tvGroups`, `rotationIndex`),
   `lib/useLayout.ts` (`useStickyOffset`), `lib/tvScreen.ts` (`useWakeLock`, `useIdle`), `components/BlockLayout.tsx`,
   `components/ui.tsx` (`CardCollapseContext`), `styles/index.css`
+- Link breve e QR: `apps/web/src/qr/` (`qrImage.ts`, `qrCanvas.ts`, `ShareQr.tsx`), `pages/admin/ShareLinksPage.tsx`;
+  `packages/shared/src/admin.ts` (`SHARE_TOKEN_PATTERN`, `formatShortCode`); server in `docs/server.md`
 - `apps/web/src/components/` (`MatchView`, `LiveMatch`, `Scoreboard`, `MomentumChart`, `TeamComparison`, `PlayerTable`, `CourtMap`, `Rotations`)
 - `apps/web/src/charts/` (trasformazioni pure, `theme.ts` con `buildEchartsTheme` e `richSafe`), `src/styles/tokens.css`
 - `apps/web/vite.config.ts`, `apps/web/scripts/demo.ts`

@@ -1,10 +1,11 @@
-import type { ServerMessage } from '@sir/shared';
+import type { ServerMessage, ShareAccess } from '@sir/shared';
 import { ClientMessageSchema, LiveSocketQuerySchema } from '@sir/shared';
 import { eq, gt, isNull, or } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import type { AppContext, ResolvedShareToken } from './context.js';
 import { matches, shareTokens } from './db/index.js';
 import type { FrameEncoding, Subscriber, Target } from './hub.js';
+import { shortCodeLookupHash } from './lib/shortCode.js';
 import { hashToken } from './lib/tokens.js';
 import { tenantScope } from './tenancy.js';
 
@@ -68,19 +69,38 @@ export function attachLiveSocket(ctx: AppContext, sub: Subscriber, log: FastifyB
   sendCurrent();
 }
 
-/** Valid (not revoked, not expired) share token of the client `tenantId`, or null; valid ones are cached 30 s. */
+/** Stored hash of what a public request carries: sha256 of the long token, keyed hash of the short code. */
+const accessHash = (ctx: AppContext, access: ShareAccess): string =>
+  access.kind === 'token' ? hashToken(access.value) : shortCodeLookupHash(ctx.config.shareCodeSecret, access.value);
+
+const shareCacheKey = (ctx: AppContext, tenantId: string, access: ShareAccess): string =>
+  `${tenantId}:${access.kind === 'token' ? '' : 'c:'}${accessHash(ctx, access)}`;
+
+/**
+ * Share token of the cache (valid when cached, still not expired), or null when the database must be read
+ * (`resolveShareToken`). An expired entry is removed.
+ */
+export function cachedShareToken(ctx: AppContext, tenantId: string, access: ShareAccess): ResolvedShareToken | null {
+  const key = shareCacheKey(ctx, tenantId, access);
+  const cached = ctx.caches.shares.get(key);
+  if (!cached) return null;
+  if (!cached.expiresAt || cached.expiresAt > ctx.now()) return cached;
+  ctx.caches.shares.delete(key);
+  return null;
+}
+
+/**
+ * Valid (not revoked, not expired) share link of the client `tenantId`, by its long token or by its short code
+ * (looked up by sha256 of the token, by the keyed hash of the code), or null; valid ones are cached 30 s.
+ */
 export async function resolveShareToken(
   ctx: AppContext,
   tenantId: string,
-  token: string,
+  access: ShareAccess,
 ): Promise<ResolvedShareToken | null> {
-  const key = `${tenantId}:${hashToken(token)}`;
-  const cached = ctx.caches.shares.get(key);
-  if (cached) {
-    if (!cached.expiresAt || cached.expiresAt > ctx.now()) return cached;
-    ctx.caches.shares.delete(key);
-    return null;
-  }
+  const cached = cachedShareToken(ctx, tenantId, access);
+  if (cached) return cached;
+  const hash = accessHash(ctx, access);
   const [row] = await ctx.db
     .select({
       id: shareTokens.id,
@@ -93,14 +113,14 @@ export async function resolveShareToken(
       tenantScope(
         shareTokens,
         tenantId,
-        eq(shareTokens.tokenHash, hashToken(token)),
+        access.kind === 'token' ? eq(shareTokens.tokenHash, hash) : eq(shareTokens.shortCodeHash, hash),
         eq(shareTokens.revoked, false),
         or(isNull(shareTokens.expiresAt), gt(shareTokens.expiresAt, ctx.now())),
       ),
     )
     .limit(1);
   if (!row) return null;
-  ctx.caches.shares.set(key, row);
+  ctx.caches.shares.set(shareCacheKey(ctx, tenantId, access), row);
   return row;
 }
 

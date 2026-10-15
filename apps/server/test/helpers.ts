@@ -70,6 +70,7 @@ export async function startServer(
       publicInvalid: 10_000,
       admin: 10_000,
       register: 10_000,
+      shortCodeInvalidTotal: 10_000,
       ...rateLimits,
     },
     now: () => now ?? new Date(),

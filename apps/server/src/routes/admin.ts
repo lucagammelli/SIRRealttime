@@ -24,6 +24,7 @@ import { hashPassword } from '../lib/passwords.js';
 import { generateToken, hashToken } from '../lib/tokens.js';
 import { validate } from '../lib/validate.js';
 import { requireRole, sameOriginGuard } from '../security.js';
+import { ensureShortCode, insertShareToken } from '../shareCodes.js';
 import { attachLiveSocket, encodingOf, forgetShareToken } from '../state.js';
 import { adminTenantId, findTenant, publicBaseUrlFor, tenantScope } from '../tenancy.js';
 
@@ -69,13 +70,16 @@ const registrationSummary = (r: RegistrationRow): AgentRegistrationSummary => ({
   status: r.status,
 });
 
-const shareSummary = (s: ShareRow): ShareTokenSummary => ({
+/** `code`: the short code of the link (null for a revoked one); `base`: public base URL of the client. */
+const shareSummary = (s: ShareRow, code: string | null, base: string): ShareTokenSummary => ({
   id: s.id,
   label: s.label,
   matchId: s.matchId,
   expiresAt: s.expiresAt ? iso(s.expiresAt) : null,
   revoked: s.revoked,
   createdAt: iso(s.createdAt),
+  shortCode: code,
+  shortUrl: code ? `${base}/l/${code}` : null,
 });
 
 /**
@@ -205,26 +209,40 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
     }
     const tenant = await findTenant(ctx, { id: tenantId });
     const token = generateToken();
-    const [row] = await ctx.db
-      .insert(shareTokens)
-      .values({ tenantId, tokenHash: hashToken(token), matchId: body.matchId, label: body.label, expiresAt })
-      .returning();
-    if (!row) throw new Error('share token not inserted');
+    const { row, code } = await insertShareToken(ctx.db, ctx.config.shareCodeSecret, {
+      tenantId,
+      tokenHash: hashToken(token),
+      matchId: body.matchId,
+      label: body.label,
+      expiresAt,
+    });
     request.log.info({ shareTokenId: row.id }, 'link pubblico creato');
     void reply.code(201);
     // The link works only on a hostname of the client: its URL uses one of them.
     const base = publicBaseUrlFor(ctx.config.publicBaseUrl, tenant?.hostnames ?? []);
-    return { ...shareSummary(row), token, url: `${base}/live/${token}` };
+    return { ...shareSummary(row, code, base), token, url: `${base}/live/${token}` };
   });
 
+  /** The short code of each link is derived again from its id (assigned first to a link that has none yet). */
   app.get('/api/admin/share-tokens', admin, async (request): Promise<ShareTokenSummary[]> => {
     const tenantId = adminTenantId(request);
+    const tenant = await findTenant(ctx, { id: tenantId });
+    const base = publicBaseUrlFor(ctx.config.publicBaseUrl, tenant?.hostnames ?? []);
     const rows = await ctx.db
       .select()
       .from(shareTokens)
       .where(tenantScope(shareTokens, tenantId))
       .orderBy(desc(shareTokens.createdAt));
-    return rows.map(shareSummary);
+    const summaries: ShareTokenSummary[] = [];
+    for (const row of rows) {
+      if (row.revoked) {
+        summaries.push(shareSummary(row, null, base));
+        continue;
+      }
+      const ensured = await ensureShortCode(ctx.db, ctx.config.shareCodeSecret, row);
+      summaries.push(shareSummary(ensured.row, ensured.code, base));
+    }
+    return summaries;
   });
 
   app.delete('/api/admin/share-tokens/:id', admin, async (request, reply) => {

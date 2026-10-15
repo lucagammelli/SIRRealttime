@@ -11,6 +11,14 @@ const perMinute = (fallback: number) => z.coerce.number().int().positive().max(1
 const sockets = (fallback: number) => z.coerce.number().int().positive().max(1_000_000).default(fallback);
 const origin = z.url().transform((u) => new URL(u).origin);
 
+/** Shortest SHARE_CODE_SECRET accepted. */
+export const SHARE_CODE_SECRET_MIN_LENGTH = 32;
+/**
+ * Development only (public, so not a secret): used when SHARE_CODE_SECRET is not set and NODE_ENV is not
+ * `production`, with a warning in the log. In production the variable is required.
+ */
+export const DEV_SHARE_CODE_SECRET = 'sirrealtime-sviluppo-segreto-dei-codici-brevi-non-usare';
+
 /** Environment variables of the server (documented in `.env.example`). */
 const EnvSchema = z
   .object({
@@ -45,10 +53,17 @@ const EnvSchema = z
     DEFAULT_TENANT_SLUG: TenantSlugSchema.default(DEFAULT_TENANT_SLUG),
     ASSETS_DIR: z.string().min(1).default('data/assets'),
     ASSETS_QUOTA_MB: z.coerce.number().int().positive().max(1000).default(50),
+    RATE_LIMIT_SHORT_CODE_INVALID: perMinute(DEFAULT_RATE_LIMITS.shortCodeInvalidTotal),
+    SHARE_CODE_SECRET: z.string().min(SHARE_CODE_SECRET_MIN_LENGTH).max(1024).optional(),
+    NODE_ENV: z.string().optional(),
   })
   .refine((e) => (e.ADMIN_EMAIL === undefined) === (e.ADMIN_PASSWORD === undefined), {
     message: 'ADMIN_EMAIL e ADMIN_PASSWORD vanno impostate insieme',
     path: ['ADMIN_PASSWORD'],
+  })
+  .refine((e) => e.NODE_ENV !== 'production' || e.SHARE_CODE_SECRET !== undefined, {
+    message: 'SHARE_CODE_SECRET obbligatoria in produzione',
+    path: ['SHARE_CODE_SECRET'],
   });
 
 export interface Config {
@@ -74,6 +89,13 @@ export interface Config {
   assetsDir: string;
   /** Most bytes of images per client. */
   assetsQuotaBytes: number;
+  /**
+   * Key of the HMAC that derives the short code of each public link from its id: changing it changes every short
+   * code (the printed QR codes stop working; the long links do not change).
+   */
+  shareCodeSecret: string;
+  /** True when shareCodeSecret is DEV_SHARE_CODE_SECRET (SHARE_CODE_SECRET not set, not production). */
+  shareCodeSecretIsDefault: boolean;
 }
 
 export class ConfigError extends Error {
@@ -112,10 +134,13 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       publicInvalid: e.RATE_LIMIT_PUBLIC_INVALID,
       admin: e.RATE_LIMIT_ADMIN,
       register: e.RATE_LIMIT_REGISTER,
+      shortCodeInvalidTotal: e.RATE_LIMIT_SHORT_CODE_INVALID,
     },
     socketLimits: { perIp: e.WS_MAX_PER_IP, total: e.WS_MAX_TOTAL },
     defaultTenantSlug: noDefaultTenant ? null : e.DEFAULT_TENANT_SLUG,
     assetsDir: resolve(e.ASSETS_DIR),
     assetsQuotaBytes: e.ASSETS_QUOTA_MB * 1024 * 1024,
+    shareCodeSecret: e.SHARE_CODE_SECRET ?? DEV_SHARE_CODE_SECRET,
+    shareCodeSecretIsDefault: e.SHARE_CODE_SECRET === undefined,
   };
 }

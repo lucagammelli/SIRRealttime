@@ -22,6 +22,7 @@ describe('loadConfig', () => {
         publicInvalid: 120,
         admin: 300,
         register: 10,
+        shortCodeInvalidTotal: 1000,
       },
       socketLimits: { perIp: 2000, total: 6000 },
     });
@@ -53,6 +54,7 @@ describe('loadConfig', () => {
       RATE_LIMIT_REGISTER: '20',
       RATE_LIMIT_PUBLIC_WS: '3000',
       RATE_LIMIT_PUBLIC_INVALID: '30',
+      RATE_LIMIT_SHORT_CODE_INVALID: '500',
     });
     expect(c.rateLimits).toEqual({
       login: 5,
@@ -62,6 +64,7 @@ describe('loadConfig', () => {
       publicInvalid: 30,
       admin: 100,
       register: 20,
+      shortCodeInvalidTotal: 500,
     });
     for (const value of ['0', '-1', '1.5', 'abc', '100001']) {
       expect(() => loadConfig({ DATABASE_URL: 'x', RATE_LIMIT_LOGIN: value })).toThrow(/RATE_LIMIT_LOGIN/);
@@ -69,6 +72,31 @@ describe('loadConfig', () => {
         /RATE_LIMIT_PUBLIC_INVALID/,
       );
     }
+  });
+
+  it('reads SHARE_CODE_SECRET: required in production, at least 32 characters', () => {
+    const secret = 's'.repeat(32);
+    const dev = loadConfig({ DATABASE_URL: 'x' });
+    expect(dev.shareCodeSecretIsDefault).toBe(true);
+    expect(dev.shareCodeSecret.length).toBeGreaterThanOrEqual(32);
+    expect(loadConfig({ DATABASE_URL: 'x', SHARE_CODE_SECRET: secret })).toMatchObject({
+      shareCodeSecret: secret,
+      shareCodeSecretIsDefault: false,
+    });
+    expect(() => loadConfig({ DATABASE_URL: 'x', NODE_ENV: 'production' })).toThrow(/SHARE_CODE_SECRET/);
+    expect(() => loadConfig({ DATABASE_URL: 'x', NODE_ENV: 'production', SHARE_CODE_SECRET: '' })).toThrow(
+      /SHARE_CODE_SECRET/,
+    );
+    for (const env of [{}, { NODE_ENV: 'production' }])
+      expect(() => loadConfig({ DATABASE_URL: 'x', ...env, SHARE_CODE_SECRET: 's'.repeat(31) })).toThrow(
+        /SHARE_CODE_SECRET/,
+      );
+    const prod = loadConfig({ DATABASE_URL: 'x', NODE_ENV: 'production', SHARE_CODE_SECRET: secret });
+    expect(prod.shareCodeSecretIsDefault).toBe(false);
+    // The error names the variable, never its value.
+    expect(() => loadConfig({ DATABASE_URL: 'x', SHARE_CODE_SECRET: 'corto-segreto' })).toThrow(
+      /^(?!.*corto-segreto)/s,
+    );
   });
 
   it('reads the WebSocket limits and rejects invalid values', () => {

@@ -4,10 +4,19 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { AppContext } from '../context.js';
 import { perMinute, SERVER_FULL_RETRY_AFTER_S } from '../context.js';
 import { notFound, serverFull, tooManyRequests } from '../lib/errors.js';
-import { attachLiveSocket, currentMessage, encodingOf, resolveShareToken, targetOf } from '../state.js';
+import {
+  attachLiveSocket,
+  cachedShareToken,
+  currentMessage,
+  encodingOf,
+  resolveShareToken,
+  targetOf,
+} from '../state.js';
 import { hostTenant } from '../tenancy.js';
 
 const ipOf = (request: FastifyRequest): string => request.ip || 'sconosciuto';
+/** The one key of `ctx.shortCodeFailures` (a count of all the IPs together). */
+const ALL_IPS = '*';
 
 /**
  * Read-only public access with a share token of the client of the hostname; any invalid, revoked or expired token,
@@ -16,6 +25,12 @@ const ipOf = (request: FastifyRequest): string => request.ip || 'sconosciuto';
  * successful requests have only the generous per-route limits, made for many spectators behind one IP.
  * Known limit (accepted): many phones behind one NAT opening a revoked link (about 2 failures each) can block that
  * IP for up to a minute, valid links included.
+ * The path carries the long token (`/live/<token>`) or the short code (`/l/<code>`, 40 bit). Unknown short codes are
+ * also counted for all the IPs together (`rateLimits.shortCodeInvalidTotal` per minute): past that, until the minute
+ * ends, an IP with failures of its own in the current minute gets 429 (not counted again) for every short code that
+ * is not in the cache of valid links, without reading the database. IPs without failures are never touched by the
+ * global block: a flood of wrong codes cannot lock out the spectators, and a guessing IP gets about one try per
+ * minute while the block lasts.
  */
 export function publicRoutes(app: FastifyInstance, ctx: AppContext): void {
   const resolve = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
@@ -26,10 +41,20 @@ export function publicRoutes(app: FastifyInstance, ctx: AppContext): void {
       throw tooManyRequests();
     }
     const parsed = ShareTokenParamSchema.safeParse(request.params);
-    const tenant = parsed.success ? await hostTenant(ctx, request) : null;
-    const share = parsed.success && tenant ? await resolveShareToken(ctx, tenant.id, parsed.data.token) : null;
+    const access = parsed.success ? parsed.data.token : null;
+    const tenant = access ? await hostTenant(ctx, request) : null;
+    let share = access && tenant ? cachedShareToken(ctx, tenant.id, access) : null;
+    if (!share && access?.kind === 'code') {
+      const busy = ctx.shortCodeFailures.blockedFor(ALL_IPS);
+      if (busy > 0 && ctx.publicFailures.hasRecent(ip)) {
+        void reply.header('retry-after', String(Math.ceil(busy / 1000)));
+        throw tooManyRequests();
+      }
+    }
+    if (!share && access && tenant) share = await resolveShareToken(ctx, tenant.id, access);
     if (!share) {
       ctx.publicFailures.fail(ip);
+      if (access?.kind === 'code') ctx.shortCodeFailures.fail(ALL_IPS);
       throw notFound();
     }
     request.shareToken = share;

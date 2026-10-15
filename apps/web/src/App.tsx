@@ -8,6 +8,8 @@ export function App() {
   return (
     <Routes>
       <Route path="/live/:token" element={<LivePage />} />
+      {/* Short link (QR codes): the same page, with the short code in place of the long token. */}
+      <Route path="/l/:token" element={<LivePage />} />
       <Route path="/admin/*" element={<AdminApp />} />
       <Route
         path="*"

@@ -6,9 +6,55 @@ import { PairingCodeSchema } from './registration.js';
 import { hasNoControlChars, plainText, safeString } from './strings.js';
 import { TenantRefSchema } from './tenant.js';
 
-/** Public share token: random ≥ 128 bit, base64url. */
-export const SHARE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{22,128}$/;
-export const ShareTokenParamSchema = z.object({ token: z.string().regex(SHARE_TOKEN_PATTERN) });
+/** Long public share token: random ≥ 128 bit, base64url (`/live/<token>`). */
+export const LONG_SHARE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{22,128}$/;
+
+/**
+ * Short code of a public link (`/l/<code>`): SHORT_CODE_LENGTH characters of PAIRING_CODE_ALPHABET (no 0/O, 1/I),
+ * 40 bit. Canonical form: upper case, no dash; shown as `K7M2-QX9P`.
+ */
+export const SHORT_CODE_LENGTH = 8;
+export const SHORT_CODE_PATTERN = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/;
+/** Accepted input: also lower case and with a dash in the middle (`k7m2-qx9p`). */
+export const SHORT_CODE_INPUT_PATTERN = /^[A-HJ-NP-Za-hj-np-z2-9]{4}-?[A-HJ-NP-Za-hj-np-z2-9]{4}$/;
+
+/** Pure: canonical short code of an input (upper case, dash removed), or null when it is not a short code. */
+export function normalizeShortCode(input: string): string | null {
+  return SHORT_CODE_INPUT_PATTERN.test(input) ? input.replace('-', '').toUpperCase() : null;
+}
+
+/** Pure: a canonical short code as shown to people (`K7M2-QX9P`). */
+export function formatShortCode(code: string): string {
+  const half = SHORT_CODE_LENGTH / 2;
+  return `${code.slice(0, half)}-${code.slice(half)}`;
+}
+
+/** Short code as typed or scanned, normalized to the canonical form. */
+export const ShortCodeSchema = z
+  .string()
+  .regex(SHORT_CODE_INPUT_PATTERN)
+  .transform((v) => v.replace('-', '').toUpperCase());
+
+/**
+ * Path parameter of the public pages and routes: a long share token or a short code (the two formats never overlap:
+ * a long token has at least 22 characters, a short code at most 9).
+ */
+export const SHARE_TOKEN_PATTERN = new RegExp(
+  `(?:${LONG_SHARE_TOKEN_PATTERN.source})|(?:${SHORT_CODE_INPUT_PATTERN.source})`,
+);
+
+/** What a public request carries: the long token, or the canonical short code. */
+export type ShareAccess = { kind: 'token'; value: string } | { kind: 'code'; value: string };
+
+export const ShareTokenParamSchema = z.object({
+  token: z.union([
+    z
+      .string()
+      .regex(LONG_SHARE_TOKEN_PATTERN)
+      .transform((value): ShareAccess => ({ kind: 'token', value })),
+    ShortCodeSchema.transform((value): ShareAccess => ({ kind: 'code', value })),
+  ]),
+});
 
 export const IdParamSchema = z.object({ id: z.uuid() });
 
@@ -109,6 +155,10 @@ export const ShareTokenSummarySchema = z.object({
   expiresAt: z.iso.datetime().nullable(),
   revoked: z.boolean(),
   createdAt: z.iso.datetime(),
+  /** Canonical short code (derived again from the id at every list); null for a revoked link. */
+  shortCode: z.string().regex(SHORT_CODE_PATTERN).nullable(),
+  /** `<public base URL of the client>/l/<shortCode>`; null for a revoked link. */
+  shortUrl: z.url().nullable(),
 });
 export type ShareTokenSummary = z.infer<typeof ShareTokenSummarySchema>;
 

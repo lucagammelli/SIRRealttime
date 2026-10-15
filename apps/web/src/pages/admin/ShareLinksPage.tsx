@@ -1,5 +1,10 @@
 import type { CreateShareTokenResponse, MatchSummary, ShareTokenSummary } from '@sir/shared';
-import { CreateShareTokenRequestSchema, CreateShareTokenResponseSchema, ShareTokenSummarySchema } from '@sir/shared';
+import {
+  CreateShareTokenRequestSchema,
+  CreateShareTokenResponseSchema,
+  formatShortCode,
+  ShareTokenSummarySchema,
+} from '@sir/shared';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -8,6 +13,7 @@ import { Button, Card, Empty, ErrorBox, SecretBox, Spinner } from '../../compone
 import { apiCommand, apiRequest } from '../../lib/api.ts';
 import { formatDateTime } from '../../lib/format.ts';
 import { useAsync } from '../../lib/useAsync.ts';
+import { ShareQr } from '../../qr/ShareQr.tsx';
 import { useApiError } from './auth.tsx';
 import { ConfirmButton, Field, inputClass } from './forms.tsx';
 import { MatchListSchema } from './MatchesPage.tsx';
@@ -21,7 +27,10 @@ function linkState(s: ShareTokenSummary, now: number): { text: string; className
   return { text: 'Attivo', className: 'text-live' };
 }
 
-/** Public links: create (live or fixed match, optional expiry), URL shown once with Copy, revoke. */
+/**
+ * Public links: create (live or fixed match, optional expiry), long URL shown once with Copy, short link and QR code
+ * of every active link (copy, PNG and SVG download), revoke.
+ */
 export function ShareLinksPage() {
   const errorMessage = useApiError();
   const [search] = useSearchParams();
@@ -165,6 +174,12 @@ export function ShareLinksPage() {
           <div className="mt-4">
             <SecretBox title={`Link «${created.label}»: copialo ora, non sarà più mostrato.`} value={created.url}>
               <p className="text-xs text-muted">Aggiungi «?tv=1» in fondo per la modalità maxischermo.</p>
+              {created.shortUrl && (
+                <p className="text-xs text-muted">
+                  Link breve (sempre disponibile nell’elenco, con il QR):{' '}
+                  <span className="font-mono text-text select-all">{created.shortUrl}</span>
+                </p>
+              )}
             </SecretBox>
           </div>
         )}
@@ -181,25 +196,36 @@ export function ShareLinksPage() {
               const st = linkState(s, now);
               const target = s.matchId ? matchById.get(s.matchId) : undefined;
               return (
-                <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                  <div className="min-w-0">
-                    <p className="font-medium text-text">
-                      {s.label}{' '}
-                      <span className={`ml-1 text-xs font-semibold uppercase ${st.className}`}>{st.text}</span>
-                    </p>
-                    <p className="text-xs text-muted">
-                      {s.matchId ? `Partita: ${target ? matchTitle(target) : s.matchId}` : 'Segue la partita live'} ·
-                      scadenza {s.expiresAt ? formatDateTime(s.expiresAt) : 'nessuna'} · creato{' '}
-                      {formatDateTime(s.createdAt)}
-                    </p>
+                <li key={s.id} className="space-y-3 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-text">
+                        {s.label}{' '}
+                        <span className={`ml-1 text-xs font-semibold uppercase ${st.className}`}>{st.text}</span>
+                      </p>
+                      <p className="text-xs text-muted">
+                        {s.matchId ? `Partita: ${target ? matchTitle(target) : s.matchId}` : 'Segue la partita live'} ·
+                        scadenza {s.expiresAt ? formatDateTime(s.expiresAt) : 'nessuna'} · creato{' '}
+                        {formatDateTime(s.createdAt)}
+                      </p>
+                    </div>
+                    {!s.revoked && (
+                      <ConfirmButton
+                        label="Revoca"
+                        confirmLabel="Conferma revoca"
+                        busy={revoking === s.id}
+                        onConfirm={() => void revoke(s.id)}
+                      />
+                    )}
                   </div>
-                  {!s.revoked && (
-                    <ConfirmButton
-                      label="Revoca"
-                      confirmLabel="Conferma revoca"
-                      busy={revoking === s.id}
-                      onConfirm={() => void revoke(s.id)}
-                    />
+                  {s.shortUrl && s.shortCode && st.text === 'Attivo' && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted">
+                        Link breve <span className="font-mono text-text select-all">{s.shortUrl}</span> · codice{' '}
+                        <span className="font-mono font-semibold text-text">{formatShortCode(s.shortCode)}</span>
+                      </p>
+                      <ShareQr url={s.shortUrl} code={s.shortCode} />
+                    </div>
                   )}
                 </li>
               );

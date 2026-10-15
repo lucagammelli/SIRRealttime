@@ -151,6 +151,30 @@ rifiutata dallo schema.
   4404). Nei log il token è mascherato (`/api/public/[token]`). I link validi sono in una cache di 30 s
   (`ctx.caches.shares`, chiave `<cliente>:<hash del token>`), svuotata alla revoca (`forgetShareToken`), così le migliaia
   di aperture non leggono il database.
+- **Link breve e codice** (`docs/portale.md`, «Link breve e QR»): ogni link attivo ha anche un codice di 8 lettere
+  (`SHORT_CODE_LENGTH`, alfabeto `PAIRING_CODE_ALPHABET`, mostrato `K7M2-QX9P`) e l'URL `<base>/l/<codice>`, con base
+  del cliente (`publicBaseUrlFor`, primo hostname del cliente). `ShareTokenSummary` ha `shortCode` e `shortUrl` (`null`
+  se il link è revocato); `CreateShareTokenResponse` li include. Il codice **non è salvato**: sono i primi 40 bit di
+  HMAC-SHA256(`SHARE_CODE_SECRET`, id del link, più `:<salt>` se il salt è > 0) (`deriveShortCode`,
+  `src/lib/shortCode.ts`), quindi si ricalcola ogni volta che serve (anche per riscaricare il QR). Nel database c'è solo
+  `short_code_hash` (unica) = HMAC con chiave derivata dal segreto su `lookup:<codice>` (`shortCodeLookupHash`), più
+  `short_code_salt`: una copia del database da sola non permette di provare offline i 2^40 codici.
+  - Creazione (`insertShareToken`, `src/shareCodes.ts`): l'id è scelto prima dell'insert; su collisione di codice si
+    passa al salt successivo (massimo 16, `MAX_SHORT_CODE_SALT`, poi `ShortCodeError`). `ensureShortCode` assegna il
+    codice ai link senza (o con hash non più coerente) al primo elenco; `syncShortCodes` lo fa per tutti i link non
+    revocati all'avvio, prima di `listen`, e ricalcola codici e hash se `SHARE_CODE_SECRET` è cambiata.
+  - Lettura pubblica: `/api/public/<token o codice>/state` e `/ws/public/<token o codice>`. `ShareTokenParamSchema`
+    distingue `{ kind: 'token' | 'code', value }` (token ≥ 22 caratteri, codice ≤ 9, anche minuscolo e con il trattino).
+    Cache `ctx.caches.shares` separata per codici; la revoca invalida la cache e chiude i WebSocket (4404).
+  - Limiti: oltre agli errori per IP (`RATE_LIMIT_PUBLIC_INVALID`) i codici sbagliati contano anche **tutti insieme**
+    (`RATE_LIMIT_SHORT_CODE_INVALID`, default 1000 al minuto). Durante il blocco globale ricevono 429 (con `Retry-After`,
+    senza contare un nuovo errore) solo gli IP con errori nel minuto in corso (`FailureLimiter.hasRecent`) per i codici
+    non in cache; gli IP puliti leggono normalmente, quindi una pioggia di codici sbagliati non blocca gli spettatori.
+    Stima: con 120 errori al minuto per IP servono circa 8.700 anni per trovare un link (diviso per il numero di link
+    attivi). Limite noto: un IP condiviso (NAT) con un errore recente non apre codici brevi non in cache fino alla fine
+    del minuto durante il blocco globale (i link lunghi funzionano).
+  - Cambiando `SHARE_CODE_SECRET` cambiano **tutti** i codici: i QR stampati smettono di funzionare, i link lunghi
+    restano.
 - **Sessioni admin e viewer**: login con email e password (argon2id) su `/api/auth/login`; cookie `sir_session`
   (`httpOnly`, `SameSite=Lax`, `Secure` secondo `COOKIE_SECURE`), durata `SESSION_TTL_HOURS`. Ruoli: `viewer` (vede le
   partite), `admin` (tutto il resto del proprio cliente) e `superadmin` (anche i clienti; vedi «Clienti»). Le scritture
@@ -176,7 +200,7 @@ rifiutata dallo schema.
 | POST | `/api/admin/active-tenant` | sessione | superadmin |
 | GET | `/api/public/tenant` | rate limit pubblico (grafica del cliente dell'hostname) | - |
 | GET | `/api/public/assets/:id` | rate limit pubblico (solo immagini del cliente dell'hostname) | - |
-| GET | `/api/public/:token/state` | link pubblico (404 se non valido) | - |
+| GET | `/api/public/:token/state` | link pubblico, `:token` è il token lungo o il codice breve (404 se non valido) | - |
 | GET | `/api/admin/branding` | sessione | admin |
 | PUT | `/api/admin/branding` | sessione | admin |
 | GET | `/api/admin/assets` | sessione | admin |
@@ -195,11 +219,11 @@ rifiutata dallo schema.
 | DELETE | `/api/admin/share-tokens/:id` | sessione | admin |
 | POST | `/api/admin/users` | sessione | admin |
 | GET | `/api/admin/users` | sessione | admin |
-| GET (WebSocket) | `/ws/public/:token` | link pubblico | - |
+| GET (WebSocket) | `/ws/public/:token` | link pubblico (token lungo o codice breve) | - |
 | GET (WebSocket) | `/ws/admin` | sessione + controllo `Origin` | viewer |
 
 La creazione di agenti e link restituisce 201 con il token in chiaro **una sola volta** (`CreateAgentResponse`,
-`CreateShareTokenResponse` con `url`). `DELETE` revoca (204), non cancella. `expiresAt` deve essere nel futuro e
+`CreateShareTokenResponse` con `url`, `shortCode` e `shortUrl`). `DELETE` revoca (204), non cancella. `expiresAt` deve essere nel futuro e
 `matchId`, se dato, deve esistere (altrimenti 400). La lista partite ha al massimo 200 elementi, ordinati per
 aggiornamento. Una email già presente dà 409; la password ha almeno 12 caratteri.
 
@@ -257,7 +281,8 @@ freno**. Per non rendere facile indovinare i token si contano per IP solo i **to
 scaduti, di un altro cliente, hostname senza cliente): oltre `RATE_LIMIT_PUBLIC_INVALID` al minuto (`FailureLimiter`,
 `src/lib/failureLimiter.ts`) quell'IP riceve 429 con `Retry-After` su ogni rotta pubblica fino alla fine del minuto.
 Limite noto, accettato: molti telefoni dietro lo stesso NAT che aprono un link revocato (circa 2 fallimenti ciascuno)
-possono bloccare quell'IP, link validi compresi, fino a un minuto.
+possono bloccare quell'IP, link validi compresi, fino a un minuto. Per i codici brevi c'è in più il limite globale
+`RATE_LIMIT_SHORT_CODE_INVALID` (vedi «Link breve e codice» in «Accessi»).
 
 **Server al completo**: il numero di WebSocket pubblici aperti è limitato per IP (`WS_MAX_PER_IP`) e in totale
 (`WS_MAX_TOTAL`). Oltre, sia l'apertura del WebSocket sia `GET /api/public/:token/state` rispondono 503 con
@@ -304,6 +329,8 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `RATE_LIMIT_PUBLIC` | `6000` (era 120) | richieste al minuto per IP su `GET /api/public/:token/state` (intero da 1 a 100000) |
 | `RATE_LIMIT_PUBLIC_WS` | `6000` | aperture al minuto per IP di `/ws/public/:token`, riconnessioni comprese (intero da 1 a 100000) |
 | `RATE_LIMIT_PUBLIC_INVALID` | `120` | richieste pubbliche con token sbagliato al minuto per IP; oltre, 429 fino alla fine del minuto (intero da 1 a 100000) |
+| `RATE_LIMIT_SHORT_CODE_INVALID` | `1000` | codici brevi sbagliati al minuto da tutti gli IP insieme; oltre, 429 fino alla fine del minuto agli IP con errori recenti (intero da 1 a 100000) |
+| `SHARE_CODE_SECRET` | obbligatoria con `NODE_ENV=production` (container); in sviluppo un segreto fisso con avviso nel log | segreto dei codici brevi, almeno 32 caratteri; cambiarlo cambia tutti i codici (QR stampati inutilizzabili, link lunghi no) |
 | `WS_MAX_PER_IP` | `2000` | WebSocket pubblici aperti insieme da un IP; oltre, 503 (intero da 1 a 1000000) |
 | `WS_MAX_TOTAL` | `6000` | WebSocket pubblici aperti insieme in totale; oltre, 503 (intero da 1 a 1000000) |
 | `RATE_LIMIT_ADMIN` | `300` | richieste al minuto per IP sulle rotte admin (intero da 1 a 100000) |
@@ -312,7 +339,9 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `ASSETS_DIR` | `data/assets` (container: `/data/assets`) | cartella delle immagini dei clienti, una sottocartella per cliente; nel compose è il volume `assets` |
 | `ASSETS_QUOTA_MB` | `50` | spazio massimo delle immagini di ogni cliente, in MB (intero da 1 a 1000); oltre, 409 |
 
-Le sette `RATE_LIMIT_*` e le due `WS_MAX_*` sono anche in `.env.example` e `docker-compose.yml`.
+Le otto `RATE_LIMIT_*`, le due `WS_MAX_*` e `SHARE_CODE_SECRET` sono anche in `.env.example` e `docker-compose.yml`
+(nel compose `SHARE_CODE_SECRET` è `${SHARE_CODE_SECRET:?…}`: senza la variabile nel `.env` ogni comando `docker compose`
+fallisce).
 
 **Attenzione**: un `.env` già esistente con `RATE_LIMIT_PUBLIC=120` (copiato dal vecchio `.env.example`) mantiene il
 vecchio limite: oltre 120 richieste al minuto dallo stesso IP gli spettatori sono respinti (nella prova di carico, 120
@@ -334,7 +363,7 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `agents` | `tenant_id`, `name`, `token_hash`, `revoked`, `last_seen_at` |
 | `matches` | `tenant_id`, `match_key` (unica per `tenant_id` + `match_key`), `header`, `line_count`, `content_hash`, `last_seq`, `agent_id`, `live` (una per cliente), `state` (jsonb), `version` |
 | `scout_lines` | `match_id`, `idx`, `text` (chiave primaria `match_id` + `idx`) |
-| `share_tokens` | `tenant_id`, `token_hash`, `match_id` (null: segue la live), `label`, `expires_at`, `revoked` |
+| `share_tokens` | `tenant_id`, `token_hash`, `match_id` (null: segue la live), `label`, `expires_at`, `revoked`, `short_code_hash` (unica, null finché non assegnato), `short_code_salt` (migrazione `0004_short_codes.sql`) |
 | `assets` | `tenant_id`, `kind` (enum `asset_kind`: `logo`/`sponsor`), `sha256`, `mime`, `width`, `height`, `bytes`, `created_at`; indice univoco `assets_tenant_sha256_kind_idx` su cliente + `sha256` + `kind` (migrazione `0003_assets.sql`) |
 | `agent_registrations` | `tenant_id`, `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at` (migrazione `0001_agent_registrations.sql`) |
 
@@ -431,7 +460,7 @@ Il token agente va nell'intestazione `Authorization: Bearer <token>` di `POST /a
 | `pnpm --filter @sir/server test` | `vitest run` con PGlite in memoria, non serve Postgres |
 | `pnpm --filter @sir/server db:generate` | `drizzle-kit generate` dopo una modifica a `schema.ts` |
 
-I test (`apps/server/test/`: `auth`, `config`, `hub`, `ingest`, `limits`, `migration`, `public`, `registration`, `tenants`) usano PGlite. Per la configurazione
+I test (`apps/server/test/`: `auth`, `config`, `hub`, `ingest`, `limits`, `migration`, `public`, `registration`, `shortCodes`, `tenants`) usano PGlite. Per la configurazione
 di vitest vedi `docs/infrastruttura.md`.
 
 ### Docker Compose
@@ -450,9 +479,23 @@ del portale** come `serverUrl` (es. `https://<host>/`, vedi `docs/agente.md`). L
 prove locali e scansioni: non va mai pubblicata su `0.0.0.0`, perché con `TRUST_PROXY=true` chi arriva direttamente al server
 potrebbe falsificare `X-Forwarded-For` ed eludere il rate limit.
 
+Generare `SHARE_CODE_SECRET` (una volta; poi copiare il valore stampato in `.env`):
+
+```bash
+# --- variabili ---
+BYTE_CASUALI="36"   # byte casuali: 36 byte in base64 sono 48 caratteri, oltre il minimo di 32
+
+# --- comando ---
+openssl rand -base64 "$BYTE_CASUALI"
+# alternativa senza openssl:
+# node -e "console.log(require('node:crypto').randomBytes(Number(process.argv[1])).toString('base64'))" "$BYTE_CASUALI"
+```
+
 ```bash
 # --- variabili (nel file .env alla radice, copiato da .env.example) ---
 # POSTGRES_PASSWORD  obbligatoria: solo lettere, cifre, - e _ (entra nell'URL)
+# SHARE_CODE_SECRET  obbligatoria: almeno 32 caratteri, es. da `openssl rand -base64 48`. Senza questa variabile nel .env
+#                    falliscono TUTTI i comandi docker compose (anche down, logs, config). Se cambia, cambiano tutti i codici brevi
 # ADMIN_EMAIL        superadmin (creato o promosso all'avvio)
 # ADMIN_PASSWORD     almeno 12 caratteri
 # WEB_BIND, WEB_PORT indirizzo e porta del portale (default 127.0.0.1 e 8080); CORS_ORIGIN e PUBLIC_BASE_URL le seguono
@@ -530,6 +573,10 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
 - Grafica: `src/routes/branding.ts` (`brandingPublicRoutes`, `brandingAdminRoutes`), `src/lib/images.ts` (`inspectImage`,
   `checkSvg`, `IMAGE_MAX_SIDE`), `src/assetStore.ts` (`writeAssetFile`, `readAssetFile`, `removeAssetFile`),
   `packages/shared/src/assets.ts`, `colors.ts`, `tenant.ts`; pagina «Grafica» in `docs/portale.md`
+- Link brevi: `src/lib/shortCode.ts` (`deriveShortCode`, `shortCodeLookupHash`), `src/shareCodes.ts` (`insertShareToken`,
+  `ensureShortCode`, `syncShortCodes`, `currentShortCode`), `src/lib/failureLimiter.ts` (`hasRecent`),
+  `packages/shared/src/admin.ts` (`ShortCodeSchema`, `normalizeShortCode`, `formatShortCode`, `ShareTokenParamSchema`),
+  `apps/server/test/shortCodes.test.ts`; lato portale in `docs/portale.md`, «Link breve e QR»
 - Rotte: `src/routes/health.ts`, `ingest.ts`, `auth.ts`, `admin.ts`, `public.ts`, `registration.ts`, `tenants.ts`, `branding.ts`
 - Database: `src/db/schema.ts`, `src/db/index.ts` (`createDatabase`), `src/db/pglite.ts`, `apps/server/drizzle/`
 - Contratti: `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts` (`docs/architettura.md`)

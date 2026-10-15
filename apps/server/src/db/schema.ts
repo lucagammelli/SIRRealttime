@@ -197,6 +197,29 @@ export const shareTokens = pgTable(
   (t) => [index('share_tokens_tenant_idx').on(t.tenantId)],
 );
 
+export const assetKind = pgEnum('asset_kind', ['logo', 'sponsor']);
+
+/**
+ * Images uploaded by a client. The file is `<ASSETS_DIR>/<tenant_id>/<sha256>` (no name chosen by the user); the
+ * same file uploaded twice by a client is one row. `mime`, `width` and `height` come from the bytes.
+ */
+export const assets = pgTable(
+  'assets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: tenantId(),
+    kind: assetKind('kind').notNull(),
+    /** sha256 hex of the file. */
+    sha256: text('sha256').notNull(),
+    mime: text('mime').notNull(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    bytes: integer('bytes').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('assets_tenant_sha256_kind_idx').on(t.tenantId, t.sha256, t.kind)],
+);
+
 export const schema = {
   tenants,
   userRole,
@@ -208,4 +231,6 @@ export const schema = {
   matches,
   scoutLines,
   shareTokens,
+  assetKind,
+  assets,
 };

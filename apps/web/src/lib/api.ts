@@ -22,6 +22,9 @@ const STATUS_MESSAGES: Record<number, string> = {
   429: 'Troppe richieste: riprova tra un minuto.',
 };
 
+/** Statuses whose message from the server is shown as it is (it explains what to change). */
+const EXPLAINED_STATUSES = new Set([409, 413, 422]);
+
 /** Message shown for any error thrown by `apiRequest` (or by anything else). */
 export function errorText(err: unknown): string {
   if (err instanceof ApiError) return err.message;
@@ -47,7 +50,7 @@ async function clientChoiceMessage(res: Response): Promise<string | null> {
 export const NO_TENANT_MESSAGE = 'Seleziona un cliente';
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   signal?: AbortSignal;
   fetch?: typeof fetch;
@@ -57,7 +60,7 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
   const method = options.method ?? 'GET';
   const headers: Record<string, string> = { accept: 'application/json' };
   let body: string | undefined;
-  if (method === 'POST' || method === 'PATCH') {
+  if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
     headers['content-type'] = 'application/json';
     body = JSON.stringify(options.body ?? {});
   }
@@ -76,9 +79,13 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
     throw new ApiError(0, 'Server non raggiungibile: controlla la connessione e riprova.');
   }
   if (!res.ok) {
-    // 409 explains the conflict; 400 «Seleziona un cliente» (superadmin without client) is shown as it is.
-    const fromServer =
-      res.status === 409 ? await serverMessage(res) : res.status === 400 ? await clientChoiceMessage(res) : null;
+    // 409 explains the conflict, 413 and 422 why an image was refused; 400 «Seleziona un cliente» (superadmin
+    // without client) is shown as it is.
+    const fromServer = EXPLAINED_STATUSES.has(res.status)
+      ? await serverMessage(res)
+      : res.status === 400
+        ? await clientChoiceMessage(res)
+        : null;
     const base =
       STATUS_MESSAGES[res.status] ??
       (res.status >= 500 ? 'Errore del server: riprova più tardi.' : 'Richiesta non riuscita.');

@@ -39,8 +39,44 @@ appartiene a un cliente e nessuna query legge o cambia righe di un altro (filtro
   il primo hostname del cliente con schema e porta di `PUBLIC_BASE_URL` (`publicBaseUrlFor`).
 - **Produzione**: in nginx elencare i `server_name` espliciti dei clienti e chiudere il resto con un `default_server`
   (oggi `docker/web.nginx.conf` ha `server_name _`); i certificati https per ogni hostname sono a cura del deploy.
-- **Documenti di configurazione** (`branding`, `layout`, `intermissions`, `overlays`, jsonb): schemi `{ version: 1 }`
-  strict ancora vuoti, riempiti dai lavori successivi (`docs/piano.md`).
+- **Documenti di configurazione** (`branding`, `layout`, `intermissions`, `overlays`, jsonb): `branding` ha i campi della
+  grafica (vedi «Grafica per cliente»); gli altri tre sono schemi `{ version: 1 }` strict ancora vuoti, riempiti dai
+  lavori successivi (`docs/piano.md`).
+
+### Grafica per cliente (`apps/server/src/routes/branding.ts`)
+Ogni cliente ha nome visualizzato, cinque colori e tre immagini (`TenantBrandingSchema`, `tenants.branding`). Il portale
+li legge dall'hostname e li applica (`docs/portale.md`, «Grafica per cliente»). Ogni campo è facoltativo: `{}` è valido e
+vale i predefiniti del portale (`resolveBranding`; un documento non valido vale i predefiniti). `TENANT_CONFIG_VERSION`
+resta 1.
+
+- **Rotte pubbliche** (senza token, stesso rate limit `RATE_LIMIT_PUBLIC`): `GET /api/public/tenant` dà nome, grafica e
+  percorsi delle immagini del cliente dell'hostname (`Cache-Control: public, max-age=30`; 404 se nessun cliente); `GET
+  /api/public/assets/:id` dà il file di un'immagine **solo** se è del cliente dell'hostname (altrimenti 404). Il tipo
+  viene dal database (riconosciuto dai byte al caricamento), con `X-Content-Type-Options: nosniff`, `Content-Disposition:
+  inline` e `Cache-Control: public, max-age=31536000, immutable`: l'`id` cambia a ogni file nuovo (una riga nuova con il
+  suo sha256), quindi la cache non invecchia. Gli SVG escono con `image/svg+xml; charset=utf-8` e CSP `default-src 'none';
+  style-src 'unsafe-inline'; sandbox`, perché aperti direttamente non eseguano né carichino nulla.
+- **Rotte admin** (ruolo `admin`; il superadmin lavora sul cliente attivo, `adminTenantId`): `GET`/`PUT
+  /api/admin/branding` (il corpo del `PUT` è il branding; ogni immagine deve essere di quel cliente e del tipo del suo
+  posto, `BRANDING_IMAGE_SLOTS`: `logoMain` e `logoMark` sono `logo`, `sponsorLogo` è `sponsor`, altrimenti 400); `GET
+  /api/admin/assets` (elenco, `usedBytes`, `quotaBytes`), `POST /api/admin/assets` (caricamento), `DELETE
+  /api/admin/assets/:id` (204). Il salvataggio svuota la cache degli hostname (`forgetTenants`), così la pagina pubblica
+  usa subito la nuova grafica; `PUT` è nei metodi CORS.
+- **Caricamento**: JSON `{ kind, data }` con `data` in base64 (`UploadAssetRequestSchema`; il guard delle rotte admin
+  accetta solo JSON). Errori: 413 oltre 2 MB (`ASSET_MAX_BYTES`), 422 immagine non ammessa, 409 quota esaurita
+  («Spazio per le immagini esaurito (… MB): elimina quelle che non usi») o, in eliminazione, immagine in uso («Immagine
+  in uso nella grafica: toglila prima di eliminarla»). Lo stesso file caricato di nuovo (stesso cliente, sha256 e `kind`)
+  restituisce l'immagine già salvata con 200 (201 se nuova).
+- **Controllo dell'immagine** (`src/lib/images.ts`, `inspectImage`): tipo e dimensioni dai byte, mai dal nome o dal tipo
+  dichiarato. PNG, JPEG e WebP (rifiutati se hanno dati dopo la fine del file), massimo 4096 px per lato
+  (`IMAGE_MAX_SIDE`). SVG (`checkSvg`) solo UTF-8 e solo con una lista di elementi ammessi; rifiutati script,
+  `foreignObject`, attributi `on*`, `href` diversi da `#…`, `javascript:`, entità, DOCTYPE, CDATA, `url()` esterni,
+  `image-set(`, `-webkit-image-set(` e `src(`. Un SVG non ammesso è rifiutato, non convertito in PNG.
+- **File** (`src/assetStore.ts`): `<ASSETS_DIR>/<cliente>/<sha256>`, scrittura atomica. Quota (`ASSETS_QUOTA_MB` per
+  cliente) e operazioni su immagini e branding sono serializzate con `pg_advisory_xact_lock` per cliente.
+- **Limiti noti**: l'eliminazione di un'immagine cancella il file prima del commit, quindi in caso di errore rimane una
+  riga orfana (rara): il file risponde 404 e il server scrive un warning. Nel superadmin la testata dell'area riservata
+  mostra la grafica del cliente dell'hostname, non quella del cliente attivo.
 
 ### Ingest (`POST /api/ingest`, protocollo 1)
 L'agente invia una richiesta `IngestRequest` (`packages/shared/src/ingest.ts`):
@@ -81,7 +117,7 @@ richiesta; la fonte di verità resta il database.
 Corpo della richiesta: JSON, con `Content-Encoding: gzip` facoltativo (altri valori: 415). Limiti: 2 MB sul filo
 (`INGEST_MAX_WIRE_BYTES`), 8 MB dopo la decompressione (`INGEST_MAX_DECODED_BYTES`, contro le zip bomb), massimo 5000
 righe per richiesta (`INGEST_MAX_LINES`), 2000 caratteri per riga, header fino a 512 KB. Oltre il limite: 413.
-Tutte le altre rotte accettano al massimo 64 KB. Una riga che apre una sezione DVW (`[3NOME]`) o contiene a capo è
+Tutte le altre rotte accettano al massimo 64 KB, tranne `POST /api/admin/assets` (testo base64 di 2 MB più il JSON). Una riga che apre una sezione DVW (`[3NOME]`) o contiene a capo è
 rifiutata dallo schema.
 
 ### Accessi
@@ -138,7 +174,14 @@ rifiutata dallo schema.
 | POST | `/api/admin/tenants` | sessione | superadmin |
 | PATCH | `/api/admin/tenants/:id` | sessione | superadmin |
 | POST | `/api/admin/active-tenant` | sessione | superadmin |
+| GET | `/api/public/tenant` | rate limit pubblico (grafica del cliente dell'hostname) | - |
+| GET | `/api/public/assets/:id` | rate limit pubblico (solo immagini del cliente dell'hostname) | - |
 | GET | `/api/public/:token/state` | link pubblico (404 se non valido) | - |
+| GET | `/api/admin/branding` | sessione | admin |
+| PUT | `/api/admin/branding` | sessione | admin |
+| GET | `/api/admin/assets` | sessione | admin |
+| POST | `/api/admin/assets` | sessione (corpo fino a ~2,7 MB) | admin |
+| DELETE | `/api/admin/assets/:id` | sessione | admin |
 | GET | `/api/admin/matches` | sessione | viewer |
 | GET | `/api/admin/matches/:id` | sessione | viewer |
 | POST | `/api/admin/agents` | sessione | admin |
@@ -235,7 +278,7 @@ Helper in `packages/shared/src/strings.ts` (`hasNoNul`, `hasNoControlChars`, `co
   su più righe) ma non NUL;
 - l'email del login è ripulita dagli spazi (`trim`) prima del confronto.
 
-Altre protezioni: intestazioni di sicurezza `@fastify/helmet`, CORS solo per `CORS_ORIGIN` (metodi GET, POST, DELETE),
+Altre protezioni: intestazioni di sicurezza `@fastify/helmet`, CORS solo per `CORS_ORIGIN` (metodi GET, POST, PUT, PATCH, DELETE),
 log pino con cookie, `Authorization`, password, token e `*.secret` oscurati.
 
 ## Configurazione
@@ -266,6 +309,8 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `RATE_LIMIT_ADMIN` | `300` | richieste al minuto per IP sulle rotte admin (intero da 1 a 100000) |
 | `RATE_LIMIT_REGISTER` | `10` | richieste al minuto per IP su `POST /api/agents/registrations` (intero da 1 a 100000) |
 | `MATCH_MAX_LINES` | `20000` | righe scout massime per partita (massimo 1.000.000); oltre, 413 |
+| `ASSETS_DIR` | `data/assets` (container: `/data/assets`) | cartella delle immagini dei clienti, una sottocartella per cliente; nel compose è il volume `assets` |
+| `ASSETS_QUOTA_MB` | `50` | spazio massimo delle immagini di ogni cliente, in MB (intero da 1 a 1000); oltre, 409 |
 
 Le sette `RATE_LIMIT_*` e le due `WS_MAX_*` sono anche in `.env.example` e `docker-compose.yml`.
 
@@ -290,6 +335,7 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `matches` | `tenant_id`, `match_key` (unica per `tenant_id` + `match_key`), `header`, `line_count`, `content_hash`, `last_seq`, `agent_id`, `live` (una per cliente), `state` (jsonb), `version` |
 | `scout_lines` | `match_id`, `idx`, `text` (chiave primaria `match_id` + `idx`) |
 | `share_tokens` | `tenant_id`, `token_hash`, `match_id` (null: segue la live), `label`, `expires_at`, `revoked` |
+| `assets` | `tenant_id`, `kind` (enum `asset_kind`: `logo`/`sponsor`), `sha256`, `mime`, `width`, `height`, `bytes`, `created_at`; indice univoco `assets_tenant_sha256_kind_idx` su cliente + `sha256` + `kind` (migrazione `0003_assets.sql`) |
 | `agent_registrations` | `tenant_id`, `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at` (migrazione `0001_agent_registrations.sql`) |
 
 La migrazione `0002_tenants.sql` crea il cliente «Predefinito» (slug `predefinito`), gli assegna tutti i dati esistenti e
@@ -481,7 +527,10 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
   l'ingest), `lib/tokens.ts` (`generatePairingCode`), `state.ts`, `seed.ts`
 - Clienti: `src/tenancy.ts` (`hostTenant`, `hostnameFromHeader`, `tenantScope`, `adminTenantId`, `publicBaseUrlFor`),
   `src/routes/tenants.ts`, `packages/shared/src/tenant.ts`, `src/seed.ts`
-- Rotte: `src/routes/health.ts`, `ingest.ts`, `auth.ts`, `admin.ts`, `public.ts`, `registration.ts`, `tenants.ts`
+- Grafica: `src/routes/branding.ts` (`brandingPublicRoutes`, `brandingAdminRoutes`), `src/lib/images.ts` (`inspectImage`,
+  `checkSvg`, `IMAGE_MAX_SIDE`), `src/assetStore.ts` (`writeAssetFile`, `readAssetFile`, `removeAssetFile`),
+  `packages/shared/src/assets.ts`, `colors.ts`, `tenant.ts`; pagina «Grafica» in `docs/portale.md`
+- Rotte: `src/routes/health.ts`, `ingest.ts`, `auth.ts`, `admin.ts`, `public.ts`, `registration.ts`, `tenants.ts`, `branding.ts`
 - Database: `src/db/schema.ts`, `src/db/index.ts` (`createDatabase`), `src/db/pglite.ts`, `apps/server/drizzle/`
 - Contratti: `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts` (`docs/architettura.md`)
 - Prova di carico dei WebSocket: `tools/carico` (`docs/infrastruttura.md`, «Prova di carico»)

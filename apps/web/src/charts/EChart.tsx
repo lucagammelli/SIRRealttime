@@ -4,6 +4,7 @@ import type { EChartsCoreOption } from 'echarts/core';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { useEffect, useRef } from 'react';
+import { useBrandingRevision } from '../lib/branding.ts';
 import { useReducedMotion, useResolvedTheme } from '../lib/theme.ts';
 import { ANIMATION_MS, buildEchartsTheme, readPalette } from './theme.ts';
 
@@ -22,7 +23,8 @@ echarts.use([
 export type { EChartsCoreOption };
 
 /**
- * Thin React wrapper of ECharts. The theme (`charts/theme.ts`) is rebuilt from the CSS tokens when light/dark changes;
+ * Thin React wrapper of ECharts. The theme (`charts/theme.ts`) is rebuilt from the CSS tokens when light/dark or the
+ * graphics of the client change;
  * the option is merged at every update so the chart animates from the previous point (≤ 600 ms, none with
  * prefers-reduced-motion).
  */
@@ -38,12 +40,14 @@ export function EChart({
   const ref = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
   const theme = useResolvedTheme();
+  // New graphics of the client (colours as CSS variables): the theme is built again, like for light/dark.
+  const revision = useBrandingRevision();
   const reduced = useReducedMotion();
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const name = `sir-${theme}`;
+    const name = `sir-${theme}-${revision}`;
     echarts.registerTheme(name, buildEchartsTheme(readPalette()));
     const instance = echarts.init(el, name, { renderer: 'canvas' });
     chart.current = instance;
@@ -54,7 +58,7 @@ export function EChart({
       instance.dispose();
       chart.current = null;
     };
-  }, [theme]);
+  }, [theme, revision]);
 
   useEffect(() => {
     chart.current?.setOption(
@@ -67,7 +71,7 @@ export function EChart({
       },
       { replaceMerge: ['series'], lazyUpdate: true },
     );
-  }, [option, reduced, theme]);
+  }, [option, reduced, theme, revision]);
 
   return <div ref={ref} role="img" aria-label={label} className={`w-full min-w-0 ${className}`} />;
 }

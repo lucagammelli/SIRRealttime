@@ -27,6 +27,15 @@ describe('loadConfig', () => {
     });
   });
 
+  it('reads the folder and the quota of the images', () => {
+    const c = loadConfig({ DATABASE_URL: 'x' });
+    expect(c.assetsDir).toMatch(/[\\/]data[\\/]assets$/);
+    expect(c.assetsQuotaBytes).toBe(50 * 1024 * 1024);
+    const d = loadConfig({ DATABASE_URL: 'x', ASSETS_DIR: '/srv/sir/assets', ASSETS_QUOTA_MB: '10' });
+    expect(d).toMatchObject({ assetsDir: '/srv/sir/assets', assetsQuotaBytes: 10 * 1024 * 1024 });
+    expect(() => loadConfig({ DATABASE_URL: 'x', ASSETS_QUOTA_MB: '0' })).toThrow(/ASSETS_QUOTA_MB/);
+  });
+
   it('reads DEFAULT_TENANT_SLUG: default «predefinito», empty disables the fallback client', () => {
     expect(loadConfig({ DATABASE_URL: 'x' }).defaultTenantSlug).toBe('predefinito');
     expect(loadConfig({ DATABASE_URL: 'x', DEFAULT_TENANT_SLUG: 'club-a' }).defaultTenantSlug).toBe('club-a');
@@ -106,5 +115,13 @@ describe('redactUrl', () => {
     expect(redactUrl('/api/public/abcDEF_123-xyz/state')).toBe('/api/public/[token]/state');
     expect(redactUrl('/ws/public/abcDEF_123-xyz')).toBe('/ws/public/[token]');
     expect(redactUrl('/api/admin/matches')).toBe('/api/admin/matches');
+  });
+
+  it('keeps the graphics routes of the client readable', () => {
+    expect(redactUrl('/api/public/tenant')).toBe('/api/public/tenant');
+    expect(redactUrl('/api/public/assets/00000000-0000-4000-8000-000000000000')).toBe(
+      '/api/public/assets/00000000-0000-4000-8000-000000000000',
+    );
+    expect(redactUrl('/api/public/tenantXYZ12345678901234567/state')).toBe('/api/public/[token]/state');
   });
 });

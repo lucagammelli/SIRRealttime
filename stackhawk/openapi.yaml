@@ -90,6 +90,21 @@ paths:
       responses:
         '200': { description: stato della partita }
         '404': { description: link non valido }
+  /api/public/tenant:
+    get:
+      responses:
+        '200': { description: grafica del cliente dell'hostname (nome, colori, percorsi dei loghi) }
+        '404': { description: hostname senza cliente }
+  /api/public/assets/{id}:
+    get:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
+      responses:
+        '200': { description: file dell'immagine (PNG, JPEG, WebP o SVG) }
+        '404': { description: immagine inesistente o di un altro cliente }
   /api/admin/matches:
     get:
       responses:
@@ -267,6 +282,69 @@ paths:
         '200': { description: cliente su cui lavora il superadmin }
         '403': { description: non superadmin }
         '404': { description: cliente inesistente }
+  /api/admin/branding:
+    get:
+      responses:
+        '200': { description: grafica del cliente della sessione }
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName: { type: string, nullable: true, example: Cliente DAST }
+                colors:
+                  type: object
+                  properties:
+                    primary: { type: string, pattern: '^#[0-9a-fA-F]{6}$', example: '#003399' }
+                    accent: { type: string, pattern: '^#[0-9a-fA-F]{6}$', example: '#c2410c' }
+                    home: { type: string, pattern: '^#[0-9a-fA-F]{6}$', example: '#1d4ed8' }
+                    away: { type: string, pattern: '^#[0-9a-fA-F]{6}$', example: '#a21caf' }
+                    background: { type: string, pattern: '^#[0-9a-fA-F]{6}$', example: '#eef2f7' }
+                logoMain: { type: string, format: uuid, nullable: true, example: null }
+                logoMark: { type: string, format: uuid, nullable: true, example: null }
+                sponsorLogo: { type: string, format: uuid, nullable: true, example: null }
+      responses:
+        '200': { description: grafica salvata }
+        '400': { description: colori non validi o immagine non del cliente }
+  /api/admin/assets:
+    get:
+      responses:
+        '200': { description: immagini del cliente e spazio usato }
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, data]
+              properties:
+                kind: { type: string, enum: [logo, sponsor], example: logo }
+                data:
+                  type: string
+                  format: byte
+                  description: immagine in base64 (al massimo 2 MB)
+                  example: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABc3UBGAAAAABJRU5ErkJggg==
+      responses:
+        '201': { description: immagine caricata }
+        '200': { description: immagine già presente }
+        '409': { description: spazio del cliente esaurito }
+        '413': { description: immagine oltre 2 MB }
+        '422': { description: non è un'immagine ammessa (PNG, JPEG, WebP, SVG senza script) }
+  /api/admin/assets/{id}:
+    delete:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
+      responses:
+        '204': { description: eliminata }
+        '404': { description: non trovata }
+        '409': { description: in uso nella grafica }
 components:
   securitySchemes:
     agentToken:

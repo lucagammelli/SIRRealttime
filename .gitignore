@@ -8,6 +8,8 @@ coverage/
 !.env.example
 apps/agent/config.json
 apps/agent/queue/
+# Immagini caricate in sviluppo (ASSETS_DIR di default)
+apps/server/data/
 *.exe
 .DS_Store
 

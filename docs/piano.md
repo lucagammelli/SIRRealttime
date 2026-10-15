@@ -115,7 +115,9 @@ dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in q
    nginx per molte connessioni e prova di carico (`tools/carico`, un server 2 vCPU/2 GB regge circa 5000 spettatori,
    `docs/infrastruttura.md`); (6) più copie del server con Postgres LISTEN/NOTIFY (`StatePublisher`), solo se servirà.
    Prima degli altri perché cambia il protocollo del WebSocket.
-3. `clienti-grafica`: colori e due loghi per hostname, caricamento immagini controllato, pagina «Grafica».
+3. `clienti-grafica` (**fatto**): colori, nome e loghi (orizzontale, quadrato, sponsor) per hostname, caricamento
+   immagini controllato (2 MB, 4096 px, 50 MB per cliente, SVG a lista di elementi ammessi), pagina «Grafica»
+   (`docs/server.md`, `docs/portale.md`).
 4. `link-brevi-qr`: codice di condivisione breve (8 caratteri) e QR scaricabile.
 5. `portale-adattivo`: impaginazioni TV 16:9, tablet e smartphone, grafica più curata (in parallelo al punto 4).
 6. `layout-blocchi`: editor a blocchi per dispositivo.

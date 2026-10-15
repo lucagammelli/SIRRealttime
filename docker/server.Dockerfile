@@ -22,6 +22,8 @@ ENV NODE_ENV=production \
     PORT=8090
 WORKDIR /app
 COPY --from=build --chown=node:node /out ./
+# Cartella delle immagini dei clienti (volume `assets` del docker-compose.yml): di node, che la copia nel volume nuovo.
+RUN mkdir -p /data/assets && chown node:node /data/assets
 USER node
 EXPOSE 8090
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \

@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { AssetIdSchema } from './assets.js';
+import { BRAND_COLOR_KEYS, HexColorSchema } from './colors.js';
 import { plainText } from './strings.js';
 
 /** Slug of the client always present (created by the migration and by the seed). */
@@ -45,8 +47,70 @@ export const TENANT_CONFIG_VERSION = 1;
 const versionedConfig = () =>
   z.strictObject({ version: z.literal(TENANT_CONFIG_VERSION).default(TENANT_CONFIG_VERSION) });
 
-export const TenantBrandingSchema = versionedConfig();
-export type TenantBranding = z.infer<typeof TenantBrandingSchema>;
+/** Colours chosen by the client: each one optional (missing: the portal default, see `resolveBrandColors`). */
+export const BrandColorsSchema = z.strictObject(
+  Object.fromEntries(BRAND_COLOR_KEYS.map((k) => [k, HexColorSchema.optional()])) as Record<
+    (typeof BRAND_COLOR_KEYS)[number],
+    z.ZodOptional<typeof HexColorSchema>
+  >,
+);
+
+/**
+ * Graphics of a client (jsonb `tenants.branding`): optional display name (otherwise the client name), colours and
+ * images (ids of `assets` of the same client, checked by the server). Every field has a default, so the empty
+ * document of the database reads as the portal defaults.
+ */
+export const TenantBrandingSchema = z.strictObject({
+  version: z.literal(TENANT_CONFIG_VERSION).default(TENANT_CONFIG_VERSION),
+  displayName: plainText(100).nullable().default(null),
+  colors: BrandColorsSchema.default({}),
+  /** Horizontal logo (header). */
+  logoMain: AssetIdSchema.nullable().default(null),
+  /** Square logo (favicon, small spaces). */
+  logoMark: AssetIdSchema.nullable().default(null),
+  sponsorLogo: AssetIdSchema.nullable().default(null),
+});
+export type TenantBranding = z.output<typeof TenantBrandingSchema>;
+export type TenantBrandingInput = z.input<typeof TenantBrandingSchema>;
+
+/** Image slots of the branding and the kind of asset each one takes. */
+export const BRANDING_IMAGE_SLOTS = { logoMain: 'logo', logoMark: 'logo', sponsorLogo: 'sponsor' } as const;
+export type BrandingImageSlot = keyof typeof BRANDING_IMAGE_SLOTS;
+
+/** Pure: the branding of the defaults (nothing chosen). */
+export function defaultBranding(): TenantBranding {
+  return TenantBrandingSchema.parse({});
+}
+
+/** Pure: a stored branding document with the missing fields filled; an invalid one reads as the defaults. */
+export function resolveBranding(document: unknown): TenantBranding {
+  const parsed = TenantBrandingSchema.safeParse(document ?? {});
+  return parsed.success ? parsed.data : defaultBranding();
+}
+
+/** Path of the public file of an asset (served for the client of the hostname). */
+export const publicAssetPath = (id: string): string => `/api/public/assets/${id}`;
+
+/** Name shown for the default client without a display name (and when no graphics are loaded). */
+export const DEFAULT_BRAND_NAME = 'SIRRealtime';
+
+/** `GET /api/public/tenant`: graphics of the client of the hostname, for the portal before any page. */
+export const PublicTenantResponseSchema = z.object({
+  /** Display name (branding), otherwise name of the client (DEFAULT_BRAND_NAME for the default client). */
+  name: z.string(),
+  branding: TenantBrandingSchema,
+  /** Paths of the images of the branding (null: none). */
+  images: z.object({
+    logoMain: z.string().nullable(),
+    logoMark: z.string().nullable(),
+    sponsorLogo: z.string().nullable(),
+  }),
+});
+export type PublicTenantResponse = z.infer<typeof PublicTenantResponseSchema>;
+
+/** `GET/PUT /api/admin/branding`: the branding of the client of the session (the body of PUT is the branding). */
+export const BrandingResponseSchema = z.object({ tenantName: z.string(), branding: TenantBrandingSchema });
+export type BrandingResponse = z.infer<typeof BrandingResponseSchema>;
 export const TenantLayoutSchema = versionedConfig();
 export type TenantLayout = z.infer<typeof TenantLayoutSchema>;
 export const TenantIntermissionsSchema = versionedConfig();

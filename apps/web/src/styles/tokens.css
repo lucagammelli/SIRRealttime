@@ -3,6 +3,8 @@
  * Tailwind reads them through `@theme` in index.css; the ECharts theme reads them at runtime (charts/theme.ts).
  * Light theme by default, dark with prefers-color-scheme or with the switch (`data-theme` on <html>).
  * Text colours have a contrast of at least 4.5:1 on --sir-bg, --sir-surface and --sir-surface-2.
+ * Each client can change primary, accent, home, away and background (lib/branding.ts writes them on <html>, light or
+ * dark variant, from the palette of @sir/shared); the values here are the defaults (DEFAULT_BRAND_COLORS).
  */
 :root {
   --sir-font-sans:
@@ -22,6 +24,12 @@
   --sir-text-muted: #475569;
   --sir-focus: #2563eb;
   --sir-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 24px rgb(15 23 42 / 0.06);
+
+  /* Brand of the client: main actions (primary) and highlights (accent). */
+  --sir-primary: #1d4ed8;
+  --sir-on-primary: #ffffff;
+  --sir-accent: #c2410c;
+  --sir-on-accent: #ffffff;
 
   /* Teams: the same in every view. */
   --sir-home: #1d4ed8;
@@ -66,6 +74,10 @@
   --sir-text-muted: #a3b0c5;
   --sir-focus: #7aa7ff;
   --sir-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.35);
+  --sir-primary: #6ea2ff;
+  --sir-on-primary: #071230;
+  --sir-accent: #fb923c;
+  --sir-on-accent: #1f0b02;
   --sir-home: #6ea2ff;
   --sir-home-soft: #1a2b55;
   --sir-on-home: #071230;
@@ -103,6 +115,10 @@
     --sir-text-muted: #a3b0c5;
     --sir-focus: #7aa7ff;
     --sir-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.35);
+    --sir-primary: #6ea2ff;
+    --sir-on-primary: #071230;
+    --sir-accent: #fb923c;
+    --sir-on-accent: #1f0b02;
     --sir-home: #6ea2ff;
     --sir-home-soft: #1a2b55;
     --sir-on-home: #071230;

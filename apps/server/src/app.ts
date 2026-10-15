@@ -17,6 +17,7 @@ import { ResyncScheduler } from './lib/resync.js';
 import { TtlCache } from './lib/ttlCache.js';
 import { adminRoutes } from './routes/admin.js';
 import { authRoutes } from './routes/auth.js';
+import { brandingAdminRoutes, brandingPublicRoutes } from './routes/branding.js';
 import { healthRoutes } from './routes/health.js';
 import { ingestRoutes } from './routes/ingest.js';
 import { publicRoutes } from './routes/public.js';
@@ -42,8 +43,9 @@ const WS_MAX_PAYLOAD = 4 * 1024;
 /** Hostnames and share tokens kept in the lookup caches (the oldest go first). */
 const LOOKUP_CACHE_ENTRIES = 10_000;
 
-/** Share tokens appear in public paths: they are masked in the logs. */
+/** Share tokens appear in public paths: they are masked in the logs (not the graphics routes of the client). */
 export function redactUrl(url: string): string {
+  if (/^\/api\/public\/(?:tenant(?:[?#]|$)|assets\/)/.test(url)) return url;
   return url.replace(/^\/(api|ws)\/public\/[^/?#]+/, '/$1/public/[token]');
 }
 
@@ -134,7 +136,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(fastifyCors, {
     origin: config.corsOrigin,
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   });
   await app.register(fastifyCookie);
   // Per client IP (behind a proxy, with TRUST_PROXY=true); a request without address shares one bucket.
@@ -144,6 +146,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   app.addHook('preValidation', rejectNulBody);
   healthRoutes(app, ctx);
   ingestRoutes(app, ctx);
+  brandingPublicRoutes(app, ctx);
   publicRoutes(app, ctx);
   registrationRoutes(app, ctx);
   // Checks with a cost or a rejection go in preParsing/preValidation/preHandler: the rate limit of a route is an
@@ -153,6 +156,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     authRoutes(scope, ctx);
     adminRoutes(scope, ctx);
     tenantRoutes(scope, ctx);
+    brandingAdminRoutes(scope, ctx);
     done();
   });
 

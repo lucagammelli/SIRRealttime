@@ -55,6 +55,7 @@ Prima si verifica la sessione («Verifica della sessione…»); senza sessione c
 | Link pubblici | `/admin/link` | solo admin | «Nuovo link pubblico» (etichetta, partita o live, «Scadenza (facoltativa)»), «Link creati», «Revoca» |
 | Agenti | `/admin/agenti` | solo admin | «Nuovo agente» («Crea token», mostrato una sola volta con «Copia config.json»), «Richieste in attesa» (vedi sotto), «Agenti», «Revoca» |
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, password di almeno 12 caratteri, ruolo), «Utenti» |
+| Grafica | `/admin/grafica` | solo admin (il superadmin lavora sul cliente scelto) | colori, nome e loghi del cliente, vedi «Grafica per cliente» |
 | Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname; «Crea cliente»), «Clienti» con «Modifica» (nome e hostname, «Salva») |
 | Esci | - | tutti | chiude la sessione |
 
@@ -114,6 +115,40 @@ Un solo tema: i token (colori, font, raggi) sono scritti **solo** in `src/styles
 `@theme` in `index.css`; ECharts li legge a runtime (`src/charts/theme.ts`, `usePalette.ts`) e si riadatta al cambio di
 tema. Chiaro di default, scuro con `prefers-color-scheme` o con il cambio tema (`ThemeToggle`; scelta salvata in
 `localStorage` con chiave `sir-theme`). Con `prefers-reduced-motion: reduce` niente animazioni nei grafici.
+
+### Grafica per cliente
+Ogni cliente ha i suoi colori e i suoi loghi, scelti nella pagina «Grafica» e mostrati sull'hostname del cliente (API e
+controlli in `docs/server.md`, «Grafica per cliente»).
+
+- **Caricamento all'avvio** (`src/lib/branding.ts`, `initBranding` chiamata in `main.tsx`): `GET /api/public/tenant`
+  (`PublicTenantResponseSchema`). Se la richiesta fallisce, o la risposta non è valida, restano i predefiniti di
+  `tokens.css`: la pagina funziona lo stesso.
+- **Colori come variabili CSS**: `brandPalette` (`@sir/shared`, `colors.ts`) calcola dai cinque colori le variabili,
+  anche le varianti per il tema scuro (colori schiariti e sfondo scurito fino al contrasto minimo 4,5:1 del WCAG,
+  `ensureContrast`; il testo sui colori pieni è bianco o nero, `textColorOn`). `writePalette` le scrive su `:root` con il
+  CSSOM (`style.setProperty`), consentito dalla CSP senza `unsafe-inline`, e segue il cambio tema chiaro/scuro. Valgono
+  sopra `tokens.css`, che resta la fonte dei predefiniti: componenti e tema ECharts leggono le variabili, e i grafici si
+  ridisegnano al cambio (`useBrandingRevision`). Nuovi token `--sir-primary` e `--sir-accent`; sopra le testate c'è una
+  barra di risalto nel colore d'accento (predefinito `#c2410c`).
+- **Nome e loghi**: il titolo della pagina pubblica usa il nome del cliente (`useBrandName`: «… · Diretta»); `BrandMark` (`src/components/BrandMark.tsx`, nelle
+  testate di pagina pubblica, area riservata e login) mostra il logo orizzontale in un `<img>` (SVG compresi, mai
+  markup in linea), altrimenti il nome, altrimenti la scritta «SIRRealtime». Il cliente predefinito senza nome
+  visualizzato è mostrato come «SIRRealtime». Il favicon è il logo quadrato. La CSP resta quella di prima
+  (`img-src 'self' data:`, le immagini sono servite dalla stessa origine).
+- **Pagina «Grafica»** (`src/pages/admin/BrandingPage.tsx`, solo admin; titolo scheda «Grafica · Area riservata»). Scheda
+  «Grafica del cliente» (sottotitolo «Cliente: …»): «Nome visualizzato» (facoltativo), cinque colori («Colore
+  principale», «Colore di risalto», «Squadra di casa», «Squadra ospite», «Sfondo della pagina»), ciascuno con selettore e
+  campo esadecimale `#rrggbb` e il pulsante «Predefinito»; tre immagini («Logo orizzontale», «Logo quadrato», «Logo dello
+  sponsor») con «Carica immagine» (PNG, JPEG, WebP o SVG, al massimo 2 MB) e «Togli». Avvisi di contrasto (`brandContrastIssues`,
+  sotto 4,5:1), per esempio «Lo sfondo è troppo scuro per il testo della pagina…» o «“Colore di risalto” ha contrasto
+  …:1 sullo sfondo (minimo 4,5:1): i testi in questo colore si leggono male.». Pulsanti «Salva» (dopo il salvataggio:
+  «Grafica salvata: la pagina pubblica la usa da subito.») e «Ripristina predefiniti», avviso «Modifiche non salvate.».
+  Scheda «Immagini caricate» (sottotitolo «Spazio usato: … MB di … MB») con l'elenco, «in uso» e «Elimina» /
+  «Conferma eliminazione»; vuota: «Nessuna immagine caricata.». Scheda «Anteprima» (`BrandingPreview.tsx`): pagina
+  pubblica con dati d'esempio e le modifiche non ancora salvate. Il caricamento invia il file in base64 (`fileToBase64`,
+  `src/lib/base64.ts`) a `POST /api/admin/assets`, poi `PUT /api/admin/branding` con «Salva».
+- **Limiti noti**: la testata dell'area riservata del superadmin ha la grafica del cliente dell'hostname, non quella del
+  cliente attivo; un'immagine SVG non ammessa è rifiutata con un messaggio, non convertita.
 
 ### Tooltip e `richSafe`
 I tooltip di ECharts usano `renderMode: 'richText'` (`buildEchartsTheme`): sono disegnati nel canvas, senza HTML né stili
@@ -270,6 +305,9 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
   (`TenantsPage.tsx`: pagina «Clienti» e `TenantSelector`; `AdminApp.tsx`: barra e rotte)
 - `apps/web/src/lib/liveConnection.ts` (`LiveConnection`, `applyMessage`, `applyPatchMessage`, `backoffDelay`), `frames.ts`
   (`gunzipFrame`, `supportsGzip`, `withGzip`), `pages/LivePage.tsx` (`probeShareToken`, `retryAfterMs`), `useLiveSocket.ts`, `messages.ts`, `api.ts`, `theme.ts`, `iconv-browser.ts`
+- Grafica per cliente: `apps/web/src/lib/branding.ts` (`initBranding`, `writePalette`, `setTenantLook`, `useTenantLook`,
+  `useBrandingRevision`, `useBrandName`), `lib/base64.ts`, `components/BrandMark.tsx`, `components/BrandingPreview.tsx`,
+  `pages/admin/BrandingPage.tsx`; `packages/shared/src/colors.ts`, `assets.ts`, `tenant.ts`; API in `docs/server.md`
 - `apps/web/src/components/` (`MatchView`, `LiveMatch`, `Scoreboard`, `MomentumChart`, `TeamComparison`, `PlayerTable`, `CourtMap`, `Rotations`)
 - `apps/web/src/charts/` (trasformazioni pure, `theme.ts` con `buildEchartsTheme` e `richSafe`), `src/styles/tokens.css`
 - `apps/web/vite.config.ts`, `apps/web/scripts/demo.ts`

@@ -35,7 +35,7 @@ export function Card({
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: 'bg-home text-on-home hover:opacity-90',
+  primary: 'bg-primary text-on-primary hover:opacity-90',
   secondary: 'border border-border bg-surface-2 text-text hover:bg-surface',
   danger: 'border border-danger bg-danger-soft text-danger hover:opacity-90',
   ghost: 'text-muted hover:bg-surface-2 hover:text-text',
@@ -106,7 +106,7 @@ export function Segmented<T extends string | number>({
 export function Spinner({ label = 'Caricamento…' }: { label?: string }) {
   return (
     <div role="status" className="flex items-center gap-3 text-muted">
-      <span className="inline-block size-4 animate-spin rounded-full border-2 border-border border-t-home motion-reduce:animate-none" />
+      <span className="inline-block size-4 animate-spin rounded-full border-2 border-border border-t-primary motion-reduce:animate-none" />
       <span>{label}</span>
     </div>
   );

@@ -60,7 +60,8 @@ export function useTheme(): { choice: ThemeChoice; resolved: ResolvedTheme; togg
   return { choice, resolved, toggle };
 }
 
-function subscribeThemeEvents(callback: () => void): () => void {
+/** Calls `callback` when the theme in use changes (switch or system preference). */
+export function subscribeThemeEvents(callback: () => void): () => void {
   window.addEventListener('sir-theme', callback);
   const unsubscribeMedia = subscribeDark(callback);
   return () => {
@@ -68,7 +69,8 @@ function subscribeThemeEvents(callback: () => void): () => void {
     unsubscribeMedia();
   };
 }
-function currentTheme(): ResolvedTheme {
+/** Theme in use now (choice on <html>, otherwise the system preference). */
+export function currentTheme(): ResolvedTheme {
   const attr = document.documentElement.getAttribute('data-theme');
   if (attr === 'light' || attr === 'dark') return attr;
   return getDark() ? 'dark' : 'light';

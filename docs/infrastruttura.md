@@ -88,9 +88,13 @@ binario della piattaforma come dipendenza opzionale.
   Il servizio `web` di `docker-compose.yml` ha `ulimits.nofile` a 65536 (soft e hard), altrimenti nginx non può aprire
   tanti descrittori. Sintassi verificata con nginx 1.28; **da ricontrollare al primo build** con la 1.29 unprivileged
   (`docker compose up -d --build`, poi `docker compose logs web`). Dettagli in `docs/portale.md`.
+- Volumi: `pgdata` (database) e `assets` (immagini dei clienti, montato su `/data/assets` nel servizio `server`, con
+  `ASSETS_DIR=/data/assets` e `ASSETS_QUOTA_MB`, default 50). Le immagini non stanno nel database: il backup copia anche
+  il volume `assets`. nginx accetta corpi fino a 3 MB (`client_max_body_size 3m`) per il caricamento di un'immagine
+  (`POST /api/admin/assets`, 2 MB in base64) e comprime anche `image/svg+xml`.
 - `docker/server.Dockerfile`: build multi-stage con Node 24 slim. Lo stadio `build` esegue
   `pnpm install --frozen-lockfile`, `pnpm --filter "@sir/server..." build` e `pnpm --filter @sir/server deploy --prod /out`;
-  lo stadio `runtime` copia `/out`, gira come utente `node` ed esegue `node dist/main.js` con un healthcheck su
+  lo stadio `runtime` copia `/out`, crea `/data/assets` di proprietà di `node` (il volume nuovo la eredita), gira come utente `node` ed esegue `node dist/main.js` con un healthcheck su
   `/api/health`.
 - `.dockerignore`: esclude dal contesto `node_modules`, `dist`, `coverage`, log, `.git`, `.env` e `.env.*` (tranne
   `.env.example`), `.claude`, `docs` e `samples`.
@@ -107,7 +111,7 @@ rilascio e l'altro. Il bundle principale è di circa 132 KB gzip. Le altre dipen
 - `.env.example` elenca le variabili del server (`DATABASE_URL`, `PORT`, `HOST`, `CORS_ORIGIN`, `COOKIE_SECURE`,
   `SESSION_TTL_HOURS`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `PUBLIC_BASE_URL`, `LOG_LEVEL`, `TRUST_PROXY`,
   `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_PUBLIC_WS`, `RATE_LIMIT_PUBLIC_INVALID`, `RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`,
-  `WS_MAX_PER_IP`, `WS_MAX_TOTAL`, `MATCH_MAX_LINES`, `DEFAULT_TENANT_SLUG`) e quelle di
+  `WS_MAX_PER_IP`, `WS_MAX_TOTAL`, `MATCH_MAX_LINES`, `DEFAULT_TENANT_SLUG`, `ASSETS_DIR`, `ASSETS_QUOTA_MB`) e quelle di
   Docker Compose (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `SERVER_BIND`, `WEB_BIND`, `WEB_PORT`).
   Descrizione e default in `docs/server.md`. Il file `.env` vero non va mai nel repository.
 - `DEFAULT_TENANT_SLUG` (cliente degli hostname sconosciuti, default `predefinito`) è commentata in `.env.example` e

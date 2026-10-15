@@ -1,5 +1,5 @@
 # SIRRealtime: database, server e portale (nginx su http://localhost:8080). Variabili in `.env` (vedi `.env.example`).
-# Avvio: docker compose up -d --build    Arresto: docker compose down (i dati restano nel volume `pgdata`).
+# Avvio: docker compose up -d --build    Arresto: docker compose down (i dati restano nei volumi `pgdata` e `assets`).
 name: sir-realtime
 
 services:
@@ -52,6 +52,11 @@ services:
       RATE_LIMIT_REGISTER: ${RATE_LIMIT_REGISTER:-10}
       WS_MAX_PER_IP: ${WS_MAX_PER_IP:-2000}
       WS_MAX_TOTAL: ${WS_MAX_TOTAL:-6000}
+      # Immagini caricate dai clienti (loghi, sponsor): nel volume `assets`, quota per cliente in MB.
+      ASSETS_DIR: /data/assets
+      ASSETS_QUOTA_MB: ${ASSETS_QUOTA_MB:-50}
+    volumes:
+      - assets:/data/assets
     # Browser e agente passano da nginx (servizio web, anche per /api/ingest). La porta 8090 resta pubblicata solo su
     # 127.0.0.1 per prove locali e scansioni (docs/server.md): mai su 0.0.0.0, perché con TRUST_PROXY=true un client
     # che arriva diretto potrebbe falsificare X-Forwarded-For ed eludere il rate limit.
@@ -94,3 +99,4 @@ services:
 
 volumes:
   pgdata:
+  assets:

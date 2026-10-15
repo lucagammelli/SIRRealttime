@@ -2,11 +2,13 @@ import type { TenantSummary } from '@sir/shared';
 import type { ReactElement } from 'react';
 import { useCallback } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router';
+import { BrandMark } from '../../components/BrandMark.tsx';
 import { StatusScreen } from '../../components/StatusScreen.tsx';
 import { ThemeToggle } from '../../components/ThemeToggle.tsx';
 import { Button, Spinner } from '../../components/ui.tsx';
 import { useAsync } from '../../lib/useAsync.ts';
 import { AgentsPage } from './AgentsPage.tsx';
+import { BrandingPage } from './BrandingPage.tsx';
 import { useAuth, useSession } from './auth.tsx';
 import { LiveAdminPage } from './LiveAdminPage.tsx';
 import { LoginPage } from './LoginPage.tsx';
@@ -59,6 +61,7 @@ function AdminLayout() {
           { to: '/admin/link', label: 'Link pubblici' },
           { to: '/admin/agenti', label: 'Agenti' },
           { to: '/admin/utenti', label: 'Utenti' },
+          { to: '/admin/grafica', label: 'Grafica' },
         ]
       : []),
     ...(isSuperadmin ? [{ to: '/admin/clienti', label: 'Clienti' }] : []),
@@ -67,11 +70,9 @@ function AdminLayout() {
   const superadminOnly = (element: ReactElement) => (isSuperadmin ? element : <Navigate to="/admin/live" replace />);
   return (
     <div className="min-h-dvh">
-      <header className="border-b border-border bg-surface">
+      <header className="border-b border-t-4 border-border border-t-accent bg-surface">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2 sm:px-5">
-          <p className="font-display text-lg font-bold uppercase tracking-widest text-muted">
-            SIR<span className="text-home">Realtime</span>
-          </p>
+          <BrandMark />
           <nav
             aria-label="Area riservata"
             className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto sm:order-none sm:w-auto"
@@ -114,6 +115,7 @@ function AdminLayout() {
           <Route path="link" element={adminOnly(<ShareLinksPage />)} />
           <Route path="agenti" element={adminOnly(<AgentsPage />)} />
           <Route path="utenti" element={adminOnly(<UsersPage />)} />
+          <Route path="grafica" element={adminOnly(<BrandingPage />)} />
           <Route path="clienti" element={superadminOnly(<TenantsPage tenants={tenants} />)} />
           <Route path="*" element={<Navigate to="/admin/live" replace />} />
         </Routes>

@@ -19,6 +19,10 @@
   --color-text: var(--sir-text);
   --color-muted: var(--sir-text-muted);
   --color-focus: var(--sir-focus);
+  --color-primary: var(--sir-primary);
+  --color-on-primary: var(--sir-on-primary);
+  --color-accent: var(--sir-accent);
+  --color-on-accent: var(--sir-on-accent);
   --color-home: var(--sir-home);
   --color-home-soft: var(--sir-home-soft);
   --color-on-home: var(--sir-on-home);

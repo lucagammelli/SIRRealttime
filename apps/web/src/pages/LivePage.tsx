@@ -1,11 +1,13 @@
 import { SHARE_TOKEN_PATTERN } from '@sir/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
+import { BrandMark } from '../components/BrandMark.tsx';
 import { LiveMatch } from '../components/LiveMatch.tsx';
 import { StatusScreen } from '../components/StatusScreen.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import type { ProbeResult } from '../lib/liveConnection.ts';
 import { socketUrl, useLiveSocket } from '../lib/useLiveSocket.ts';
+import { useBrandName } from '../lib/branding.ts';
 import { teamName } from '../lib/format.ts';
 
 /** Wait when a 503/429 has no readable Retry-After. */
@@ -56,12 +58,13 @@ export function LivePage() {
   }, []);
 
   const data = snapshot.data;
+  const brand = useBrandName();
   useEffect(() => {
     if (data?.kind === 'state') {
       const s = data.state;
-      document.title = `${teamName(s.teams, 'home')} ${s.setsWon.home}-${s.setsWon.away} ${teamName(s.teams, 'away')} · SIRRealtime`;
-    } else document.title = 'SIRRealtime · Diretta';
-  }, [data]);
+      document.title = `${teamName(s.teams, 'home')} ${s.setsWon.home}-${s.setsWon.away} ${teamName(s.teams, 'away')} · ${brand}`;
+    } else document.title = `${brand} · Diretta`;
+  }, [data, brand]);
 
   const toggleFullscreen = (): void => {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
@@ -81,13 +84,11 @@ export function LivePage() {
   }
 
   return (
-    <div className={tv ? 'flex h-dvh flex-col overflow-hidden p-3 lg:p-5' : 'min-h-dvh'}>
+    <div className={`border-t-4 border-accent ${tv ? 'flex h-dvh flex-col overflow-hidden p-3 lg:p-5' : 'min-h-dvh'}`}>
       <header
         className={`flex items-center justify-between gap-3 ${tv ? 'pb-3' : 'mx-auto max-w-7xl px-3 pt-3 sm:px-5'}`}
       >
-        <p className="font-display text-lg font-bold uppercase tracking-widest text-muted">
-          SIR<span className="text-home">Realtime</span>
-        </p>
+        <BrandMark />
         <div className="flex items-center gap-2">
           <button
             type="button"

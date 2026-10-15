@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { decodeDvw } from '@sir/dvw-parser';
 import type { GeneratedMatch } from '@sir/dvw-simulator';
@@ -26,6 +29,8 @@ export interface TestServer {
   database: Database;
   /** Id of the client «Predefinito» (created by the migration): ADMIN and VIEWER belong to it. */
   tenantId: string;
+  /** Folder of the uploaded images (temporary). */
+  assetsDir: string;
   /** Moves the server clock (share token and session expiry). */
   setNow(date: Date | null): void;
   close(): Promise<void>;
@@ -41,12 +46,15 @@ export async function startServer(
 ): Promise<TestServer> {
   const database = createPgliteDatabase();
   await database.migrate();
+  // Uploaded images go to a temporary folder of this server, removed by close().
+  const assetsDir = mkdtempSync(join(tmpdir(), 'sir-assets-'));
   const config = loadConfig({
     DATABASE_URL: 'pglite:memory',
     CORS_ORIGIN: ORIGIN,
     PUBLIC_BASE_URL: ORIGIN,
     COOKIE_SECURE: 'false',
     LOG_LEVEL: 'silent',
+    ASSETS_DIR: assetsDir,
     ...env,
   });
   let now: Date | null = null;
@@ -85,12 +93,14 @@ export async function startServer(
     app,
     database,
     tenantId: tenant.id,
+    assetsDir: config.assetsDir,
     setNow: (d) => {
       now = d;
     },
     close: async () => {
       await app.close();
       await database.close();
+      rmSync(assetsDir, { recursive: true, force: true });
     },
   };
 }

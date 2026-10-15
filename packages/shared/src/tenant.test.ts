@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ASSET_MAX_BASE64_LENGTH,
+  ASSET_MAX_BYTES,
   CreateTenantRequestSchema,
+  defaultBranding,
+  PublicTenantResponseSchema,
+  publicAssetPath,
+  resolveBranding,
+  UploadAssetRequestSchema,
   CreateUserRequestSchema,
   HostnamesSchema,
   isValidHostname,
@@ -86,14 +93,14 @@ describe('tenant requests', () => {
 });
 
 describe('tenant configuration documents', () => {
-  const schemas = [TenantBrandingSchema, TenantLayoutSchema, TenantIntermissionsSchema, TenantOverlaysSchema];
+  const schemas = [TenantLayoutSchema, TenantIntermissionsSchema, TenantOverlaysSchema];
 
   it('read the empty database default as the current version', () => {
     for (const schema of schemas) expect(schema.parse({})).toEqual({ version: TENANT_CONFIG_VERSION });
   });
 
   it('reject unknown keys and other versions', () => {
-    for (const schema of schemas) {
+    for (const schema of [...schemas, TenantBrandingSchema]) {
       expect(schema.safeParse({ version: 1, extra: true }).success).toBe(false);
       expect(schema.safeParse({ version: 2 }).success).toBe(false);
     }
@@ -112,5 +119,77 @@ describe('users and roles', () => {
     expect(MeResponseSchema.safeParse({ ...me, tenant: null }).success).toBe(true);
     expect(MeResponseSchema.safeParse({ ...me, tenant: { id: ID, slug: 'sir', name: 'Sir' } }).success).toBe(true);
     expect(MeResponseSchema.safeParse(me).success).toBe(false);
+  });
+});
+
+describe('branding', () => {
+  const LOGO = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
+
+  it('reads the empty database document as the defaults', () => {
+    const empty = TenantBrandingSchema.parse({});
+    expect(empty).toEqual({
+      version: TENANT_CONFIG_VERSION,
+      displayName: null,
+      colors: {},
+      logoMain: null,
+      logoMark: null,
+      sponsorLogo: null,
+    });
+    expect(defaultBranding()).toEqual(empty);
+  });
+
+  it('keeps the colours given, lower case, and the image ids', () => {
+    const b = TenantBrandingSchema.parse({
+      displayName: '  Sir Safety  ',
+      colors: { home: '#AABBCC', background: '#ffffff' },
+      logoMain: LOGO,
+    });
+    expect(b.displayName).toBe('Sir Safety');
+    expect(b.colors).toEqual({ home: '#aabbcc', background: '#ffffff' });
+    expect(b.logoMain).toBe(LOGO);
+    expect(b.logoMark).toBeNull();
+  });
+
+  it('rejects colours that are not #rrggbb, unknown colours and image ids that are not uuids', () => {
+    for (const bad of ['red', '#abc', '#abcdeg', 'rgb(1,2,3)', '#aabbcc;}', 'url(x)', '#aabbccdd']) {
+      expect(TenantBrandingSchema.safeParse({ colors: { home: bad } }).success).toBe(false);
+    }
+    expect(TenantBrandingSchema.safeParse({ colors: { text: '#000000' } }).success).toBe(false);
+    expect(TenantBrandingSchema.safeParse({ logoMain: '../../etc/passwd' }).success).toBe(false);
+    expect(TenantBrandingSchema.safeParse({ displayName: 'a\nb' }).success).toBe(false);
+    expect(TenantBrandingSchema.safeParse({ displayName: 'x'.repeat(101) }).success).toBe(false);
+  });
+
+  it('resolves a stored document, an invalid one as the defaults', () => {
+    expect(resolveBranding(null)).toEqual(defaultBranding());
+    expect(resolveBranding({ colors: { home: 'blu' } })).toEqual(defaultBranding());
+    expect(resolveBranding({ colors: { away: '#112233' } }).colors).toEqual({ away: '#112233' });
+  });
+
+  it('describes the public graphics of a client', () => {
+    const ok = PublicTenantResponseSchema.safeParse({
+      name: 'Sir',
+      branding: {},
+      images: { logoMain: publicAssetPath(LOGO), logoMark: null, sponsorLogo: null },
+    });
+    expect(ok.success).toBe(true);
+    expect(publicAssetPath(LOGO)).toBe(`/api/public/assets/${LOGO}`);
+  });
+});
+
+describe('asset upload', () => {
+  it('accepts only kind and base64 data (no name, no declared type)', () => {
+    expect(UploadAssetRequestSchema.safeParse({ kind: 'logo', data: 'iVBORw0KGgo=' }).success).toBe(true);
+    expect(UploadAssetRequestSchema.safeParse({ kind: 'logo', data: 'iVBORw0KGgo=', mime: 'image/png' }).success).toBe(
+      false,
+    );
+    expect(UploadAssetRequestSchema.safeParse({ kind: 'logo', data: 'non base64!' }).success).toBe(false);
+    expect(UploadAssetRequestSchema.safeParse({ kind: 'video', data: 'iVBORw0KGgo=' }).success).toBe(false);
+  });
+
+  it('caps the base64 text at the size of a 2 MB image', () => {
+    expect(ASSET_MAX_BASE64_LENGTH).toBe(Math.ceil(ASSET_MAX_BYTES / 3) * 4);
+    const tooLong = 'A'.repeat(ASSET_MAX_BASE64_LENGTH + 4);
+    expect(UploadAssetRequestSchema.safeParse({ kind: 'logo', data: tooLong }).success).toBe(false);
   });
 });

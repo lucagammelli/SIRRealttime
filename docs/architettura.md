@@ -48,7 +48,7 @@ simulatore (`docs/agente.md`) o con i test del server (`apps/server/test/ingest.
 | `@sir/dvw-simulator` | `tools/dvw-simulator` | dvw-parser | genera e "suona" file DVW sintetici; è anche dev-dependency di volley-stats, shared e server (per i test) |
 
 ### Contratti di `packages/shared`
-Esportati da `packages/shared/src/index.ts` (`admin.ts`, `ingest.ts`, `messages.ts`, `patch.ts`, `registration.ts`, `tenant.ts`).
+Esportati da `packages/shared/src/index.ts` (`admin.ts`, `assets.ts`, `colors.ts`, `ingest.ts`, `messages.ts`, `patch.ts`, `registration.ts`, `tenant.ts`).
 
 Ingest (`ingest.ts`):
 
@@ -105,9 +105,22 @@ Auto-registrazione dell'agente (`registration.ts`): `PAIRING_CODE_ALPHABET`, `PA
 Clienti (`tenant.ts`): `DEFAULT_TENANT_SLUG` (`predefinito`), `TENANT_SLUG_PATTERN`, `TenantSlugSchema`,
 `TENANT_MAX_HOSTNAMES` (20), `isValidHostname`, `HostnameSchema`, `HostnamesSchema`, `TENANT_CONFIG_VERSION` (1) e i
 quattro documenti di configurazione `TenantBrandingSchema`, `TenantLayoutSchema`, `TenantIntermissionsSchema`,
-`TenantOverlaysSchema` (strict, `{ version: 1 }`, per ora senza altri campi), `TenantRefSchema`, `TenantSummarySchema`,
+`TenantOverlaysSchema` (strict, con `version`; gli ultimi tre per ora senza altri campi), `TenantRefSchema`, `TenantSummarySchema`,
 `CreateTenantRequestSchema`, `UpdateTenantRequestSchema`, `SetActiveTenantRequestSchema`. Regole di funzionamento in
 `docs/server.md` («Clienti»), pagine in `docs/portale.md`.
+
+Grafica per cliente (`tenant.ts`, `colors.ts`, `assets.ts`): `TenantBrandingSchema` / `TenantBranding` (`displayName`,
+`colors` con `primary`, `accent`, `home`, `away`, `background` in `#rrggbb` facoltativi, `logoMain`, `logoMark`,
+`sponsorLogo`; `TENANT_CONFIG_VERSION` resta 1 perché ogni campo è facoltativo e `{}` è valido), `BrandColorsSchema`,
+`BRANDING_IMAGE_SLOTS`, `defaultBranding`, `resolveBranding`, `publicAssetPath`, `DEFAULT_BRAND_NAME` («SIRRealtime»),
+`PublicTenantResponseSchema` (`GET /api/public/tenant`), `BrandingResponseSchema` (`GET`/`PUT /api/admin/branding`).
+Immagini (`assets.ts`): `AssetKindSchema` (`logo` | `sponsor`), `AssetMimeSchema`, `ASSET_MAX_BYTES` (2 MB),
+`ASSET_MAX_BASE64_LENGTH`, `UploadAssetRequestSchema` (solo `kind` e `data` in base64), `AssetSummarySchema`,
+`AssetListResponseSchema`. Colori (`colors.ts`, funzioni pure): `HEX_COLOR_PATTERN`, `HexColorSchema`,
+`relativeLuminance`, `contrastRatio`, `textColorOn`, `mixColors`, `ensureContrast`, `MIN_TEXT_CONTRAST` (4,5),
+`BRAND_COLOR_KEYS`, `DEFAULT_BRAND_COLORS`, `brandPalette` (variabili CSS chiare e scure), `brandContrastIssues`. Il
+portale calcola variabili e avvisi di contrasto con queste funzioni, il server non le duplica. Flusso in
+`docs/server.md` («Grafica per cliente») e `docs/portale.md`.
 
 Ogni schema ha il tipo omonimo senza `Schema` (`z.infer`). Dettagli d'uso: `docs/server.md`.
 
@@ -134,7 +147,7 @@ pnpm --filter @sir/server test      # il flusso completo agente→server→WebSo
 ```
 
 ## Riferimenti
-- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `index.ts`
+- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
 - `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`, `apps/web/src/App.tsx`
 - `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/portale.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,

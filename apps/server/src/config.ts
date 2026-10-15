@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { DEFAULT_TENANT_SLUG, PASSWORD_MIN_LENGTH, TenantSlugSchema } from '@sir/shared';
 import { z } from 'zod';
 import type { RateLimits, SocketLimits } from './context.js';
@@ -42,6 +43,8 @@ const EnvSchema = z
     WS_MAX_TOTAL: sockets(DEFAULT_SOCKET_LIMITS.total),
     MATCH_MAX_LINES: z.coerce.number().int().positive().max(1_000_000).default(20_000),
     DEFAULT_TENANT_SLUG: TenantSlugSchema.default(DEFAULT_TENANT_SLUG),
+    ASSETS_DIR: z.string().min(1).default('data/assets'),
+    ASSETS_QUOTA_MB: z.coerce.number().int().positive().max(1000).default(50),
   })
   .refine((e) => (e.ADMIN_EMAIL === undefined) === (e.ADMIN_PASSWORD === undefined), {
     message: 'ADMIN_EMAIL e ADMIN_PASSWORD vanno impostate insieme',
@@ -67,6 +70,10 @@ export interface Config {
   socketLimits: SocketLimits;
   /** Client of an unknown hostname; null (DEFAULT_TENANT_SLUG set but empty): unknown hostnames get 404. */
   defaultTenantSlug: string | null;
+  /** Absolute folder of the uploaded images (one sub-folder per client). */
+  assetsDir: string;
+  /** Most bytes of images per client. */
+  assetsQuotaBytes: number;
 }
 
 export class ConfigError extends Error {
@@ -108,5 +115,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     },
     socketLimits: { perIp: e.WS_MAX_PER_IP, total: e.WS_MAX_TOTAL },
     defaultTenantSlug: noDefaultTenant ? null : e.DEFAULT_TENANT_SLUG,
+    assetsDir: resolve(e.ASSETS_DIR),
+    assetsQuotaBytes: e.ASSETS_QUOTA_MB * 1024 * 1024,
   };
 }

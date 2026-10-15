@@ -14,9 +14,17 @@ export interface Tenant {
   slug: string;
   name: string;
   hostnames: string[];
+  /** Stored branding document (read it with `resolveBranding` of `@sir/shared`). */
+  branding: Record<string, unknown>;
 }
 
-const TENANT_COLUMNS = { id: tenants.id, slug: tenants.slug, name: tenants.name, hostnames: tenants.hostnames };
+const TENANT_COLUMNS = {
+  id: tenants.id,
+  slug: tenants.slug,
+  name: tenants.name,
+  hostnames: tenants.hostnames,
+  branding: tenants.branding,
+};
 
 /**
  * Pure: hostname of a `Host` header (lower case, without port and trailing dot); null when missing or not valid
@@ -78,7 +86,10 @@ async function resolveHost(ctx: AppContext, hostname: string | null): Promise<Te
   return tenant;
 }
 
-/** Empties the hostname cache: a new or changed client may take a hostname that resolved to another one. */
+/**
+ * Empties the hostname cache: a new or changed client may take a hostname that resolved to another one, and a saved
+ * branding must reach the public pages at once.
+ */
 export function forgetTenants(ctx: AppContext): void {
   ctx.caches.hosts.clear();
 }

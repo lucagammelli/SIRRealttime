@@ -86,3 +86,13 @@ Una riga per decisione: data, scelta, motivo.
   i default non bastano per migliaia di spettatori (`docs/portale.md`).
 - 2026-10-15: durata di un set chiuso presa da `[3SET]` invece che dalle ore delle righe, perché nei file reali tra la
   prima e l'ultima riga ci sono pause (110 minuti dalle ore contro i 20 ufficiali) (`docs/statistiche.md`).
+- 2026-10-15: grafica del cliente letta dall'hostname e applicata come variabili CSS sopra `tokens.css`, perché i
+  componenti e il tema ECharts non cambiano e i predefiniti restano in un solo posto (`docs/portale.md`).
+- 2026-10-15: tipo e dimensioni delle immagini ricavati dai byte e SVG solo con una lista di elementi ammessi, più CSP
+  `sandbox` sul file, perché il tipo dichiarato dal client non è affidabile e un SVG può eseguire script (`docs/server.md`).
+- 2026-10-15: file delle immagini con nome sha256 per cliente e cache `immutable` di un anno, perché ogni file nuovo ha un
+  `id` nuovo e la cache non invecchia mai (`docs/server.md`).
+- 2026-10-15: caricamento delle immagini in JSON con base64, perché il guard delle rotte admin accetta solo JSON e non
+  serve una dipendenza nuova per il multipart (`docs/server.md`).
+- 2026-10-15: limiti delle immagini a 2 MB per file, 4096 px per lato e 50 MB per cliente (`ASSETS_QUOTA_MB`), perché
+  loghi e sponsor sono piccoli e il disco del server è limitato (`docs/server.md`).

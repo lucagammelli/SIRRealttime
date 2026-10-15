@@ -2,6 +2,7 @@ import type { MeResponse } from '@sir/shared';
 import { LoginRequestSchema, MeResponseSchema } from '@sir/shared';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
+import { BrandMark } from '../../components/BrandMark.tsx';
 import { ThemeToggle } from '../../components/ThemeToggle.tsx';
 import { Button, ErrorBox } from '../../components/ui.tsx';
 import { ApiError, apiRequest, errorText } from '../../lib/api.ts';
@@ -42,9 +43,7 @@ export function LoginPage({ onLogin, notice }: { onLogin: (user: MeResponse) => 
         noValidate
       >
         <div>
-          <p className="font-display text-xl font-bold uppercase tracking-widest text-muted">
-            SIR<span className="text-home">Realtime</span>
-          </p>
+          <BrandMark />
           <h1 className="mt-1 text-lg font-semibold text-text">Area riservata</h1>
         </div>
         {notice && <p className="rounded-card bg-surface-2 px-3 py-2 text-sm text-muted">{notice}</p>}

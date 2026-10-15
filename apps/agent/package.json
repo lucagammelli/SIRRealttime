@@ -15,7 +15,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
-    "bundle": "esbuild src/main.ts --bundle --platform=node --format=cjs --target=node24 --conditions=@sir/source --outfile=build/sir-agent.cjs",
+    "bundle": "esbuild src/main.ts --bundle --platform=node --format=cjs --target=node24 --conditions=@sir/source --loader:.ps1=text --outfile=build/sir-agent.cjs",
     "dev": "tsx --conditions=@sir/source src/main.ts --console"
   },
   "dependencies": {

@@ -1,0 +1,380 @@
+# Finestra di sir-agent.exe (WinForms). La avvia l'agente con:
+#   powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File <dataDir>\gui\window.ps1
+# L'agente riscrive questo file a ogni avvio (dal testo incluso nell'eseguibile): le modifiche fatte qui si perdono.
+#
+# Protocollo: una riga JSON per messaggio.
+#   da stdin  (agente -> finestra): init, state, log, error
+#   su stdout (finestra -> agente): start {watchPath, token?}, stop, quit
+# Su stdout non deve finire nient'altro: ogni valore non usato va scartato con [void].
+
+# --- testi e dimensioni ---
+$Titolo        = 'SIRRealtime – Agente'
+$MaxMessaggi   = 200          # righe tenute nella lista degli ultimi messaggi
+$IntervalloMs  = 100          # ogni quanto la finestra legge i messaggi arrivati dall'agente
+$Margine       = 12
+$ColonnaCampi  = 140
+$LarghezzaForm = 580
+$AltezzaRiga   = 32
+$FineInput     = '::fine-input::'
+
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+[System.Windows.Forms.Application]::EnableVisualStyles()
+
+# --- console nera nascosta ---
+# È la console di sir-agent.exe, condivisa con questo processo. Si nasconde solo se l'hanno aperta per noi (doppio
+# clic: nella console ci sono solo sir-agent.exe e powershell.exe), non se l'agente è stato lanciato da un prompt.
+Add-Type -Namespace SirAgent -Name NativeConsole -MemberDefinition @'
+[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
+[DllImport("kernel32.dll")] public static extern uint GetConsoleProcessList(uint[] processList, uint processCount);
+[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+'@
+$consoleWindow = [SirAgent.NativeConsole]::GetConsoleWindow()
+$consoleProcesses = New-Object 'uint32[]' 16
+$consoleCount = [SirAgent.NativeConsole]::GetConsoleProcessList($consoleProcesses, 16)
+if ($consoleWindow -ne [IntPtr]::Zero -and $consoleCount -le 2) {
+    [void][SirAgent.NativeConsole]::ShowWindow($consoleWindow, 0)
+}
+
+# --- canali con l'agente (UTF-8 senza BOM) ---
+$utf8 = New-Object System.Text.UTF8Encoding($false)
+$stdin = New-Object System.IO.StreamReader([Console]::OpenStandardInput(), $utf8)
+$stdout = New-Object System.IO.StreamWriter([Console]::OpenStandardOutput(), $utf8)
+$stdout.AutoFlush = $true
+$stdout.NewLine = "`n"
+
+# stdin si legge in un runspace a parte (ReadLine blocca); il Timer della finestra svuota la coda.
+$inbox = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
+$reader = [PowerShell]::Create()
+[void]$reader.AddScript({
+    param($source, $queue, $endMarker)
+    try {
+        while ($true) {
+            $line = $source.ReadLine()
+            if ($null -eq $line) { break }
+            $queue.Enqueue($line)
+        }
+    } catch { }
+    $queue.Enqueue($endMarker)
+})
+[void]$reader.AddArgument($stdin)
+[void]$reader.AddArgument($inbox)
+[void]$reader.AddArgument($FineInput)
+[void]$reader.BeginInvoke()
+
+function Send-AgentMessage($message) {
+    try {
+        $stdout.WriteLine(($message | ConvertTo-Json -Compress))
+    } catch {
+        $script:agentGone = $true
+    }
+}
+
+# --- stato ---
+$script:phase = 'waiting'      # prima di init: tutto disattivato
+$script:tokenPresent = $false
+$script:agentGone = $false
+$script:quitSent = $false
+
+# --- finestra ---
+$form = New-Object System.Windows.Forms.Form
+$form.Text = $Titolo
+$form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedSingle
+$form.MaximizeBox = $false
+$form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+$form.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+
+$y = $Margine
+$larghezzaCampo = $LarghezzaForm - $ColonnaCampi - $Margine
+
+function New-Label($text, $x, $top, $width) {
+    $label = New-Object System.Windows.Forms.Label
+    $label.Text = $text
+    $label.Location = New-Object System.Drawing.Point($x, ($top + 3))
+    $label.Size = New-Object System.Drawing.Size($width, 20)
+    $form.Controls.Add($label)
+    return $label
+}
+
+# Riga: cartella del .dvw
+[void](New-Label 'Cartella del .dvw' $Margine $y ($ColonnaCampi - $Margine))
+$txtFolder = New-Object System.Windows.Forms.TextBox
+$txtFolder.Location = New-Object System.Drawing.Point($ColonnaCampi, $y)
+$txtFolder.Size = New-Object System.Drawing.Size(($larghezzaCampo - 100), 23)
+$form.Controls.Add($txtFolder)
+$btnBrowse = New-Object System.Windows.Forms.Button
+$btnBrowse.Text = 'Sfoglia…'
+$btnBrowse.Location = New-Object System.Drawing.Point(($LarghezzaForm - $Margine - 92), ($y - 1))
+$btnBrowse.Size = New-Object System.Drawing.Size(92, 26)
+$form.Controls.Add($btnBrowse)
+$y += $AltezzaRiga
+
+# Riga: server (sola lettura)
+[void](New-Label 'Server' $Margine $y ($ColonnaCampi - $Margine))
+$txtServer = New-Object System.Windows.Forms.TextBox
+$txtServer.Location = New-Object System.Drawing.Point($ColonnaCampi, $y)
+$txtServer.Size = New-Object System.Drawing.Size($larghezzaCampo, 23)
+$txtServer.ReadOnly = $true
+$form.Controls.Add($txtServer)
+$y += $AltezzaRiga
+
+# Spazio riservato alla registrazione dell'agente (prossimo passo): riga «Nome agente» con il pulsante «Registra»,
+# codice di abbinamento di 6 caratteri e stato «in attesa di abilitazione». Le righe si aggiungono qui, facendo
+# avanzare $y come le altre: tutto quello che sta sotto si sposta da solo.
+
+# Riga: token agente (mascherato; vuoto = resta quello salvato in config.json)
+[void](New-Label 'Token agente' $Margine $y ($ColonnaCampi - $Margine))
+$txtToken = New-Object System.Windows.Forms.TextBox
+$txtToken.Location = New-Object System.Drawing.Point($ColonnaCampi, $y)
+$txtToken.Size = New-Object System.Drawing.Size(($larghezzaCampo - 160), 23)
+$txtToken.UseSystemPasswordChar = $true
+$form.Controls.Add($txtToken)
+$lblTokenInfo = New-Label 'mancante' ($LarghezzaForm - $Margine - 152) $y 152
+$y += $AltezzaRiga + 6
+
+# Riga: START / STOP
+$btnStart = New-Object System.Windows.Forms.Button
+$btnStart.Text = 'START'
+$btnStart.Location = New-Object System.Drawing.Point($ColonnaCampi, $y)
+$btnStart.Size = New-Object System.Drawing.Size(140, 34)
+$btnStart.Font = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
+$form.Controls.Add($btnStart)
+$btnStop = New-Object System.Windows.Forms.Button
+$btnStop.Text = 'STOP'
+$btnStop.Location = New-Object System.Drawing.Point(($ColonnaCampi + 160), $y)
+$btnStop.Size = New-Object System.Drawing.Size(140, 34)
+$btnStop.Font = $btnStart.Font
+$form.Controls.Add($btnStop)
+$y += 46
+
+# Righe: stato, dettagli, errore
+$lblState = New-Label 'In attesa dell''agente…' $Margine $y ($LarghezzaForm - 2 * $Margine)
+$lblState.Font = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
+$y += 24
+$lblDetails = New-Label '' $Margine $y ($LarghezzaForm - 2 * $Margine)
+$y += 24
+$lblError = New-Label '' $Margine $y ($LarghezzaForm - 2 * $Margine)
+$lblError.ForeColor = [System.Drawing.Color]::Firebrick
+$lblError.Size = New-Object System.Drawing.Size(($LarghezzaForm - 2 * $Margine), 36)
+$y += 40
+
+# Riquadro: ultimi messaggi
+$grpLog = New-Object System.Windows.Forms.GroupBox
+$grpLog.Text = 'Ultimi messaggi'
+$grpLog.Location = New-Object System.Drawing.Point($Margine, $y)
+$grpLog.Size = New-Object System.Drawing.Size(($LarghezzaForm - 2 * $Margine), 190)
+$lstLog = New-Object System.Windows.Forms.ListBox
+$lstLog.Dock = [System.Windows.Forms.DockStyle]::Fill
+$lstLog.HorizontalScrollbar = $true
+$lstLog.Font = New-Object System.Drawing.Font('Consolas', 9)
+$grpLog.Controls.Add($lstLog)
+$form.Controls.Add($grpLog)
+$y += 190 + $Margine
+
+$form.ClientSize = New-Object System.Drawing.Size($LarghezzaForm, $y)
+
+# --- funzioni della finestra ---
+function Format-LocalTime($value) {
+    if ($null -eq $value -or [string]$value -eq '') { return '–' }
+    try {
+        if ($value -is [datetime]) {
+            $date = $value
+        } else {
+            $date = [datetime]::Parse([string]$value, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::RoundtripKind)
+        }
+        return $date.ToLocalTime().ToString('HH:mm:ss')
+    } catch {
+        return [string]$value
+    }
+}
+
+function Show-Error($text) {
+    $lblError.Text = [string]$text
+}
+
+function Add-Log($time, $level, $text) {
+    $prefix = ''
+    if ($level -eq 'warn') { $prefix = 'attenzione: ' }
+    if ($level -eq 'error' -or $level -eq 'fatal') { $prefix = 'errore: ' }
+    [void]$lstLog.Items.Add((Format-LocalTime $time) + ' ' + $prefix + [string]$text)
+    while ($lstLog.Items.Count -gt $MaxMessaggi) { $lstLog.Items.RemoveAt(0) }
+    $lstLog.TopIndex = [Math]::Max(0, $lstLog.Items.Count - 1)
+}
+
+function Update-Controls {
+    $idle = ($script:phase -eq 'idle')
+    $txtFolder.Enabled = $idle
+    $btnBrowse.Enabled = $idle
+    $txtToken.Enabled = $idle
+    $btnStart.Enabled = $idle -and ($script:tokenPresent -or $txtToken.Text.Trim() -ne '')
+    $btnStop.Enabled = ($script:phase -eq 'starting' -or $script:phase -eq 'running')
+}
+
+function Show-State($phase, $status) {
+    $script:phase = [string]$phase
+    $color = [System.Drawing.Color]::DimGray
+    switch ($script:phase) {
+        'idle' { $text = '● Fermo: premi START per leggere il .dvw' }
+        'starting' { $text = '● Avvio…'; $color = [System.Drawing.Color]::DarkGoldenrod }
+        'stopping' { $text = '● Arresto…'; $color = [System.Drawing.Color]::DarkGoldenrod }
+        'running' {
+            $color = [System.Drawing.Color]::ForestGreen
+            if ($status -and $status.file) {
+                $text = '● In lettura: ' + [System.IO.Path]::GetFileName([string]$status.file)
+            } else {
+                $text = '● In attesa del file .dvw'
+            }
+            if ($status -and -not $status.serverReachable) {
+                $text = $text + ' · server non raggiungibile'
+                $color = [System.Drawing.Color]::DarkOrange
+            }
+        }
+        default { $text = '● ' + $script:phase }
+    }
+    $lblState.Text = $text
+    $lblState.ForeColor = $color
+    if ($status) {
+        $lblDetails.Text = 'righe ' + $status.lines + ' · coda ' + $status.queue + ' · ultimo invio ' + (Format-LocalTime $status.lastSuccessAt)
+    } else {
+        $lblDetails.Text = ''
+    }
+    Update-Controls
+}
+
+function Receive-AgentMessage($message) {
+    switch ([string]$message.type) {
+        'init' {
+            $txtFolder.Text = [string]$message.watchPath
+            $txtServer.Text = [string]$message.serverUrl
+            $script:tokenPresent = [bool]$message.token.present
+            if ($script:tokenPresent) {
+                $lblTokenInfo.Text = 'salvato (…' + [string]$message.token.last4 + ')'
+            } else {
+                $lblTokenInfo.Text = 'mancante: incollalo'
+            }
+            $txtToken.Text = ''
+            if ($message.configError) { Show-Error $message.configError }
+            Update-Controls
+        }
+        'state' { Show-State $message.phase $message.status }
+        'log' { Add-Log $message.time $message.level $message.msg }
+        'error' { Show-Error $message.message }
+    }
+}
+
+function Get-FirstRemovableDrive {
+    try {
+        $disk = Get-CimInstance -ClassName Win32_LogicalDisk -Filter 'DriveType = 2' -ErrorAction Stop | Select-Object -First 1
+        if ($disk) { return ([string]$disk.DeviceID + '\') }
+    } catch { }
+    try {
+        $drive = [System.IO.DriveInfo]::GetDrives() | Where-Object { $_.DriveType -eq 'Removable' -and $_.IsReady } | Select-Object -First 1
+        if ($drive) { return [string]$drive.RootDirectory.FullName }
+    } catch { }
+    return $null
+}
+
+function Get-StartFolder {
+    $current = $txtFolder.Text.Trim()
+    if ($current -ne '') {
+        if (Test-Path -LiteralPath $current -PathType Container) { return $current }
+        $parent = Split-Path -Path $current -Parent
+        if ($parent -and (Test-Path -LiteralPath $parent -PathType Container)) { return $parent }
+    }
+    return Get-FirstRemovableDrive
+}
+
+# --- Sfoglia…: una cartella (il .dvw più recente) oppure un singolo file .dvw ---
+$menuBrowse = New-Object System.Windows.Forms.ContextMenuStrip
+$itemFolder = $menuBrowse.Items.Add('Scegli una cartella (il .dvw più recente)…')
+$itemFile = $menuBrowse.Items.Add('Scegli un file .dvw…')
+
+$itemFolder.Add_Click({
+    $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+    $dialog.Description = 'Cartella in cui DataVolley salva il file .dvw (di solito la pennina)'
+    $dialog.ShowNewFolderButton = $false
+    $start = Get-StartFolder
+    if ($start) { $dialog.SelectedPath = $start }
+    if ($dialog.ShowDialog($form) -eq [System.Windows.Forms.DialogResult]::OK) { $txtFolder.Text = $dialog.SelectedPath }
+    $dialog.Dispose()
+})
+
+$itemFile.Add_Click({
+    $dialog = New-Object System.Windows.Forms.OpenFileDialog
+    $dialog.Title = 'File .dvw di DataVolley'
+    $dialog.Filter = 'File DataVolley (*.dvw)|*.dvw|Tutti i file (*.*)|*.*'
+    $dialog.CheckFileExists = $true
+    $start = Get-StartFolder
+    if ($start) { $dialog.InitialDirectory = $start }
+    if ($dialog.ShowDialog($form) -eq [System.Windows.Forms.DialogResult]::OK) { $txtFolder.Text = $dialog.FileName }
+    $dialog.Dispose()
+})
+
+$btnBrowse.Add_Click({
+    $menuBrowse.Show($btnBrowse, (New-Object System.Drawing.Point(0, $btnBrowse.Height)))
+})
+
+$txtToken.Add_TextChanged({ Update-Controls })
+
+$btnStart.Add_Click({
+    $folder = $txtFolder.Text.Trim()
+    if ($folder -eq '') {
+        Show-Error 'Scegli la cartella (o il file) del .dvw con «Sfoglia…»'
+        return
+    }
+    Show-Error ''
+    $message = @{ type = 'start'; watchPath = $folder }
+    $token = $txtToken.Text.Trim()
+    if ($token -ne '') { $message.token = $token }
+    $script:phase = 'starting'
+    Update-Controls
+    Send-AgentMessage $message
+})
+
+$btnStop.Add_Click({
+    $btnStop.Enabled = $false
+    Send-AgentMessage @{ type = 'stop' }
+})
+
+$form.Add_FormClosing({
+    param($source, $closing)
+    if ($script:agentGone -or $script:quitSent) { return }
+    if ($script:phase -eq 'starting' -or $script:phase -eq 'running' -or $script:phase -eq 'stopping') {
+        $answer = [System.Windows.Forms.MessageBox]::Show($form, 'La lettura del .dvw è in corso: fermarla e chiudere?', $Titolo, [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
+        if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) {
+            $closing.Cancel = $true
+            return
+        }
+    }
+    $script:quitSent = $true
+    Send-AgentMessage @{ type = 'quit' }
+})
+
+# --- messaggi dall'agente ---
+$timer = New-Object System.Windows.Forms.Timer
+$timer.Interval = $IntervalloMs
+$timer.Add_Tick({
+    $line = $null
+    while ($inbox.TryDequeue([ref]$line)) {
+        if ($line -eq $FineInput) {
+            # L'agente non c'è più: la finestra si chiude.
+            $script:agentGone = $true
+            $timer.Stop()
+            $form.Close()
+            return
+        }
+        try {
+            $message = $line | ConvertFrom-Json
+        } catch {
+            continue
+        }
+        Receive-AgentMessage $message
+    }
+})
+
+Update-Controls
+$timer.Start()
+[System.Windows.Forms.Application]::Run($form)
+$timer.Stop()
+try { $stdout.Close() } catch { }
+[Environment]::Exit(0)

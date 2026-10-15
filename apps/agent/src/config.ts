@@ -41,6 +41,11 @@ export function usesPlainHttpOnPrivateNetwork(serverUrl: string, allow: boolean 
   return allow === true && url.protocol === 'http:' && isPrivateIPv4(url.hostname);
 }
 
+/** Same format accepted by the server (base64url, 20-200 characters). */
+export const AgentTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{20,200}$/, {
+  message: 'agentToken non valido (copialo intero dall’area admin)',
+});
+
 /** Content of `config.json`. */
 export const AgentConfigFileSchema = z
   .object({
@@ -50,10 +55,7 @@ export const AgentConfigFileSchema = z
     serverUrl: ServerUrlSchema,
     /** Only for tests on a local network: allows plain http towards literal private IPv4 addresses. */
     allowHttpPrivateNetwork: z.boolean().default(false),
-    /** Same format accepted by the server (base64url, 20-200 characters). */
-    agentToken: z.string().regex(/^[A-Za-z0-9_-]{20,200}$/, {
-      message: 'agentToken non valido (copialo intero dall’area admin)',
-    }),
+    agentToken: AgentTokenSchema,
     pollIntervalMs: z.int().min(10).max(60_000).default(1000),
     stableMs: z.int().min(0).max(60_000).default(700),
     /** Queue and state; never on the USB stick. Default: `data` next to the executable. */

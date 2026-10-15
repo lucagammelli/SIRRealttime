@@ -42,7 +42,7 @@ simulatore (`docs/agente.md`) o con i test del server (`apps/server/test/ingest.
 | `@sir/dvw-simulator` | `tools/dvw-simulator` | dvw-parser | genera e "suona" file DVW sintetici; è anche dev-dependency di volley-stats, shared e server (per i test) |
 
 ### Contratti di `packages/shared`
-Esportati da `packages/shared/src/index.ts` (`admin.ts`, `ingest.ts`, `messages.ts`).
+Esportati da `packages/shared/src/index.ts` (`admin.ts`, `ingest.ts`, `messages.ts`, `registration.ts`).
 
 Ingest (`ingest.ts`):
 
@@ -69,10 +69,17 @@ Amministrazione (`admin.ts`):
 - utenti e sessioni: `UserRoleSchema` / `UserRole`, `LoginRequestSchema`, `MeResponseSchema`, `CreateUserRequestSchema`,
   `UserSummarySchema`;
 - agenti: `CreateAgentRequestSchema`, `AgentSummarySchema`, `CreateAgentResponseSchema`;
+- richieste di registrazione degli agenti (lato admin): `AgentRegistrationStateSchema` (`pending` | `approved` |
+  `rejected` | `consumed`), `AgentRegistrationSummarySchema`;
 - link pubblici: `CreateShareTokenRequestSchema`, `ShareTokenSummarySchema`, `CreateShareTokenResponseSchema`;
 - partite: `MatchSummarySchema` / `MatchSummary`, `MatchDetailSchema` / `MatchDetail` (estende il riepilogo con `lastSeq`,
   `contentHash` e `state`, che è `MatchStateSchema` o `null`); è la risposta di `GET /api/admin/matches/:id`, usata dal
   dettaglio partita del portale.
+
+Auto-registrazione dell'agente (`registration.ts`): `PAIRING_CODE_ALPHABET`, `PAIRING_CODE_LENGTH` (6), `PairingCodeSchema`,
+`CreateRegistrationRequestSchema` (`name`), `CreateRegistrationResponseSchema` (`registrationId`, `secret`, `pairingCode`,
+`expiresAt`), `RegistrationStatusResponseSchema` (unione su `status`: `pending`, `approved` con `token` e `agentId`,
+`consumed`, `rejected`, `expired`). Flusso e regole in `docs/server.md`, pagina di abilitazione in `docs/portale.md`.
 
 Ogni schema ha il tipo omonimo senza `Schema` (`z.infer`). Dettagli d'uso: `docs/server.md`.
 

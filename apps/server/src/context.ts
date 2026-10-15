@@ -9,9 +9,17 @@ export interface RateLimits {
   ingest: number;
   public: number;
   admin: number;
+  /** Self-registration requests of agents (`POST /api/agents/registrations`). */
+  register: number;
 }
 
-export const DEFAULT_RATE_LIMITS: RateLimits = { login: 10, ingest: 600, public: 120, admin: 300 };
+export const DEFAULT_RATE_LIMITS: RateLimits = {
+  login: 10,
+  ingest: 600,
+  public: 120,
+  admin: 300,
+  register: 10,
+};
 
 /** Shared services of the routes. */
 export interface AppContext {

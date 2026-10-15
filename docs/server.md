@@ -52,6 +52,28 @@ rifiutata dallo schema.
 ### Accessi
 - **Token agente**: segreto casuale da 256 bit (base64url) creato da un admin; si salva solo l'hash sha256. L'agente lo
   invia come `Authorization: Bearer <token>`; un token revocato è rifiutato (401). Aggiorna `lastSeenAt`.
+- **Auto-registrazione dell'agente** (abbinamento), alternativa alla creazione manuale del token:
+  1. l'agente chiede `POST /api/agents/registrations` con `{ name }` (pubblica, nessuna autenticazione); la risposta 201
+     (`CreateRegistrationResponse`) ha `registrationId`, `secret` (segreto da 256 bit tenuto dall'agente, nel database solo
+     l'hash), `pairingCode` (6 caratteri, alfabeto `PAIRING_CODE_ALPHABET` senza 0/O/1/I, da mostrare sul PC) ed `expiresAt`
+     (24 h);
+  2. l'admin vede la richiesta nel portale (`docs/portale.md`), confronta il codice con quello sul PC e preme «Abilita» o
+     «Rifiuta» (`GET /api/admin/agent-registrations`, `POST .../:id/approve`, `POST .../:id/reject`; 404 se la richiesta non
+     è in attesa o è scaduta);
+  3. l'agente interroga ogni 5 s `POST /api/agents/registrations/status` con `Authorization: Bearer <segreto>` e corpo
+     JSON `{}` obbligatorio (segreto errato: 401). Stati (`RegistrationStatusResponse`): `pending`; `approved` con `token` e
+     `agentId`; `rejected`; `expired`; `consumed`;
+  4. alla prima interrogazione dopo l'abilitazione il server crea l'agente (un agente normale, revocabile con la revoca
+     esistente) e restituisce il token **una sola volta**: un `update` condizionato `approved` → `consumed` in transazione
+     fa sì che due interrogazioni insieme non lo consegnino due volte. Le successive rispondono `consumed` senza token (se è
+     andato perso, si registra di nuovo).
+
+  Casi limite: una richiesta non approvata, o approvata e non ritirata, entro 24 h diventa `expired` (stato derivato da
+  `expiresAt`, non salvato); `rejected` e `consumed` restano tali. Le richieste scadute da oltre 7 giorni sono cancellate
+  quando ne arriva una nuova. Le rotte pubbliche rifiutano un `Origin` estraneo (403) e un corpo non JSON (415).
+  **Limite di 20 richieste in attesa** (`MAX_PENDING_REGISTRATIONS`): oltre, 429 `TOO_MANY_PENDING`. Rischio accettato: un
+  solo IP può riempirlo in circa 2 minuti (rate limit 10/min) e bloccare le registrazioni fino a 24 h; per un portale
+  piccolo o in LAN va bene, e il rimedio è rifiutare dal portale le richieste in coda.
 - **Link pubblici** (`share_tokens`): token casuale in `/live/<token>` (URL composto con `PUBLIC_BASE_URL`). Se `matchId`
   è `null` il link **segue la partita live corrente**; con un `matchId` mostra quella partita fissa. `expiresAt`
   facoltativa. Un token non valido, revocato o scaduto dà sempre 404; la revoca chiude i WebSocket già aperti (codice
@@ -69,6 +91,8 @@ rifiutata dallo schema.
 |---|---|---|---|
 | GET | `/api/health` | nessuna (verifica il database; 503 se non raggiungibile) | - |
 | POST | `/api/ingest` | rate limit, poi token agente | agente |
+| POST | `/api/agents/registrations` | rate limit registrazione, `Origin` | - (pubblica) |
+| POST | `/api/agents/registrations/status` | rate limit ingest, `Origin`, segreto di registrazione | agente in registrazione |
 | POST | `/api/auth/login` | rate limit login | - |
 | POST | `/api/auth/logout` | rate limit admin | - (chiude i WebSocket della sessione) |
 | GET | `/api/auth/me` | sessione | viewer |
@@ -78,6 +102,9 @@ rifiutata dallo schema.
 | POST | `/api/admin/agents` | sessione | admin |
 | GET | `/api/admin/agents` | sessione | admin |
 | DELETE | `/api/admin/agents/:id` | sessione | admin |
+| GET | `/api/admin/agent-registrations` | sessione | admin |
+| POST | `/api/admin/agent-registrations/:id/approve` | sessione | admin |
+| POST | `/api/admin/agent-registrations/:id/reject` | sessione | admin |
 | POST | `/api/admin/share-tokens` | sessione | admin |
 | GET | `/api/admin/share-tokens` | sessione | admin |
 | DELETE | `/api/admin/share-tokens/:id` | sessione | admin |
@@ -108,8 +135,9 @@ ping, disconnette chi non ha risposto al precedente e chiude i client con creden
 
 ### Rate limit
 Per indirizzo IP e per minuto. Default (`DEFAULT_RATE_LIMITS`, `apps/server/src/context.ts`), modificabili con le variabili
-`RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_ADMIN`: login 10, ingest 600, rotte
-pubbliche 120, rotte admin 300 (incluse `/api/auth/logout`, `/api/auth/me`, `/ws/admin`). Oltre il limite: 429.
+`RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`: login 10,
+ingest 600, rotte pubbliche 120, rotte admin 300, creazione di una registrazione agente 10 (la rotta `/status` usa il
+limite dell'ingest, perché l'agente interroga ogni 5 s) (incluse `/api/auth/logout`, `/api/auth/me`, `/ws/admin`). Oltre il limite: 429.
 **L'autenticazione arriva dopo il rate limit**: i controlli con un costo (token agente, Origin, tipo del corpo) stanno in
 `preParsing`/`preValidation`/`preHandler`, così anche le richieste rifiutate sono contate. Dietro un reverse proxy serve
 `TRUST_PROXY=true`, altrimenti tutti i client condividono l'IP del proxy.
@@ -126,7 +154,7 @@ Helper in `packages/shared/src/strings.ts` (`hasNoNul`, `hasNoControlChars`, `co
 - l'email del login è ripulita dagli spazi (`trim`) prima del confronto.
 
 Altre protezioni: intestazioni di sicurezza `@fastify/helmet`, CORS solo per `CORS_ORIGIN` (metodi GET, POST, DELETE),
-log pino con cookie, `Authorization`, password e token oscurati.
+log pino con cookie, `Authorization`, password, token e `*.secret` oscurati.
 
 ## Configurazione
 Variabili d'ambiente lette da `apps/server/src/config.ts` (`loadConfig`) e riportate in `.env.example`. Una variabile
@@ -149,9 +177,10 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `RATE_LIMIT_INGEST` | `600` | richieste al minuto per IP su `/api/ingest` (intero da 1 a 100000) |
 | `RATE_LIMIT_PUBLIC` | `120` | richieste al minuto per IP sulle rotte pubbliche (intero da 1 a 100000) |
 | `RATE_LIMIT_ADMIN` | `300` | richieste al minuto per IP sulle rotte admin (intero da 1 a 100000) |
+| `RATE_LIMIT_REGISTER` | `10` | richieste al minuto per IP su `POST /api/agents/registrations` (intero da 1 a 100000) |
 | `MATCH_MAX_LINES` | `20000` | righe scout massime per partita (massimo 1.000.000); oltre, 413 |
 
-Le quattro `RATE_LIMIT_*` sono anche in `.env.example` e `docker-compose.yml`.
+Le cinque `RATE_LIMIT_*` sono anche in `.env.example` e `docker-compose.yml`.
 
 Variabili solo per Docker Compose: `POSTGRES_DB` (`sir`), `POSTGRES_USER` (`sir`), `POSTGRES_PASSWORD` (obbligatoria),
 `SERVER_BIND` (`127.0.0.1`, indirizzo su cui è pubblicata la 8090), `WEB_BIND` (`127.0.0.1`) e `WEB_PORT` (`8080`) per il
@@ -168,6 +197,7 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `matches` | `match_key` (unica), `header`, `line_count`, `content_hash`, `last_seq`, `agent_id`, `live`, `state` (jsonb), `version` |
 | `scout_lines` | `match_id`, `idx`, `text` (chiave primaria `match_id` + `idx`) |
 | `share_tokens` | `token_hash`, `match_id` (null: segue la live), `label`, `expires_at`, `revoked` |
+| `agent_registrations` | `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at` (migrazione `0001_agent_registrations.sql`) |
 
 Le migrazioni generate (`pnpm --filter @sir/server db:generate`) stanno in `apps/server/drizzle` e sono applicate
 all'avvio (`database.migrate()` in `src/main.ts`). Il driver dipende da `DATABASE_URL` (`src/db/index.ts`,
@@ -227,6 +257,25 @@ TOKEN_PUBBLICO="<token>"         # campo "token" della risposta di /api/admin/sh
 curl -s "$SERVER/api/public/$TOKEN_PUBBLICO/state"   # {"type":"noMatch"} finché nessuna partita è live
 ```
 
+Prova dell'auto-registrazione (stesso server e stesso `COOKIE_JAR`; l'abilitazione si può fare anche dal portale):
+
+```bash
+# --- variabili ---
+SERVER="http://127.0.0.1:8090"   # indirizzo del server
+COOKIE_JAR="/tmp/sir-cookie.txt" # cookie di sessione admin ottenuto con il login sopra
+NOME_AGENTE="PC scout"           # nome dell'agente che chiede la registrazione
+SEGRETO="<secret>"               # campo "secret" della risposta alla prima chiamata
+ID_REGISTRAZIONE="<id>"          # campo "id" della richiesta in GET /api/admin/agent-registrations
+
+# --- comandi ---
+curl -s -H "Content-Type: application/json" -d "{\"name\":\"$NOME_AGENTE\"}" "$SERVER/api/agents/registrations"
+curl -s -b "$COOKIE_JAR" "$SERVER/api/admin/agent-registrations"
+curl -s -b "$COOKIE_JAR" -H "Content-Type: application/json" -X POST \
+  "$SERVER/api/admin/agent-registrations/$ID_REGISTRAZIONE/approve"
+curl -s -H "Authorization: Bearer $SEGRETO" -H "Content-Type: application/json" -d '{}' \
+  "$SERVER/api/agents/registrations/status"   # la prima volta contiene "token", poi "consumed"
+```
+
 Il token agente va nell'intestazione `Authorization: Bearer <token>` di `POST /api/ingest` (l'agente è in
 `apps/agent`, vedi `docs/agente.md`; per esempi di richieste complete vedere `apps/server/test/ingest.test.ts`).
 
@@ -240,7 +289,7 @@ Il token agente va nell'intestazione `Authorization: Bearer <token>` di `POST /a
 | `pnpm --filter @sir/server test` | `vitest run` con PGlite in memoria, non serve Postgres |
 | `pnpm --filter @sir/server db:generate` | `drizzle-kit generate` dopo una modifica a `schema.ts` |
 
-I test (`apps/server/test/`: `auth`, `config`, `hub`, `ingest`, `limits`, `public`) usano PGlite. Per la configurazione
+I test (`apps/server/test/`: `auth`, `config`, `hub`, `ingest`, `limits`, `public`, `registration`) usano PGlite. Per la configurazione
 di vitest vedi `docs/infrastruttura.md`.
 
 ### Docker Compose
@@ -302,7 +351,8 @@ API_KEY="<chiave API>"                   # chiave API StackHawk dell'organizzazi
 # --- avvio del server in un altro terminale ---
 # cd "$RADICE/apps/server" && DATABASE_URL="pglite:memory" COOKIE_SECURE="false" \
 #   ADMIN_EMAIL="$ADMIN_EMAIL_SCAN" ADMIN_PASSWORD="$ADMIN_PASSWORD_SCAN" CORS_ORIGIN="http://localhost:5173" \
-#   RATE_LIMIT_LOGIN=100000 RATE_LIMIT_ADMIN=100000 RATE_LIMIT_PUBLIC=100000 RATE_LIMIT_INGEST=100000 pnpm dev
+#   RATE_LIMIT_LOGIN=100000 RATE_LIMIT_ADMIN=100000 RATE_LIMIT_PUBLIC=100000 RATE_LIMIT_INGEST=100000 \
+#   RATE_LIMIT_REGISTER=100000 pnpm dev
 
 # --- comandi ---
 cd "$RADICE"
@@ -330,10 +380,11 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
 - `stackhawk.yml`, `stackhawk-portale.yml` (stack completo, `docs/portale.md`), `stackhawk/openapi.yaml`
 - `apps/server/src/main.ts` (avvio), `app.ts` (`buildApp`, plugin, gestione errori), `config.ts` (`loadConfig`),
   `context.ts` (limiti, cookie `sir_session`), `ingest.ts` (`IngestService`), `hub.ts` (`LiveHub`, codici di chiusura),
-  `security.ts` (`requireRole`, `browserWriteGuard`, `sameOriginGuard`, `authenticateAgent`), `state.ts`, `seed.ts`
-- Rotte: `src/routes/health.ts`, `ingest.ts`, `auth.ts`, `admin.ts`, `public.ts`
+  `security.ts` (`requireRole`, `browserWriteGuard`, `sameOriginGuard`, `authenticateAgent`, `bearerHash` condivisa con
+  l'ingest), `lib/tokens.ts` (`generatePairingCode`), `state.ts`, `seed.ts`
+- Rotte: `src/routes/health.ts`, `ingest.ts`, `auth.ts`, `admin.ts`, `public.ts`, `registration.ts`
 - Database: `src/db/schema.ts`, `src/db/index.ts` (`createDatabase`), `src/db/pglite.ts`, `apps/server/drizzle/`
-- Contratti: `packages/shared/src/ingest.ts`, `messages.ts`, `admin.ts` (`docs/architettura.md`)
+- Contratti: `packages/shared/src/ingest.ts`, `messages.ts`, `admin.ts`, `registration.ts` (`docs/architettura.md`)
 - Calcoli: `docs/dvw-parser.md`, `docs/statistiche.md`; simulatore: `docs/simulatore.md`
 - Portale e nginx: `docs/portale.md` (`docker/web.nginx.conf`)
 - Infrastruttura e Docker: `docs/infrastruttura.md`; regole di sicurezza: `docs/regole/sicurezza.md`

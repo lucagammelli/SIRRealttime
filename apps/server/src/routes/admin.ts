@@ -1,4 +1,5 @@
 import type {
+  AgentRegistrationSummary,
   AgentSummary,
   CreateAgentResponse,
   CreateShareTokenResponse,
@@ -13,11 +14,11 @@ import {
   CreateUserRequestSchema,
   IdParamSchema,
 } from '@sir/shared';
-import { desc, eq } from 'drizzle-orm';
-import type { FastifyInstance } from 'fastify';
+import { and, desc, eq, gt } from 'drizzle-orm';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { AppContext } from '../context.js';
 import { perMinute, SESSION_COOKIE } from '../context.js';
-import { agents, matches, shareTokens, users } from '../db/index.js';
+import { agentRegistrations, agents, matches, shareTokens, users } from '../db/index.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { hashPassword } from '../lib/passwords.js';
 import { generateToken, hashToken } from '../lib/tokens.js';
@@ -28,6 +29,7 @@ import { currentMessage } from '../state.js';
 type MatchRow = typeof matches.$inferSelect;
 type AgentRow = typeof agents.$inferSelect;
 type ShareRow = typeof shareTokens.$inferSelect;
+type RegistrationRow = typeof agentRegistrations.$inferSelect;
 
 const iso = (d: Date): string => d.toISOString();
 const MATCH_LIST_LIMIT = 200;
@@ -54,6 +56,16 @@ const agentSummary = (a: AgentRow): AgentSummary => ({
   revoked: a.revoked,
   lastSeenAt: a.lastSeenAt ? iso(a.lastSeenAt) : null,
   createdAt: iso(a.createdAt),
+});
+
+const registrationSummary = (r: RegistrationRow): AgentRegistrationSummary => ({
+  id: r.id,
+  name: r.name,
+  pairingCode: r.pairingCode,
+  ip: r.ip,
+  createdAt: iso(r.createdAt),
+  expiresAt: iso(r.expiresAt),
+  status: r.status,
 });
 
 const shareSummary = (s: ShareRow): ShareTokenSummary => ({
@@ -111,6 +123,39 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
     request.log.info({ agentId: id }, 'token agente revocato');
     return reply.code(204).send();
   });
+
+  app.get('/api/admin/agent-registrations', admin, async (): Promise<AgentRegistrationSummary[]> => {
+    const rows = await ctx.db
+      .select()
+      .from(agentRegistrations)
+      .where(and(eq(agentRegistrations.status, 'pending'), gt(agentRegistrations.expiresAt, ctx.now())))
+      .orderBy(desc(agentRegistrations.createdAt));
+    return rows.map(registrationSummary);
+  });
+
+  /** Approves or rejects a pending, not expired request (404 otherwise); the agent collects its token later. */
+  const decide = (status: 'approved' | 'rejected', message: string) =>
+    async function (request: FastifyRequest): Promise<AgentRegistrationSummary> {
+      const { id } = validate(IdParamSchema, request.params);
+      const now = ctx.now();
+      const [row] = await ctx.db
+        .update(agentRegistrations)
+        .set({ status, decidedAt: now })
+        .where(
+          and(
+            eq(agentRegistrations.id, id),
+            eq(agentRegistrations.status, 'pending'),
+            gt(agentRegistrations.expiresAt, now),
+          ),
+        )
+        .returning();
+      if (!row) throw notFound();
+      request.log.info({ registrationId: id, userId: request.user?.id }, message);
+      return registrationSummary(row);
+    };
+
+  app.post('/api/admin/agent-registrations/:id/approve', admin, decide('approved', 'registrazione agente abilitata'));
+  app.post('/api/admin/agent-registrations/:id/reject', admin, decide('rejected', 'registrazione agente rifiutata'));
 
   app.post('/api/admin/share-tokens', admin, async (request, reply): Promise<CreateShareTokenResponse> => {
     const body = validate(CreateShareTokenRequestSchema, request.body);

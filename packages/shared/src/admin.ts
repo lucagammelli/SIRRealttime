@@ -2,6 +2,7 @@ import type { MatchState, MatchStatus } from '@sir/volley-stats';
 import { z } from 'zod';
 import { MatchKeySchema } from './ingest.js';
 import { MatchStateSchema } from './messages.js';
+import { PairingCodeSchema } from './registration.js';
 import { hasNoControlChars, plainText, safeString } from './strings.js';
 
 /** Public share token: random ≥ 128 bit, base64url. */
@@ -57,6 +58,23 @@ export const AgentSummarySchema = z.object({
   createdAt: z.iso.datetime(),
 });
 export type AgentSummary = z.infer<typeof AgentSummarySchema>;
+
+/** State of an agent registration as stored; `expired` is derived from `expiresAt`. */
+export const AgentRegistrationStateSchema = z.enum(['pending', 'approved', 'rejected', 'consumed']);
+export type AgentRegistrationState = z.infer<typeof AgentRegistrationStateSchema>;
+
+/** Registration request seen by the admin (`GET /api/admin/agent-registrations`, approve, reject). */
+export const AgentRegistrationSummarySchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  pairingCode: PairingCodeSchema,
+  /** Address of the client that asked (as seen by the server, behind the proxy with TRUST_PROXY=true). */
+  ip: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime(),
+  status: AgentRegistrationStateSchema,
+});
+export type AgentRegistrationSummary = z.infer<typeof AgentRegistrationSummarySchema>;
 
 /** The clear token is returned only here, once. */
 export const CreateAgentResponseSchema = AgentSummarySchema.extend({ token: z.string() });

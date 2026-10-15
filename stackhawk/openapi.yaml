@@ -54,6 +54,32 @@ paths:
       responses:
         '200': { description: esito ingest }
         '401': { description: token agente mancante o errato }
+  /api/agents/registrations:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, example: agente-dast }
+      responses:
+        '201': { description: richiesta di registrazione creata (segreto e codice di abbinamento) }
+        '429': { description: troppe richieste o troppe richieste in attesa }
+  /api/agents/registrations/status:
+    post:
+      security: [{ agentToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200': { description: 'stato della richiesta: pending, approved (token una volta sola), consumed, rejected, expired' }
+        '401': { description: segreto di registrazione mancante o errato }
   /api/public/{token}/state:
     get:
       parameters:
@@ -104,6 +130,42 @@ paths:
       responses:
         '204': { description: revocato }
         '404': { description: non trovato }
+  /api/admin/agent-registrations:
+    get:
+      responses:
+        '200': { description: richieste di registrazione in attesa }
+  /api/admin/agent-registrations/{id}/approve:
+    post:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200': { description: richiesta abilitata }
+        '404': { description: non in attesa o scaduta }
+  /api/admin/agent-registrations/{id}/reject:
+    post:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200': { description: richiesta rifiutata }
+        '404': { description: non in attesa o scaduta }
   /api/admin/share-tokens:
     get:
       responses:

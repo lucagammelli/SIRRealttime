@@ -11,7 +11,7 @@ qui c'è lo stato attuale del codice. Il portale web è in `apps/web` (`docs/por
 DataVolley (.dvw riscritto per intero)
    → agente: legge il file, estrae le righe di scout, calcola il diff, invia con POST /api/ingest (token agente)
    → server: salva le righe in Postgres, ricostruisce il DVW, ricalcola lo stato
-   → WebSocket (/ws/public/:token, /ws/admin): stato intero a ogni aggiornamento
+   → WebSocket (/ws/public/:token, /ws/admin): stato intero alla connessione, poi patch (differenze) a ogni aggiornamento
    → portale (nginx + SPA React): mostra la partita
 ```
 
@@ -22,9 +22,10 @@ su `127.0.0.1`; anche l'agente invia a `<URL del portale>/api/ingest`.
    confronta le righe precedenti con le nuove con `diffScoutLines` (append se le precedenti sono un prefisso, altrimenti
    snapshot), calcola `hashScoutLines` e tiene in coda su disco ciò che il server non ha ancora confermato.
 2. Il server (`docs/server.md`) applica la richiesta, ricostruisce il testo con `buildDvwText`, lo legge con `parseDvw`
-   e calcola `computeMatchState`. Lo stato è ricalcolato da zero a ogni ingest e inviato intero (`StateMessage`).
-3. Il portale (`docs/portale.md`) riceve lo stato via WebSocket, con `GET /api/public/:token/state` come sonda del link, e
-   lo disegna senza ricalcolare nulla.
+   e calcola `computeMatchState`. Lo stato è ricalcolato da zero a ogni ingest; ai client va come patch (`PatchMessage`) a chi
+   ha lo stato precedente, intero (`StateMessage`) agli altri e a chi chiede `resync`.
+3. Il portale (`docs/portale.md`) riceve lo stato via WebSocket, applica i patch (`applyPatch`), con
+   `GET /api/public/:token/state` come sonda del link, e lo disegna senza ricalcolare nulla.
 
 Il sistema è **multi-cliente**: ogni dato appartiene a un cliente, ricavato dall'hostname della richiesta (agenti e
 registrazioni, partite, link, utenti; una partita live per cliente) e il superadmin sceglie su quale lavorare
@@ -43,10 +44,11 @@ simulatore (`docs/agente.md`) o con i test del server (`apps/server/test/ingest.
 | `@sir/server` | `apps/server` | dvw-parser, volley-stats, shared | backend |
 | `@sir/agent` | `apps/agent` | dvw-parser, shared | agente Windows (`docs/agente.md`); dev-dependency: dvw-simulator, server, volley-stats (per i test) |
 | `@sir/web` | `apps/web` | shared, volley-stats | portale: pagina pubblica `/live/:token` e area `/admin` (`docs/portale.md`); dev-dependency: agent, server, dvw-parser, dvw-simulator (solo per la demo) |
+| `@sir/carico` | `tools/carico` | dvw-parser, volley-stats, shared | prova di carico dei WebSocket pubblici (`docs/infrastruttura.md`) |
 | `@sir/dvw-simulator` | `tools/dvw-simulator` | dvw-parser | genera e "suona" file DVW sintetici; è anche dev-dependency di volley-stats, shared e server (per i test) |
 
 ### Contratti di `packages/shared`
-Esportati da `packages/shared/src/index.ts` (`admin.ts`, `ingest.ts`, `messages.ts`, `registration.ts`, `tenant.ts`).
+Esportati da `packages/shared/src/index.ts` (`admin.ts`, `ingest.ts`, `messages.ts`, `patch.ts`, `registration.ts`, `tenant.ts`).
 
 Ingest (`ingest.ts`):
 
@@ -63,9 +65,23 @@ Messaggi (`messages.ts`):
 - `StateMessageSchema` / `StateMessage` (`type: 'state'`, `matchId`, `version`, `state`),
   `NoMatchMessageSchema` / `NoMatchMessage`, `ErrorMessageSchema` / `ErrorMessage`,
   `ServerMessageSchema` / `ServerMessage` (unione discriminata su `type`);
+- `PatchMessageSchema` / `PatchMessage` (`type: 'patch'`, `matchId`, `baseVersion`, `version`, `ops`): le differenze fra
+  due stati consecutivi, parte di `ServerMessage`; `ResyncMessageSchema` / `ClientMessageSchema` (client→server:
+  `{ type: 'resync' }`, chiede lo stato intero); `LiveSocketQuerySchema` (`?enc=gzip` sull'URL del WebSocket: frame
+  binari con il gzip del JSON); `LIVE_FRAME_MAX_DECODED_BYTES` (4 MB: un frame decompresso più grande è scartato);
 - `MatchStateSchema`: lo `state` dei messaggi, verificato solo come oggetto (`z.custom<MatchState>`); il portale
   controlla in più i campi che legge (`looksLikeMatchState`, `apps/web/src/lib/messages.ts`);
 - `ApiErrorSchema` / `ApiError`: corpo di ogni errore HTTP (`{ error }`).
+
+Aggiornamenti differenziali (`patch.ts`, funzioni pure e deterministiche, senza I/O):
+
+- `diffJson(a, b)` → elenco di operazioni `PatchOp` che trasforma `a` in `b`; `applyPatch(doc, ops)` le applica senza
+  modificare `doc` (le parti non toccate sono condivise). Operazioni: `set` (sostituisce un valore o la radice), `del`
+  (toglie una chiave di oggetto), `push` (aggiunge in coda a un array), `trunc` (accorcia un array). Applicando
+  `diffJson(a, b)` ad `a` si ottiene un valore con lo stesso `JSON.stringify` di `b`;
+- `PatchError` (codice `PATCH_INVALID`) se una operazione non combacia con il valore (chiave mancante, indice fuori
+  dall'array, tipo sbagliato); limiti dello schema `PatchOpsSchema`: profondità del percorso `PATCH_MAX_DEPTH` (64) e
+  numero di operazioni `PATCH_MAX_OPS` (20000); anche `PatchOpSchema`, `PatchPath`, `JsonValue`, `jsonEqual`.
 
 Amministrazione (`admin.ts`):
 
@@ -118,7 +134,7 @@ pnpm --filter @sir/server test      # il flusso completo agente→server→WebSo
 ```
 
 ## Riferimenti
-- `packages/shared/src/ingest.ts`, `messages.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `index.ts`
+- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
 - `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`, `apps/web/src/App.tsx`
 - `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/portale.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,

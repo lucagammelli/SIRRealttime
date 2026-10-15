@@ -1,5 +1,7 @@
-import type { ServerMessage } from '@sir/shared';
+import type { JsonValue, PatchMessage, ServerMessage } from '@sir/shared';
+import { applyPatch } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
+import { gunzipFrame, supportsGzip, withGzip } from './frames.ts';
 import { looksLikeMatchState, parseServerMessage } from './messages.ts';
 
 /** Close codes of the server (docs/server.md, WebSocket). */
@@ -17,6 +19,8 @@ export interface LiveSnapshot {
   error: string | null;
   /** Failed attempts since the last open connection. */
   attempts: number;
+  /** The server answered that it is full (503): the next attempt waits its Retry-After. */
+  serverFull?: boolean;
 }
 
 /** Minimal WebSocket surface used here: the browser one, or a fake in the tests. */
@@ -25,12 +29,18 @@ export interface SocketLike {
   onmessage: ((ev: { data: unknown }) => void) | null;
   onclose: ((ev: { code: number }) => void) | null;
   onerror: ((ev: unknown) => void) | null;
+  /** Set to `arraybuffer` for the gzip frames. */
+  binaryType?: string;
+  send(data: string): void;
   close(code?: number): void;
 }
 export type SocketFactory = (url: string) => SocketLike;
 
-/** Answer of the HTTP check made when the socket closes before opening (the browser hides the 404/401 of the upgrade). */
-export type ProbeResult = 'ok' | 'invalid' | 'unauthorized';
+/**
+ * Answer of the HTTP check made when the socket closes before opening (the browser hides the 404/401/503 of the
+ * upgrade); `retryAfterMs`: the server is full or limiting, wait at least that long.
+ */
+export type ProbeResult = 'ok' | 'invalid' | 'unauthorized' | { retryAfterMs: number };
 
 export interface LiveConnectionOptions {
   url: string;
@@ -39,8 +49,23 @@ export interface LiveConnectionOptions {
   probe?: () => Promise<ProbeResult>;
   baseDelayMs?: number;
   maxDelayMs?: number;
+  /**
+   * Extra random wait, up to this, before reconnecting after an open connection dropped (server restart or crash:
+   * every client is dropped at once, so they spread out): default 5 s.
+   */
+  restartSpreadMs?: number;
   random?: () => number;
+  /** Ask gzip frames (`enc=gzip`); default: when the browser has `DecompressionStream`. */
+  gzip?: boolean;
+  /**
+   * `resync` sent again when its full state has not arrived within this time: default 8 s (the server answers at
+   * most every 5 s per socket).
+   */
+  resyncRetryMs?: number;
 }
+
+/** Close codes of a server that stopped, restarted or crashed: every client reconnects, so they spread out. */
+const RESTART_CODES = new Set([1001, 1006, 1012, 1013]);
 
 /**
  * Applies a server message to what is shown. `null` = ignore the message: a state of the same match with a version
@@ -48,22 +73,45 @@ export interface LiveConnectionOptions {
  */
 export function applyMessage(current: LiveData | null, message: ServerMessage): LiveData | null {
   if (message.type === 'noMatch') return { kind: 'noMatch' };
-  if (message.type === 'error') return null;
+  if (message.type === 'error' || message.type === 'patch') return null;
   if (!looksLikeMatchState(message.state)) return null;
   if (current?.kind === 'state' && current.matchId === message.matchId && message.version <= current.version)
     return null;
   return { kind: 'state', matchId: message.matchId, version: message.version, state: message.state };
 }
 
-/** Delay before the attempt number `attempt` (1-based): doubles from `base` up to `max`, with ±20% jitter. */
+/**
+ * Applies a patch to what is shown: the new data, `null` to ignore it (old version or another match), `'resync'`
+ * when it does not fit the version shown (a step was lost) or cannot be applied: the full state is needed.
+ */
+export function applyPatchMessage(current: LiveData | null, message: PatchMessage): LiveData | null | 'resync' {
+  if (current?.kind !== 'state' || current.matchId !== message.matchId) return 'resync';
+  if (message.version <= current.version) return null;
+  if (message.baseVersion !== current.version) return 'resync';
+  let next: JsonValue;
+  try {
+    next = applyPatch(current.state as unknown as JsonValue, message.ops);
+  } catch {
+    return 'resync';
+  }
+  if (!looksLikeMatchState(next)) return 'resync';
+  return { kind: 'state', matchId: message.matchId, version: message.version, state: next };
+}
+
+/**
+ * Delay before the attempt number `attempt` (1-based): doubles from `base` up to `max`, with ±50% jitter from the
+ * first attempt on (clients dropped together do not come back together).
+ */
 export function backoffDelay(attempt: number, base: number, max: number, random: () => number = Math.random): number {
   const raw = Math.min(max, base * 2 ** Math.max(0, attempt - 1));
-  return Math.round(raw * (0.8 + 0.4 * random()));
+  return Math.round(raw * (0.5 + random()));
 }
 
 /**
  * WebSocket that stays connected: reconnects with backoff (never after 4404/4401), and on every (re)connection the
- * server sends the whole state again. Old versions are ignored (`applyMessage`).
+ * server sends the whole state again. Old versions are ignored (`applyMessage`); a patch is applied only to its
+ * `baseVersion`, otherwise the client sends `resync` and waits for the full state. With `gzip` the server sends
+ * binary frames, decompressed here in order (`gunzipFrame`, size capped).
  */
 export class LiveConnection {
   private socket: SocketLike | null = null;
@@ -75,13 +123,23 @@ export class LiveConnection {
   private readonly createSocket: SocketFactory;
   private readonly base: number;
   private readonly max: number;
+  private readonly restartSpread: number;
   private readonly random: () => number;
+  private readonly url: string;
+  private readonly gzip: boolean;
+  private readonly resyncRetry: number;
+  /** Timer that repeats a `resync` still unanswered. */
+  private resyncTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly options: LiveConnectionOptions) {
     this.createSocket = options.createSocket ?? ((url) => new WebSocket(url) as unknown as SocketLike);
     this.base = options.baseDelayMs ?? 1000;
     this.max = options.maxDelayMs ?? 30_000;
+    this.restartSpread = options.restartSpreadMs ?? 5000;
     this.random = options.random ?? Math.random;
+    this.gzip = options.gzip ?? supportsGzip();
+    this.url = this.gzip ? withGzip(options.url) : options.url;
+    this.resyncRetry = options.resyncRetryMs ?? 8000;
   }
 
   current(): LiveSnapshot {
@@ -108,6 +166,7 @@ export class LiveConnection {
 
   /** Detaches and closes the current socket, if any (never two sockets at once). */
   private dropSocket(): void {
+    this.clearResyncTimer();
     const s = this.socket;
     this.socket = null;
     if (s) {
@@ -126,6 +185,11 @@ export class LiveConnection {
     this.options.onChange(this.snapshot);
   }
 
+  private clearResyncTimer(): void {
+    if (this.resyncTimer !== null) clearTimeout(this.resyncTimer);
+    this.resyncTimer = null;
+  }
+
   private clearTimer(): void {
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = null;
@@ -136,25 +200,66 @@ export class LiveConnection {
     let opened = false;
     let socket: SocketLike;
     try {
-      socket = this.createSocket(this.options.url);
+      socket = this.createSocket(this.url);
     } catch {
       this.scheduleReconnect();
       return;
     }
     this.socket = socket;
-    socket.onopen = () => {
-      opened = true;
-      this.update({ status: 'live', attempts: 0 });
+    if (this.gzip) socket.binaryType = 'arraybuffer';
+    /** Frames are handled in order: a text frame waits for the binary ones still being decompressed. */
+    let queue: Promise<void> = Promise.resolve();
+    let pending = 0;
+    /** A `resync` was sent and its full state has not arrived yet. */
+    let resyncing = false;
+    /** Sends `resync`, and again every `resyncRetry` until a full state arrives. */
+    const askResync = (): void => {
+      resyncing = true;
+      socket.send(JSON.stringify({ type: 'resync' }));
+      this.clearResyncTimer();
+      this.resyncTimer = setTimeout(() => {
+        this.resyncTimer = null;
+        if (this.socket === socket && resyncing) askResync();
+      }, this.resyncRetry);
     };
-    socket.onmessage = (ev) => {
-      const message = parseServerMessage(ev.data);
+    const handle = (text: unknown): void => {
+      if (this.socket !== socket) return;
+      const message = parseServerMessage(text);
       if (!message) return;
       if (message.type === 'error') {
         this.update({ error: message.message });
         return;
       }
+      if (message.type === 'patch') {
+        if (resyncing) return;
+        const next = applyPatchMessage(this.snapshot.data, message);
+        if (next === 'resync') askResync();
+        else if (next) this.update({ data: next, error: null, status: 'live' });
+        return;
+      }
+      if (message.type === 'state') {
+        resyncing = false;
+        this.clearResyncTimer();
+      }
       const next = applyMessage(this.snapshot.data, message);
       if (next) this.update({ data: next, error: null, status: 'live' });
+    };
+    socket.onopen = () => {
+      opened = true;
+      this.update({ status: 'live', attempts: 0, serverFull: false });
+    };
+    socket.onmessage = (ev) => {
+      if (typeof ev.data === 'string' && pending === 0) {
+        handle(ev.data);
+        return;
+      }
+      pending++;
+      const data = ev.data;
+      queue = queue
+        .then(async () => handle(typeof data === 'string' ? data : await gunzipFrame(data)))
+        .finally(() => {
+          pending--;
+        });
     };
     socket.onerror = () => {
       // Always followed by `close`, where the reconnection is decided.
@@ -162,9 +267,14 @@ export class LiveConnection {
     socket.onclose = (ev) => {
       if (this.socket !== socket) return;
       this.socket = null;
+      this.clearResyncTimer();
       if (this.stopped) return;
       if (ev.code === CLOSE_LINK_INVALID) return this.update({ status: 'invalid' });
       if (ev.code === CLOSE_SESSION_ENDED) return this.update({ status: 'unauthorized' });
+      if (opened && RESTART_CODES.has(ev.code)) {
+        this.scheduleReconnect(this.random() * this.restartSpread);
+        return;
+      }
       if ((!opened || ev.code === 1008) && this.options.probe) {
         this.probing = true;
         void this.options.probe().then(
@@ -182,20 +292,27 @@ export class LiveConnection {
     if (this.stopped) return;
     if (result === 'invalid') return this.update({ status: 'invalid' });
     if (result === 'unauthorized') return this.update({ status: 'unauthorized' });
+    if (typeof result === 'object') {
+      // Server full: wait its Retry-After plus up to half of it, so that the clients do not return together.
+      this.scheduleReconnect(result.retryAfterMs * (1 + 0.5 * this.random()), true);
+      return;
+    }
     this.scheduleReconnect();
   }
 
-  private scheduleReconnect(): void {
+  /** Next attempt after the backoff, or after `atLeastMs` (plus the backoff jitter) when that is longer. */
+  private scheduleReconnect(atLeastMs = 0, serverFull = false): void {
     if (this.stopped) return;
     const attempts = this.snapshot.attempts + 1;
-    this.update({ status: 'reconnecting', attempts });
+    this.update({ status: 'reconnecting', attempts, serverFull });
     this.clearTimer();
+    const backoff = backoffDelay(attempts, this.base, this.max, this.random);
     this.timer = setTimeout(
       () => {
         this.timer = null;
         if (!this.stopped) this.connect();
       },
-      backoffDelay(attempts, this.base, this.max, this.random),
+      Math.max(backoff, Math.round(atLeastMs)),
     );
   }
 }

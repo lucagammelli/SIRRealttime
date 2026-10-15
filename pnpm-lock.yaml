@@ -382,6 +382,28 @@ importers:
         specifier: workspace:*
         version: link:../../tools/dvw-simulator
 
+  tools/carico:
+    dependencies:
+      '@sir/dvw-parser':
+        specifier: workspace:*
+        version: link:../../packages/dvw-parser
+      '@sir/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@sir/volley-stats':
+        specifier: workspace:*
+        version: link:../../packages/volley-stats
+      ws:
+        specifier: ^8.22.0
+        version: 8.22.0
+    devDependencies:
+      '@types/ws':
+        specifier: ^8.18.2
+        version: 8.18.2
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+
   tools/dvw-simulator:
     dependencies:
       '@sir/dvw-parser':

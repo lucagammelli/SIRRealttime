@@ -24,6 +24,13 @@ export function LiveMatch({ snapshot, tv = false }: { snapshot: LiveSnapshot; tv
   const finished = data?.kind === 'state' && data.state.status === 'finished';
   const badge = <ConnectionBadge status={status} finished={finished} />;
   if (data === null) {
+    if (status === 'reconnecting' && snapshot.serverFull) {
+      return (
+        <StatusScreen title="Troppi spettatori collegati" tone="warn" action={badge}>
+          Il server è al completo in questo momento: nuovo tentativo tra poco. La pagina si aggiorna da sola.
+        </StatusScreen>
+      );
+    }
     if (status === 'reconnecting') {
       return (
         <StatusScreen title="Server non raggiungibile" tone="warn" action={badge}>

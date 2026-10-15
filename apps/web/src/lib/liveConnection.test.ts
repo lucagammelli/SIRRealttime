@@ -1,4 +1,5 @@
-import type { StateMessage } from '@sir/shared';
+import { gzipSync } from 'node:zlib';
+import type { PatchMessage, StateMessage } from '@sir/shared';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { midMatchState } from '../test/fixtures.ts';
@@ -8,8 +9,11 @@ import {
   CLOSE_SESSION_ENDED,
   LiveConnection,
   applyMessage,
+  applyPatchMessage,
   backoffDelay,
 } from './liveConnection.ts';
+import { gunzipFrame } from './frames.ts';
+import { probeShareToken, retryAfterMs } from '../pages/LivePage.tsx';
 import { useLiveSocket } from './useLiveSocket.ts';
 
 const MATCH_A = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
@@ -20,13 +24,25 @@ class FakeSocket implements SocketLike {
   onmessage: SocketLike['onmessage'] = null;
   onclose: SocketLike['onclose'] = null;
   onerror: SocketLike['onerror'] = null;
+  binaryType = 'blob';
   closed: number | null = null;
+  /** Messages sent by the client. */
+  outgoing: unknown[] = [];
   constructor(readonly url: string) {}
   open(): void {
     this.onopen?.({});
   }
-  send(message: unknown): void {
+  /** A text frame from the server. */
+  deliver(message: unknown): void {
     this.onmessage?.({ data: JSON.stringify(message) });
+  }
+  /** A gzip binary frame from the server. */
+  deliverGzip(message: unknown): void {
+    const z = gzipSync(JSON.stringify(message));
+    this.onmessage?.({ data: z.buffer.slice(z.byteOffset, z.byteOffset + z.byteLength) });
+  }
+  send(data: string): void {
+    this.outgoing.push(JSON.parse(data));
   }
   serverClose(code: number): void {
     this.onclose?.({ code });
@@ -44,7 +60,15 @@ const stateMsg = (matchId: string, version: number, homeScore = state.live.homeS
   state: { ...state, live: { ...state.live, homeScore } },
 });
 
-function setup(probe?: () => Promise<ProbeResult>) {
+const patchMsg = (matchId: string, baseVersion: number, version: number, homeScore: number): PatchMessage => ({
+  type: 'patch',
+  matchId,
+  baseVersion,
+  version,
+  ops: [{ op: 'set', path: ['live', 'homeScore'], value: homeScore }],
+});
+
+function setup(probe?: () => Promise<ProbeResult>, extra: { gzip?: boolean; restartSpreadMs?: number } = {}) {
   const sockets: FakeSocket[] = [];
   const onChange = vi.fn();
   const conn = new LiveConnection({
@@ -58,6 +82,8 @@ function setup(probe?: () => Promise<ProbeResult>) {
     baseDelayMs: 1000,
     maxDelayMs: 8000,
     random: () => 0.5,
+    gzip: extra.gzip ?? false,
+    restartSpreadMs: extra.restartSpreadMs ?? 0,
     ...(probe ? { probe } : {}),
   });
   return { conn, sockets, onChange, last: () => sockets.at(-1) as FakeSocket };
@@ -83,6 +109,57 @@ describe('applyMessage', () => {
     expect(backoffDelay(3, 1000, 8000, () => 0.5)).toBe(4000);
     expect(backoffDelay(10, 1000, 8000, () => 0.5)).toBe(8000);
   });
+
+  it('spreads the delay ±50% from the first attempt', () => {
+    expect(backoffDelay(1, 1000, 8000, () => 0)).toBe(500);
+    expect(backoffDelay(1, 1000, 8000, () => 0.999)).toBe(1499);
+    expect(backoffDelay(10, 1000, 8000, () => 0)).toBe(4000);
+  });
+});
+
+describe('applyPatchMessage', () => {
+  const v5 = applyMessage(null, stateMsg(MATCH_A, 5, 3));
+  it('applies a patch of the version shown', () => {
+    const next = applyPatchMessage(v5, patchMsg(MATCH_A, 5, 6, 4));
+    expect(next).toMatchObject({ kind: 'state', version: 6 });
+    expect(next !== null && next !== 'resync' && next.kind === 'state' && next.state.live.homeScore).toBe(4);
+    // The state shown before is not changed.
+    expect(v5?.kind === 'state' && v5.state.live.homeScore).toBe(3);
+  });
+  it('ignores old patches and asks the full state when a step is missing or the patch does not fit', () => {
+    expect(applyPatchMessage(v5, patchMsg(MATCH_A, 4, 5, 9))).toBeNull();
+    expect(applyPatchMessage(v5, patchMsg(MATCH_A, 6, 7, 9))).toBe('resync');
+    expect(applyPatchMessage(v5, patchMsg(MATCH_B, 5, 6, 9))).toBe('resync');
+    expect(applyPatchMessage(null, patchMsg(MATCH_A, 5, 6, 9))).toBe('resync');
+    const broken: PatchMessage = { ...patchMsg(MATCH_A, 5, 6, 9), ops: [{ op: 'del', path: ['nope'] }] };
+    expect(applyPatchMessage(v5, broken)).toBe('resync');
+    const notAState: PatchMessage = { ...patchMsg(MATCH_A, 5, 6, 9), ops: [{ op: 'del', path: ['teams'] }] };
+    expect(applyPatchMessage(v5, notAState)).toBe('resync');
+  });
+});
+
+describe('gunzipFrame', () => {
+  it('decompresses a gzip frame, and refuses one too large once decompressed or not gzip', async () => {
+    const text = JSON.stringify({ type: 'noMatch', pad: 'x'.repeat(5000) });
+    const z = gzipSync(text);
+    expect(await gunzipFrame(z)).toBe(text);
+    expect(await gunzipFrame(z, 1000)).toBeNull();
+    expect(await gunzipFrame(new TextEncoder().encode('non gzip'))).toBeNull();
+    expect(await gunzipFrame('testo')).toBeNull();
+  });
+});
+
+describe('probeShareToken', () => {
+  const answer = (status: number, headers: Record<string, string> = {}) =>
+    vi.fn(() => Promise.resolve(new Response(null, { status, headers }))) as unknown as typeof fetch;
+  it('reads 404 as invalid, 503 and 429 as a wait of Retry-After', async () => {
+    expect(await probeShareToken('t', answer(404))).toBe('invalid');
+    expect(await probeShareToken('t', answer(200))).toBe('ok');
+    expect(await probeShareToken('t', answer(503, { 'retry-after': '30' }))).toEqual({ retryAfterMs: 30_000 });
+    expect(await probeShareToken('t', answer(429))).toEqual({ retryAfterMs: 20_000 });
+    expect(retryAfterMs('100000')).toBe(300_000);
+    expect(retryAfterMs('domani')).toBe(20_000);
+  });
 });
 
 describe('LiveConnection', () => {
@@ -91,11 +168,11 @@ describe('LiveConnection', () => {
     conn.start();
     last().open();
     expect(conn.current().status).toBe('live');
-    last().send(stateMsg(MATCH_A, 3, 10));
-    last().send(stateMsg(MATCH_A, 2, 9));
+    last().deliver(stateMsg(MATCH_A, 3, 10));
+    last().deliver(stateMsg(MATCH_A, 2, 9));
     expect(conn.current().data).toMatchObject({ version: 3 });
-    last().send({ type: 'garbage' });
-    last().send(stateMsg(MATCH_A, 4, 11));
+    last().deliver({ type: 'garbage' });
+    last().deliver(stateMsg(MATCH_A, 4, 11));
     const data = conn.current().data;
     expect(data?.kind === 'state' && data.state.live.homeScore).toBe(11);
     conn.stop();
@@ -105,7 +182,7 @@ describe('LiveConnection', () => {
     const { conn, sockets, last } = setup();
     conn.start();
     last().open();
-    last().send(stateMsg(MATCH_A, 7));
+    last().deliver(stateMsg(MATCH_A, 7));
     last().serverClose(1006);
     expect(conn.current().status).toBe('reconnecting');
     expect(conn.current().data).toMatchObject({ version: 7 });
@@ -120,9 +197,9 @@ describe('LiveConnection', () => {
     expect(sockets).toHaveLength(3);
     last().open();
     expect(conn.current()).toMatchObject({ status: 'live', attempts: 0 });
-    last().send(stateMsg(MATCH_A, 6));
+    last().deliver(stateMsg(MATCH_A, 6));
     expect(conn.current().data).toMatchObject({ version: 7 });
-    last().send(stateMsg(MATCH_A, 8));
+    last().deliver(stateMsg(MATCH_A, 8));
     expect(conn.current().data).toMatchObject({ version: 8 });
     conn.stop();
   });
@@ -212,8 +289,8 @@ describe('useLiveSocket', () => {
     const socket = sockets.at(-1) as FakeSocket;
     act(() => {
       socket.open();
-      socket.send(stateMsg(MATCH_A, 2));
-      socket.send(stateMsg(MATCH_A, 1));
+      socket.deliver(stateMsg(MATCH_A, 2));
+      socket.deliver(stateMsg(MATCH_A, 1));
     });
     expect(result.current.status).toBe('live');
     expect(result.current.data).toMatchObject({ kind: 'state', version: 2 });
@@ -221,5 +298,97 @@ describe('useLiveSocket', () => {
     expect(result.current.status).toBe('invalid');
     unmount();
     expect(sockets).toHaveLength(1);
+  });
+});
+
+describe('LiveConnection: patches, resync and gzip', () => {
+  it('applies patches and asks resync once when a step is missing', () => {
+    const { conn, last } = setup();
+    conn.start();
+    last().open();
+    last().deliver(stateMsg(MATCH_A, 1, 0));
+    last().deliver(patchMsg(MATCH_A, 1, 2, 1));
+    expect(conn.current().data).toMatchObject({ version: 2 });
+    last().deliver(patchMsg(MATCH_A, 3, 4, 5));
+    last().deliver(patchMsg(MATCH_A, 4, 5, 6));
+    expect(last().outgoing).toEqual([{ type: 'resync' }]);
+    expect(conn.current().data).toMatchObject({ version: 2 });
+    last().deliver(stateMsg(MATCH_A, 5, 6));
+    last().deliver(patchMsg(MATCH_A, 5, 6, 7));
+    const data = conn.current().data;
+    expect(data).toMatchObject({ version: 6 });
+    expect(data?.kind === 'state' && data.state.live.homeScore).toBe(7);
+    expect(last().outgoing).toHaveLength(1);
+    conn.stop();
+  });
+
+  it('sends resync again when its full state does not arrive, and stops once it does', () => {
+    const { conn, last } = setup();
+    conn.start();
+    last().open();
+    last().deliver(stateMsg(MATCH_A, 1, 0));
+    last().deliver(patchMsg(MATCH_A, 3, 4, 5));
+    expect(last().outgoing).toHaveLength(1);
+    vi.advanceTimersByTime(7999);
+    expect(last().outgoing).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(last().outgoing).toEqual([{ type: 'resync' }, { type: 'resync' }]);
+    last().deliver(stateMsg(MATCH_A, 4, 5));
+    vi.advanceTimersByTime(60_000);
+    expect(last().outgoing).toHaveLength(2);
+    expect(conn.current().data).toMatchObject({ version: 4 });
+    conn.stop();
+  });
+
+  it('asks gzip frames and handles binary and text frames in order', async () => {
+    const { conn, last } = setup(undefined, { gzip: true });
+    conn.start();
+    expect(last().url).toBe('ws://test/ws/public/abc?enc=gzip');
+    expect(last().binaryType).toBe('arraybuffer');
+    last().open();
+    last().deliverGzip(stateMsg(MATCH_A, 1, 0));
+    last().deliverGzip(patchMsg(MATCH_A, 1, 2, 1));
+    // A text frame right after the binary ones waits for them.
+    last().deliver({ type: 'error', message: 'avviso' });
+    expect(conn.current().data).toBeNull();
+    await vi.waitFor(() => expect(conn.current().error).toBe('avviso'));
+    expect(conn.current().data).toMatchObject({ version: 2 });
+    conn.stop();
+  });
+
+  it('does not ask gzip when told not to', () => {
+    const { conn, last } = setup();
+    conn.start();
+    expect(last().url).toBe('ws://test/ws/public/abc');
+    conn.stop();
+  });
+
+  it('spreads the reconnections after a server restart', () => {
+    const { conn, sockets, last } = setup(undefined, { restartSpreadMs: 10_000 });
+    conn.start();
+    last().open();
+    last().serverClose(1001);
+    vi.advanceTimersByTime(4999);
+    expect(sockets).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(sockets).toHaveLength(2);
+    conn.stop();
+  });
+
+  it('waits the Retry-After (plus up to half of it) when the server is full', async () => {
+    const probe = vi.fn<() => Promise<ProbeResult>>().mockResolvedValue({ retryAfterMs: 20_000 });
+    const { conn, sockets, last } = setup(probe);
+    conn.start();
+    last().serverClose(1006);
+    // Lets the probe answer without moving the fake clock (vi.waitFor would advance it).
+    await vi.advanceTimersByTimeAsync(0);
+    expect(conn.current()).toMatchObject({ status: 'reconnecting', serverFull: true });
+    vi.advanceTimersByTime(24_999);
+    expect(sockets).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(sockets).toHaveLength(2);
+    last().open();
+    expect(conn.current().serverFull).toBe(false);
+    conn.stop();
   });
 });

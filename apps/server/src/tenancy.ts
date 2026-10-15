@@ -53,7 +53,7 @@ export async function findTenant(
 const resolved = new WeakMap<FastifyRequest, Promise<Tenant | null>>();
 
 /**
- * Client of the request hostname (looked up once per request): the client that lists the hostname, otherwise the
+ * Client of the request hostname (looked up once per request, cached 30 s): the client that lists the hostname, otherwise the
  * one of DEFAULT_TENANT_SLUG, otherwise null. The hostname is the `Host` header as forwarded by nginx
  * (`proxy_set_header Host $host`); `X-Forwarded-Host` is never read, so a client cannot choose it through the proxy.
  */
@@ -66,11 +66,21 @@ export function hostTenant(ctx: AppContext, request: FastifyRequest): Promise<Te
   return pending;
 }
 
+/** Client of a hostname, cached 30 s (`forgetTenants` empties the cache when a client is created or changed). */
 async function resolveHost(ctx: AppContext, hostname: string | null): Promise<Tenant | null> {
+  const key = hostname ?? '';
+  const cached = ctx.caches.hosts.get(key);
+  if (cached !== undefined) return cached;
   const known = hostname ? await findTenant(ctx, { hostname }) : null;
-  if (known) return known;
   const slug = ctx.config.defaultTenantSlug;
-  return slug ? findTenant(ctx, { slug }) : null;
+  const tenant = known ?? (slug ? await findTenant(ctx, { slug }) : null);
+  ctx.caches.hosts.set(key, tenant);
+  return tenant;
+}
+
+/** Empties the hostname cache: a new or changed client may take a hostname that resolved to another one. */
+export function forgetTenants(ctx: AppContext): void {
+  ctx.caches.hosts.clear();
 }
 
 /**

@@ -14,7 +14,16 @@ describe('loadConfig', () => {
       logLevel: 'info',
       trustProxy: false,
       matchMaxLines: 20_000,
-      rateLimits: { login: 10, ingest: 600, public: 120, admin: 300, register: 10 },
+      rateLimits: {
+        login: 10,
+        ingest: 600,
+        public: 6000,
+        publicWs: 6000,
+        publicInvalid: 120,
+        admin: 300,
+        register: 10,
+      },
+      socketLimits: { perIp: 2000, total: 6000 },
     });
   });
 
@@ -33,10 +42,32 @@ describe('loadConfig', () => {
       RATE_LIMIT_PUBLIC: '60',
       RATE_LIMIT_ADMIN: '100',
       RATE_LIMIT_REGISTER: '20',
+      RATE_LIMIT_PUBLIC_WS: '3000',
+      RATE_LIMIT_PUBLIC_INVALID: '30',
     });
-    expect(c.rateLimits).toEqual({ login: 5, ingest: 1200, public: 60, admin: 100, register: 20 });
+    expect(c.rateLimits).toEqual({
+      login: 5,
+      ingest: 1200,
+      public: 60,
+      publicWs: 3000,
+      publicInvalid: 30,
+      admin: 100,
+      register: 20,
+    });
     for (const value of ['0', '-1', '1.5', 'abc', '100001']) {
       expect(() => loadConfig({ DATABASE_URL: 'x', RATE_LIMIT_LOGIN: value })).toThrow(/RATE_LIMIT_LOGIN/);
+      expect(() => loadConfig({ DATABASE_URL: 'x', RATE_LIMIT_PUBLIC_INVALID: value })).toThrow(
+        /RATE_LIMIT_PUBLIC_INVALID/,
+      );
+    }
+  });
+
+  it('reads the WebSocket limits and rejects invalid values', () => {
+    const c = loadConfig({ DATABASE_URL: 'x', WS_MAX_PER_IP: '500', WS_MAX_TOTAL: '10000' });
+    expect(c.socketLimits).toEqual({ perIp: 500, total: 10_000 });
+    for (const value of ['0', '-3', '2.5', 'tanti', '1000001']) {
+      expect(() => loadConfig({ DATABASE_URL: 'x', WS_MAX_TOTAL: value })).toThrow(/WS_MAX_TOTAL/);
+      expect(() => loadConfig({ DATABASE_URL: 'x', WS_MAX_PER_IP: value })).toThrow(/WS_MAX_PER_IP/);
     }
   });
 

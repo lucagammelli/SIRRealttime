@@ -1,11 +1,13 @@
 import { DEFAULT_TENANT_SLUG, PASSWORD_MIN_LENGTH, TenantSlugSchema } from '@sir/shared';
 import { z } from 'zod';
-import type { RateLimits } from './context.js';
-import { DEFAULT_RATE_LIMITS } from './context.js';
+import type { RateLimits, SocketLimits } from './context.js';
+import { DEFAULT_RATE_LIMITS, DEFAULT_SOCKET_LIMITS } from './context.js';
 
 const bool = z.enum(['true', 'false']).transform((v) => v === 'true');
 /** Requests per minute and per IP: a positive integer, at most 100000. */
 const perMinute = (fallback: number) => z.coerce.number().int().positive().max(100_000).default(fallback);
+/** Open WebSockets: a positive integer, at most 1000000. */
+const sockets = (fallback: number) => z.coerce.number().int().positive().max(1_000_000).default(fallback);
 const origin = z.url().transform((u) => new URL(u).origin);
 
 /** Environment variables of the server (documented in `.env.example`). */
@@ -32,8 +34,12 @@ const EnvSchema = z
     RATE_LIMIT_LOGIN: perMinute(DEFAULT_RATE_LIMITS.login),
     RATE_LIMIT_INGEST: perMinute(DEFAULT_RATE_LIMITS.ingest),
     RATE_LIMIT_PUBLIC: perMinute(DEFAULT_RATE_LIMITS.public),
+    RATE_LIMIT_PUBLIC_WS: perMinute(DEFAULT_RATE_LIMITS.publicWs),
+    RATE_LIMIT_PUBLIC_INVALID: perMinute(DEFAULT_RATE_LIMITS.publicInvalid),
     RATE_LIMIT_ADMIN: perMinute(DEFAULT_RATE_LIMITS.admin),
     RATE_LIMIT_REGISTER: perMinute(DEFAULT_RATE_LIMITS.register),
+    WS_MAX_PER_IP: sockets(DEFAULT_SOCKET_LIMITS.perIp),
+    WS_MAX_TOTAL: sockets(DEFAULT_SOCKET_LIMITS.total),
     MATCH_MAX_LINES: z.coerce.number().int().positive().max(1_000_000).default(20_000),
     DEFAULT_TENANT_SLUG: TenantSlugSchema.default(DEFAULT_TENANT_SLUG),
   })
@@ -57,6 +63,8 @@ export interface Config {
   matchMaxLines: number;
   /** Requests per minute and per IP of each route group. */
   rateLimits: RateLimits;
+  /** Most public WebSockets open at once, per IP and in total (then 503 with Retry-After). */
+  socketLimits: SocketLimits;
   /** Client of an unknown hostname; null (DEFAULT_TENANT_SLUG set but empty): unknown hostnames get 404. */
   defaultTenantSlug: string | null;
 }
@@ -93,9 +101,12 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       login: e.RATE_LIMIT_LOGIN,
       ingest: e.RATE_LIMIT_INGEST,
       public: e.RATE_LIMIT_PUBLIC,
+      publicWs: e.RATE_LIMIT_PUBLIC_WS,
+      publicInvalid: e.RATE_LIMIT_PUBLIC_INVALID,
       admin: e.RATE_LIMIT_ADMIN,
       register: e.RATE_LIMIT_REGISTER,
     },
+    socketLimits: { perIp: e.WS_MAX_PER_IP, total: e.WS_MAX_TOTAL },
     defaultTenantSlug: noDefaultTenant ? null : e.DEFAULT_TENANT_SLUG,
   };
 }

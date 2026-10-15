@@ -177,7 +177,7 @@ describe('public WebSocket', () => {
     expect(await client.next(1)).toMatchObject({ type: 'state', matchId: matchD });
     await send('gara-e', 5, 10);
     await send('gara-d', 4, 12);
-    expect(await client.next(2)).toMatchObject({ type: 'state', matchId: matchD, version: 2 });
+    expect(await client.next(2)).toMatchObject({ matchId: matchD, version: 2 });
     client.ws.close();
   });
 

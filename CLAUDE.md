@@ -26,7 +26,7 @@ file tocca più argomenti, leggili tutti). Nel rapporto si dice quali file di de
 | Server | `apps/server/` | `docs/server.md` |
 | Portale | `apps/web/` | `docs/portale.md` |
 | Simulatore | `tools/dvw-simulator/` | `docs/simulatore.md` |
-| Infrastruttura | `package.json`, `pnpm-workspace.yaml`, `tsconfig*.json`, `docker-compose.yml`, `docker/`, `scripts/` | `docs/infrastruttura.md` |
+| Infrastruttura | `package.json`, `pnpm-workspace.yaml`, `tsconfig*.json`, `docker-compose.yml`, `docker/`, `scripts/`, `tools/carico/` | `docs/infrastruttura.md` |
 
 ## Architettura (riassunto)
 - Monorepo **pnpm workspaces**, TypeScript ovunque, Node 24, ESM.

@@ -12,7 +12,8 @@ rami, job e CI in `docs/regole/test-job-rilasci.md`.
   con corepack.
 - **TypeScript `~6.0.3`** e non 7: è la versione compatibile con typescript-eslint 8.71 (vedi `docs/decisioni.md`).
 - Workspace (`pnpm-workspace.yaml`): `apps/*`, `packages/*`, `tools/*`. Oggi esistono `apps/agent`, `apps/server`, `apps/web`,
-  `packages/dvw-parser`, `packages/shared`, `packages/volley-stats`, `tools/dvw-simulator` (vedi `docs/architettura.md`).
+  `packages/dvw-parser`, `packages/shared`, `packages/volley-stats`, `tools/dvw-simulator`, `tools/carico` (vedi
+  `docs/architettura.md`).
 
 ### Script radice
 Tutti ricorsivi sui pacchetti che hanno lo script (`pnpm -r --if-present`), tranne i due di formattazione.
@@ -82,6 +83,11 @@ binario della piattaforma come dipendenza opzionale.
   comandi in `docs/server.md`, il portale in `docs/portale.md`.
 - `docker/web.Dockerfile`, `docker/web.nginx.conf`, `docker/web.security-headers.conf`: immagine del portale (build Vite
   con pnpm, poi `nginxinc/nginx-unprivileged` sulla porta 8080 con utente non root), proxy di `/api` e `/ws`, CSP.
+- `docker/web.nginx.main.conf`: `nginx.conf` principale copiata dal Dockerfile; per gli spettatori ha `worker_processes
+  auto`, `worker_rlimit_nofile 40000`, `worker_connections 16384`, `multi_accept on` (pid e file temporanei in `/tmp`).
+  Il servizio `web` di `docker-compose.yml` ha `ulimits.nofile` a 65536 (soft e hard), altrimenti nginx non può aprire
+  tanti descrittori. Sintassi verificata con nginx 1.28; **da ricontrollare al primo build** con la 1.29 unprivileged
+  (`docker compose up -d --build`, poi `docker compose logs web`). Dettagli in `docs/portale.md`.
 - `docker/server.Dockerfile`: build multi-stage con Node 24 slim. Lo stadio `build` esegue
   `pnpm install --frozen-lockfile`, `pnpm --filter "@sir/server..." build` e `pnpm --filter @sir/server deploy --prod /out`;
   lo stadio `runtime` copia `/out`, gira come utente `node` ed esegue `node dist/main.js` con un healthcheck su
@@ -100,7 +106,8 @@ rilascio e l'altro. Il bundle principale è di circa 132 KB gzip. Le altre dipen
 ## Configurazione
 - `.env.example` elenca le variabili del server (`DATABASE_URL`, `PORT`, `HOST`, `CORS_ORIGIN`, `COOKIE_SECURE`,
   `SESSION_TTL_HOURS`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `PUBLIC_BASE_URL`, `LOG_LEVEL`, `TRUST_PROXY`,
-  `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`, `MATCH_MAX_LINES`, `DEFAULT_TENANT_SLUG`) e quelle di
+  `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_PUBLIC_WS`, `RATE_LIMIT_PUBLIC_INVALID`, `RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`,
+  `WS_MAX_PER_IP`, `WS_MAX_TOTAL`, `MATCH_MAX_LINES`, `DEFAULT_TENANT_SLUG`) e quelle di
   Docker Compose (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `SERVER_BIND`, `WEB_BIND`, `WEB_PORT`).
   Descrizione e default in `docs/server.md`. Il file `.env` vero non va mai nel repository.
 - `DEFAULT_TENANT_SLUG` (cliente degli hostname sconosciuti, default `predefinito`) è commentata in `.env.example` e
@@ -129,6 +136,63 @@ pnpm --filter "@sir/$PACCHETTO" test  # test di un solo pacchetto
 scripts/ci_locale.sh                  # i 5 passi della CI, da lanciare prima di ogni PR
 ```
 
+### Prova di carico (`tools/carico`, `@sir/carico`)
+Apre N WebSocket pubblici contro un server, riproduce una partita `.dvw` tramite `POST /api/ingest` (un ingest ogni
+`--interval` ms) e misura latenza di consegna, byte per aggiornamento, connessioni respinte o chiuse, CPU e memoria del
+server. Due comandi, da lanciare con `pnpm --filter @sir/carico carico <comando>`:
+
+- `prova`: `--url` (obbligatorio); `--token` (link pubblico) oppure `--admin-email` e `--admin-password` (crea agente e
+  link); `--agent-token`; `--clients` (1000), `--rate` connessioni al secondo (200), `--workers` processi (2), `--gzip`
+  (aggiunge `?enc=gzip`), `--dvw`, `--step point|line` (un ingest per punto o per riga), `--interval` (300),
+  `--max-steps`, `--verify` spettatori che applicano i patch e confrontano lo stato finale (3), `--settle` (3000),
+  `--server-pid` (CPU e memoria da `/proc`, solo Linux), `--json` (scrive il rapporto in un file);
+- `dimensioni`: `--dvw`, byte dello stato completo e dei patch punto per punto, in chiaro e con gzip.
+
+Una prova da migliaia di client da una sola macchina va fatta con `ulimit -n` alto, e i limiti per IP del server
+(`WS_MAX_PER_IP`, `RATE_LIMIT_PUBLIC_WS`) vanno alzati se tutti i client arrivano dallo stesso IP.
+
+```bash
+# --- variabili ---
+RADICE="/percorso/del/repository"        # radice del repository o del worktree del job
+DVW="samples/partita-sintetica.dvw"      # partita da riprodurre (percorso dalla radice)
+SERVER="http://127.0.0.1:8090"           # indirizzo del server già avviato
+ADMIN_EMAIL_PROVA="admin@example.com"    # superadmin/admin del cliente dell'hostname (crea agente e link)
+ADMIN_PASSWORD_PROVA="<password>"        # password di quell'utente
+SERVER_PID="<pid>"                       # pid del processo del server (es. pgrep -f "dist/main.js"); solo Linux
+CLIENTI="1000"                           # spettatori simultanei
+RISULTATI="/tmp/carico.json"             # file dove scrivere il rapporto JSON
+
+# --- comandi ---
+cd "$RADICE"
+ulimit -n 65536                          # un descrittore per spettatore
+pnpm --filter @sir/carico carico dimensioni --dvw "$DVW"
+pnpm --filter @sir/carico carico prova --url "$SERVER" \
+  --admin-email "$ADMIN_EMAIL_PROVA" --admin-password "$ADMIN_PASSWORD_PROVA" \
+  --clients "$CLIENTI" --gzip --dvw "$DVW" --step point --interval 300 \
+  --server-pid "$SERVER_PID" --json "$RISULTATI"
+```
+
+Il server della prova va avviato con i limiti alzati, ad esempio `RATE_LIMIT_PUBLIC_WS`, `RATE_LIMIT_INGEST` e
+`WS_MAX_PER_IP` (variabili in `docs/server.md`).
+
+**Numeri misurati** (2026-10-15; partita reale Suntory, 122 punti, un ingest ogni 300 ms; server su 2 core con PGlite;
+tutti i client dallo stesso IP):
+
+| Prova | Esito |
+|---|---|
+| Prima, limiti di default (`RATE_LIMIT_PUBLIC` 120), 1000 client | 120 connessi su 1000 |
+| Prima, 1000 client | 35,7 KB per punto per spettatore, 4,2 GB in tutto |
+| Prima, 3000 client | 59 connessioni respinte, latenza p95 192 ms, 12,3 GB |
+| Dopo (patch + gzip), 1000 client | 1,0 KB per punto, 121 MB in tutto, CPU 14% |
+| Dopo, 3000 client | latenza p50/p95/p99 58/143/183 ms, 364 MB, CPU 23% |
+| Dopo, 5000 client | latenza p50/p95/p99 86/229/266 ms, 607 MB, CPU 30%, memoria massima 687 MB, nessun client chiuso |
+| Dopo, solo testo (senza gzip), 3000 client | 4,6 KB per punto, 1,86 GB in tutto |
+| Limiti di default (`WS_MAX_PER_IP`) | 2000 connessi dallo stesso IP, gli altri 503 |
+
+**Configurazione consigliata**: un server da 2 vCPU e 2 GB di RAM regge fino a circa 5000 spettatori; oltre servono più
+copie del server (ultimo punto del lavoro `scalabilita` in `docs/piano.md`, non ancora fatto: `StatePublisher` via
+Postgres LISTEN/NOTIFY).
+
 ## Riferimenti
 - `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`
 - `tsconfig.base.json`, `packages/*/tsconfig.json`, `packages/*/tsconfig.build.json`
@@ -136,6 +200,7 @@ scripts/ci_locale.sh                  # i 5 passi della CI, da lanciare prima di
 - `eslint.config.js`, `.prettierrc`, `.editorconfig`
 - `scripts/ci_locale.sh`, `.env.example`
 - `docker-compose.yml`, `docker/server.Dockerfile`, `docker/web.Dockerfile`, `docker/web.nginx.conf`,
-  `docker/web.security-headers.conf`, `.dockerignore`, `apps/server/vitest.config.ts`
+  `docker/web.nginx.main.conf`, `docker/web.security-headers.conf`, `.dockerignore`, `apps/server/vitest.config.ts`
+- `tools/carico/src/cli.ts` (comandi `prova` e `dimensioni`), `spectators.ts` (processi degli spettatori), `metrics.ts`
 - Sezioni che ne dipendono: `docs/dvw-parser.md`, `docs/simulatore.md`, `docs/server.md`, `docs/portale.md`,
   `docs/architettura.md`

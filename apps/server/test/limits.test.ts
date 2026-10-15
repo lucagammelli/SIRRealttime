@@ -87,7 +87,7 @@ describe('rate limit', () => {
 describe('rate limit before authentication', () => {
   let strict: TestServer;
   beforeAll(async () => {
-    strict = await startServer({ ingest: 3, public: 3, admin: 3 });
+    strict = await startServer({ ingest: 3, public: 3, publicWs: 3, publicInvalid: 3, admin: 3 });
   });
   afterAll(() => strict.close());
 
@@ -102,11 +102,12 @@ describe('rate limit before authentication', () => {
     expect(codes).toEqual([401, 401, 401, 429, 429]);
   });
 
-  it('counts the public requests with an unknown token, on HTTP and WebSocket', async () => {
+  it('counts the public requests with an unknown token, on HTTP and WebSocket together', async () => {
     const codes = await codesOf(4, () => strict.app.inject({ url: `/api/public/${'A'.repeat(43)}/state` }));
     expect(codes).toEqual([404, 404, 404, 429]);
-    const ws = await codesOf(4, () => strict.app.inject({ url: `/ws/public/${'A'.repeat(43)}` }));
-    expect(ws).toEqual([404, 404, 404, 429]);
+    const ws = await strict.app.inject({ url: `/ws/public/${'A'.repeat(43)}` });
+    expect(ws.statusCode).toBe(429);
+    expect(Number(ws.headers['retry-after'])).toBeGreaterThan(0);
   });
 
   it('counts the admin requests rejected by the Origin check and without session', async () => {

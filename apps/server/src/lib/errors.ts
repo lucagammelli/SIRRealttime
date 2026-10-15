@@ -19,3 +19,7 @@ export const payloadTooLarge = (): HttpError =>
   new HttpError(413, 'FST_ERR_CTP_BODY_TOO_LARGE', 'Richiesta troppo grande');
 export const unsupportedMediaType = (): HttpError =>
   new HttpError(415, 'UNSUPPORTED_MEDIA_TYPE', 'Formato della richiesta non supportato');
+export const tooManyRequests = (): HttpError =>
+  new HttpError(429, 'TOO_MANY_REQUESTS', 'Troppe richieste, riprova più tardi');
+export const serverFull = (): HttpError =>
+  new HttpError(503, 'SERVER_FULL', 'Troppi spettatori collegati, riprova tra poco');

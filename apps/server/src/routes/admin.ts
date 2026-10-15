@@ -24,7 +24,7 @@ import { hashPassword } from '../lib/passwords.js';
 import { generateToken, hashToken } from '../lib/tokens.js';
 import { validate } from '../lib/validate.js';
 import { requireRole, sameOriginGuard } from '../security.js';
-import { currentMessage } from '../state.js';
+import { attachLiveSocket, encodingOf, forgetShareToken } from '../state.js';
 import { adminTenantId, findTenant, publicBaseUrlFor, tenantScope } from '../tenancy.js';
 
 type MatchRow = typeof matches.$inferSelect;
@@ -236,6 +236,7 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
       .where(tenantScope(shareTokens, tenantId, eq(shareTokens.id, id)))
       .returning({ id: shareTokens.id });
     if (rows.length === 0) throw notFound();
+    forgetShareToken(ctx, id);
     ctx.hub.closeShareToken(id);
     request.log.info({ shareTokenId: id }, 'link pubblico revocato');
     return reply.code(204).send();
@@ -282,14 +283,8 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
       // The live match of the client of the session (a superadmin who changes client reconnects).
       const target = { kind: 'live', tenantId } as const;
       const grant = { kind: 'session', sessionHash: hashToken(token) } as const;
-      ctx.hub.add({ socket, target, grant, expiresAt: request.sessionExpiresAt });
-      currentMessage(ctx, target).then(
-        (message) => ctx.hub.send(socket, message),
-        (err: unknown) => {
-          request.log.error({ err }, 'stato iniziale non disponibile');
-          ctx.hub.send(socket, { type: 'error', message: 'Errore interno' });
-        },
-      );
+      const encoding = encodingOf(request.query);
+      attachLiveSocket(ctx, { socket, target, grant, expiresAt: request.sessionExpiresAt, encoding }, request.log);
     },
   );
 }

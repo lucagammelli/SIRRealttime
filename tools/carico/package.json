@@ -1,0 +1,24 @@
+{
+  "name": "@sir/carico",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Prova di carico dei WebSocket pubblici: N spettatori e una partita .dvw riprodotta tramite l'ingest.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "carico": "tsx --conditions=@sir/source src/cli.ts"
+  },
+  "dependencies": {
+    "@sir/dvw-parser": "workspace:*",
+    "@sir/shared": "workspace:*",
+    "@sir/volley-stats": "workspace:*",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15"
+  }
+}

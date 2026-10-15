@@ -1,8 +1,10 @@
 import { EventEmitter } from 'node:events';
-import type { StateMessage } from '@sir/shared';
+import { gunzipSync } from 'node:zlib';
+import type { JsonValue, ServerMessage, StateMessage } from '@sir/shared';
+import { applyPatch } from '@sir/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
-import type { Grant, Target } from '../src/hub.js';
+import type { FrameEncoding, Grant, Target } from '../src/hub.js';
 import { CLOSE_SESSION_GONE, CLOSE_TOKEN_GONE, HEARTBEAT_MS, LiveHub, MAX_BUFFERED_BYTES } from '../src/hub.js';
 
 /** Minimal stand-in of a `ws` socket that records what the hub does with it. */
@@ -11,10 +13,16 @@ class FakeSocket extends EventEmitter {
   readyState = 1;
   bufferedAmount = 0;
   sent: string[] = [];
+  /** Raw frames, with their kind (binary = gzip). */
+  frames: { data: Buffer; binary: boolean }[] = [];
   closedWith: number | null = null;
   terminated = false;
-  send(text: string): void {
-    this.sent.push(text);
+  send(data: Buffer, options: { binary: boolean }): void {
+    this.frames.push({ data, binary: options.binary });
+    this.sent.push((options.binary ? gunzipSync(data) : data).toString('utf8'));
+  }
+  messages(): ServerMessage[] {
+    return this.sent.map((t) => JSON.parse(t) as ServerMessage);
   }
   close(code: number): void {
     this.closedWith = code;
@@ -48,11 +56,23 @@ function add(
   grant: Grant,
   expiresAt: Date | null = null,
   target: Target = { kind: 'live', tenantId: TENANT },
+  extra: { encoding?: FrameEncoding; ip?: string | null } = {},
 ): FakeSocket {
   const socket = new FakeSocket();
-  hub.add({ socket: socket as unknown as WebSocket, target, grant, expiresAt });
+  hub.add({ socket: socket as unknown as WebSocket, target, grant, expiresAt, ...extra });
   return socket;
 }
+
+const MATCH = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
+/** A state with a long list (the full state is much larger than one change). */
+const big = (version: number, home: number): StateMessage =>
+  ({
+    type: 'state',
+    matchId: MATCH,
+    version,
+    state: { score: { home, away: 0 }, actions: Array.from({ length: 200 }, (_, i) => ({ i, code: `*${i}SH+` })) },
+  }) as unknown as StateMessage;
+const share = { kind: 'share', shareTokenId: 's1' } as const;
 
 describe('LiveHub', () => {
   it('disconnects a client with more than 1MB still to send', () => {
@@ -115,5 +135,83 @@ describe('LiveHub', () => {
     expect(mineFixed.sent).toHaveLength(1);
     expect(otherLive.sent).toEqual([]);
     expect(otherFixed.sent).toEqual([]);
+  });
+
+  it('sends a patch to the clients that have the previous version, the full state to the others', () => {
+    const early = add(share);
+    hub.publish(TENANT, big(1, 0));
+    const late = add(share);
+    hub.send(late as unknown as WebSocket, big(1, 0));
+    const fresh = add(share);
+    hub.publish(TENANT, big(2, 1));
+    const [first, second] = early.messages();
+    expect(first).toMatchObject({ type: 'state', version: 1 });
+    expect(second).toMatchObject({ type: 'patch', baseVersion: 1, version: 2 });
+    expect(late.messages()[1]).toMatchObject({ type: 'patch', baseVersion: 1, version: 2 });
+    expect(fresh.messages()).toMatchObject([{ type: 'state', version: 2 }]);
+    if (first?.type !== 'state' || second?.type !== 'patch') throw new Error('unexpected messages');
+    const rebuilt = applyPatch(first.state as unknown as JsonValue, second.ops);
+    expect(rebuilt).toEqual(big(2, 1).state);
+    // The patch is small: a fraction of the full state.
+    expect(early.sent[1]?.length).toBeLessThan((early.sent[0]?.length ?? 0) / 10);
+  });
+
+  it('sends the full state when the patch would be larger than half of it', () => {
+    const client = add(share);
+    hub.publish(TENANT, big(1, 0));
+    const other = { ...big(2, 0), state: { completely: 'different' } } as unknown as StateMessage;
+    hub.publish(TENANT, other);
+    expect(client.messages()[1]).toMatchObject({ type: 'state', version: 2 });
+  });
+
+  it('sends the full state again after forget (resync)', () => {
+    const client = add(share);
+    hub.publish(TENANT, big(1, 0));
+    hub.forget(client as unknown as WebSocket);
+    hub.publish(TENANT, big(2, 1));
+    expect(client.messages()[1]).toMatchObject({ type: 'state', version: 2 });
+  });
+
+  it('compresses each frame once: the same gzip buffer to every gzip client, text to the others', () => {
+    const a = add(share, null, undefined, { encoding: 'gzip' });
+    const b = add(share, null, undefined, { encoding: 'gzip' });
+    const plain = add(share);
+    hub.publish(TENANT, big(1, 0));
+    hub.publish(TENANT, big(2, 1));
+    for (const i of [0, 1]) {
+      expect(a.frames[i]?.binary).toBe(true);
+      expect(a.frames[i]?.data).toBe(b.frames[i]?.data);
+      expect(plain.frames[i]?.binary).toBe(false);
+    }
+    expect(a.sent).toEqual(plain.sent);
+    expect(a.frames[0]?.data.length).toBeLessThan(plain.frames[0]?.data.length ?? 0);
+    // Short messages stay text even for gzip clients.
+    hub.send(a as unknown as WebSocket, { type: 'error', message: 'x' });
+    expect(a.frames[2]?.binary).toBe(false);
+  });
+
+  it('serves the current state from memory, only within its client', () => {
+    expect(hub.current({ kind: 'live', tenantId: TENANT })).toBeNull();
+    hub.publish(TENANT, big(1, 0));
+    expect(hub.current({ kind: 'live', tenantId: TENANT })).toMatchObject({ version: 1 });
+    expect(hub.current({ kind: 'match', tenantId: TENANT, matchId: MATCH })).toMatchObject({ version: 1 });
+    expect(hub.current({ kind: 'match', tenantId: 't-b', matchId: MATCH })).toBeNull();
+    expect(hub.current({ kind: 'live', tenantId: 't-b' })).toBeNull();
+    // A state read from the database never replaces a newer published one.
+    hub.remember(TENANT, big(0, 0), true);
+    expect(hub.current({ kind: 'live', tenantId: TENANT })).toMatchObject({ version: 1 });
+  });
+
+  it('counts the public sockets per IP and in total, until they close', () => {
+    const a = add(share, null, undefined, { ip: '10.0.0.1' });
+    add(share, null, undefined, { ip: '10.0.0.1' });
+    add(share, null, undefined, { ip: '10.0.0.2' });
+    add({ kind: 'session', sessionHash: 'h1' });
+    expect(hub.publicSockets('10.0.0.1')).toEqual({ total: 3, fromIp: 2 });
+    a.emit('close');
+    a.emit('close');
+    expect(hub.publicSockets('10.0.0.1')).toEqual({ total: 2, fromIp: 1 });
+    hub.closeShareToken('s1');
+    expect(hub.publicSockets('10.0.0.2')).toEqual({ total: 0, fromIp: 0 });
   });
 });

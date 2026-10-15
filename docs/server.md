@@ -32,6 +32,8 @@ appartiene a un cliente e nessuna query legge o cambia righe di un altro (filtro
 - **Ingest e WebSocket**: l'ingest usa il cliente dell'agente; la partita live è una per cliente
   (`matches_one_live_per_tenant_idx`) e `hub.publish(tenantId, …)` spinge lo stato solo ai WebSocket di quel cliente. La
   registrazione degli agenti appartiene al cliente dell'hostname da cui arriva.
+- **Cache del cliente dell'hostname**: `hostTenant` ricorda per 30 s (`LOOKUP_CACHE_TTL_MS`) il cliente di ogni hostname
+  (`ctx.caches.hosts`); la cache è svuotata a ogni creazione o modifica di un cliente (`src/tenancy.ts`).
 - **Origin ammessi** (`originAllowed`): `CORS_ORIGIN` oppure un hostname del cliente dell'host della richiesta.
 - **Link pubblici**: l'URL usa `PUBLIC_BASE_URL` se il suo hostname è del cliente (o il cliente non ha hostname), altrimenti
   il primo hostname del cliente con schema e porta di `PUBLIC_BASE_URL` (`publicBaseUrlFor`).
@@ -70,7 +72,8 @@ Passi (`apps/server/src/ingest.ts`, `IngestService.ingest`), tutti in una transa
    `computeMatchState`: lo stato è **ricalcolato da zero a ogni ingest**;
 8. la partita diventa la sola `live` del cliente (le altre dello stesso cliente vanno a `live = false`; indice univoco
    parziale `matches_one_live_per_tenant_idx`), `version` aumenta di 1, `state` è salvato;
-9. dopo il commit lo stato intero (`StateMessage`) è inviato ai client WebSocket di quel cliente che seguono la partita.
+9. dopo il commit il nuovo stato (`StateMessage`) passa a `publisher.publish` (oggi `LiveHub`, vedi «WebSocket») e arriva ai
+   client WebSocket di quel cliente che seguono la partita: come patch o come stato intero.
 
 Una piccola cache in memoria (4 partite, verificata con `version` e `lineCount`) evita di rileggere tutte le righe a ogni
 richiesta; la fonte di verità resta il database.
@@ -108,8 +111,10 @@ rifiutata dallo schema.
   piccolo o in LAN va bene, e il rimedio è rifiutare dal portale le richieste in coda.
 - **Link pubblici** (`share_tokens`): token casuale in `/live/<token>` (URL composto con `PUBLIC_BASE_URL`). Se `matchId`
   è `null` il link **segue la partita live corrente**; con un `matchId` mostra quella partita fissa. `expiresAt`
-  facoltativa. Un token non valido, revocato o scaduto dà sempre 404; la revoca chiude i WebSocket già aperti (codice
-  4404). Nei log il token è mascherato (`/api/public/[token]`).
+  facoltativa. Un token non valido, revocato o scaduto dà sempre 404; la revoca chiude subito i WebSocket già aperti (codice
+  4404). Nei log il token è mascherato (`/api/public/[token]`). I link validi sono in una cache di 30 s
+  (`ctx.caches.shares`, chiave `<cliente>:<hash del token>`), svuotata alla revoca (`forgetShareToken`), così le migliaia
+  di aperture non leggono il database.
 - **Sessioni admin e viewer**: login con email e password (argon2id) su `/api/auth/login`; cookie `sir_session`
   (`httpOnly`, `SameSite=Lax`, `Secure` secondo `COOKIE_SECURE`), durata `SESSION_TTL_HOURS`. Ruoli: `viewer` (vede le
   partite), `admin` (tutto il resto del proprio cliente) e `superadmin` (anche i clienti; vedi «Clienti»). Le scritture
@@ -158,12 +163,37 @@ aggiornamento. Una email già presente dà 409; la password ha almeno 12 caratte
 ### WebSocket
 Messaggi server→client (`ServerMessage`):
 
-- `state`: `{ type, matchId, version, state }`, stato intero; inviato alla connessione e a ogni aggiornamento. Uno stato
-  con `version` non maggiore dell'ultimo inviato per la stessa partita è saltato.
+- `state`: `{ type, matchId, version, state }`, stato intero; inviato alla connessione, come risposta a `resync` e quando
+  un client non può ricevere il patch. Uno stato con `version` non maggiore dell'ultimo inviato per la stessa partita è
+  saltato.
+- `patch`: `{ type, matchId, baseVersion, version, ops }`, le differenze dallo stato `baseVersion` allo stato `version`
+  (operazioni `set`, `del`, `push`, `trunc` di `packages/shared/src/patch.ts`). Va solo a chi ha esattamente la
+  `baseVersion` come ultimo stato ricevuto; gli altri ricevono lo stato intero.
 - `noMatch`: nessuna partita disponibile (link "live" senza partita live).
 - `error`: `{ type, message }`, ad esempio se lo stato iniziale non è leggibile.
 
-Il client non deve inviare nulla (payload massimo 4 KB). Codici di chiusura: `4401` sessione admin terminata (logout o
+Messaggio client→server (`ClientMessage`): solo `resync` (`{ "type": "resync" }`): il client ha perso il filo delle
+versioni e chiede lo stato intero. Il messaggio è validato con lo schema condiviso, qualsiasi altra cosa (testo non JSON,
+frame binari) è ignorata. Ogni `resync` ha risposta, ma `ResyncScheduler` (`src/lib/resync.ts`) la distanzia: al massimo
+una ogni 5 s per socket (una sola in attesa per socket) e 100 al secondo per IP; le altre slittano ai secondi seguenti.
+Payload massimo 4 KB.
+
+**Come viaggiano gli aggiornamenti** (`LiveHub`, `src/hub.ts`):
+
+- L'hub tiene in memoria l'ultimo stato di ogni partita (al massimo 64, `SNAPSHOT_LIMIT`), per patch, stato iniziale e
+  `resync`; dopo un riavvio lo rilegge dal database alla prima richiesta (`remember`).
+- A ogni `publish` il patch si calcola **una volta** con `diffJson`; se il suo testo supera il 50% dello stato intero
+  (`PATCH_MAX_RATIO`) si manda lo stato intero. Un publish con `version` non maggiore di quella nota è scartato.
+- Ogni frame è serializzato **una volta** e, per chi ha aperto il socket con `?enc=gzip`, compresso **una volta** con
+  gzip livello 6 (`GZIP_LEVEL`) e inviato come frame binario; senza `enc=gzip` i frame sono testo JSON
+  (`LiveSocketQuerySchema`, `encodingOf` in `src/state.ts`). Scelta documentata in `docs/decisioni.md`.
+- `StatePublisher` è l'interfaccia con cui l'ingest pubblica: oggi è l'hub del processo, è pensata per sostituirla con
+  Postgres LISTEN/NOTIFY quando ci saranno più copie del server.
+- `attachLiveSocket` (`src/state.ts`) serve sia `/ws/public/:token` sia `/ws/admin`.
+- Limite noto: dopo un riavvio, se due partite live dello stesso cliente sono pubblicate in ordine inverso, l'hub tiene
+  come live la partita sbagliata fino al publish successivo.
+
+Codici di chiusura: `4401` sessione admin terminata (logout o
 scadenza), `4404` link pubblico revocato o scaduto, `1008` richiesta senza credenziali valide dopo l'upgrade, `1001`
 arresto del server. `/ws/admin` rifiuta (403) un `Origin` non ammesso (`CORS_ORIGIN` o hostname del cliente), perché CORS non vale per i WebSocket.
 Un client con più di 1 MB ancora da inviare è disconnesso subito (troppo lento). L'heartbeat gira ogni 30 s: manda un
@@ -172,9 +202,24 @@ ping, disconnette chi non ha risposto al precedente e chiude i client con creden
 
 ### Rate limit
 Per indirizzo IP e per minuto. Default (`DEFAULT_RATE_LIMITS`, `apps/server/src/context.ts`), modificabili con le variabili
-`RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`: login 10,
-ingest 600, rotte pubbliche 120, rotte admin 300, creazione di una registrazione agente 10 (la rotta `/status` usa il
-limite dell'ingest, perché l'agente interroga ogni 5 s) (incluse `/api/auth/logout`, `/api/auth/me`, `/ws/admin`). Oltre il limite: 429.
+`RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_PUBLIC_WS`, `RATE_LIMIT_PUBLIC_INVALID`,
+`RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`: login 10, ingest 600, `GET /api/public/:token/state` 6000, apertura di
+`/ws/public/:token` 6000, rotte admin 300 (incluse `/api/auth/logout`, `/api/auth/me`, `/ws/admin`), creazione di una
+registrazione agente 10 (la rotta `/status` usa il limite dell'ingest, perché l'agente interroga ogni 5 s). Oltre il
+limite: 429.
+
+**Rotte pubbliche e pubblico in palestra** (`src/routes/public.ts`): molti telefoni escono con lo stesso IP (Wi-Fi della
+palestra, NAT mobile), quindi i limiti delle rotte pubbliche sono larghi e **per le richieste riuscite non c'è altro
+freno**. Per non rendere facile indovinare i token si contano per IP solo i **token sbagliati** (sconosciuti, revocati,
+scaduti, di un altro cliente, hostname senza cliente): oltre `RATE_LIMIT_PUBLIC_INVALID` al minuto (`FailureLimiter`,
+`src/lib/failureLimiter.ts`) quell'IP riceve 429 con `Retry-After` su ogni rotta pubblica fino alla fine del minuto.
+Limite noto, accettato: molti telefoni dietro lo stesso NAT che aprono un link revocato (circa 2 fallimenti ciascuno)
+possono bloccare quell'IP, link validi compresi, fino a un minuto.
+
+**Server al completo**: il numero di WebSocket pubblici aperti è limitato per IP (`WS_MAX_PER_IP`) e in totale
+(`WS_MAX_TOTAL`). Oltre, sia l'apertura del WebSocket sia `GET /api/public/:token/state` rispondono 503 con
+`Retry-After: 20` (`SERVER_FULL_RETRY_AFTER_S`); il portale usa quella risposta per mostrare «Troppi spettatori
+collegati» e riprovare (`docs/portale.md`).
 **L'autenticazione arriva dopo il rate limit**: i controlli con un costo (token agente, Origin, tipo del corpo) stanno in
 `preParsing`/`preValidation`/`preHandler`, così anche le richieste rifiutate sono contate. Dietro un reverse proxy serve
 `TRUST_PROXY=true`, altrimenti tutti i client condividono l'IP del proxy.
@@ -213,12 +258,21 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `TRUST_PROXY` | `false` (compose: `true`) | `true` solo dietro un reverse proxy fidato (con compose, nginx del servizio `web`) |
 | `RATE_LIMIT_LOGIN` | `10` | richieste al minuto per IP su `/api/auth/login` (intero da 1 a 100000) |
 | `RATE_LIMIT_INGEST` | `600` | richieste al minuto per IP su `/api/ingest` (intero da 1 a 100000) |
-| `RATE_LIMIT_PUBLIC` | `120` | richieste al minuto per IP sulle rotte pubbliche (intero da 1 a 100000) |
+| `RATE_LIMIT_PUBLIC` | `6000` (era 120) | richieste al minuto per IP su `GET /api/public/:token/state` (intero da 1 a 100000) |
+| `RATE_LIMIT_PUBLIC_WS` | `6000` | aperture al minuto per IP di `/ws/public/:token`, riconnessioni comprese (intero da 1 a 100000) |
+| `RATE_LIMIT_PUBLIC_INVALID` | `120` | richieste pubbliche con token sbagliato al minuto per IP; oltre, 429 fino alla fine del minuto (intero da 1 a 100000) |
+| `WS_MAX_PER_IP` | `2000` | WebSocket pubblici aperti insieme da un IP; oltre, 503 (intero da 1 a 1000000) |
+| `WS_MAX_TOTAL` | `6000` | WebSocket pubblici aperti insieme in totale; oltre, 503 (intero da 1 a 1000000) |
 | `RATE_LIMIT_ADMIN` | `300` | richieste al minuto per IP sulle rotte admin (intero da 1 a 100000) |
 | `RATE_LIMIT_REGISTER` | `10` | richieste al minuto per IP su `POST /api/agents/registrations` (intero da 1 a 100000) |
 | `MATCH_MAX_LINES` | `20000` | righe scout massime per partita (massimo 1.000.000); oltre, 413 |
 
-Le cinque `RATE_LIMIT_*` sono anche in `.env.example` e `docker-compose.yml`.
+Le sette `RATE_LIMIT_*` e le due `WS_MAX_*` sono anche in `.env.example` e `docker-compose.yml`.
+
+**Attenzione**: un `.env` già esistente con `RATE_LIMIT_PUBLIC=120` (copiato dal vecchio `.env.example`) mantiene il
+vecchio limite: oltre 120 richieste al minuto dallo stesso IP gli spettatori sono respinti (nella prova di carico, 120
+connessi su 1000). Va tolto o alzato, poi `docker
+compose up -d` per ricreare il servizio `server`.
 
 Variabili solo per Docker Compose: `POSTGRES_DB` (`sir`), `POSTGRES_USER` (`sir`), `POSTGRES_PASSWORD` (obbligatoria),
 `SERVER_BIND` (`127.0.0.1`, indirizzo su cui è pubblicata la 8090), `WEB_BIND` (`127.0.0.1`) e `WEB_PORT` (`8080`) per il
@@ -394,7 +448,7 @@ API_KEY="<chiave API>"                   # chiave API StackHawk dell'organizzazi
 # cd "$RADICE/apps/server" && DATABASE_URL="pglite:memory" COOKIE_SECURE="false" \
 #   ADMIN_EMAIL="$ADMIN_EMAIL_SCAN" ADMIN_PASSWORD="$ADMIN_PASSWORD_SCAN" CORS_ORIGIN="http://localhost:5173" \
 #   RATE_LIMIT_LOGIN=100000 RATE_LIMIT_ADMIN=100000 RATE_LIMIT_PUBLIC=100000 RATE_LIMIT_INGEST=100000 \
-#   RATE_LIMIT_REGISTER=100000 pnpm dev
+#   RATE_LIMIT_REGISTER=100000 RATE_LIMIT_PUBLIC_WS=100000 RATE_LIMIT_PUBLIC_INVALID=100000 pnpm dev
 
 # --- comandi ---
 cd "$RADICE"
@@ -421,14 +475,16 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
 ## Riferimenti
 - `stackhawk.yml`, `stackhawk-portale.yml` (stack completo, `docs/portale.md`), `stackhawk/openapi.yaml`
 - `apps/server/src/main.ts` (avvio), `app.ts` (`buildApp`, plugin, gestione errori), `config.ts` (`loadConfig`),
-  `context.ts` (limiti, cookie `sir_session`), `ingest.ts` (`IngestService`), `hub.ts` (`LiveHub`, codici di chiusura),
+  `context.ts` (limiti, cache, cookie `sir_session`), `ingest.ts` (`IngestService`), `hub.ts` (`LiveHub`, `Frame`,
+  `StatePublisher`, codici di chiusura), `lib/resync.ts` (`ResyncScheduler`), `lib/failureLimiter.ts` (`FailureLimiter`),
   `security.ts` (`requireRole`, `browserWriteGuard`, `sameOriginGuard`, `authenticateAgent`, `bearerHash` condivisa con
   l'ingest), `lib/tokens.ts` (`generatePairingCode`), `state.ts`, `seed.ts`
 - Clienti: `src/tenancy.ts` (`hostTenant`, `hostnameFromHeader`, `tenantScope`, `adminTenantId`, `publicBaseUrlFor`),
   `src/routes/tenants.ts`, `packages/shared/src/tenant.ts`, `src/seed.ts`
 - Rotte: `src/routes/health.ts`, `ingest.ts`, `auth.ts`, `admin.ts`, `public.ts`, `registration.ts`, `tenants.ts`
 - Database: `src/db/schema.ts`, `src/db/index.ts` (`createDatabase`), `src/db/pglite.ts`, `apps/server/drizzle/`
-- Contratti: `packages/shared/src/ingest.ts`, `messages.ts`, `admin.ts`, `registration.ts` (`docs/architettura.md`)
+- Contratti: `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts` (`docs/architettura.md`)
+- Prova di carico dei WebSocket: `tools/carico` (`docs/infrastruttura.md`, «Prova di carico»)
 - Calcoli: `docs/dvw-parser.md`, `docs/statistiche.md`; simulatore: `docs/simulatore.md`
 - Portale e nginx: `docs/portale.md` (`docker/web.nginx.conf`)
 - Infrastruttura e Docker: `docs/infrastruttura.md`; regole di sicurezza: `docs/regole/sicurezza.md`

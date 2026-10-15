@@ -109,8 +109,11 @@ dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in q
 
 1. `clienti-base` (**fatto**): tabella `tenants`, `tenant_id` su tutti i dati, ruolo superadmin, pagina «Clienti» e
    selettore del cliente, una partita live per cliente.
-2. `scalabilita`: migliaia di spettatori: aggiornamenti differenziali sul WebSocket, compressione fatta una volta per
-   messaggio, limiti adatti al pubblico, riconnessioni senza valanghe, cache; più copie del server solo se servirà.
+2. `scalabilita` (punti 1-5 **fatti**, 6 da fare solo se servirà): migliaia di spettatori. (1) aggiornamenti
+   differenziali sul WebSocket con stato intero di riserva e `resync`; (2) compressione gzip fatta una volta per
+   messaggio; (3) limiti adatti al pubblico in palestra; (4) riconnessioni senza valanghe; (5) cache di link e hostname,
+   nginx per molte connessioni e prova di carico (`tools/carico`, un server 2 vCPU/2 GB regge circa 5000 spettatori,
+   `docs/infrastruttura.md`); (6) più copie del server con Postgres LISTEN/NOTIFY (`StatePublisher`), solo se servirà.
    Prima degli altri perché cambia il protocollo del WebSocket.
 3. `clienti-grafica`: colori e due loghi per hostname, caricamento immagini controllato, pagina «Grafica».
 4. `link-brevi-qr`: codice di condivisione breve (8 caratteri) e QR scaricabile.

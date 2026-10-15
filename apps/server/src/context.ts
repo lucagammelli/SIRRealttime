@@ -1,14 +1,23 @@
 import type { UserRole } from '@sir/shared';
 import type { Config } from './config.js';
 import type { Db } from './db/index.js';
-import type { LiveHub } from './hub.js';
+import type { LiveHub, StatePublisher } from './hub.js';
 import type { IngestService } from './ingest.js';
+import type { FailureLimiter } from './lib/failureLimiter.js';
+import type { ResyncScheduler } from './lib/resync.js';
+import type { TtlCache } from './lib/ttlCache.js';
+import type { Tenant } from './tenancy.js';
 
 /** Requests per minute and per client IP. */
 export interface RateLimits {
   login: number;
   ingest: number;
+  /** `GET /api/public/:token/state`: many spectators share one IP (Wi-Fi of the gym, mobile NAT). */
   public: number;
+  /** Openings of `/ws/public/:token` (reconnections included). */
+  publicWs: number;
+  /** Public requests with an unknown, revoked or expired token: past this the IP is blocked until the minute ends. */
+  publicInvalid: number;
   admin: number;
   /** Self-registration requests of agents (`POST /api/agents/registrations`). */
   register: number;
@@ -17,18 +26,50 @@ export interface RateLimits {
 export const DEFAULT_RATE_LIMITS: RateLimits = {
   login: 10,
   ingest: 600,
-  public: 120,
+  public: 6000,
+  publicWs: 6000,
+  publicInvalid: 120,
   admin: 300,
   register: 10,
 };
+
+/** Most public WebSockets open at the same time, per client IP and in total. */
+export interface SocketLimits {
+  perIp: number;
+  total: number;
+}
+
+export const DEFAULT_SOCKET_LIMITS: SocketLimits = { perIp: 2000, total: 6000 };
+
+/** Seconds of `Retry-After` when the server is full (the portal adds a random wait on top). */
+export const SERVER_FULL_RETRY_AFTER_S = 20;
+
+/** Lifetime of the cached client of a hostname and of a cached share token. */
+export const LOOKUP_CACHE_TTL_MS = 30_000;
+
+/** In-memory lookups (30 s), invalidated at once when a client changes or a link is revoked. */
+export interface LookupCaches {
+  /** Client of a hostname (`''`: no valid hostname), null: none. */
+  hosts: TtlCache<string, Tenant | null>;
+  /** Valid share tokens, by `<tenantId>:<sha256 of the token>`. */
+  shares: TtlCache<string, ResolvedShareToken>;
+}
 
 /** Shared services of the routes. */
 export interface AppContext {
   config: Config;
   db: Db;
   hub: LiveHub;
+  /** Where the ingest sends the new states: today the hub of this process (later Postgres NOTIFY for more copies). */
+  publisher: StatePublisher;
   ingest: IngestService;
   rateLimits: RateLimits;
+  socketLimits: SocketLimits;
+  caches: LookupCaches;
+  /** Failures of the public routes per IP (`rateLimits.publicInvalid` per minute). */
+  publicFailures: FailureLimiter;
+  /** Pacing of the full states sent because of `resync` (per socket and per IP). */
+  resync: ResyncScheduler;
   now: () => Date;
 }
 

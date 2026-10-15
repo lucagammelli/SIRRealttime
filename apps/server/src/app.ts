@@ -6,11 +6,15 @@ import fastifyWebsocket from '@fastify/websocket';
 import Fastify from 'fastify';
 import type { FastifyError, FastifyInstance, FastifyRequest, FastifyServerOptions } from 'fastify';
 import type { Config } from './config.js';
-import type { AppContext, RateLimits } from './context.js';
+import type { AppContext, RateLimits, SocketLimits } from './context.js';
+import { LOOKUP_CACHE_TTL_MS } from './context.js';
 import type { Db } from './db/index.js';
 import { LiveHub } from './hub.js';
 import { IngestService } from './ingest.js';
 import { HttpError } from './lib/errors.js';
+import { FailureLimiter } from './lib/failureLimiter.js';
+import { ResyncScheduler } from './lib/resync.js';
+import { TtlCache } from './lib/ttlCache.js';
 import { adminRoutes } from './routes/admin.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
@@ -26,6 +30,7 @@ export interface AppOptions {
   /** Fastify logger option; default: pino at `config.logLevel` with secrets removed. */
   logger?: LoggerOption;
   rateLimits?: Partial<RateLimits>;
+  socketLimits?: Partial<SocketLimits>;
   now?: () => Date;
 }
 
@@ -34,6 +39,8 @@ type LoggerOption = Exclude<FastifyServerOptions['logger'], undefined>;
 /** Body limit of every route except the ingest (which has its own). */
 const DEFAULT_BODY_LIMIT = 64 * 1024;
 const WS_MAX_PAYLOAD = 4 * 1024;
+/** Hostnames and share tokens kept in the lookup caches (the oldest go first). */
+const LOOKUP_CACHE_ENTRIES = 10_000;
 
 /** Share tokens appear in public paths: they are masked in the logs. */
 export function redactUrl(url: string): string {
@@ -73,6 +80,7 @@ const MESSAGES: Record<number, string> = {
   413: 'Richiesta troppo grande',
   415: 'Formato della richiesta non supportato',
   429: 'Troppe richieste, riprova più tardi',
+  503: 'Servizio non disponibile, riprova tra poco',
 };
 
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
@@ -82,13 +90,24 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     trustProxy: config.trustProxy,
     bodyLimit: DEFAULT_BODY_LIMIT,
   });
+  const now = options.now ?? (() => new Date());
+  const rateLimits = { ...config.rateLimits, ...options.rateLimits };
+  const hub = new LiveHub(now);
   const ctx: AppContext = {
     config,
     db,
-    hub: new LiveHub(options.now),
+    hub,
+    publisher: hub,
     ingest: new IngestService(db, config.matchMaxLines),
-    rateLimits: { ...config.rateLimits, ...options.rateLimits },
-    now: options.now ?? (() => new Date()),
+    rateLimits,
+    socketLimits: { ...config.socketLimits, ...options.socketLimits },
+    caches: {
+      hosts: new TtlCache(LOOKUP_CACHE_TTL_MS, LOOKUP_CACHE_ENTRIES, now),
+      shares: new TtlCache(LOOKUP_CACHE_TTL_MS, LOOKUP_CACHE_ENTRIES, now),
+    },
+    publicFailures: new FailureLimiter(rateLimits.publicInvalid, 60_000, now),
+    resync: new ResyncScheduler(now),
+    now,
   };
 
   app.decorateRequest('user', null);

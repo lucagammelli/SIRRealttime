@@ -45,9 +45,13 @@ services:
       DEFAULT_TENANT_SLUG: ${DEFAULT_TENANT_SLUG-predefinito}
       RATE_LIMIT_LOGIN: ${RATE_LIMIT_LOGIN:-10}
       RATE_LIMIT_INGEST: ${RATE_LIMIT_INGEST:-600}
-      RATE_LIMIT_PUBLIC: ${RATE_LIMIT_PUBLIC:-120}
+      RATE_LIMIT_PUBLIC: ${RATE_LIMIT_PUBLIC:-6000}
+      RATE_LIMIT_PUBLIC_WS: ${RATE_LIMIT_PUBLIC_WS:-6000}
+      RATE_LIMIT_PUBLIC_INVALID: ${RATE_LIMIT_PUBLIC_INVALID:-120}
       RATE_LIMIT_ADMIN: ${RATE_LIMIT_ADMIN:-300}
       RATE_LIMIT_REGISTER: ${RATE_LIMIT_REGISTER:-10}
+      WS_MAX_PER_IP: ${WS_MAX_PER_IP:-2000}
+      WS_MAX_TOTAL: ${WS_MAX_TOTAL:-6000}
     # Browser e agente passano da nginx (servizio web, anche per /api/ingest). La porta 8090 resta pubblicata solo su
     # 127.0.0.1 per prove locali e scansioni (docs/server.md): mai su 0.0.0.0, perché con TRUST_PROXY=true un client
     # che arriva diretto potrebbe falsificare X-Forwarded-For ed eludere il rate limit.
@@ -71,6 +75,11 @@ services:
       context: .
       dockerfile: docker/web.Dockerfile
     restart: unless-stopped
+    # Descrittori di file per nginx (worker_rlimit_nofile in docker/web.nginx.main.conf): ogni WebSocket ne usa 2.
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     depends_on:
       server:
         condition: service_healthy

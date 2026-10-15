@@ -371,7 +371,8 @@ describe('isolation of the public routes', () => {
     expect(onA.json()).toMatchObject({ matchId: idA });
     await send(agentA, 'gara', 1, 45);
     await expect.poll(() => messages.length).toBe(2);
-    expect(messages.map((m) => (m.type === 'state' ? m.matchId : null))).toEqual([idA, idA]);
+    // The update of A arrives as a patch of the state it already has, or in full.
+    expect(messages.map((m) => (m.type === 'state' || m.type === 'patch' ? m.matchId : null))).toEqual([idA, idA]);
     ws.terminate();
   });
 

@@ -8,14 +8,31 @@ import type { ProbeResult } from '../lib/liveConnection.ts';
 import { socketUrl, useLiveSocket } from '../lib/useLiveSocket.ts';
 import { teamName } from '../lib/format.ts';
 
-/** HTTP check of a public link when the socket cannot open (the browser hides the 404 of the upgrade). */
+/** Wait when a 503/429 has no readable Retry-After. */
+const DEFAULT_RETRY_AFTER_MS = 20_000;
+/** Longest wait accepted from a Retry-After. */
+const MAX_RETRY_AFTER_MS = 5 * 60_000;
+
+/** Retry-After in seconds (the only form the server sends) as milliseconds, capped. */
+export function retryAfterMs(header: string | null): number {
+  const seconds = header === null ? Number.NaN : Number(header.trim());
+  if (!Number.isFinite(seconds) || seconds < 0) return DEFAULT_RETRY_AFTER_MS;
+  return Math.min(MAX_RETRY_AFTER_MS, seconds * 1000);
+}
+
+/**
+ * HTTP check of a public link when the socket cannot open (the browser hides the status of the upgrade): 404 the
+ * link is invalid; 503 (server full) or 429 (too many requests) wait the Retry-After.
+ */
 export async function probeShareToken(token: string, fetchImpl: typeof fetch = fetch): Promise<ProbeResult> {
   try {
     const res = await fetchImpl(`/api/public/${encodeURIComponent(token)}/state`, {
       cache: 'no-store',
       credentials: 'omit',
     });
-    return res.status === 404 ? 'invalid' : 'ok';
+    if (res.status === 404) return 'invalid';
+    if (res.status === 503 || res.status === 429) return { retryAfterMs: retryAfterMs(res.headers.get('retry-after')) };
+    return 'ok';
   } catch {
     return 'ok';
   }

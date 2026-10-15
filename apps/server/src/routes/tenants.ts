@@ -14,7 +14,7 @@ import { conflict, notFound, unauthorized } from '../lib/errors.js';
 import { hashToken } from '../lib/tokens.js';
 import { validate } from '../lib/validate.js';
 import { requireRole } from '../security.js';
-import { findTenant, hostTenant, tenantRef } from '../tenancy.js';
+import { findTenant, forgetTenants, hostTenant, tenantRef } from '../tenancy.js';
 
 type TenantRow = typeof tenants.$inferSelect;
 type Tx = Parameters<Parameters<AppContext['db']['transaction']>[0]>[0];
@@ -66,6 +66,7 @@ export function tenantRoutes(app: FastifyInstance, ctx: AppContext): void {
       if (!inserted) throw conflict('Esiste già un cliente con questo identificativo');
       return inserted;
     });
+    forgetTenants(ctx);
     request.log.info({ tenantId: row.id, userId: request.user?.id }, 'cliente creato');
     void reply.code(201);
     return tenantSummary(row);
@@ -88,6 +89,7 @@ export function tenantRoutes(app: FastifyInstance, ctx: AppContext): void {
       if (!updated) throw notFound();
       return updated;
     });
+    forgetTenants(ctx);
     request.log.info({ tenantId: row.id, userId: request.user?.id }, 'cliente modificato');
     return tenantSummary(row);
   });

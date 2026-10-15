@@ -70,5 +70,19 @@ Una riga per decisione: data, scelta, motivo.
   (`docs/server.md`).
 - 2026-10-15: unicità degli hostname controllata dal server sotto lock e non da un vincolo del database; in futuro una
   tabella `tenant_hostnames` con UNIQUE (`docs/server.md`).
+- 2026-10-15: aggiornamenti differenziali (patch) sul WebSocket con stato intero di riserva (patch oltre il 50% dello
+  stato, client senza la `baseVersion`), perché con migliaia di spettatori lo stato intero a ogni punto costava 35 KB
+  per spettatore (`docs/server.md`, `docs/architettura.md`).
+- 2026-10-15: gzip fatto una volta per frame e inviato come frame binario con `?enc=gzip`, invece di permessage-deflate,
+  perché quest'ultimo comprime separatamente per ogni connessione e costa CPU e memoria per socket (`docs/server.md`).
+- 2026-10-15: `resync` come messaggio sullo stesso socket invece di chiudere e riaprire, perché la riapertura ripaga
+  upgrade, autenticazione e stato iniziale e con molti client crea valanghe (`docs/server.md`).
+- 2026-10-15: limiti per IP pensati per il pubblico in palestra, con tanti telefoni dietro lo stesso IP: larghi sulle
+  richieste riuscite, e si contano solo i token sbagliati (`RATE_LIMIT_PUBLIC_INVALID`), perché indovinare i token resta
+  lento senza bloccare gli spettatori (`docs/server.md`).
+- 2026-10-15: cache di 30 s per link pubblici e cliente dell'hostname, con invalidazione esplicita (revoca del link,
+  modifica dei clienti), perché ogni apertura di WebSocket leggeva il database e la revoca deve valere subito.
+- 2026-10-15: nginx con `worker_connections` alzati (16384) e `nofile` 65536, perché ogni WebSocket usa due connessioni e
+  i default non bastano per migliaia di spettatori (`docs/portale.md`).
 - 2026-10-15: durata di un set chiuso presa da `[3SET]` invece che dalle ore delle righe, perché nei file reali tra la
   prima e l'ultima riga ci sono pause (110 minuti dalle ore contro i 20 ufficiali) (`docs/statistiche.md`).

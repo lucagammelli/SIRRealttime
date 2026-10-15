@@ -34,6 +34,7 @@ rotazioni non compaiono. Se la Fullscreen API non è disponibile o fallisce, il 
 |---|---|
 | connessione in corso | «Connessione alla partita» (indicatore «Connessione…») |
 | server giù o rete assente, senza dati | «Server non raggiungibile», con il numero del tentativo; la pagina si ricollega da sola |
+| server al completo (503) o troppe richieste (429), senza dati | «Troppi spettatori collegati»: «Il server è al completo in questo momento: nuovo tentativo tra poco. La pagina si aggiorna da sola.» |
 | già mostrata una partita e connessione persa | i dati restano a video, l'indicatore passa a «Riconnessione…» |
 | partita in corso e connessione attiva | l'indicatore mostra «In diretta» (solo mentre si gioca) |
 | partita conclusa e connessione attiva | l'indicatore mostra «Risultato finale», in stile neutro |
@@ -77,7 +78,21 @@ protezione è sempre nel server (`docs/server.md`).
 
 ### Connessione WebSocket (`src/lib/liveConnection.ts`, `useLiveSocket.ts`)
 - `LiveConnection` tiene aperto il socket e, a ogni (ri)connessione, il server rimanda lo stato intero.
-- **Backoff**: dopo una chiusura riprova dopo `backoffDelay` (1 s, raddoppia fino a 30 s, con variazione ±20%).
+- **Patch**: dopo lo stato intero arrivano messaggi `patch`. `applyPatchMessage` li applica con `applyPatch`
+  (`@sir/shared`) solo se la `baseVersion` è la versione a video; se non combacia, la partita è un'altra o il patch non
+  è applicabile (o il risultato non `looksLikeMatchState`) il client manda `{ "type": "resync" }` e ignora i patch finché
+  non arriva lo stato intero. Il `resync` è rimandato se nessuna risposta arriva entro 8 s (`resyncRetryMs`; il server
+  risponde al massimo ogni 5 s per socket). Patch con versione non maggiore di quella a video sono ignorati.
+- **Gzip**: se il browser ha `DecompressionStream` (`supportsGzip`) l'URL del socket ha `?enc=gzip` (`withGzip`) e i frame
+  binari sono decompressi con `gunzipFrame` (`src/lib/frames.ts`), con tetto di 4 MB (`LIVE_FRAME_MAX_DECODED_BYTES`).
+  I frame sono elaborati **in ordine**, anche se uno è ancora in decompressione. Opzione `gzip` per forzare o escludere.
+- **Backoff**: dopo una chiusura riprova dopo `backoffDelay` (1 s, raddoppia fino a 30 s, con variazione ±50% già dal
+  primo tentativo).
+- **Dopo un riavvio del server** (chiusure `1001`, `1006`, `1012`, `1013` su un socket che era aperto) i client
+  attendono in più un tempo casuale fino a 5 s (`restartSpreadMs`), per non tornare tutti insieme.
+- **Server al completo**: la sonda (`probeShareToken`) legge 503 e 429 con `Retry-After` (secondi, massimo 5 minuti,
+  20 s se illeggibile): l'attesa è `Retry-After` × (1–1,5), mai meno del backoff; lo stato `serverFull` mostra la
+  schermata «Troppi spettatori collegati».
 - **Nessuna riconnessione** su `4404` (link non valido: stato `invalid`) e `4401` (sessione terminata: `unauthorized`).
 - **Sonda HTTP**: il browser nasconde il 404/401 dell'upgrade, quindi se il socket si chiude prima di aprirsi (o con
   `1008`) la connessione chiede `probe`: per il link pubblico `GET /api/public/<token>/state` (`probeShareToken`, 404 =
@@ -147,6 +162,12 @@ usa `COOKIE_SECURE=false`, `CORS_ORIGIN` e `PUBLIC_BASE_URL` = `http://localhost
 ### Docker
 - `docker/web.Dockerfile`: stadio `build` (Node 24, `pnpm install --frozen-lockfile`, `pnpm --filter @sir/web build`),
   stadio `runtime` `nginxinc/nginx-unprivileged` (utente 101, porta 8080 nel container, healthcheck su `/healthz`).
+- `docker/web.nginx.main.conf`: `nginx.conf` principale, copiata da `docker/web.Dockerfile` in `/etc/nginx/nginx.conf`.
+  Come quella di nginx-unprivileged (pid e file temporanei in `/tmp`, utente non root) ma con `worker_processes auto`,
+  `worker_rlimit_nofile 40000`, `worker_connections 16384` e `multi_accept on`, perché ogni WebSocket pubblico occupa due
+  connessioni (client e server) e `WS_MAX_TOTAL` di default è 6000. Il servizio `web` di `docker-compose.yml` alza il
+  limite di file aperti a 65536 (`ulimits`, `nofile`). Sintassi verificata con nginx 1.28: da ricontrollare al primo
+  build con la 1.29 unprivileged dell'immagine.
 - `docker/web.nginx.conf`: serve la SPA (ogni percorso non-file riceve `index.html`, senza cache; `/assets/` con cache
   immutabile), fa da proxy di `/api/` e `/ws/` verso `server:8090`, risponde a `/healthz`, accetta corpi fino a 3 MB
   (l'ingest dell'agente ne ammette 2 sul filo). Sovrascrive `X-Forwarded-For` con l'IP reale del client e passa
@@ -247,7 +268,8 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
 ## Riferimenti
 - `apps/web/src/App.tsx` (rotte), `main.tsx` (zod jitless, tema), `pages/LivePage.tsx`, `pages/admin/*`
   (`TenantsPage.tsx`: pagina «Clienti» e `TenantSelector`; `AdminApp.tsx`: barra e rotte)
-- `apps/web/src/lib/liveConnection.ts` (`LiveConnection`, `applyMessage`, `backoffDelay`), `useLiveSocket.ts`, `messages.ts`, `api.ts`, `theme.ts`, `iconv-browser.ts`
+- `apps/web/src/lib/liveConnection.ts` (`LiveConnection`, `applyMessage`, `applyPatchMessage`, `backoffDelay`), `frames.ts`
+  (`gunzipFrame`, `supportsGzip`, `withGzip`), `pages/LivePage.tsx` (`probeShareToken`, `retryAfterMs`), `useLiveSocket.ts`, `messages.ts`, `api.ts`, `theme.ts`, `iconv-browser.ts`
 - `apps/web/src/components/` (`MatchView`, `LiveMatch`, `Scoreboard`, `MomentumChart`, `TeamComparison`, `PlayerTable`, `CourtMap`, `Rotations`)
 - `apps/web/src/charts/` (trasformazioni pure, `theme.ts` con `buildEchartsTheme` e `richSafe`), `src/styles/tokens.css`
 - `apps/web/vite.config.ts`, `apps/web/scripts/demo.ts`

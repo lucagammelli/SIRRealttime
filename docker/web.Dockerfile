@@ -14,6 +14,8 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @sir/web build
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
+# Configurazione principale con worker_connections e descrittori alzati per migliaia di WebSocket.
+COPY docker/web.nginx.main.conf /etc/nginx/nginx.conf
 COPY docker/web.nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker/web.security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /repo/apps/web/dist /usr/share/nginx/html

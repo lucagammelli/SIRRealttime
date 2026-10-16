@@ -75,6 +75,7 @@ const shareSummary = (s: ShareRow, code: string | null, base: string): ShareToke
   id: s.id,
   label: s.label,
   matchId: s.matchId,
+  clientFixtureId: s.clientFixtureId,
   expiresAt: s.expiresAt ? iso(s.expiresAt) : null,
   revoked: s.revoked,
   createdAt: iso(s.createdAt),

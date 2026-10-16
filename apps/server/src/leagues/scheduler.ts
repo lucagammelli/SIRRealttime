@@ -3,7 +3,7 @@ import type { Db } from '../db/index.js';
 import { leagues } from '../db/index.js';
 import { romeDayAt } from './romeTime.js';
 import type { LeagueService, StandingsMode } from './sync.js';
-import { leaguesWithMatches } from './sync.js';
+import { leaguesWithClubMatches } from '../club.js';
 
 /** Hour (Rome) of the nightly update of every championship. */
 export const NIGHTLY_HOUR = 4;
@@ -16,13 +16,13 @@ export interface ScheduledLeague {
   id: string;
   /** Last attempt (good or not). */
   lastSyncAt: Date | null;
-  /** The championship has a match starting today (Rome day). */
+  /** A club of a client has a match of the championship starting today (Rome day). */
   matchToday: boolean;
 }
 
 /**
  * Pure: updates due at `now`. Every championship once a night after 04:00 (Rome), standings included; the ones with
- * a match today every 10 minutes, standings only when a match became played.
+ * a match of a club of a client today every 10 minutes, standings only when a match became played.
  */
 export function dueSyncs(now: Date, list: ScheduledLeague[]): { id: string; standings: StandingsMode }[] {
   const nightly = romeDayAt(now, NIGHTLY_HOUR).at;
@@ -76,7 +76,7 @@ export class LeagueScheduler {
     const day = romeDayAt(now, 0);
     const [rows, today] = await Promise.all([
       this.o.db.select({ id: leagues.id, lastSyncAt: leagues.lastSyncAt }).from(leagues),
-      leaguesWithMatches(this.o.db, day.at, day.nextDay),
+      leaguesWithClubMatches(this.o.db, day.at, day.nextDay),
     ]);
     const due = dueSyncs(
       now,

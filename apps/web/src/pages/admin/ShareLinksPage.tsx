@@ -204,8 +204,12 @@ export function ShareLinksPage() {
                         <span className={`ml-1 text-xs font-semibold uppercase ${st.className}`}>{st.text}</span>
                       </p>
                       <p className="text-xs text-muted">
-                        {s.matchId ? `Partita: ${target ? matchTitle(target) : s.matchId}` : 'Segue la partita live'} ·
-                        scadenza {s.expiresAt ? formatDateTime(s.expiresAt) : 'nessuna'} · creato{' '}
+                        {s.clientFixtureId
+                          ? 'Partita del calendario (creato dal «Calendario»)'
+                          : s.matchId
+                            ? `Partita: ${target ? matchTitle(target) : s.matchId}`
+                            : 'Segue la partita live'}{' '}
+                        · scadenza {s.expiresAt ? formatDateTime(s.expiresAt) : 'nessuna'} · creato{' '}
                         {formatDateTime(s.createdAt)}
                       </p>
                     </div>

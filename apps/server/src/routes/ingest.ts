@@ -48,8 +48,8 @@ export function ingestRoutes(app: FastifyInstance, ctx: AppContext): void {
       if (!agent) throw unauthorized();
       const body = validate(IngestRequestSchema, request.body);
       // The match belongs to the client of the agent, whatever the hostname.
-      const { response, published } = await ctx.ingest.ingest(agent, body);
-      if (published) ctx.publisher.publish(agent.tenantId, published);
+      const { response, published, route } = await ctx.ingest.ingest(agent, body);
+      if (published) ctx.publisher.publish(agent.tenantId, published, route);
       request.log.info(
         { matchKey: body.matchKey, seq: body.seq, kind: body.kind, lines: body.lines.length, status: response.status },
         'ingest',

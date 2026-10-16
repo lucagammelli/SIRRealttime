@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { LeagueDetailResponse, LeagueListResponse, LeagueSummary } from '@sir/shared';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { fixtures, leagues, leagueTeams, teamLogos } from '../src/db/index.js';
@@ -461,16 +461,16 @@ describe('scheduler', () => {
     expect(dueSyncs(now, [{ id: 'a', lastSyncAt: last(11), matchToday: false }])).toEqual([]);
   });
 
-  it('finds the championships with a match today and runs their updates one after the other', async () => {
+  it('updates every 10 minutes only the championships with a match of a club today', async () => {
     const [league] = await server.database.db
       .select({ id: leagues.id })
       .from(leagues)
       .where(eq(leagues.externalId, 974));
     if (!league) throw new Error('league missing');
     const [match] = await server.database.db
-      .select({ startsAt: fixtures.startsAt })
+      .select({ startsAt: fixtures.startsAt, homeTeamId: fixtures.homeTeamId })
       .from(fixtures)
-      .where(eq(fixtures.externalId, 'n67'));
+      .where(and(eq(fixtures.leagueId, league.id), eq(fixtures.externalId, 'n67')));
     const startsAt = match?.startsAt ?? new Date();
     const syncLeague = vi.fn<LeagueService['syncLeague']>(() => Promise.resolve({ status: 'ok', message: null }));
     const scheduler = new LeagueScheduler({
@@ -484,9 +484,23 @@ describe('scheduler', () => {
       .update(leagues)
       .set({ lastSyncAt: new Date(startsAt.getTime() - 3 * 3_600_000) })
       .where(eq(leagues.id, league.id));
+    // No client plays it yet: only the nightly update.
+    await scheduler.tick();
+    expect(syncLeague).not.toHaveBeenCalled();
+    const res = await call(
+      {
+        method: 'PUT',
+        url: '/api/admin/club',
+        payload: { leagues: [{ leagueId: league.id, teamId: match?.homeTeamId ?? null }] },
+      },
+      adminCookie,
+    );
+    expect(res.statusCode).toBe(200);
     await scheduler.tick();
     expect(syncLeague).toHaveBeenCalledWith(league.id, { standings: 'ifChanged' });
     await scheduler.stop();
+    // The club of the other tests starts empty again.
+    await call({ method: 'PUT', url: '/api/admin/club', payload: { leagues: [] } }, adminCookie);
   });
 });
 

@@ -7,6 +7,8 @@ import { BrandMark } from '../../components/BrandMark.tsx';
 const ICONS = {
   live: 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4',
   matches: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
+  calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2',
+  club: 'M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6zM9 12l2 2 4-4',
   links: 'M10 14a4 4 0 0 0 5.7 0l3-3A4 4 0 0 0 13 5.3l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
   branding: 'M12 3a9 9 0 0 0 0 18c1.2 0 1.6-.9 1.4-1.8-.3-1.1.4-2.2 1.6-2.2H17a4 4 0 0 0 4-4c0-5-4-10-9-10z',
   page: 'M4 4h16v16H4zM4 9h16M10 9v11',
@@ -50,8 +52,10 @@ export interface MenuGroup {
 }
 
 /**
- * Pure: the groups of the side menu for a role. A viewer sees only the matches; an administrator also the public
- * page, the devices and the users; the superadmin also the clients. Groups without items are left out.
+ * Pure: the groups of the side menu for a role. A viewer sees only the matches; an administrator also the calendar,
+ * the club, the public page, the devices and the users; the superadmin also the clients. «Club» is a group of its own:
+ * championships and team of the club are not graphics, they decide the calendar and the links of the matches.
+ * Groups without items are left out.
  */
 export function menuGroups({ isAdmin, isSuperadmin }: { isAdmin: boolean; isSuperadmin: boolean }): MenuGroup[] {
   const groups: MenuGroup[] = [
@@ -60,9 +64,15 @@ export function menuGroups({ isAdmin, isSuperadmin }: { isAdmin: boolean; isSupe
       items: [
         { to: '/admin/live', label: 'Partita live', icon: 'live' },
         { to: '/admin/partite', label: 'Partite', icon: 'matches' },
-        ...(isAdmin ? [{ to: '/admin/link', label: 'Link pubblici', icon: 'links' } as const] : []),
+        ...(isAdmin
+          ? ([
+              { to: '/admin/calendario', label: 'Calendario', icon: 'calendar' },
+              { to: '/admin/link', label: 'Link pubblici', icon: 'links' },
+            ] as const)
+          : []),
       ],
     },
+    { label: 'Club', items: isAdmin ? [{ to: '/admin/club', label: 'Club', icon: 'club' }] : [] },
     {
       label: 'Pagina pubblica',
       items: isAdmin

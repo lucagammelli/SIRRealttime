@@ -1,5 +1,6 @@
 import type { MatchState } from '@sir/volley-stats';
 import { z } from 'zod';
+import { UpcomingFixtureSchema } from './club.js';
 import { PatchOpsSchema } from './patch.js';
 
 /** Match state computed by `@sir/volley-stats`: only checked to be an object (it comes from the server). */
@@ -19,6 +20,13 @@ export type StateMessage = z.infer<typeof StateMessageSchema>;
 /** No match available (a "live" link while no match is live). */
 export const NoMatchMessageSchema = z.object({ type: z.literal('noMatch') });
 export type NoMatchMessage = z.infer<typeof NoMatchMessageSchema>;
+
+/**
+ * The link of a match of the calendar before its `.dvw` arrives: the public page shows «Prossima partita» and turns
+ * into the live page by itself at the first state of the match.
+ */
+export const ScheduledMessageSchema = z.object({ type: z.literal('scheduled'), fixture: UpcomingFixtureSchema });
+export type ScheduledMessage = z.infer<typeof ScheduledMessageSchema>;
 
 export const ErrorMessageSchema = z.object({ type: z.literal('error'), message: z.string() });
 export type ErrorMessage = z.infer<typeof ErrorMessageSchema>;
@@ -40,12 +48,13 @@ export type PatchMessage = z.infer<typeof PatchMessageSchema>;
 
 /**
  * Messages server→client on `/ws/public/:token` and `/ws/admin` (`patch` only there); also the body of
- * `GET /api/public/:token/state` (`state`, `noMatch` or `error`).
+ * `GET /api/public/:token/state` (`state`, `noMatch`, `scheduled` or `error`).
  */
 export const ServerMessageSchema = z.discriminatedUnion('type', [
   StateMessageSchema,
   PatchMessageSchema,
   NoMatchMessageSchema,
+  ScheduledMessageSchema,
   ErrorMessageSchema,
 ]);
 export type ServerMessage = z.infer<typeof ServerMessageSchema>;

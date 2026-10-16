@@ -1,6 +1,7 @@
 import type { ServerMessage, ShareAccess } from '@sir/shared';
 import { ClientMessageSchema, LiveSocketQuerySchema } from '@sir/shared';
-import { eq, gt, isNull, or } from 'drizzle-orm';
+import { desc, eq, gt, isNull, or, sql } from 'drizzle-orm';
+import { refreshClientFixtures, scheduledMessage } from './club.js';
 import type { FastifyBaseLogger } from 'fastify';
 import type { AppContext, ResolvedShareToken } from './context.js';
 import { matches, shareTokens } from './db/index.js';
@@ -9,22 +10,45 @@ import { shortCodeLookupHash } from './lib/shortCode.js';
 import { hashToken } from './lib/tokens.js';
 import { tenantScope } from './tenancy.js';
 
+const whereOf = (target: Target) =>
+  target.kind === 'live'
+    ? eq(matches.live, true)
+    : target.kind === 'match'
+      ? eq(matches.id, target.matchId)
+      : eq(matches.clientFixtureId, target.clientFixtureId);
+
 /**
- * Current message for a target: the state of the match (of the target's client), or `noMatch`. From the memory of
- * the hub when it has it (every state published by this process), otherwise from the database (then kept there).
+ * Current message for a target: the state of the match (of the target's client), or `noMatch`; for a match of the
+ * calendar, «Prossima partita» (`scheduled`) until a `.dvw` is linked to it, then that match (the live one, otherwise
+ * the one live last). The live link shows the match that became live last. From the memory of the hub when it has it
+ * (every state published by this process), otherwise from the database (then kept there).
  */
 export async function currentMessage(ctx: AppContext, target: Target): Promise<ServerMessage> {
   const known = ctx.hub.current(target);
   if (known) return known;
-  const where = target.kind === 'live' ? eq(matches.live, true) : eq(matches.id, target.matchId);
+  const waiting = target.kind === 'fixture' ? ctx.hub.currentScheduled(target.tenantId, target.clientFixtureId) : null;
+  if (waiting) return waiting;
   const [row] = await ctx.db
-    .select({ id: matches.id, version: matches.version, state: matches.state, live: matches.live })
+    .select({
+      id: matches.id,
+      version: matches.version,
+      state: matches.state,
+      live: matches.live,
+      clientFixtureId: matches.clientFixtureId,
+    })
     .from(matches)
-    .where(tenantScope(matches, target.tenantId, where))
+    .where(tenantScope(matches, target.tenantId, whereOf(target), sql`${matches.state} is not null`))
+    .orderBy(desc(matches.live), sql`${matches.liveSince} desc nulls last`, desc(matches.updatedAt))
     .limit(1);
-  if (!row?.state) return { type: 'noMatch' };
+  if (!row?.state) {
+    if (target.kind !== 'fixture') return { type: 'noMatch' };
+    const scheduled = await scheduledMessage(ctx.db, target.tenantId, target.clientFixtureId);
+    if (!scheduled) return { type: 'noMatch' };
+    ctx.hub.rememberScheduled(target.tenantId, target.clientFixtureId, scheduled);
+    return scheduled;
+  }
   const message = { type: 'state', matchId: row.id, version: row.version, state: row.state } as const;
-  ctx.hub.remember(target.tenantId, message, row.live);
+  ctx.hub.remember(target.tenantId, message, row.live, row.clientFixtureId);
   return message;
 }
 
@@ -106,6 +130,7 @@ export async function resolveShareToken(
       id: shareTokens.id,
       tenantId: shareTokens.tenantId,
       matchId: shareTokens.matchId,
+      clientFixtureId: shareTokens.clientFixtureId,
       expiresAt: shareTokens.expiresAt,
     })
     .from(shareTokens)
@@ -130,6 +155,33 @@ export function forgetShareToken(ctx: AppContext, shareTokenId: string): void {
 }
 
 export const targetOf = (share: ResolvedShareToken): Target =>
-  share.matchId
-    ? { kind: 'match', tenantId: share.tenantId, matchId: share.matchId }
-    : { kind: 'live', tenantId: share.tenantId };
+  share.clientFixtureId
+    ? { kind: 'fixture', tenantId: share.tenantId, clientFixtureId: share.clientFixtureId }
+    : share.matchId
+      ? { kind: 'match', tenantId: share.tenantId, matchId: share.matchId }
+      : { kind: 'live', tenantId: share.tenantId };
+
+/**
+ * Tells the clients of a link of a match of the calendar what it shows now (after a change of the `.dvw` linked to
+ * it): read from the database, never from the memory of the hub.
+ */
+export async function announceFixture(ctx: AppContext, tenantId: string, clientFixtureId: string): Promise<void> {
+  const target: Target = { kind: 'fixture', tenantId, clientFixtureId };
+  const [row] = await ctx.db
+    .select({ id: matches.id, version: matches.version, state: matches.state })
+    .from(matches)
+    .where(tenantScope(matches, tenantId, whereOf(target), sql`${matches.state} is not null`))
+    .orderBy(desc(matches.live), sql`${matches.liveSince} desc nulls last`, desc(matches.updatedAt))
+    .limit(1);
+  const message: ServerMessage = row?.state
+    ? { type: 'state', matchId: row.id, version: row.version, state: row.state }
+    : ((await scheduledMessage(ctx.db, tenantId, clientFixtureId)) ?? { type: 'noMatch' });
+  ctx.hub.retarget(tenantId, clientFixtureId, message);
+}
+
+/** Copies again the matches of the club of a client and tells the clients of the `.dvw` linked now. */
+export async function refreshClub(ctx: AppContext, tenantId: string): Promise<void> {
+  const linked = await refreshClientFixtures(ctx.db, ctx.config.shareCodeSecret, tenantId, ctx.now());
+  ctx.hub.forgetScheduled(tenantId);
+  for (const l of linked) await announceFixture(ctx, l.tenantId, l.clientFixtureId);
+}

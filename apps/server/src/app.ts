@@ -24,6 +24,7 @@ import { adminRoutes } from './routes/admin.js';
 import { agentDownloadRoutes } from './routes/agentDownload.js';
 import { authRoutes } from './routes/auth.js';
 import { brandingAdminRoutes, brandingPublicRoutes } from './routes/branding.js';
+import { clubRoutes } from './routes/club.js';
 import { healthRoutes } from './routes/health.js';
 import { ingestRoutes } from './routes/ingest.js';
 import { leaguePublicRoutes, leagueRoutes } from './routes/leagues.js';
@@ -31,6 +32,8 @@ import { publicRoutes } from './routes/public.js';
 import { registrationRoutes } from './routes/registration.js';
 import { tenantRoutes } from './routes/tenants.js';
 import { browserWriteGuard, rejectNulBody } from './security.js';
+import { tenantsOfLeague } from './club.js';
+import { refreshClub } from './state.js';
 
 export interface AppOptions {
   config: Config;
@@ -125,6 +128,10 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     assetsDir: config.assetsDir,
     now,
     log: app.log,
+    // After a good update the clubs that play the championship copy their matches again (and their links).
+    onUpdated: async (leagueId) => {
+      for (const tenantId of await tenantsOfLeague(db, leagueId)) await refreshClub(ctx, tenantId);
+    },
   });
   const ctx: AppContext = {
     config,
@@ -193,6 +200,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     brandingAdminRoutes(scope, ctx);
     agentDownloadRoutes(scope, ctx);
     leagueRoutes(scope, ctx);
+    clubRoutes(scope, ctx);
     done();
   });
 

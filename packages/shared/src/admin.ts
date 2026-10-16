@@ -152,6 +152,8 @@ export const ShareTokenSummarySchema = z.object({
   id: z.uuid(),
   label: z.string(),
   matchId: z.uuid().nullable(),
+  /** Match of the calendar of the link (created by the server for every match of the club); null for the others. */
+  clientFixtureId: z.uuid().nullable().default(null),
   expiresAt: z.iso.datetime().nullable(),
   revoked: z.boolean(),
   createdAt: z.iso.datetime(),

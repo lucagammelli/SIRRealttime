@@ -101,13 +101,14 @@ describe('admin navigation', () => {
     expect(within(nav).queryByRole('link', { name: 'Agenti' })).toBeNull();
   });
 
-  it('groups the side menu: matches, public page, devices, administration (admin, no clients)', async () => {
+  it('groups the side menu: matches, club, public page, devices, administration (admin, no clients)', async () => {
     mockServer('admin');
     renderAt('/admin/live');
     const nav = await screen.findByRole('navigation', { name: 'Area riservata' });
     const groups = within(nav).getAllByRole('region');
     expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual([
       'Partite',
+      'Club',
       'Pagina pubblica',
       'Dispositivi',
       'Amministrazione',
@@ -116,7 +117,8 @@ describe('admin navigation', () => {
       within(within(nav).getByRole('region', { name }))
         .getAllByRole('link')
         .map((l) => l.textContent ?? '');
-    expect(names('Partite')).toEqual(['Partita live', 'Partite', 'Link pubblici']);
+    expect(names('Partite')).toEqual(['Partita live', 'Partite', 'Calendario', 'Link pubblici']);
+    expect(names('Club')).toEqual(['Club']);
     expect(names('Pagina pubblica')).toEqual(['Grafica', 'Pagina pubblica', 'Pause e sponsor', 'Avvisi']);
     expect(names('Dispositivi')).toEqual(['Agenti']);
     expect(names('Amministrazione')).toEqual(['Utenti']);

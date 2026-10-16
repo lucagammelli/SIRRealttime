@@ -5,6 +5,7 @@ import type { Device } from '../lib/layout.ts';
 import type { LiveSnapshot } from '../lib/liveConnection.ts';
 import { ConnectionBadge } from './ConnectionBadge.tsx';
 import { MatchView } from './MatchView.tsx';
+import { NextMatch } from './NextMatch.tsx';
 import { StatusScreen } from './StatusScreen.tsx';
 import { Spinner } from './ui.tsx';
 
@@ -47,7 +48,7 @@ export function LiveMatch({
     );
   }
   const finished = data?.kind === 'state' && data.state.status === 'finished';
-  const badge = <ConnectionBadge status={status} finished={finished} />;
+  const badge = <ConnectionBadge status={status} finished={finished} upcoming={data?.kind === 'scheduled'} />;
   if (data === null) {
     if (status === 'reconnecting' && snapshot.serverFull) {
       return (
@@ -69,6 +70,13 @@ export function LiveMatch({
           <Spinner label="Connessione in corso…" />
         </div>
       </StatusScreen>
+    );
+  }
+  if (data.kind === 'scheduled') {
+    return (
+      <div className={device === 'tv' ? 'h-full min-h-0' : ''}>
+        <NextMatch fixture={data.fixture} status={badge} {...(device ? { device } : {})} />
+      </div>
     );
   }
   if (data.kind === 'noMatch') {

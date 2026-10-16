@@ -1,6 +1,7 @@
-import type { LeaguePhase, SetScore } from '@sir/shared';
+import type { FixtureCandidate, LeaguePhase, SetScore } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
 import { sql } from 'drizzle-orm';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import {
   bigint,
   boolean,
@@ -139,6 +140,8 @@ export const agentRegistrations = pgTable(
   (t) => [index('agent_registrations_status_idx').on(t.tenantId, t.status, t.expiresAt)],
 );
 
+export const fixtureLink = pgEnum('fixture_link', ['auto', 'manual', 'pending', 'none']);
+
 export const matches = pgTable(
   'matches',
   {
@@ -154,17 +157,31 @@ export const matches = pgTable(
     lastSeq: bigint('last_seq', { mode: 'number' }).notNull().default(-1),
     agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
     live: boolean('live').notNull().default(false),
+    /** Last time the match became live (null: never live since the column exists); the live link follows the latest. */
+    liveSince: timestamp('live_since', { withTimezone: true }),
     state: jsonb('state').$type<MatchState>(),
     version: integer('version').notNull().default(0),
+    /** Match of the calendar of the club this `.dvw` belongs to (null: none, or not found yet). */
+    clientFixtureId: uuid('client_fixture_id').references((): AnyPgColumn => clientFixtures.id, {
+      onDelete: 'set null',
+    }),
+    /** How `client_fixture_id` was chosen; null: not evaluated (no club configured when the header arrived). */
+    fixtureLink: fixtureLink('fixture_link'),
+    /** Candidates of a `pending` link, best first (the admin chooses among them in «Calendario»). */
+    fixtureCandidates: jsonb('fixture_candidates').$type<FixtureCandidate[]>(),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex('matches_tenant_match_key_idx').on(t.tenantId, t.matchKey),
-    // One live match per client.
-    uniqueIndex('matches_one_live_per_tenant_idx')
+    // One live match per match of the calendar, and one among the matches without one (per client).
+    uniqueIndex('matches_one_live_per_fixture_idx')
+      .on(t.clientFixtureId)
+      .where(sql`${t.live} and ${t.clientFixtureId} is not null`),
+    uniqueIndex('matches_one_live_unlinked_idx')
       .on(t.tenantId)
-      .where(sql`${t.live}`),
+      .where(sql`${t.live} and ${t.clientFixtureId} is null`),
+    index('matches_client_fixture_idx').on(t.clientFixtureId),
   ],
 );
 
@@ -203,8 +220,20 @@ export const shareTokens = pgTable(
     shortCodeHash: text('short_code_hash').unique(),
     /** Counter mixed into the HMAC: raised only when the code of salt 0 collides with the one of another link. */
     shortCodeSalt: integer('short_code_salt').notNull().default(0),
+    /**
+     * Match of the calendar of the club (link created by the server, one per match): before the start the link shows
+     * «Prossima partita», then the `.dvw` linked to it. null for the links created by hand.
+     */
+    clientFixtureId: uuid('client_fixture_id').references((): AnyPgColumn => clientFixtures.id, {
+      onDelete: 'cascade',
+    }),
   },
-  (t) => [index('share_tokens_tenant_idx').on(t.tenantId)],
+  (t) => [
+    index('share_tokens_tenant_idx').on(t.tenantId),
+    uniqueIndex('share_tokens_client_fixture_idx')
+      .on(t.clientFixtureId)
+      .where(sql`${t.clientFixtureId} is not null`),
+  ],
 );
 
 export const assetKind = pgEnum('asset_kind', ['logo', 'sponsor']);
@@ -374,6 +403,71 @@ export const leagueHttpCache = pgTable('league_http_cache', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// --- Club of a client: its championships, its team there and its matches of the calendar ---------------------------
+
+/** Championships of a client and its team in each (null: not chosen yet). */
+export const tenantLeagues = pgTable(
+  'tenant_leagues',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: tenantId(),
+    leagueId: uuid('league_id')
+      .notNull()
+      .references(() => leagues.id),
+    leagueTeamId: uuid('league_team_id').references(() => leagueTeams.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('tenant_leagues_tenant_league_idx').on(t.tenantId, t.leagueId),
+    index('tenant_leagues_league_idx').on(t.leagueId),
+  ],
+);
+
+export const clubSide = pgEnum('club_side', ['home', 'away']);
+
+/**
+ * Matches of the team of the club in its championships, with a copy of what is shown (the row of `fixtures` can be
+ * deleted by an update of the calendar: this one stays, with its link, marked `removed_at`).
+ */
+export const clientFixtures = pgTable(
+  'client_fixtures',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: tenantId(),
+    leagueId: uuid('league_id')
+      .notNull()
+      .references(() => leagues.id),
+    /** `fixtures.external_id`: stable within the championship. */
+    fixtureExternalId: text('fixture_external_id').notNull(),
+    /** null when the match is no longer in the calendar. */
+    fixtureId: uuid('fixture_id').references(() => fixtures.id, { onDelete: 'set null' }),
+    /** Time the match left the calendar (or the team of the club changed); null while it is there. */
+    removedAt: timestamp('removed_at', { withTimezone: true }),
+    startsAt: timestamp('starts_at', { withTimezone: true }),
+    ourSide: clubSide('our_side').notNull(),
+    homeName: text('home_name').notNull(),
+    awayName: text('away_name').notNull(),
+    /** City of the teams (team page of the league), used to recognize them in the `.dvw`. */
+    homeCity: text('home_city'),
+    awayCity: text('away_city'),
+    homeLogoId: uuid('home_logo_id').references(() => teamLogos.id, { onDelete: 'set null' }),
+    awayLogoId: uuid('away_logo_id').references(() => teamLogos.id, { onDelete: 'set null' }),
+    venue: text('venue'),
+    venueCity: text('venue_city'),
+    roundLabel: text('round_label').notNull(),
+    leagueName: text('league_name'),
+    status: fixtureStatus('status').notNull(),
+    homeSets: integer('home_sets'),
+    awaySets: integer('away_sets'),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('client_fixtures_tenant_fixture_idx').on(t.tenantId, t.leagueId, t.fixtureExternalId),
+    index('client_fixtures_tenant_starts_idx').on(t.tenantId, t.startsAt),
+  ],
+);
+
 export const schema = {
   tenants,
   userRole,
@@ -396,4 +490,8 @@ export const schema = {
   fixtures,
   standings,
   leagueHttpCache,
+  fixtureLink,
+  tenantLeagues,
+  clubSide,
+  clientFixtures,
 };

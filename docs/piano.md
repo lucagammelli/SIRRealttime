@@ -161,9 +161,12 @@ Calendario, classifica, squadre e loghi dei campionati ufficiali, scaricati dai 
    aggiornamento con lease, pianificazione notturna e nei giorni di partita, rotte per il superadmin
    (`/api/admin/leagues`), loghi `GET /api/public/team-logos/:id`. Provato sul campionato 974 (22 giornate, 132 partite,
    12 squadre, 12 loghi).
-2. `cliente-club` (**da fare**): pagina «Club» (logo, nome, campionato e squadra del cliente, da cui «nostra squadra»),
-   pagina «Calendario» con link breve e QR per ogni partita, abbinamento automatico del `.dvw` alla partita del calendario
-   (con conferma dell'admin se dubbio), pagina pubblica «Prossima partita» prima della gara.
+2. `cliente-club` (**fatto**, 2026-10-16): pagina «Club» (logo, nome, campionato e squadra del cliente, da cui «nostra
+   squadra»), pagina «Calendario» con link breve e QR per ogni partita, abbinamento automatico del `.dvw` alla partita del
+   calendario (con conferma dell'admin se dubbio), pagina pubblica «Prossima partita» prima della gara; una live per partita
+   del calendario (`docs/server.md`, «Club, calendario e abbinamento»; `docs/portale.md`). Provato sulla SuperLega 2026/27
+   (999), Perugia: 22 partite con link. Limiti noti: le partite non abbinate si spengono a vicenda; revocando il link di una
+   partita non se ne crea uno nuovo.
 3. `blocchi-calendario` (**da fare**): blocchi e diapositive «Prossima partita» e «Classifica» nelle pause e nella TV.
 
 Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`IdCampionato` cambia ogni stagione

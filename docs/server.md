@@ -29,8 +29,9 @@ appartiene a un cliente e nessuna query legge o cambia righe di un altro (filtro
 - **Gestione clienti** (solo superadmin): `GET`/`POST /api/admin/tenants`, `PATCH /api/admin/tenants/:id` (nome e
   hostname; lo slug non cambia). L'unicità degli hostname fra tutti i clienti è controllata dal server sotto lock
   (`pg_advisory_xact_lock`), non da un vincolo del database (conflitto: 409).
-- **Ingest e WebSocket**: l'ingest usa il cliente dell'agente; la partita live è una per cliente
-  (`matches_one_live_per_tenant_idx`) e `hub.publish(tenantId, …)` spinge lo stato solo ai WebSocket di quel cliente. La
+- **Ingest e WebSocket**: l'ingest usa il cliente dell'agente; la partita live è una per partita del calendario del club
+  più una tra quelle non abbinate (indici `matches_one_live_per_fixture_idx` e `matches_one_live_unlinked_idx`, vedi «Club,
+  calendario e abbinamento») e `hub.publish(tenantId, …)` spinge lo stato solo ai WebSocket di quel cliente. La
   registrazione degli agenti appartiene al cliente dell'hostname da cui arriva.
 - **Cache del cliente dell'hostname**: `hostTenant` ricorda per 30 s (`LOOKUP_CACHE_TTL_MS`) il cliente di ogni hostname
   (`ctx.caches.hosts`); la cache è svuotata a ogni creazione o modifica di un cliente (`src/tenancy.ts`).
@@ -172,8 +173,9 @@ clienti**, costruito da `scripts/costruisci-agente.sh` in `AGENT_DOWNLOAD_DIR` i
 ### Campionati (`apps/server/src/leagues/`, `src/routes/leagues.ts`)
 Il server scarica dai **siti ufficiali** calendario, classifica, squadre e loghi dei campionati. Oggi c'è un solo
 fornitore, la Lega Pallavolo Serie A (`https://www.legavolley.it`, `LeagueProviderSchema` = `legavolley`). I dati sono
-pubblici e **comuni a tutti i clienti** (nessun `tenant_id`): si scaricano una volta sola. Per ora li vede solo il
-superadmin; l'uso nelle pagine dei clienti è nei lavori seguenti (`docs/piano.md`, «Campionati»). Fonte: dati ufficiali
+pubblici e **comuni a tutti i clienti** (nessun `tenant_id`): si scaricano una volta sola. Le rotte `/api/admin/leagues`
+sono del superadmin; ogni cliente sceglie fra i campionati già noti la sua squadra (vedi «Club, calendario e
+abbinamento»); blocchi e diapositive della classifica sono nel lavoro seguente (`docs/piano.md`, «Campionati»). Fonte: dati ufficiali
 della Lega; **l'uso dei marchi (loghi) va ancora chiarito con la Lega e i club** (punto aperto).
 
 **Come si aggiunge**: `POST /api/admin/leagues` con `{ provider, externalId, season }`. `externalId` è l'`IdCampionato` del
@@ -234,7 +236,9 @@ nome del suo hash: la risposta pubblica è `immutable`. I loghi non più usati r
 
 **Pianificazione** (`LeagueScheduler`, `scheduler.ts`, spenta con `LEAGUE_SYNC=off`): ogni minuto cerca cosa è dovuto e aggiorna
 un campionato alla volta (`dueSyncs`, pura): ogni notte dopo le 04:00 ora italiana (`NIGHTLY_HOUR`) con la classifica; nei
-giorni con almeno una partita, ogni 10 minuti (`MATCH_DAY_INTERVAL_MS`), con la classifica solo dopo un nuovo risultato.
+giorni in cui un club di un cliente ha una partita del campionato (`leaguesWithClubMatches`, `src/club.ts`: partite di
+`client_fixtures` non rimosse, giorno italiano), ogni 10 minuti (`MATCH_DAY_INTERVAL_MS`), con la classifica solo dopo un
+nuovo risultato. Ogni aggiornamento riuscito ricopia le partite dei club interessati (`onUpdated`, cablato in `app.ts`).
 
 **Rotte** (solo superadmin, limite admin; vedi «Endpoint»): `GET /api/admin/leagues` (elenco con `sync.running`),
 `POST /api/admin/leagues` (201; 409 se già presente), `GET /api/admin/leagues/:id` (squadre, partite, classifica) e
@@ -248,6 +252,96 @@ chiave nelle Note; non c'è un nome breve della squadra (`short_name` resta vuot
 
 **Prova reale** (2026-10-16, `IdCampionato` 974, 2025/26): 22 giornate, 132 partite, 12 squadre, 12 loghi; Perugia prima con
 58 punti. Le pagine vere usate dai test sono in `apps/server/test/fixtures/legavolley/`.
+
+### Club, calendario e abbinamento (`src/club.ts`, `src/leagues/match.ts`, `src/matchLock.ts`, `src/routes/club.ts`)
+Ogni cliente sceglie uno o più campionati già noti (al massimo `CLUB_MAX_LEAGUES` = 8) e in ognuno la sua squadra
+(`tenant_leagues`). Dal calendario del campionato il server copia le partite di quella squadra in `client_fixtures`, dà a
+ognuna un link pubblico breve e abbina a ogni partita il `.dvw` che arriva dall'agente. Contratti in
+`packages/shared/src/club.ts` (`docs/architettura.md`); pagine «Club», «Calendario» e «Prossima partita» in
+`docs/portale.md`. Un admin sceglie solo tra i campionati già noti; il superadmin li aggiunge (pagina «Club», rotta
+`POST /api/admin/leagues`).
+
+**Copia delle partite** (`refreshClientFixtures`, `club.ts`; `refreshClub` in `state.ts` la lancia e poi avvisa i client):
+avviene al salvataggio delle scelte (`PUT /api/admin/club`), a «Aggiorna calendario» e a ogni aggiornamento riuscito di un
+campionato (`onUpdated` di `LeagueService`, cablato in `app.ts` su `tenantsOfLeague`). È **idempotente**: una riga per
+partita (indice univoco su cliente, campionato e `fixture_external_id`), aggiornata sul posto con nomi, città, loghi,
+impianto, giornata, stato e set. Una partita che sparisce dal calendario non si cancella: prende `removed_at` e il suo
+link resta (altrimenti QR già stampati e `.dvw` abbinati si perderebbero). Ogni partita non rimossa senza link ne riceve uno
+(`ensureFixtureLinks`: indice univoco `share_tokens_client_fixture_idx`, un link per partita; etichetta «Avversario – data»,
+`fixtureLabel`; il token lungo è generato e scartato, si usano codice breve e QR). Ricopiare svuota anche la
+«Prossima partita» tenuta in memoria dall'hub (`forgetScheduled`), perché orari e impianti possono essere cambiati.
+
+**Abbinamento del `.dvw`** (`linkFixture` e funzioni pure in `leagues/match.ts`; `evaluateFixtureLink` in `club.ts` legge i
+candidati). Si calcola quando arriva o cambia l'header del file (ingest) e si **rivaluta solo finché non è deciso**
+(`fixtureLink` nullo o `pending`; `auto` e `manual` non cambiano da soli). Candidati: partite del club non rimosse con
+`starts_at` vicino alla data di `[3MATCH]`.
+
+- **Data**: stesso giorno in ora italiana (`romeParts`); con un giorno di differenza solo se manca l'ora del file o questa
+  o l'ora ufficiale è vicina a mezzanotte (`NEAR_MIDNIGHT_HOURS` = 2); in quel caso il punteggio perde `NEXT_DAY_PENALTY`
+  (0,1). Senza data nel file l'abbinamento automatico non scatta mai (`pending`).
+- **Nomi** (`nameTokens`, `teamNameScore`): senza maiuscole, accenti e punteggiatura, testo dopo `_` scartato
+  («Sir Susa Scai Perugia_Amichevoli»), parole vuote tolte (`volley`, `club`, `asd`, `amichevoli`…); somiglianza a parole,
+  alzata quando c'è la parola distintiva (città o ultima parola del nome ufficiale). Servono entrambe le squadre; se la
+  «nostra squadra» di `branding.ourTeam` identifica il lato, si prova solo quello, altrimenti entrambi.
+- **Soglie**: `auto` se il migliore ha almeno `AUTO_LINK_MIN_SCORE` (0,55) e supera il secondo di `AUTO_LINK_MARGIN` (0,2);
+  sotto `CANDIDATE_MIN_SCORE` (0,25) non è nemmeno proposto; al massimo `MAX_CANDIDATES` (5). In ogni altro caso `pending`
+  con i candidati salvati in `matches.fixture_candidates`: **mai abbinamenti in silenzio**, nessun candidato = probabile
+  amichevole. Con nessuna partita del club in `client_fixtures` non si decide nulla (`fixtureLink` resta nullo).
+- **Ordine dei candidati**: letti in ordine fisso (inizio della partita, poi id; `apps/server/src/club.ts`) e ordinati per punteggio senza cambiare quell'ordine a parità: la proposta in «Calendario» è sempre la stessa.
+- **Stati** (`matches.fixture_link`): `auto` (trovato dal server), `manual` (scelto dall'admin), `pending` (da confermare),
+  `none` (scelto «Nessuna (amichevole)»). A ogni aggiornamento del calendario i `pending` si rivalutano
+  (`relinkPending`) e quelli abbinati vengono annunciati ai client.
+- **Conferma dell'admin**: `PUT /api/admin/matches/:id/fixture` con `{ clientFixtureId }` (o `null` = nessuna). Accetta anche
+  partite già abbinate (si può correggere); la pagina «Calendario» propone la scelta solo per quelle da confermare. Sotto
+  lock; 404 se il `.dvw` non è del cliente, 400 se la partita del calendario non lo è. Dopo la scrittura avvisa i client dei link
+  della partita di prima e di quella nuova (`announceFixture`).
+
+**Una live per partita** (`matchLock.ts`, `matches.live_since`): tutte le modifiche alle partite live di un cliente
+(ingest, conferma, aggiornamento del calendario) prendono lo stesso lock avvisorio (`lockTenantMatches`,
+`pg_advisory_xact_lock`), perciò non ci sono deadlock. Il vecchio indice «una live per cliente» è sostituito da due indici
+parziali: `matches_one_live_per_fixture_idx` (una live per partita del calendario) e `matches_one_live_unlinked_idx` (una
+live tra le partite non abbinate del cliente). `switchOffOthers` spegne le altre dello stesso gruppo quando un `.dvw`
+diventa live; `canStayLive` impedisce che una conferma tolga la diretta a chi è già live nello stesso gruppo (il `.dvw`
+spostato smette di essere live, e lo torna a essere al suo prossimo invio). Più `.dvw` per la stessa partita sono quindi
+possibili; ne resta live uno solo.
+
+**Cosa vede ogni link** (`targetOf`, `currentMessage`, `announceFixture` in `state.ts`; `LiveHub` in `hub.ts`):
+
+- link di una partita del calendario (`share_tokens.client_fixture_id`, bersaglio `fixture`): «Prossima partita»
+  (`ScheduledMessage`, tipo `scheduled`) finché nessun `.dvw` è abbinato, poi lo stato di quel `.dvw` (quello live, altrimenti
+  l'ultimo live); la pagina cambia da sola;
+- link che «segue la live» (`matchId` nullo): la partita diventata live per ultima (`live_since`); si sposta su un'altra
+  **solo quando questa diventa live** (`PublishRoute.becameLive`), così due partite contemporanee su due campi non se la
+  strappano a ogni punto;
+- `LiveHub.retarget` (conferma o aggiornamento): gli spettatori collegati ricevono subito il messaggio nuovo (stato o
+  «Prossima partita»), senza ricaricare;
+- la «Prossima partita» letta dal database è tenuta in memoria dall'hub per `SCHEDULED_TTL_MS` (45 s, al massimo
+  `SCHEDULED_LIMIT` = 256 partite) per non rileggerla a ogni apertura del QR; la cache si svuota quando il `.dvw` arriva
+  (`publish`), nel `retarget` e a ogni nuova copia del calendario.
+
+**Rotte** (`routes/club.ts`, ruolo `admin`, tutte con `tenantScope`; il superadmin lavora sul cliente attivo):
+
+- `GET /api/admin/club` → `ClubResponse`: nome e logo del cliente (dalla grafica), `ourTeam`, campionati scelti con la
+  squadra e `available` (tutti i campionati noti);
+- `PUT /api/admin/club` (`UpdateClubRequest`): sostituisce per intero i campionati del cliente. 400 se un campionato o una
+  squadra non esistono o la squadra non è di quel campionato. Se «nostra squadra» della grafica è vuota si compila dalla
+  prima squadra scelta (`suggestedOurTeamName`: città senza provincia, altrimenti ultima parola del nome) e si svuota la
+  cache degli hostname; poi ricopia le partite;
+- `GET /api/admin/club/leagues/:id/teams` → squadre di un campionato;
+- `POST /api/admin/club/sync` («Aggiorna calendario»): avvia in background l'aggiornamento dei **soli campionati del
+  cliente** con lo stesso limite dell'«Aggiorna ora» (`RATE_LIMIT_LEAGUE_SYNC`); 202 con `{ started, busy }`; intanto ricopia
+  quanto è già scaricato;
+- `GET /api/admin/calendar` → `CalendarResponse`: `fixtures` (`ClubFixture`: partita, `state`, link breve con codice e URL,
+  `.dvw` abbinato) ordinate per data e numero ufficiale, e `pending` (al massimo 50 `.dvw` da confermare, con data del file e
+  candidati). `state` viene da `clubFixtureState` (`scheduled`, `live`, `finished`, `postponed`, `pending`, `removed`).
+
+**Limiti noti**: le partite non abbinate si spengono a vicenda (due amichevoli contemporanee si alternano il link «segue la
+live»); revocando il link di una partita non se ne crea uno nuovo (il «Calendario» lo mostra revocato); amichevoli e coppe
+fuori calendario restano «da confermare» fino alla scelta «Nessuna (amichevole)».
+
+**Prova reale** (2026-10-16): SuperLega 2026/27 (`IdCampionato` 999), squadra Perugia: 22 partite, ognuna con il suo link. I
+`.dvw` reali Perugia–Suntory e Perugia–Itas (amichevoli, fuori calendario) restano «da confermare»; una copia con la data
+della 5ª giornata si è abbinata da sola.
 
 ### Ingest (`POST /api/ingest`, protocollo 1)
 L'agente invia una richiesta `IngestRequest` (`packages/shared/src/ingest.ts`):
@@ -268,7 +362,8 @@ Esiti (`IngestResponse`: `status`, `seq`, `lineCount`, `contentHash` facoltativo
 
 Passi (`apps/server/src/ingest.ts`, `IngestService.ingest`), tutti in una transazione:
 
-1. lock avvisorio `pg_advisory_xact_lock` (le ingest sono serializzate: una sola partita live per cliente, nessun deadlock);
+1. lock avvisorio `pg_advisory_xact_lock` (`lockTenantMatches`: le ingest e ogni altra modifica alle partite live di un
+   cliente sono serializzate, nessun deadlock);
 2. riga `matches` creata se manca (per cliente e `matchKey`) e letta con `for update`;
 3. controlli `duplicate` / `needSnapshot` (tabella sopra);
 4. righe finali = precedenti + nuove (append) oppure solo le nuove (snapshot); se superano `MATCH_MAX_LINES` risposta 413
@@ -277,10 +372,13 @@ Passi (`apps/server/src/ingest.ts`, `IngestService.ingest`), tutti in una transa
 6. scrittura delle sole righe cambiate: con `snapshot` si cancellano e si reinseriscono le righe dopo il prefisso comune;
 7. ricostruzione del file con `buildDvwText(header, righe)` (header + `[3SCOUT]` + righe), poi `parseDvw` e
    `computeMatchState`: lo stato è **ricalcolato da zero a ogni ingest**;
-8. la partita diventa la sola `live` del cliente (le altre dello stesso cliente vanno a `live = false`; indice univoco
-   parziale `matches_one_live_per_tenant_idx`), `version` aumenta di 1, `state` è salvato;
-9. dopo il commit il nuovo stato (`StateMessage`) passa a `publisher.publish` (oggi `LiveHub`, vedi «WebSocket») e arriva ai
-   client WebSocket di quel cliente che seguono la partita: come patch o come stato intero.
+8. se l'header è nuovo o cambiato e l'abbinamento non è deciso (`fixtureLink` nullo o `pending`) si cerca la partita del
+   calendario (`evaluateFixtureLink`, vedi «Club, calendario e abbinamento»); la partita diventa `live` e le altre dello
+   stesso gruppo (stessa partita del calendario, oppure tutte le non abbinate) vanno a `live = false`
+   (`switchOffOthers`); `live_since` si imposta quando diventa live; `version` aumenta di 1, `state` è salvato;
+9. dopo il commit il nuovo stato (`StateMessage`) passa a `publisher.publish` con la rotta (`PublishRoute`: partita del
+   calendario e se è appena diventata live; oggi `LiveHub`, vedi «WebSocket») e arriva ai client WebSocket di quel cliente
+   che seguono la partita: come patch o come stato intero.
 
 Una piccola cache in memoria (4 partite, verificata con `version` e `lineCount`) evita di rileggere tutte le righe a ogni
 richiesta; la fonte di verità resta il database.
@@ -317,7 +415,9 @@ rifiutata dallo schema.
   solo IP può riempirlo in circa 2 minuti (rate limit 10/min) e bloccare le registrazioni fino a 24 h; per un portale
   piccolo o in LAN va bene, e il rimedio è rifiutare dal portale le richieste in coda.
 - **Link pubblici** (`share_tokens`): token casuale in `/live/<token>` (URL composto con `PUBLIC_BASE_URL`). Se `matchId`
-  è `null` il link **segue la partita live corrente**; con un `matchId` mostra quella partita fissa. `expiresAt`
+  è `null` il link **segue la partita live corrente** (la diventata live per ultima); con un `matchId` mostra quella
+  partita fissa; con un `client_fixture_id` (link creati dal «Calendario», uno per partita, `ShareTokenSummary.clientFixtureId`)
+  mostra «Prossima partita» e poi la partita abbinata (vedi «Club, calendario e abbinamento»). `expiresAt`
   facoltativa. Un token non valido, revocato o scaduto dà sempre 404; la revoca chiude subito i WebSocket già aperti (codice
   4404). Nei log il token è mascherato (`/api/public/[token]`). I link validi sono in una cache di 30 s
   (`ctx.caches.shares`, chiave `<cliente>:<hash del token>`), svuotata alla revoca (`forgetShareToken`), così le migliaia
@@ -390,6 +490,12 @@ rifiutata dallo schema.
 | POST | `/api/admin/leagues` | sessione | superadmin |
 | GET | `/api/admin/leagues/:id` | sessione | superadmin |
 | POST | `/api/admin/leagues/:id/sync` | sessione, limite proprio `RATE_LIMIT_LEAGUE_SYNC` | superadmin |
+| GET | `/api/admin/club` | sessione | admin |
+| PUT | `/api/admin/club` | sessione | admin |
+| GET | `/api/admin/club/leagues/:id/teams` | sessione | admin |
+| POST | `/api/admin/club/sync` | sessione, limite proprio `RATE_LIMIT_LEAGUE_SYNC` | admin |
+| GET | `/api/admin/calendar` | sessione | admin |
+| PUT | `/api/admin/matches/:id/fixture` | sessione | admin |
 | GET | `/api/admin/matches` | sessione | viewer |
 | GET | `/api/admin/matches/:id` | sessione | viewer |
 | POST | `/api/admin/agents` | sessione | admin |
@@ -421,6 +527,10 @@ Messaggi server→client (`ServerMessage`):
   (operazioni `set`, `del`, `push`, `trunc` di `packages/shared/src/patch.ts`). Va solo a chi ha esattamente la
   `baseVersion` come ultimo stato ricevuto; gli altri ricevono lo stato intero.
 - `noMatch`: nessuna partita disponibile (link "live" senza partita live).
+- `scheduled`: `{ type, fixture }` (`UpcomingFixture`: squadre con logo, data e ora ufficiali in UTC, palazzetto, giornata,
+  campionato, stato, risultato ufficiale, `inCalendar`); è la «Prossima partita» di un link del calendario finché nessun
+  `.dvw` è abbinato. Come `noMatch` non viene mai inviato a chi ha già ricevuto uno stato; quando il `.dvw`
+  arriva il client riceve `state`.
 - `error`: `{ type, message }`, ad esempio se lo stato iniziale non è leggibile.
 
 Messaggio client→server (`ClientMessage`): solo `resync` (`{ "type": "resync" }`): il client ha perso il filo delle
@@ -441,6 +551,8 @@ Payload massimo 4 KB.
 - `StatePublisher` è l'interfaccia con cui l'ingest pubblica: oggi è l'hub del processo, è pensata per sostituirla con
   Postgres LISTEN/NOTIFY quando ci saranno più copie del server.
 - `attachLiveSocket` (`src/state.ts`) serve sia `/ws/public/:token` sia `/ws/admin`.
+- `LiveHub.retarget(tenantId, clientFixtureId, message)`: dopo una conferma o una nuova copia del calendario manda subito
+  ai client collegati a quella partita lo stato nuovo (o «Prossima partita»), azzerando la versione già inviata.
 - Limite noto: dopo un riavvio, se due partite live dello stesso cliente sono pubblicate in ordine inverso, l'hub tiene
   come live la partita sbagliata fino al publish successivo.
 
@@ -553,7 +665,7 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `users` | `tenant_id` (null solo per il superadmin; CHECK `superadmin` ⇔ `tenant_id` nullo), `email` (minuscola, unica su tutti i clienti), `password_hash` (argon2id), `role` (`superadmin`/`admin`/`viewer`) |
 | `sessions` | `token_hash` (sha256 del cookie), `user_id`, `expires_at`, `active_tenant_id` (cliente scelto dal superadmin, `ON DELETE SET NULL`) |
 | `agents` | `tenant_id`, `name`, `token_hash`, `revoked`, `last_seen_at` |
-| `matches` | `tenant_id`, `match_key` (unica per `tenant_id` + `match_key`), `header`, `line_count`, `content_hash`, `last_seq`, `agent_id`, `live` (una per cliente), `state` (jsonb), `version` |
+| `matches` | `tenant_id`, `match_key` (unica per `tenant_id` + `match_key`), `header`, `line_count`, `content_hash`, `last_seq`, `agent_id`, `live` (una per partita del calendario più una tra le non abbinate: indici parziali `matches_one_live_per_fixture_idx` e `matches_one_live_unlinked_idx`), `live_since`, `state` (jsonb), `version`, `client_fixture_id` (→ `client_fixtures`, `ON DELETE SET NULL`), `fixture_link` (enum `fixture_link`: `auto`/`manual`/`pending`/`none`; nullo = non ancora valutato), `fixture_candidates` (jsonb: candidati con somiglianza; migrazione `0006_club.sql`) |
 | `scout_lines` | `match_id`, `idx`, `text` (chiave primaria `match_id` + `idx`) |
 | `leagues` | **comune a tutti i clienti** (migrazione `0005_leagues.sql`): `provider`, `external_id` (`IdCampionato`; unico con `provider`), `season`, `name`, `phases` (jsonb), `last_sync_at`, `last_success_at`, `last_status` (`never`/`ok`/`error`), `last_message`, `sync_started_at` (lease) |
 | `league_teams` | `league_id`, `external_id` (unico per campionato), `name`, `short_name`, `city`, `venue`, `venue_address`, `logo_id`, `details_fetched_at`, `logo_fetched_at` |
@@ -561,7 +673,9 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `standings` | chiave `league_id` + `position`: `team_id` (nullo se il nome non è nel calendario), `team_name`, punti, partite, set e punti fatti e subiti, quozienti, `by_result` |
 | `team_logos` | `sha256` (unico), `mime`, `width`, `height`, `bytes`: il file è `ASSETS_DIR/_leagues/<sha256>` |
 | `league_http_cache` | `url` (chiave), `etag`, `last_modified` |
-| `share_tokens` | `tenant_id`, `token_hash`, `match_id` (null: segue la live), `label`, `expires_at`, `revoked`, `short_code_hash` (unica, null finché non assegnato), `short_code_salt` (migrazione `0004_short_codes.sql`) |
+| `tenant_leagues` | scelta del cliente (migrazione `0006_club.sql`): `tenant_id`, `league_id`, `league_team_id` (la squadra del club, nulla finché non scelta; `ON DELETE SET NULL`); unica per cliente e campionato |
+| `client_fixtures` | copia delle partite del club dal calendario (migrazione `0006_club.sql`): `tenant_id`, `league_id`, `fixture_external_id` (unica con cliente e campionato), `fixture_id`, `removed_at` (la partita non è più nel calendario, il link resta), `starts_at`, `our_side` (`club_side`: `home`/`away`), nomi, città e loghi delle due squadre, impianto, `round_label`, `league_name`, `status`, `home_sets`, `away_sets` |
+| `share_tokens` | `tenant_id`, `token_hash`, `match_id` (null: segue la live), `client_fixture_id` (link di una partita del calendario, `ON DELETE CASCADE`; unico quando non nullo), `label`, `expires_at`, `revoked`, `short_code_hash` (unica, null finché non assegnato), `short_code_salt` (migrazioni `0004_short_codes.sql`, `0006_club.sql`) |
 | `assets` | `tenant_id`, `kind` (enum `asset_kind`: `logo`/`sponsor`), `sha256`, `mime`, `width`, `height`, `bytes`, `created_at`; indice univoco `assets_tenant_sha256_kind_idx` su cliente + `sha256` + `kind` (migrazione `0003_assets.sql`) |
 | `agent_registrations` | `tenant_id`, `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at` (migrazione `0001_agent_registrations.sql`) |
 
@@ -658,7 +772,7 @@ Il token agente va nell'intestazione `Authorization: Bearer <token>` di `POST /a
 | `pnpm --filter @sir/server test` | `vitest run` con PGlite in memoria, non serve Postgres |
 | `pnpm --filter @sir/server db:generate` | `drizzle-kit generate` dopo una modifica a `schema.ts` |
 
-I test (`apps/server/test/`: `auth`, `config`, `hub`, `ingest`, `limits`, `migration`, `public`, `registration`, `shortCodes`, `tenants`, `leagues`, `leaguesHtml`, `leagueFetcher`, `legavolley`) usano PGlite; i campionati non scaricano
+I test (`apps/server/test/`: `auth`, `config`, `hub`, `ingest`, `limits`, `migration`, `public`, `registration`, `shortCodes`, `tenants`, `leagues`, `leaguesHtml`, `leagueFetcher`, `legavolley`, `club`, `fixtureMatch`) usano PGlite; i campionati non scaricano
 nulla: i test di `legavolley` leggono le pagine vere salvate in `apps/server/test/fixtures/legavolley/`. Per la configurazione
 di vitest vedi `docs/infrastruttura.md`.
 
@@ -789,11 +903,17 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
   `LeagueScheduler`/`dueSyncs`), `src/routes/leagues.ts` (`leagueRoutes`, `leaguePublicRoutes`), `src/assetStore.ts`
   (loghi), `src/db/schema.ts`, `drizzle/0005_leagues.sql`, `packages/shared/src/leagues.ts`; test
   `apps/server/test/leagues.test.ts`, `leaguesHtml.test.ts`, `leagueFetcher.test.ts`, `legavolley.test.ts`
+- Club e calendario: `src/club.ts` (`refreshClientFixtures`, `evaluateFixtureLink`, `scheduledMessage`, `upcomingOf`,
+  `fixtureLabel`, `tenantsOfLeague`, `leaguesWithClubMatches`), `src/leagues/match.ts` (`linkFixture`, `teamNameScore`,
+  `nameTokens`, `dvwFacts`, `parseDvwDate`), `src/matchLock.ts` (`lockTenantMatches`, `switchOffOthers`, `canStayLive`),
+  `src/state.ts` (`currentMessage`, `announceFixture`, `refreshClub`, `targetOf`), `src/hub.ts` (`Target` `fixture`,
+  `PublishRoute`, `retarget`, `currentScheduled`, `rememberScheduled`, `SCHEDULED_TTL_MS`), `src/routes/club.ts`
+  (`clubRoutes`), `drizzle/0006_club.sql`, `packages/shared/src/club.ts`; pagine in `docs/portale.md`
 - Link brevi: `src/lib/shortCode.ts` (`deriveShortCode`, `shortCodeLookupHash`), `src/shareCodes.ts` (`insertShareToken`,
   `ensureShortCode`, `syncShortCodes`, `currentShortCode`), `src/lib/failureLimiter.ts` (`hasRecent`),
   `packages/shared/src/admin.ts` (`ShortCodeSchema`, `normalizeShortCode`, `formatShortCode`, `ShareTokenParamSchema`),
   `apps/server/test/shortCodes.test.ts`; lato portale in `docs/portale.md`, «Link breve e QR»
-- Rotte: `src/routes/health.ts`, `ingest.ts`, `auth.ts`, `admin.ts`, `public.ts`, `registration.ts`, `tenants.ts`, `branding.ts`
+- Rotte: `src/routes/health.ts`, `ingest.ts`, `auth.ts`, `admin.ts`, `public.ts`, `registration.ts`, `tenants.ts`, `branding.ts`, `leagues.ts`, `club.ts`
 - Database: `src/db/schema.ts`, `src/db/index.ts` (`createDatabase`), `src/db/pglite.ts`, `apps/server/drizzle/`
 - Contratti: `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts` (`docs/architettura.md`)
 - Prova di carico dei WebSocket: `tools/carico` (`docs/infrastruttura.md`, «Prova di carico»)

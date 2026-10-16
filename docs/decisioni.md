@@ -214,3 +214,21 @@ Una riga per decisione: data, scelta, motivo.
 - 2026-10-16: loghi delle squadre in cache con nome sha256, sostituibili (riscaricati dopo 7 giorni), perché il sito può
   cambiarli; limite noto: quelli non più usati restano in `team_logos`. L'uso dei marchi va chiarito con Lega e club
   (`docs/server.md`).
+- 2026-10-16: pagina «Club» in un gruppo «Club» della sidebar, separata da «Grafica», perché campionati e squadra non sono
+  grafica: decidono calendario e link delle partite (`docs/portale.md`).
+- 2026-10-16: il `.dvw` si collega alla partita del calendario con `matches.client_fixture_id` (più `.dvw` per la stessa
+  partita) e l'unicità della live è nel database (due indici parziali: una live per partita del calendario, una tra le non
+  abbinate), perché un incontro può avere più file (due PC, un riavvio) e la regola non deve dipendere dal codice
+  (`docs/server.md`, «Club, calendario e abbinamento»).
+- 2026-10-16: abbinamento `.dvw`-calendario con soglia 0,55 e margine 0,2 sul secondo candidato; nel dubbio `pending` e
+  conferma dell'admin invece di indovinare, perché un abbinamento sbagliato manda la diretta sul link di un'altra partita
+  e gli abbinamenti in silenzio non si notano (`docs/server.md`).
+- 2026-10-16: il link «segue la live» passa a un'altra partita solo quando questa diventa live (non a ogni punto), perché
+  due partite in contemporanea su due campi non devono strapparsi il link a ogni aggiornamento (`docs/server.md`).
+- 2026-10-16: una conferma (dell'admin o di un aggiornamento del calendario) non toglie mai la diretta a chi è già live
+  nello stesso gruppo, e la «Prossima partita» letta dal database resta in memoria 45 s (`SCHEDULED_TTL_MS`), svuotata
+  quando arriva il `.dvw`, nel `retarget` e a ogni nuova copia del calendario, perché la diretta in onda non deve
+  cambiare link per un errore di conferma e migliaia di aperture del QR prima della gara non devono leggere il database
+  (`docs/server.md`).
+- 2026-10-16: `client_fixtures` con `removed_at` invece di cancellare le partite sparite dal calendario, perché il loro link
+  (QR già stampati) e i `.dvw` abbinati non si devono perdere se la Lega cambia il calendario (`docs/server.md`).

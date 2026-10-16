@@ -97,6 +97,9 @@ export function LivePage() {
     if (data?.kind === 'state') {
       const s = data.state;
       document.title = `${teamName(s.teams, 'home')} ${s.setsWon.home}-${s.setsWon.away} ${teamName(s.teams, 'away')} · ${brand}`;
+    } else if (data?.kind === 'scheduled') {
+      const f = data.fixture;
+      document.title = `${f.home.name} – ${f.away.name} · Prossima partita · ${brand}`;
     } else document.title = `${brand} · Diretta`;
   }, [data, brand]);
 

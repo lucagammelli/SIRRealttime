@@ -104,6 +104,25 @@ describe('applyMessage', () => {
     expect(applyMessage(v5, { type: 'noMatch' })).toEqual({ kind: 'noMatch' });
   });
 
+  it('shows «Prossima partita» until the first state of the match of the calendar', () => {
+    const fixture = {
+      startsAt: null,
+      home: { name: 'Casa', logoUrl: null },
+      away: { name: 'Ospiti', logoUrl: null },
+      ourSide: 'home' as const,
+      venue: null,
+      venueCity: null,
+      roundLabel: '1ª Giornata',
+      leagueName: null,
+      status: 'scheduled' as const,
+      result: null,
+      inCalendar: true,
+    };
+    const scheduled = applyMessage(null, { type: 'scheduled', fixture });
+    expect(scheduled).toEqual({ kind: 'scheduled', fixture });
+    expect(applyMessage(scheduled, stateMsg(MATCH_A, 1))).toMatchObject({ kind: 'state', matchId: MATCH_A });
+  });
+
   it('doubles the backoff up to the maximum', () => {
     expect(backoffDelay(1, 1000, 8000, () => 0.5)).toBe(1000);
     expect(backoffDelay(3, 1000, 8000, () => 0.5)).toBe(4000);

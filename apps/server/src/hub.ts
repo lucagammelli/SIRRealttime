@@ -1,10 +1,17 @@
 import { gzipSync } from 'node:zlib';
-import type { JsonValue, PatchMessage, ServerMessage, StateMessage } from '@sir/shared';
+import type { JsonValue, PatchMessage, ScheduledMessage, ServerMessage, StateMessage } from '@sir/shared';
 import { diffJson } from '@sir/shared';
 import type { WebSocket } from 'ws';
 
-/** What a client follows: a fixed match, or whichever match is live, always within one client (tenant). */
-export type Target = { kind: 'match'; tenantId: string; matchId: string } | { kind: 'live'; tenantId: string };
+/**
+ * What a client follows, always within one client (tenant): a fixed match, the live match of the client (the one
+ * that became live last), or a match of the calendar of the club (`clientFixtureId`: «Prossima partita» until a
+ * `.dvw` is linked to it, then that match).
+ */
+export type Target =
+  | { kind: 'match'; tenantId: string; matchId: string }
+  | { kind: 'live'; tenantId: string }
+  | { kind: 'fixture'; tenantId: string; clientFixtureId: string };
 
 /** What lets a client stay connected: closed when it is revoked (or the session ends) and when it expires. */
 export type Grant = { kind: 'share'; shareTokenId: string } | { kind: 'session'; sessionHash: string };
@@ -28,9 +35,21 @@ interface Entry extends Subscriber {
   last: { matchId: string; version: number } | null;
 }
 
+/**
+ * Where a published state goes besides the clients of its match: `clientFixtureId` the match of the calendar it is
+ * linked to (null: none); `becameLive` it has just become live (the live link of the client moves to it).
+ */
+export interface PublishRoute {
+  clientFixtureId: string | null;
+  becameLive: boolean;
+}
+
+/** Without a route (older callers): not linked to the calendar, and the live match of the client. */
+const DEFAULT_ROUTE: PublishRoute = { clientFixtureId: null, becameLive: true };
+
 /** Where the ingest sends a new state; today the hub of this process, later a Postgres NOTIFY to every copy. */
 export interface StatePublisher {
-  publish(tenantId: string, message: StateMessage): void;
+  publish(tenantId: string, message: StateMessage, route?: PublishRoute): void;
 }
 
 /** Close code sent when the share token of a connected client is revoked or expires. */
@@ -47,6 +66,13 @@ export const PATCH_MAX_RATIO = 0.5;
 export const GZIP_LEVEL = 6;
 /** Last published states kept in memory (one per match: patches, initial states and resyncs). */
 export const SNAPSHOT_LIMIT = 64;
+/**
+ * «Prossima partita» of a match of the calendar is kept this long: the spectators who open the QR before the match
+ * (thousands, with their reconnections and resyncs) do not read the database every time.
+ */
+export const SCHEDULED_TTL_MS = 45_000;
+/** Most «Prossima partita» kept in memory (the oldest go first). */
+export const SCHEDULED_LIMIT = 256;
 
 /** A message serialized once and compressed at most once, whatever the number of clients. */
 export class Frame {
@@ -74,8 +100,12 @@ interface Snapshot {
 export class LiveHub implements StatePublisher {
   private readonly entries = new Map<WebSocket, Entry>();
   private readonly snapshots = new Map<string, Snapshot>();
-  /** Live match of each client, as last published. */
+  /** Live match of each client: the one that became live last. */
   private readonly liveMatch = new Map<string, string>();
+  /** Match linked to a match of the calendar, as last published (`clientFixtureId` → `matchId`). */
+  private readonly fixtureMatch = new Map<string, string>();
+  /** «Prossima partita» read from the database, by match of the calendar, with the time it was read. */
+  private readonly scheduled = new Map<string, { tenantId: string; message: ScheduledMessage; at: number }>();
   private readonly perIp = new Map<string, number>();
   private publicCount = 0;
   private readonly timer: NodeJS.Timeout;
@@ -112,9 +142,36 @@ export class LiveHub implements StatePublisher {
    * client is never returned.
    */
   current(target: Target): StateMessage | null {
-    const matchId = target.kind === 'match' ? target.matchId : this.liveMatch.get(target.tenantId);
+    const matchId = this.matchOf(target);
     const snap = matchId ? this.snapshots.get(matchId) : undefined;
     return snap && snap.tenantId === target.tenantId ? snap.message : null;
+  }
+
+  /** «Prossima partita» of a match of the calendar kept here (at most SCHEDULED_TTL_MS old), or null. */
+  currentScheduled(tenantId: string, clientFixtureId: string): ScheduledMessage | null {
+    const kept = this.scheduled.get(clientFixtureId);
+    if (!kept || kept.tenantId !== tenantId) return null;
+    if (this.now().getTime() - kept.at >= SCHEDULED_TTL_MS) {
+      this.scheduled.delete(clientFixtureId);
+      return null;
+    }
+    return kept.message;
+  }
+
+  /** Keeps a «Prossima partita» read from the database (forgotten when a `.dvw` reaches that match of the calendar). */
+  rememberScheduled(tenantId: string, clientFixtureId: string, message: ScheduledMessage): void {
+    this.scheduled.delete(clientFixtureId);
+    this.scheduled.set(clientFixtureId, { tenantId, message, at: this.now().getTime() });
+    while (this.scheduled.size > SCHEDULED_LIMIT) {
+      const oldest = this.scheduled.keys().next();
+      if (oldest.done) break;
+      this.scheduled.delete(oldest.value);
+    }
+  }
+
+  /** Forgets the «Prossima partita» of a client (its calendar was copied again: times or venues may have changed). */
+  forgetScheduled(tenantId: string): void {
+    for (const [id, kept] of this.scheduled) if (kept.tenantId === tenantId) this.scheduled.delete(id);
   }
 
   /**
@@ -123,10 +180,12 @@ export class LiveHub implements StatePublisher {
    * Known limit (not handled): after a restart, if two publishes of different matches of one client complete in
    * reverse order, the live match kept here is the older one until the next publish (same as the clients today).
    */
-  remember(tenantId: string, message: StateMessage, live: boolean): void {
+  remember(tenantId: string, message: StateMessage, live: boolean, clientFixtureId: string | null = null): void {
     const known = this.snapshots.get(message.matchId);
     if (!known || known.message.version < message.version) this.store(tenantId, message, JSON.stringify(message));
     if (live && !this.liveMatch.has(tenantId)) this.liveMatch.set(tenantId, message.matchId);
+    if (clientFixtureId && !this.fixtureMatch.has(clientFixtureId))
+      this.fixtureMatch.set(clientFixtureId, message.matchId);
   }
 
   /** Sends a message to one client; a state not newer than the last one sent for the same match is skipped. */
@@ -149,15 +208,22 @@ export class LiveHub implements StatePublisher {
   }
 
   /**
-   * New state of `matchId`, which has just become the live match of the client `tenantId`. The patch from the
-   * previous state is computed once; clients that have that state get the patch, the others the full state.
+   * New state of `matchId` (a live match of the client `tenantId`), sent to the clients of that match, of its match of
+   * the calendar (`route.clientFixtureId`) and, when it is the live match of the client, of the live link. The live
+   * link moves to a match only when it has just become live (two matches live at the same time on two courts do not
+   * take it from each other at every point). The patch from the previous state is computed once; clients that have
+   * that state get the patch, the others the full state.
    */
-  publish(tenantId: string, message: StateMessage): void {
+  publish(tenantId: string, message: StateMessage, route: PublishRoute = DEFAULT_ROUTE): void {
     const previous = this.snapshots.get(message.matchId);
     if (previous && previous.message.version >= message.version) return;
     const text = JSON.stringify(message);
     const snap = this.store(tenantId, message, text);
-    this.liveMatch.set(tenantId, message.matchId);
+    if (route.becameLive || !this.liveMatch.has(tenantId)) this.liveMatch.set(tenantId, message.matchId);
+    if (route.clientFixtureId) {
+      this.fixtureMatch.set(route.clientFixtureId, message.matchId);
+      this.scheduled.delete(route.clientFixtureId);
+    }
     let patch: { baseVersion: number; frame: Frame } | null = null;
     if (previous && previous.tenantId === tenantId) {
       const ops = diffJson(previous.state, snap.state);
@@ -175,9 +241,33 @@ export class LiveHub implements StatePublisher {
     }
     for (const entry of this.entries.values()) {
       if (entry.target.tenantId !== tenantId) continue;
-      const follows = entry.target.kind === 'live' || entry.target.matchId === message.matchId;
-      if (follows) this.deliver(entry, message, snap.frame, patch);
+      if (this.matchOf(entry.target) === message.matchId) this.deliver(entry, message, snap.frame, patch);
     }
+  }
+
+  /**
+   * The admin changed the match of the calendar of a `.dvw` (or took it away): the clients of that match of the
+   * calendar get `message` at once (the state of the match now linked, or «Prossima partita» again).
+   */
+  retarget(tenantId: string, clientFixtureId: string, message: ServerMessage): void {
+    this.scheduled.delete(clientFixtureId);
+    if (message.type === 'state') {
+      this.remember(tenantId, message, false);
+      this.fixtureMatch.set(clientFixtureId, message.matchId);
+    } else this.fixtureMatch.delete(clientFixtureId);
+    for (const entry of this.entries.values()) {
+      if (entry.target.kind !== 'fixture' || entry.target.tenantId !== tenantId) continue;
+      if (entry.target.clientFixtureId !== clientFixtureId) continue;
+      entry.last = null;
+      this.send(entry.socket, message);
+    }
+  }
+
+  /** Match a target follows now, as known here (null: unknown, read it from the database). */
+  private matchOf(target: Target): string | null {
+    if (target.kind === 'match') return target.matchId;
+    if (target.kind === 'live') return this.liveMatch.get(target.tenantId) ?? null;
+    return this.fixtureMatch.get(target.clientFixtureId) ?? null;
   }
 
   /** Closes the clients connected with a share token (revocation). */
@@ -225,7 +315,7 @@ export class LiveHub implements StatePublisher {
       this.drop(entry);
       return;
     }
-    if (message.type === 'noMatch' && entry.last) return;
+    if ((message.type === 'noMatch' || message.type === 'scheduled') && entry.last) return;
     let frame = full;
     const compressible = message.type === 'state';
     if (message.type === 'state') {

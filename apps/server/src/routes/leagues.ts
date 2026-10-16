@@ -3,6 +3,7 @@ import type {
   LeagueFixture,
   LeagueListResponse,
   LeagueSummary,
+  LeagueSyncState,
   LeagueTeam,
   StandingRow,
 } from '@sir/shared';
@@ -29,8 +30,19 @@ type LeagueRow = typeof leagues.$inferSelect;
 
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
 
-function summary(ctx: AppContext, l: LeagueRow, teamCount: number, fixtureCount: number): LeagueSummary {
+/** Outcome of the last update of a championship and whether one is running now (its lease is not older than 15 min). */
+export function leagueSyncState(ctx: AppContext, l: LeagueRow): LeagueSyncState {
   const running = l.syncStartedAt !== null && ctx.now().getTime() - l.syncStartedAt.getTime() < SYNC_LEASE_MS;
+  return {
+    status: l.lastStatus,
+    message: l.lastMessage,
+    at: iso(l.lastSyncAt),
+    lastSuccessAt: iso(l.lastSuccessAt),
+    running,
+  };
+}
+
+function summary(ctx: AppContext, l: LeagueRow, teamCount: number, fixtureCount: number): LeagueSummary {
   return {
     id: l.id,
     provider: LeagueProviderSchema.parse(l.provider),
@@ -40,13 +52,7 @@ function summary(ctx: AppContext, l: LeagueRow, teamCount: number, fixtureCount:
     phases: l.phases,
     teamCount,
     fixtureCount,
-    sync: {
-      status: l.lastStatus,
-      message: l.lastMessage,
-      at: iso(l.lastSyncAt),
-      lastSuccessAt: iso(l.lastSuccessAt),
-      running,
-    },
+    sync: leagueSyncState(ctx, l),
     createdAt: l.createdAt.toISOString(),
   };
 }

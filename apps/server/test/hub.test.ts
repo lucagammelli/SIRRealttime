@@ -1,11 +1,18 @@
 import { EventEmitter } from 'node:events';
 import { gunzipSync } from 'node:zlib';
-import type { JsonValue, ServerMessage, StateMessage } from '@sir/shared';
+import type { JsonValue, ScheduledMessage, ServerMessage, StateMessage } from '@sir/shared';
 import { applyPatch } from '@sir/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import type { FrameEncoding, Grant, Target } from '../src/hub.js';
-import { CLOSE_SESSION_GONE, CLOSE_TOKEN_GONE, HEARTBEAT_MS, LiveHub, MAX_BUFFERED_BYTES } from '../src/hub.js';
+import {
+  CLOSE_SESSION_GONE,
+  CLOSE_TOKEN_GONE,
+  HEARTBEAT_MS,
+  LiveHub,
+  MAX_BUFFERED_BYTES,
+  SCHEDULED_TTL_MS,
+} from '../src/hub.js';
 
 /** Minimal stand-in of a `ws` socket that records what the hub does with it. */
 class FakeSocket extends EventEmitter {
@@ -135,6 +142,53 @@ describe('LiveHub', () => {
     expect(mineFixed.sent).toHaveLength(1);
     expect(otherLive.sent).toEqual([]);
     expect(otherFixed.sent).toEqual([]);
+  });
+
+  it('sends a state to the link of its match of the calendar, and moves the live link only to a new live match', () => {
+    const fixtureA = add(share, null, { kind: 'fixture', tenantId: TENANT, clientFixtureId: 'cf-a' });
+    const fixtureB = add(share, null, { kind: 'fixture', tenantId: TENANT, clientFixtureId: 'cf-b' });
+    const otherClient = add(share, null, { kind: 'fixture', tenantId: 't-b', clientFixtureId: 'cf-a' });
+    const live = add(share);
+    const courtA = (version: number) => ({ ...state(version), matchId: 'ma' });
+    const courtB = (version: number) => ({ ...state(version), matchId: 'mb' });
+    hub.publish(TENANT, courtA(1), { clientFixtureId: 'cf-a', becameLive: true });
+    hub.publish(TENANT, courtB(1), { clientFixtureId: 'cf-b', becameLive: true });
+    // Court A goes on: its link gets it, the live link stays on court B (live last).
+    hub.publish(TENANT, courtA(2), { clientFixtureId: 'cf-a', becameLive: false });
+    expect(fixtureA.messages().map((m) => m.type === 'state' && [m.matchId, m.version])).toEqual([
+      ['ma', 1],
+      ['ma', 2],
+    ]);
+    expect(fixtureB.messages().map((m) => m.type === 'state' && m.matchId)).toEqual(['mb']);
+    expect(live.messages().map((m) => m.type === 'state' && m.matchId)).toEqual(['ma', 'mb']);
+    expect(otherClient.sent).toEqual([]);
+    expect(hub.current({ kind: 'fixture', tenantId: TENANT, clientFixtureId: 'cf-b' })).toMatchObject({
+      matchId: 'mb',
+    });
+    expect(hub.current({ kind: 'fixture', tenantId: 't-b', clientFixtureId: 'cf-a' })).toBeNull();
+    // The admin takes the .dvw away from cf-b: its clients see «Prossima partita» again.
+    const scheduled = { type: 'scheduled', fixture: {} } as unknown as ServerMessage;
+    hub.retarget(TENANT, 'cf-b', scheduled);
+    expect(fixtureB.messages().at(-1)).toEqual(scheduled);
+    expect(hub.current({ kind: 'fixture', tenantId: TENANT, clientFixtureId: 'cf-b' })).toBeNull();
+  });
+
+  it('keeps «Prossima partita» for a short time, within its client, until a .dvw reaches its match', () => {
+    const scheduled = { type: 'scheduled', fixture: {} } as unknown as ScheduledMessage;
+    hub.rememberScheduled(TENANT, 'cf-a', scheduled);
+    expect(hub.currentScheduled(TENANT, 'cf-a')).toBe(scheduled);
+    expect(hub.currentScheduled('t-b', 'cf-a')).toBeNull();
+    now = new Date(now.getTime() + SCHEDULED_TTL_MS);
+    expect(hub.currentScheduled(TENANT, 'cf-a')).toBeNull();
+    hub.rememberScheduled(TENANT, 'cf-a', scheduled);
+    hub.publish(TENANT, { ...state(1), matchId: 'ma' }, { clientFixtureId: 'cf-a', becameLive: true });
+    expect(hub.currentScheduled(TENANT, 'cf-a')).toBeNull();
+    hub.rememberScheduled(TENANT, 'cf-b', scheduled);
+    hub.retarget(TENANT, 'cf-b', scheduled);
+    expect(hub.currentScheduled(TENANT, 'cf-b')).toBeNull();
+    hub.rememberScheduled(TENANT, 'cf-c', scheduled);
+    hub.forgetScheduled(TENANT);
+    expect(hub.currentScheduled(TENANT, 'cf-c')).toBeNull();
   });
 
   it('sends a patch to the clients that have the previous version, the full state to the others', () => {

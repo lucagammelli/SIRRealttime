@@ -13,6 +13,8 @@ import { useViewportWidth } from '../../lib/useLayout.ts';
 import { AdminSidebar, Icon, menuGroups } from './AdminSidebar.tsx';
 import { AgentsPage } from './AgentsPage.tsx';
 import { BrandingPage } from './BrandingPage.tsx';
+import { CalendarPage } from './CalendarPage.tsx';
+import { ClubPage } from './ClubPage.tsx';
 import { useAuth, useSession } from './auth.tsx';
 import { IntermissionsPage } from './IntermissionsPage.tsx';
 import { LayoutPage } from './LayoutPage.tsx';
@@ -141,6 +143,8 @@ function AdminLayout() {
             <Route path="live" element={<LiveAdminPage />} />
             <Route path="partite" element={<MatchesPage />} />
             <Route path="partite/:id" element={<MatchDetailPage />} />
+            <Route path="calendario" element={adminOnly(<CalendarPage />)} />
+            <Route path="club" element={adminOnly(<ClubPage />)} />
             <Route path="link" element={adminOnly(<ShareLinksPage />)} />
             <Route path="agenti" element={adminOnly(<AgentsPage />)} />
             <Route path="utenti" element={adminOnly(<UsersPage />)} />

@@ -104,6 +104,8 @@ export interface ResolvedShareToken {
   id: string;
   tenantId: string;
   matchId: string | null;
+  /** Match of the calendar of the club the link belongs to (null: a link created by hand). */
+  clientFixtureId: string | null;
   expiresAt: Date | null;
 }
 

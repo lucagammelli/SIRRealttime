@@ -2,22 +2,20 @@ import { parseDvw } from '@sir/dvw-parser';
 import type { IngestRequest, IngestResponse, StateMessage } from '@sir/shared';
 import { buildDvwText, hashScoutLines } from '@sir/shared';
 import { computeMatchState } from '@sir/volley-stats';
-import { and, asc, eq, gte, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, gte } from 'drizzle-orm';
+import { evaluateFixtureLink } from './club.js';
 import type { AuthenticatedAgent } from './context.js';
 import type { Db } from './db/index.js';
 import { matches, scoutLines } from './db/index.js';
+import type { PublishRoute } from './hub.js';
 import { HttpError } from './lib/errors.js';
+import type { Tx } from './matchLock.js';
+import { lockTenantMatches, switchOffOthers } from './matchLock.js';
 import { tenantScope } from './tenancy.js';
 
-/**
- * Key of the transaction advisory lock that serializes the ingests of one client (one live match per client, no
- * deadlocks: a transaction takes only this lock); the second key is a hash of the client id.
- */
-const INGEST_LOCK_KEY = 0x53495231;
 const INSERT_CHUNK = 1000;
 const CACHE_SIZE = 4;
 
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 type MatchRow = typeof matches.$inferSelect;
 interface CacheEntry {
   matchId: string;
@@ -29,6 +27,8 @@ export interface IngestOutcome {
   response: IngestResponse;
   /** State to push to the WebSocket clients (only when something changed). */
   published: StateMessage | null;
+  /** Where the state goes (match of the calendar, live link); with `published`. */
+  route?: PublishRoute;
 }
 
 const tooManyLines = (max: number): HttpError =>
@@ -67,7 +67,7 @@ export class IngestService {
     let result: { outcome: IngestOutcome; cache?: CacheEntry };
     try {
       result = await this.db.transaction(async (tx): Promise<{ outcome: IngestOutcome; cache?: CacheEntry }> => {
-        await tx.execute(sql`select pg_advisory_xact_lock(${INGEST_LOCK_KEY}, hashtext(${tenantId}))`);
+        await lockTenantMatches(tx, tenantId);
         await tx
           .insert(matches)
           .values({ tenantId, matchKey: req.matchKey })
@@ -99,12 +99,20 @@ export class IngestService {
         }
 
         await this.writeLines(tx, row.id, previous, lines, req.kind === 'append');
-        const state = computeMatchState(parseDvw(buildDvwText(header, lines)));
+        const parsed = parseDvw(buildDvwText(header, lines));
+        const state = computeMatchState(parsed);
         const version = row.version + 1;
-        await tx
-          .update(matches)
-          .set({ live: false })
-          .where(tenantScope(matches, tenantId, eq(matches.live, true), ne(matches.id, row.id)));
+        // The match of the calendar is looked for when the header arrives or changes, until it is decided.
+        let link = {
+          clientFixtureId: row.clientFixtureId,
+          fixtureLink: row.fixtureLink,
+          fixtureCandidates: row.fixtureCandidates,
+        };
+        if (header !== row.header && (row.fixtureLink === null || row.fixtureLink === 'pending')) {
+          link = (await evaluateFixtureLink(tx, tenantId, parsed)) ?? link;
+        }
+        const now = new Date();
+        await switchOffOthers(tx, tenantId, row.id, link.clientFixtureId);
         await tx
           .update(matches)
           .set({
@@ -114,15 +122,18 @@ export class IngestService {
             lastSeq: req.seq,
             agentId,
             live: true,
+            liveSince: row.live ? row.liveSince : now,
             state,
             version,
-            updatedAt: new Date(),
+            ...link,
+            updatedAt: now,
           })
           .where(eq(matches.id, row.id));
         return {
           outcome: {
             response: { status: 'ok', seq: req.seq, lineCount: lines.length, contentHash },
             published: { type: 'state', matchId: row.id, version, state },
+            route: { clientFixtureId: link.clientFixtureId, becameLive: !row.live },
           },
           cache: { matchId: row.id, version, lines },
         };

@@ -1,4 +1,4 @@
-import type { JsonValue, PatchMessage, ServerMessage } from '@sir/shared';
+import type { JsonValue, PatchMessage, ServerMessage, UpcomingFixture } from '@sir/shared';
 import { applyPatch } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
 import { gunzipFrame, supportsGzip, withGzip } from './frames.ts';
@@ -22,7 +22,9 @@ export type LiveData =
        */
       live?: boolean;
     }
-  | { kind: 'noMatch' };
+  | { kind: 'noMatch' }
+  /** Link of a match of the calendar before its start: «Prossima partita». */
+  | { kind: 'scheduled'; fixture: UpcomingFixture };
 
 export interface LiveSnapshot {
   status: ConnectionStatus;
@@ -85,6 +87,7 @@ const RESTART_CODES = new Set([1001, 1006, 1012, 1013]);
  */
 export function applyMessage(current: LiveData | null, message: ServerMessage): LiveData | null {
   if (message.type === 'noMatch') return { kind: 'noMatch' };
+  if (message.type === 'scheduled') return { kind: 'scheduled', fixture: message.fixture };
   if (message.type === 'error' || message.type === 'patch') return null;
   if (!looksLikeMatchState(message.state)) return null;
   if (current?.kind === 'state' && current.matchId === message.matchId && message.version <= current.version)

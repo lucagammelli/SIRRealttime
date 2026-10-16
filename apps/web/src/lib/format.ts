@@ -76,6 +76,25 @@ export function formatDateTime(iso: string | null | undefined): string {
   return d.toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
 }
 
+const fixtureDate = new Intl.DateTimeFormat('it-IT', {
+  timeZone: 'Europe/Rome',
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
+const fixtureTime = new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit' });
+
+/**
+ * Official date and time of a match of the calendar, in Italian time like the league writes them: «dom 18 ott 2026»
+ * and «18:00»; `null` (not set yet) → «Data da definire» and «–».
+ */
+export function formatFixtureDate(iso: string | null): { date: string; time: string } {
+  const d = iso ? new Date(iso) : null;
+  if (!d || Number.isNaN(d.getTime())) return { date: 'Data da definire', time: DASH };
+  return { date: fixtureDate.format(d), time: fixtureTime.format(d) };
+}
+
 /** Evaluation symbols of DataVolley, from best to worst (`~` = no evaluation). */
 export const EVALUATIONS = ['#', '+', '!', '-', '/', '='] as const;
 export type EvaluationSymbol = (typeof EVALUATIONS)[number];

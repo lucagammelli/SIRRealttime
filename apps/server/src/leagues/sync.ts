@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { LeaguePhase } from '@sir/shared';
-import { and, eq, gte, isNull, lt, notInArray, or, sql } from 'drizzle-orm';
+import { and, eq, isNull, lt, notInArray, or, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { FastifyBaseLogger } from 'fastify';
 import { writeLeagueLogoFile } from '../assetStore.js';
@@ -50,6 +50,8 @@ export interface LeagueServiceOptions {
   assetsDir: string;
   now: () => Date;
   log: FastifyBaseLogger;
+  /** Called after every good update (the clubs of the clients copy their matches again); errors are only logged. */
+  onUpdated?: (leagueId: string) => Promise<void>;
 }
 
 /** Key of the transaction lock (with a hash of the championship) that serializes the writes of an update. */
@@ -174,6 +176,11 @@ export class LeagueService {
         warnings = 'Aggiornato con avvisi: squadre e loghi non aggiornati (errore interno)';
       }
       result = { status: 'ok', message: warnings };
+      try {
+        await this.o.onUpdated?.(league.id);
+      } catch (err) {
+        log.error({ err, leagueId: league.id }, 'partite dei club non aggiornate dopo il campionato');
+      }
       log.info(
         { leagueId: league.id, pages: downloaded.pages.length, standings: downloaded.standings !== null },
         'campionato aggiornato',
@@ -538,13 +545,4 @@ function fixtureValues(
     contentHash: createHash('sha256').update(JSON.stringify(f)).digest('hex'),
     updatedAt: now,
   };
-}
-
-/** Championships with a match today (Rome day `[from, to)`). */
-export async function leaguesWithMatches(db: Db, from: Date, to: Date): Promise<Set<string>> {
-  const rows = await db
-    .selectDistinct({ leagueId: fixtures.leagueId })
-    .from(fixtures)
-    .where(and(gte(fixtures.startsAt, from), lt(fixtures.startsAt, to)));
-  return new Set(rows.map((r) => r.leagueId));
 }

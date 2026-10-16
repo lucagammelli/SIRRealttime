@@ -56,6 +56,7 @@ describe('ShareLinksPage', () => {
     id: '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c',
     label: 'Tribuna',
     matchId: null,
+    clientFixtureId: null,
     expiresAt: null,
     revoked: false,
     createdAt: '2026-10-15T10:00:00.000Z',

@@ -43,6 +43,13 @@
       "when": 1792156562442,
       "tag": "0005_leagues",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792160684556,
+      "tag": "0006_club",
+      "breakpoints": true
     }
   ]
 }

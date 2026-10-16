@@ -28,8 +28,11 @@ su `127.0.0.1`; anche l'agente invia a `<URL del portale>/api/ingest`.
    `GET /api/public/:token/state` come sonda del link, e lo disegna senza ricalcolare nulla.
 
 Il sistema è **multi-cliente**: ogni dato appartiene a un cliente, ricavato dall'hostname della richiesta (agenti e
-registrazioni, partite, link, utenti; una partita live per cliente) e il superadmin sceglie su quale lavorare
-(`docs/server.md`).
+registrazioni, partite, link, utenti; una partita live per partita del calendario del club, più una tra le non abbinate)
+e il superadmin sceglie su quale lavorare (`docs/server.md`). Ogni cliente può scegliere il suo club (campionati comuni
+scaricati dai siti ufficiali): il server copia le sue partite dal calendario, dà a ognuna un link breve e abbina il `.dvw`
+alla partita giusta; prima del `.dvw` la pagina pubblica mostra la «Prossima partita» (`docs/server.md`, «Club, calendario
+e abbinamento»; `docs/portale.md`).
 
 Oggi esistono agente, server, portale, contratti, parser, statistiche e simulatore; il flusso si prova con l'agente e il
 simulatore (`docs/agente.md`) o con i test del server (`apps/server/test/ingest.test.ts`).
@@ -63,7 +66,8 @@ Ingest (`ingest.ts`):
 Messaggi (`messages.ts`):
 
 - `StateMessageSchema` / `StateMessage` (`type: 'state'`, `matchId`, `version`, `state`),
-  `NoMatchMessageSchema` / `NoMatchMessage`, `ErrorMessageSchema` / `ErrorMessage`,
+  `NoMatchMessageSchema` / `NoMatchMessage`, `ScheduledMessageSchema` / `ScheduledMessage` (`type: 'scheduled'`,
+  `fixture`: la «Prossima partita» di un link del calendario prima che arrivi il `.dvw`), `ErrorMessageSchema` / `ErrorMessage`,
   `ServerMessageSchema` / `ServerMessage` (unione discriminata su `type`);
 - `PatchMessageSchema` / `PatchMessage` (`type: 'patch'`, `matchId`, `baseVersion`, `version`, `ops`): le differenze fra
   due stati consecutivi, parte di `ServerMessage`; `ResyncMessageSchema` / `ClientMessageSchema` (client→server:
@@ -98,7 +102,7 @@ Amministrazione (`admin.ts`):
 - richieste di registrazione degli agenti (lato admin): `AgentRegistrationStateSchema` (`pending` | `approved` |
   `rejected` | `consumed`), `AgentRegistrationSummarySchema`;
 - link pubblici: `CreateShareTokenRequestSchema`, `ShareTokenSummarySchema` (con `shortCode` e `shortUrl`, `null` se il
-  link è revocato), `CreateShareTokenResponseSchema`;
+  link è revocato, e `clientFixtureId`, la partita del calendario a cui appartiene, `null` per i link normali), `CreateShareTokenResponseSchema`;
 - partite: `MatchSummarySchema` / `MatchSummary`, `MatchDetailSchema` / `MatchDetail` (estende il riepilogo con `lastSeq`,
   `contentHash` e `state`, che è `MatchStateSchema` o `null`); è la risposta di `GET /api/admin/matches/:id`, usata dal
   dettaglio partita del portale.
@@ -233,6 +237,19 @@ con `LeaguePhaseSchema`, `LeagueListResponseSchema`, `LeagueTeamSchema` (con `lo
 parziali, `FixtureTeamRefSchema`), `StandingRowSchema`, `LeagueDetailResponseSchema` e `publicTeamLogoPath`
 (`/api/public/team-logos/<id>`). Rotte e scaricamento in `docs/server.md` («Campionati»); test `packages/shared/src/leagues.test.ts`.
 
+Club e calendario (`club.ts`): il club di un cliente (campionati e squadra in ognuno), le sue partite del calendario con un
+link ciascuna e l'abbinamento fra `.dvw` e partita. `CLUB_MAX_LEAGUES` (8), `ClubLeagueChoiceSchema`,
+`UpdateClubRequestSchema` (strict, campionati senza ripetizioni), `ClubResponseSchema` (nome, logo, `ourTeam`, campionati
+scelti, `available`), `ClubLeagueOptionSchema`, `ClubTeamSchema`, `ClubTeamsResponseSchema`, `ClubSyncResponseSchema`;
+`suggestedOurTeamName` (pura: dalla squadra scelta ricava il testo «nostra squadra», città senza provincia o ultima parola
+del nome); `FixtureLinkSchema` (`auto`/`manual`/`pending`/`none`), `ClubFixtureStateSchema` (`scheduled`/`live`/`finished`/
+`postponed`/`pending`/`removed`) e `clubFixtureState` (pura: lo stato dalla partita del calendario e dal `.dvw` abbinato);
+`UpcomingFixtureSchema` (ciò che la pagina pubblica mostra prima del `.dvw`: solo dati pubblici del campionato),
+`ClubFixtureSchema`, `PendingMatchSchema`, `FixtureCandidateSchema`, `CalendarResponseSchema`,
+`LinkMatchFixtureRequestSchema` (`PUT /api/admin/matches/:id/fixture`, `clientFixtureId` nullo = «nessuna (amichevole)»).
+Rotte, abbinamento e tabelle in `docs/server.md` («Club, calendario e abbinamento»), pagine in `docs/portale.md`; test
+`packages/shared/src/club.test.ts`.
+
 Ogni schema ha il tipo omonimo senza `Schema` (`z.infer`). Dettagli d'uso: `docs/server.md`.
 
 ### Regole
@@ -258,7 +275,7 @@ pnpm --filter @sir/server test      # il flusso completo agente→server→WebSo
 ```
 
 ## Riferimenti
-- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `leagues.ts`, `index.ts`
+- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `leagues.ts`, `club.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
 - `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`, `apps/web/src/App.tsx`
 - `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/portale.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,

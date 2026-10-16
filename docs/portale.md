@@ -73,6 +73,7 @@ Fullscreen API non è disponibile o fallisce, «Schermo intero» attiva comunque
 | partita in corso e connessione attiva | l'indicatore mostra «In diretta» (solo mentre si gioca) |
 | partita conclusa e connessione attiva | l'indicatore mostra «Risultato finale», in stile neutro |
 | nessuna partita live | «Nessuna partita in corso»: la partita appare appena inizia, senza ricaricare |
+| link di una partita del calendario, prima del `.dvw` | «Prossima partita» (`NextMatch.tsx`, indicatore «In attesa», vedi «Prossima partita»): la partita appare da sola appena il `.dvw` arriva |
 | link revocato, scaduto o inesistente | «Link non valido o scaduto» (indicatore «Link non valido») |
 | sessione admin terminata (solo area riservata) | «Sessione terminata» (indicatore «Sessione terminata») |
 | errore del server sullo stato | riquadro «Aggiornamento non disponibile: …» sopra la partita |
@@ -82,8 +83,8 @@ Fullscreen API non è disponibile o fallisce, «Schermo intero» attiva comunque
 Prima si verifica la sessione («Verifica della sessione…»); senza sessione compare il login «Area riservata»
 (email e password), se il server non risponde «Area riservata non disponibile» con «Riprova». Il **menu laterale**
 (`AdminSidebar.tsx`; `menuGroups` è pura e dà i gruppi in base al ruolo, quelli vuoti spariscono) sostituisce la barra
-a pillole. Gruppi: «Partite» (Partita live, Partite, Link pubblici), «Pagina pubblica» (Grafica, Pagina pubblica, Pause e
-sponsor, Avvisi), «Dispositivi» (Agenti), «Amministrazione» (Utenti; Clienti solo superadmin):
+a pillole. Gruppi: «Partite» (Partita live, Partite, Calendario, Link pubblici), «Club» (Club), «Pagina pubblica» (Grafica,
+Pagina pubblica, Pause e sponsor, Avvisi), «Dispositivi» (Agenti), «Amministrazione» (Utenti; Clienti solo superadmin):
 
 - in cima il logo (`BrandMark`), in fondo cliente (selettore per il superadmin), account, tema e «Esci»; la voce attiva è
   evidenziata (`--sir-nav-active`, rosso in SIR VOLLEY);
@@ -100,6 +101,8 @@ Le voci:
 |---|---|---|---|
 | Partita live | `/admin/live` | admin e viewer | la partita live via `/ws/admin`, con gli stessi componenti della pagina pubblica |
 | Partite | `/admin/partite`, `/admin/partite/:id` | admin e viewer | elenco delle partite ricevute e dettaglio (`MatchDetailSchema`: «Stato», «Righe di scout», «Versione», «Aggiornata») |
+| Calendario | `/admin/calendario` | solo admin | le partite del club con link, QR e stato; «Da confermare»; «Aggiorna calendario», vedi «Club e Calendario» |
+| Club | `/admin/club` | solo admin (il superadmin lavora sul cliente scelto) | campionati e squadra del club, «Nostra squadra nei file .dvw», vedi «Club e Calendario» |
 | Link pubblici | `/admin/link` | solo admin | «Nuovo link pubblico» (etichetta, partita o live, «Scadenza (facoltativa)»), «Link creati» (per i link attivi «Link breve», codice e QR, vedi «Link breve e QR»), «Revoca» |
 | Agenti | `/admin/agenti` | solo admin | «Agente per Windows» (vedi sotto), «Nuovo agente» («Crea token», mostrato una sola volta con «Copia config.json»), «Richieste in attesa» (vedi sotto), «Agenti», «Revoca» |
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, password di almeno 12 caratteri, ruolo), «Utenti» |
@@ -122,7 +125,40 @@ Ogni link attivo ha un link breve `<base>/l/<codice>` (codice di 8 lettere, most
 `docs/server.md`, «Link breve e codice»). Nella pagina «Link pubblici»: alla creazione, sotto il link lungo (mostrato
 una sola volta), compare anche «Link breve (sempre disponibile nell’elenco, con il QR)»; in «Link creati» ogni link
 **attivo** mostra «Link breve», il codice e l'anteprima del QR con i pulsanti «Copia link», «Scarica QR (PNG)» e
-«Scarica QR (SVG)». Un link revocato o scaduto non li mostra.
+«Scarica QR (SVG)». Un link revocato o scaduto non li mostra. I link creati dal «Calendario» compaiono qui con la nota
+«Partita del calendario (creato dal «Calendario»)».
+
+### Club e Calendario (`pages/admin/ClubPage.tsx`, `CalendarPage.tsx`)
+Server, abbinamento e rotte in `docs/server.md`, «Club, calendario e abbinamento»; contratti in `docs/architettura.md`.
+
+**«Club»** (`/admin/club`): a sinistra la scheda «Club» con nome e logo (si cambiano in «Grafica», con il pulsante
+«Apri «Grafica»») e «Nostra squadra nei file .dvw» (codice e/o testo del nome; «non impostata: si imposta da sola quando
+scegli la squadra del club»). A destra la scheda «Campionati»: per ogni campionato un menu «Campionato» (nome e stagione,
+con lo stato dell'ultimo aggiornamento: «Mai scaricato», «Aggiornamento in corso…», «aggiornato …») e un menu «Squadra
+del club»; «Togli», «Aggiungi campionato» (al massimo 8), «Salva» (attivo solo se c'è una modifica) e «Aggiorna calendario».
+Un admin sceglie solo tra i campionati già noti («Nessun campionato disponibile. Chiedi al superadmin di aggiungere il
+campionato del club.»); il superadmin vede anche la scheda «Nuovo campionato della Lega» (`IdCampionato` e primo anno
+della stagione, «Aggiungi e scarica»).
+
+**«Calendario»** (`/admin/calendario`): la scheda «Calendario» elenca le partite del club per data: giornata, data e ora
+italiane (`formatFixtureDate`), squadre con logo (in grassetto la nostra), risultato in set, palazzetto, un'etichetta di stato
+(«Programmata», «In diretta», «Finita», «Rinviata», «Da confermare», «Non più in calendario»), il file `.dvw` abbinato
+(«abbinata da sola» o «abbinata a mano») e il link breve con codice, «Copia link» e «Scarica QR» (stesso QR dei link
+pubblici); un link revocato mostra «Link revocato.». Sopra, la scheda «Da confermare» compare solo se ci sono `.dvw` di
+cui il server non è sicuro: per ognuno un menu con i candidati («somiglianza N%»), «Nessuna (amichevole)» e «Altre partite
+del calendario», e il pulsante «Conferma». Finché non è confermata, la partita ha comunque i suoi link. «Aggiorna
+calendario» chiede al server di riscaricare i campionati del club (orari e risultati arrivano in pochi minuti: ricaricare).
+
+### Prossima partita (`components/NextMatch.tsx`)
+È la pagina pubblica di un link del calendario prima che arrivi il `.dvw` (messaggio `scheduled`, `LiveMatch.tsx`): titolo
+«Prossima partita», campionato e giornata, le due squadre con il logo (le iniziali `teamInitials` se manca o non si carica),
+«VS», data e ora in ora italiana («ore HH:MM»; senza data «Data da definire»), palazzetto e città, un conto alla rovescia
+(`countdownTo`: giorni, ore, minuti e secondi, solo per le partite programmate), le variabili colore del club e
+dell'avversario (`teamColorVars`) e una nota: «La diretta comparirà qui da sola appena inizia la partita, senza ricaricare la
+pagina.», oppure «Partita rinviata: data e ora da confermare.», «Partita giocata: S-S.» o «Partita non più presente nel
+calendario ufficiale.». L'indicatore di connessione mostra «In attesa» (`ConnectionBadge`, `upcoming`). Il titolo della scheda
+del browser è «Squadra – Squadra · Prossima partita · Marchio». In TV occupa tutto lo schermo. Il socket resta aperto: quando
+il `.dvw` arriva (o l'admin lo conferma) la pagina diventa la partita senza ricaricare.
 
 - **Il QR è generato nel browser**, senza servizi esterni (libreria `qrcode` 1.5.4), con correzione d'errore H (si può
   perdere circa il 30% del simbolo). Sempre nero su bianco, qualunque sia il tema, perché va stampato e inquadrato.
@@ -675,6 +711,12 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
   (`docs/statistiche.md`), API in `docs/server.md`; test `Overlay.test.tsx`, `OverlaysPage.test.tsx`
 - Agente scaricabile: `apps/web/src/pages/admin/AgentsPage.tsx` (`AgentDownload`, `AGENT_DOWNLOAD_PATH`), test
   `AgentsPage.test.tsx`; `AgentDownloadInfoSchema` in `packages/shared/src/agentDownload.ts`; server in `docs/server.md`
+- Club e «Prossima partita»: `apps/web/src/pages/admin/ClubPage.tsx` (`ClubPage`, `leagueName`, `syncText`),
+  `pages/admin/CalendarPage.tsx` (`CalendarPage`, `STATE_TEXT`, `fixtureChoiceText`), `pages/admin/AdminSidebar.tsx`
+  (`menuGroups`), `components/NextMatch.tsx` (`NextMatch`, `countdownTo`, `teamInitials`), `components/LiveMatch.tsx`,
+  `components/ConnectionBadge.tsx`, `lib/format.ts` (`formatFixtureDate`), `lib/liveConnection.ts` (`scheduled`); contratti in
+  `packages/shared/src/club.ts` (`docs/architettura.md`), API e abbinamento in `docs/server.md`; test `NextMatch.test.tsx`,
+  `ClubPage.test.tsx`, `CalendarPage.test.tsx`
 - Portale adattivo: `apps/web/src/lib/layout.ts` (`deviceFor`, `tvModeOf`, `defaultLayouts`, `blocksFor`, `packRows`, `tvGroups`, `rotationIndex`),
   `lib/useLayout.ts` (`useStickyOffset`), `lib/tvScreen.ts` (`useWakeLock`, `useIdle`), `components/BlockLayout.tsx`,
   `components/ui.tsx` (`CardCollapseContext`), `styles/index.css`

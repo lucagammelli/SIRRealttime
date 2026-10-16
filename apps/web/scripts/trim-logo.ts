@@ -11,7 +11,6 @@
  *
  * Template «SIR VOLLEY» (originals in docs/grafica):
  *   tsx scripts/trim-logo.ts "../../docs/grafica/sir real time logo-02.png" public/templates/sir-volley/logo-sir-realtime.png 1200 0 top
- *   tsx scripts/trim-logo.ts "../../docs/grafica/sir real time logo-04.png" public/templates/sir-volley/powered-by-istante.png 800 0 bottom
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { deflateSync, inflateSync } from 'node:zlib';

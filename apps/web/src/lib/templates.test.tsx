@@ -16,7 +16,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { BrandMark } from '../components/BrandMark.tsx';
 import { CourtMap } from '../components/CourtMap.tsx';
 import { MatchView } from '../components/MatchView.tsx';
-import { TemplateFooter } from '../components/TemplateFooter.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import { stateAfter } from '../test/fixtures.ts';
 import { claimOurSide, currentOurSide, initTemplate, setTenantLook, tenantLookOf } from './branding.ts';
@@ -161,20 +160,19 @@ describe('template of the client', () => {
     expect(document.documentElement.hasAttribute('data-template')).toBe(false);
   });
 
-  it('shows the logo of the template in the navbar (link to the dashboard) and the credit in the footer', () => {
+  it('shows the logo of the template in the navbar (link to the dashboard) and no «Powered by» credit', () => {
     act(() => setTenantLook(tenantLookOf(tenant({ template: 'sir-volley' }))));
     render(
       <MemoryRouter>
         <BrandMark to="/admin/live" />
-        <TemplateFooter />
       </MemoryRouter>,
     );
     const logo = screen.getByRole('img', { name: 'SIR Real Time' });
     expect(logo.getAttribute('src')).toBe('/templates/sir-volley/logo-sir-realtime.png');
     expect(logo.closest('a')?.getAttribute('href')).toBe('/admin/live');
-    const footer = screen.getByRole('contentinfo');
-    expect(footer.querySelector('img')?.getAttribute('alt')).toBe('Powered by Istante®');
-    expect(footer.className).toContain('md:justify-end');
+    expect(screen.queryByRole('contentinfo')).toBeNull();
+    expect(screen.queryByText(/Istante/)).toBeNull();
+    expect(screen.queryByRole('img', { name: /Powered by/ })).toBeNull();
   });
 
   it('has no footer and the logo of the client in the standard template', () => {
@@ -182,7 +180,6 @@ describe('template of the client', () => {
     render(
       <MemoryRouter>
         <BrandMark />
-        <TemplateFooter />
       </MemoryRouter>,
     );
     expect(screen.queryByRole('contentinfo')).toBeNull();

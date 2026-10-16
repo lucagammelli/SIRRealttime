@@ -31,12 +31,13 @@ describe('graphic templates', () => {
     expect(templateOf(null).id).toBe('standard');
   });
 
-  it('forces the dark theme only for SIR VOLLEY, which has its logos and footer', () => {
+  it('forces the dark theme only for SIR VOLLEY, which has its logo and no footer credit', () => {
     expect(TEMPLATES.standard.forcedTheme).toBeNull();
     expect(TEMPLATES['sir-volley'].forcedTheme).toBe('dark');
     expect(TEMPLATES['sir-volley'].images.navbarLogo).toMatch(/^\/templates\/sir-volley\/.+\.png$/);
-    expect(TEMPLATES['sir-volley'].footerText).toBe('Powered by Istante®');
-    expect(TEMPLATES.standard.images).toEqual({ navbarLogo: null, footerLogo: null });
+    expect(TEMPLATES['sir-volley'].images).toEqual({ navbarLogo: '/templates/sir-volley/logo-sir-realtime.png' });
+    expect(TEMPLATES['sir-volley'].description).not.toContain('Istante');
+    expect(TEMPLATES.standard.images).toEqual({ navbarLogo: null });
   });
 
   it('keeps the standard template equal to the defaults of the colours', () => {

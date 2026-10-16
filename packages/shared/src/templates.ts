@@ -34,9 +34,7 @@ export interface TemplateDefinition {
   darkInkSurface: string;
   darkBackground: string;
   /** Images of the template (files of apps/web/public), null: none. */
-  images: { navbarLogo: string | null; footerLogo: string | null };
-  /** Text of the footer image (alternative text, and the text shown in its place). */
-  footerText: string | null;
+  images: { navbarLogo: string | null };
   /**
    * Arrows of the court maps: `evaluation` coloured by the evaluation and as thick as their share; `team` thin (1.5 px),
    * in the colour of the attacking team, 85% opaque, with a small head.
@@ -55,25 +53,20 @@ export const TEMPLATES: Record<TemplateId, TemplateDefinition> = {
     darkSurface: '#0f1729',
     darkInkSurface: '#0f1729',
     darkBackground: '#070c17',
-    images: { navbarLogo: null, footerLogo: null },
-    footerText: null,
+    images: { navbarLogo: null },
     courtArrows: 'evaluation',
   },
   'sir-volley': {
     id: 'sir-volley',
     label: 'SIR VOLLEY',
-    description: 'Tema scuro, rosso e bianco, font Google Sans Code, logo SIR Real Time e «Powered by Istante®».',
+    description: 'Tema scuro, rosso e bianco, font Google Sans Code, logo SIR Real Time.',
     forcedTheme: 'dark',
     ourColor: 'accent',
     colors: { primary: '#e30613', accent: '#e30613', home: '#e30613', away: '#ffffff', background: '#0b0b0d' },
     darkSurface: '#151518',
     darkInkSurface: '#202024',
     darkBackground: '#0b0b0d',
-    images: {
-      navbarLogo: '/templates/sir-volley/logo-sir-realtime.png',
-      footerLogo: '/templates/sir-volley/powered-by-istante.png',
-    },
-    footerText: 'Powered by Istante®',
+    images: { navbarLogo: '/templates/sir-volley/logo-sir-realtime.png' },
     courtArrows: 'team',
   },
 };

@@ -240,6 +240,8 @@
 [data-sir-scope][data-template='sir-volley'] {
   --sir-font-sans: 'Google Sans Code', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   --sir-font-display: var(--sir-font-sans);
+  /* Codes, links and tokens too: one font in every page of the template (Google Sans Code is monospaced). */
+  --sir-font-mono: var(--sir-font-sans);
   --sir-radius: 8px;
   --sir-radius-lg: 14px;
   --sir-radius-button: 8px;
@@ -324,7 +326,6 @@
   --sir-team-size: clamp(24px, 1.9vw, 36px);
   --sir-navbar-height: 56px;
   --sir-logo-height: 36px;
-  --sir-footer-logo-height: 20px;
   --sir-chart-height: 260px;
 }
 
@@ -339,7 +340,6 @@
     --sir-score-size: clamp(56px, 6vw, 64px);
     --sir-team-size: 24px;
     --sir-logo-height: 32px;
-    --sir-footer-logo-height: 18px;
     --sir-chart-height: 240px;
   }
 }
@@ -370,7 +370,6 @@
     --sir-team-size: 16px;
     --sir-navbar-height: 52px;
     --sir-logo-height: 28px;
-    --sir-footer-logo-height: 16px;
     --sir-chart-height: 220px;
   }
 }
@@ -386,7 +385,6 @@
     --sir-team-size: 16px;
     --sir-navbar-height: 44px;
     --sir-logo-height: 28px;
-    --sir-footer-logo-height: 16px;
     --sir-chart-height: 200px;
   }
 }

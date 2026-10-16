@@ -1,8 +1,18 @@
 import type { ReactNode } from 'react';
-import { Fragment, useContext, useMemo, useRef } from 'react';
+import { Fragment, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTemplate } from '../lib/branding.ts';
 import type { Device, LayoutBlock } from '../lib/layout.ts';
-import { rotationIndex, TABLET_GRID_FLOW, tabletSpan, TV_ROTATION_MS, tvGroups, tvMinRemFor } from '../lib/layout.ts';
+import type { MeasuredRem } from '../lib/layout.ts';
+import {
+  raiseMeasured,
+  rotationIndex,
+  rowMinRem,
+  TABLET_GRID_FLOW,
+  tabletSpan,
+  TV_ROTATION_MS,
+  tvGroups,
+  tvMinRemFor,
+} from '../lib/layout.ts';
 import { useReducedMotion } from '../lib/theme.ts';
 import { DeviceContext, LayoutScaleContext, rootFontPx, useElementHeight, useTicker } from '../lib/useLayout.ts';
 import { CardCollapseContext } from './ui.tsx';
@@ -26,6 +36,7 @@ const SPAN: readonly string[] = [
 const span = (block: LayoutBlock): string => SPAN[block.width] ?? 'col-span-12';
 /** Gap between the rows of the big screen, in rem (`gap-4`). */
 const TV_GAP_REM = 1;
+const NO_MEASURES: MeasuredRem = {};
 
 export type RenderBlock = (block: LayoutBlock, device: Device) => ReactNode;
 
@@ -35,7 +46,9 @@ export type RenderBlock = (block: LayoutBlock, device: Device) => ReactNode;
  * - `tablet`: 12-column grid; on the desktop each block as wide as its `width`, on a tablet in landscape the narrow
  *   blocks half wide and the wide ones full, on a tablet in portrait one column (see `tabletSpan`);
  * - `tv`: one 16:9 screen without scrolling, the scoreboard always on top and the other blocks in groups that fit the
- *   height left; with more than one group they rotate every 12 s (fixed on the first with reduced motion).
+ *   height left; with more than one group they rotate every 12 s (fixed on the first with reduced motion). A block
+ *   whose content is taller than its cell is measured and the groups are made again with its real height; a block
+ *   taller than the whole screen scrolls inside its card (`index.css`): content is never cut without a sign.
  */
 export function BlockLayout({
   blocks,
@@ -94,23 +107,60 @@ function TvLayout({
   const reduced = useReducedMotion();
   const scoreboard = blocks.find((b) => b.type === 'scoreboard');
   const template = useTemplate().id;
+  const minRem = tvMinRemFor(template);
+  // Real heights of the blocks, measured on this screen: forgotten when the blocks or the height of the screen change.
+  const measureKey = `${template}|${Math.round(heightPx)}|${blocks.map((b) => `${b.id}:${b.width}`).join(',')}`;
+  const [measures, setMeasures] = useState<{ key: string; rem: MeasuredRem }>({ key: '', rem: {} });
+  const measured = measures.key === measureKey ? measures.rem : NO_MEASURES;
   const groups = useMemo(
-    () => tvGroups(blocks, heightPx / rootFontPx(), TV_GAP_REM, tvMinRemFor(template)),
-    [blocks, heightPx, template],
+    () => tvGroups(blocks, heightPx / rootFontPx(), TV_GAP_REM, minRem, measured),
+    [blocks, heightPx, minRem, measured],
   );
   const tick = useTicker(groups.length > 1 && !reduced && !paused, TV_ROTATION_MS);
   const index = rotationIndex(tick, groups.length, reduced);
   const group = groups[index] ?? [];
+  const shown = useRef<HTMLDivElement>(null);
+
+  // After every render: a block whose content overflows its cell (the cell, or the body of its card) needs that much
+  // more; the groups are made again with it. Only raises, so it settles in a few renders.
+  useLayoutEffect(() => {
+    const root = shown.current;
+    if (!root || heightPx <= 0) return;
+    const rem = rootFontPx();
+    const found: Record<string, number> = {};
+    for (const cell of root.querySelectorAll<HTMLElement>('[data-tv-block]')) {
+      const id = cell.dataset.tvBlock;
+      if (!id) continue;
+      let overflow = cell.scrollHeight - cell.clientHeight;
+      for (const body of cell.querySelectorAll<HTMLElement>('.sir-card-body'))
+        overflow = Math.max(overflow, body.scrollHeight - body.clientHeight);
+      if (overflow > 2) found[id] = (cell.clientHeight + overflow) / rem + 0.25;
+    }
+    setMeasures((m) => {
+      const known = m.key === measureKey ? m.rem : NO_MEASURES;
+      const next = raiseMeasured(known, found);
+      return next === known && m.key === measureKey ? m : { key: measureKey, rem: next };
+    });
+  });
 
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4" data-layout="tv">
       {scoreboard && renderBlock(scoreboard, 'tv')}
       <div ref={area} className="relative min-h-0 overflow-hidden" data-tv-area="">
-        <div key={index} className="sir-fade flex h-full min-h-0 flex-col gap-4">
+        <div key={index} ref={shown} className="sir-fade flex h-full min-h-0 flex-col gap-4">
           {group.map((row) => (
-            <div key={row.map((b) => b.id).join('-')} className="grid min-h-0 flex-1 grid-cols-12 gap-4">
+            // Rows as tall as their smallest height asks (grow in proportion to it), never an equal share.
+            <div
+              key={row.map((b) => b.id).join('-')}
+              className="grid min-h-0 grid-cols-12 gap-4"
+              style={{ flex: `${Math.max(1, rowMinRem(row, minRem, measured))} 1 0%` }}
+            >
               {row.map((block) => (
-                <div key={block.id} className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${span(block)}`}>
+                <div
+                  key={block.id}
+                  data-tv-block={block.id}
+                  className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${span(block)}`}
+                >
                   {renderBlock(block, 'tv')}
                 </div>
               ))}

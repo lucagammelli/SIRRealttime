@@ -95,11 +95,6 @@ export function BrandingPreview({
           </span>
         </div>
       </div>
-      {definition.images.footerLogo && definition.footerText && (
-        <div className="flex justify-end px-3 pb-2">
-          <img src={definition.images.footerLogo} alt={definition.footerText} className="h-3 w-auto max-w-full" />
-        </div>
-      )}
     </div>
   );
 }

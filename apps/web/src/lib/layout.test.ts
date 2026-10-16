@@ -3,7 +3,9 @@ import type { LayoutBlockInput, TenantLayout } from '@sir/shared';
 import { LayoutBlockSchema, TenantLayoutSchema } from '@sir/shared';
 import type { LayoutBlock } from './layout.ts';
 import {
+  blockMinRem,
   blocksFor,
+  raiseMeasured,
   defaultLayouts,
   deviceFor,
   tabletSpan,
@@ -209,5 +211,33 @@ describe('rotationIndex', () => {
     expect(rotationIndex(5, 3, true)).toBe(0);
     expect(rotationIndex(5, 1, false)).toBe(0);
     expect(rotationIndex(5, 0, false)).toBe(0);
+  });
+});
+
+describe('heights measured on the big screen', () => {
+  it('raise the smallest height of a block, never lower it', () => {
+    const b = block({ type: 'comparison', width: 4 });
+    expect(blockMinRem(b)).toBe(18);
+    expect(blockMinRem(b, TV_BLOCK_MIN_REM, { [b.id]: 30 })).toBe(30);
+    expect(blockMinRem(b, TV_BLOCK_MIN_REM, { [b.id]: 10 })).toBe(18);
+  });
+
+  it('keep the same object when nothing needs more (no new render)', () => {
+    const known = { a: 20 };
+    expect(raiseMeasured(known, {})).toBe(known);
+    expect(raiseMeasured(known, { a: 20.05 })).toBe(known);
+    expect(raiseMeasured(known, { a: 19 })).toBe(known);
+    expect(raiseMeasured(known, { a: 25, b: 12 })).toEqual({ a: 25, b: 12 });
+  });
+
+  it('make the groups again: a block that needs more pushes the next row to another screen', () => {
+    const tv = defaultLayouts.tv;
+    // Rows 18, 22, 22 rem: 41 rem hold the first two.
+    expect(types(tvGroups(tv, 41))[0]).toEqual([['momentum', 'comparison'], ['players']]);
+    const comparison = tv.find((b) => b.type === 'comparison');
+    if (!comparison) throw new Error('comparison');
+    const groups = tvGroups(tv, 41, 1, TV_BLOCK_MIN_REM, { [comparison.id]: 25 });
+    expect(types(groups)).toEqual([[['momentum', 'comparison']], [['players']], [['court', 'rotations']]]);
+    expect(rowMinRem([comparison], TV_BLOCK_MIN_REM, { [comparison.id]: 25 })).toBe(25);
   });
 });

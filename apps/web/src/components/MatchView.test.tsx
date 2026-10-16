@@ -103,6 +103,36 @@ describe('MatchView', () => {
     expect(heading('Andamento del set')).toBeTruthy();
   });
 
+  it('big screen: a block taller than its cell is measured, the groups are made again with its real height', () => {
+    stubReducedMotion(false);
+    // Area under the scoreboard 800 px = 50 rem; the comparison needs 200 px more than its cell of 300 px.
+    const proto = HTMLElement.prototype;
+    const rect = vi.spyOn(proto, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return { height: this.hasAttribute('data-tv-area') ? 800 : 0 } as DOMRect;
+    });
+    const size = (name: 'clientHeight' | 'scrollHeight', value: number) =>
+      vi.spyOn(proto, name, 'get').mockImplementation(function (this: HTMLElement) {
+        return this.dataset.tvBlock === 'comparison' ? value : 0;
+      });
+    const client = size('clientHeight', 300);
+    const scroll = size('scrollHeight', 500);
+    try {
+      const { container } = render(<MatchView state={midMatchState()} device="tv" />);
+      // Estimates: 18 + 1 + 22 rem fit 50 rem; measured: 31.5 + 1 + 22 do not, the players go to the next screen
+      // (with the court and the rotations: 22 + 1 + 22).
+      expect(screen.getByRole('heading', { name: 'Confronto squadre' })).toBeTruthy();
+      expect(screen.queryByRole('heading', { name: 'Statistiche giocatori' })).toBeNull();
+      expect(screen.getByRole('img', { name: 'Schermata 1 di 2' })).toBeTruthy();
+      // Rows grow in proportion to the height they need, not in equal shares.
+      const row = container.querySelector('[data-tv-block="comparison"]')?.parentElement;
+      expect(row?.style.flex).toMatch(/^31\.5 1 0%$/);
+    } finally {
+      rect.mockRestore();
+      client.mockRestore();
+      scroll.mockRestore();
+    }
+  });
+
   it('big screen with reduced motion: the most important group stays, no rotation', () => {
     vi.useFakeTimers();
     stubReducedMotion(true);

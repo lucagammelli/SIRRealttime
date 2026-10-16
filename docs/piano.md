@@ -140,7 +140,7 @@ dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in q
 
 10. `template-sir-volley` (**fatto**, 2026-10-16): primo modello grafico (template) scelto dal cliente nella pagina
     «Grafica» («Modello grafico»): SIR VOLLEY, tema scuro forzato, rosso e bianco, font Google Sans Code self-hosted, logo
-    SIR Real Time, «Powered by Istante®» in fondo, pagina predefinita come il mockup (specifiche e originali in
+    SIR Real Time, pagina predefinita come il mockup (specifiche e originali in
     `docs/grafica/`), «Nostra squadra» che segue i colori del cliente e breakpoint telefono/tablet/desktop per tutti i
     modelli (`docs/portale.md`, `docs/architettura.md`, `docs/server.md`); da provare su dispositivi veri.
 11. `diapositive-tv` (**fatto**, 2026-10-16): sei viste statistiche in stile TV (parziale e marcatori, ace, muri, attacco,

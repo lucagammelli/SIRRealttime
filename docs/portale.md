@@ -80,7 +80,21 @@ Fullscreen API non è disponibile o fallisce, «Schermo intero» attiva comunque
 
 ### Area riservata `/admin` (`src/pages/admin/`)
 Prima si verifica la sessione («Verifica della sessione…»); senza sessione compare il login «Area riservata»
-(email e password), se il server non risponde «Area riservata non disponibile» con «Riprova». La barra di navigazione:
+(email e password), se il server non risponde «Area riservata non disponibile» con «Riprova». Il **menu laterale**
+(`AdminSidebar.tsx`; `menuGroups` è pura e dà i gruppi in base al ruolo, quelli vuoti spariscono) sostituisce la barra
+a pillole. Gruppi: «Partite» (Partita live, Partite, Link pubblici), «Pagina pubblica» (Grafica, Pagina pubblica, Pause e
+sponsor, Avvisi), «Dispositivi» (Agenti), «Amministrazione» (Utenti; Clienti solo superadmin):
+
+- in cima il logo (`BrandMark`), in fondo cliente (selettore per il superadmin), account, tema e «Esci»; la voce attiva è
+  evidenziata (`--sir-nav-active`, rosso in SIR VOLLEY);
+- da 1200 px (`WIDE_MENU_MIN`) il menu è largo 240 px; tra 768 e 1199 px parte ridotto alle icone (nomi nel `title` e per
+  i lettori di schermo) e il pulsante «Riduci il menu» / «Espandi il menu» lo allarga o lo riduce; lo stato non è
+  ricordato tra le visite;
+- sotto i 768 px (`PHONE_MAX`) è a scomparsa: ☰ (`MenuButton`, «Apri il menu») nella barra in alto, X «Chiudi il menu»
+  nel menu; aperto, il focus va alla prima voce, Esc o un tocco fuori lo chiudono restituendo il focus al ☰, e la
+  pagina sotto è `inert`.
+
+Le voci:
 
 | Voce | Percorso | Chi la vede | Contenuto |
 |---|---|---|---|
@@ -96,7 +110,7 @@ Prima si verifica la sessione («Verifica della sessione…»); senza sessione c
 | Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname; «Crea cliente»), «Clienti» con «Modifica» (nome e hostname, «Salva») |
 | Esci | - | tutti | chiude la sessione |
 
-**Più clienti** (`docs/server.md`, «Clienti»). Nella barra compare il nome del cliente corrente (`user.tenant`). Il
+**Più clienti** (`docs/server.md`, «Clienti»). Nel menu compare il nome del cliente corrente (`user.tenant`). Il
 **superadmin** vede invece il selettore «Cliente» (`TenantSelector` in `src/pages/admin/TenantsPage.tsx`): la scelta va a
 `POST /api/admin/active-tenant`, resta nella sessione (vale anche per `/ws/admin`) e al cambio le pagine si ricaricano
 (`Routes` con `key` sul cliente). Finché non ne sceglie uno, le pagine che lavorano su un cliente mostrano l'errore
@@ -197,22 +211,20 @@ valgono sopra quelli del modello. Specifiche e originali dei loghi: `docs/grafic
   `OFL.txt`). La CSP è invariata (`font-src 'self'`).
 - **Colori**: la palette si calcola con `brandPalette(colori, modello)`. Il rosso `#E30613` su `#151518` ha solo 3,7:1: il
   testo piccolo usa la variante `-ink` (`#eb515a`), il rosso pieno resta per sfondi, pulsanti e testo grande.
-- **Loghi** (`public/templates/sir-volley/`): `logo-sir-realtime.png` (1200×269, senza la riga «Powered by Istante»,
-  nella testata via `BrandMark`) e `powered-by-istante.png` (800×81, in bianco, nel piè di pagina). `TemplateFooter` mostra
-  «Powered by Istante®» a destra da 768 px in su (classe `md:`) e centrato sul telefono, mai nella barra di navigazione. Si rigenerano
-  dagli originali di `docs/grafica/` con `apps/web/scripts/trim-logo.ts` (solo `node:zlib`, PNG RGBA 8 bit):
+- **Logo** (`public/templates/sir-volley/`): `logo-sir-realtime.png` (1200×269, senza la riga «Powered by Istante»),
+  nella testata via `BrandMark`. Non c'è più nessun piè di pagina «Powered by Istante®» (tolto su richiesta di Luca:
+  `TemplateFooter` e `powered-by-istante.png` non esistono più). Si rigenera dall'originale di `docs/grafica/` con
+  `apps/web/scripts/trim-logo.ts` (solo `node:zlib`, PNG RGBA 8 bit):
 
   ```bash
   # --- variabili ---
   RADICE="/percorso/del/repository"                                  # radice del repository o del worktree del job
   LOGO_ORIGINALE="docs/grafica/sir real time logo-02.png"            # originale del logo SIR Real Time (relativo a RADICE)
-  POWERED_ORIGINALE="docs/grafica/sir real time logo-04.png"         # originale con la riga «Powered by Istante» (relativo a RADICE)
-  USCITA="apps/web/public/templates/sir-volley"                      # cartella dei loghi del modello (relativa a RADICE)
+  USCITA="apps/web/public/templates/sir-volley"                      # cartella del logo del modello (relativa a RADICE)
 
   # --- comandi ---
   cd "$RADICE/apps/web"
   pnpm exec tsx scripts/trim-logo.ts "../../$LOGO_ORIGINALE" "../../$USCITA/logo-sir-realtime.png" 1200 0 top
-  pnpm exec tsx scripts/trim-logo.ts "../../$POWERED_ORIGINALE" "../../$USCITA/powered-by-istante.png" 800 0 bottom
   ```
 
   Argomenti: `<input> <output> [larghezza=1200] [margine=0] [all|top|bottom]` (`top`: il logo senza la riga di testo
@@ -227,8 +239,17 @@ valgono sopra quelli del modello. Specifiche e originali dei loghi: `docs/grafic
 - **Pagina predefinita**: ogni modello ha la sua (`docs/architettura.md`, «Pagina pubblica a blocchi»): SIR VOLLEY segue il
   mockup di una schermata a 1920×1080 (tabellone, poi andamento, confronto e mappe di campo in tre colonne, poi giocatori e
   rotazioni); `MomentumChart` è ammesso anche a larghezza 4.
-- **Area riservata e tabellone**: `Scoreboard` ha la variante del mockup; `AdminApp` usa voci a pillola e, sul telefono, un
-  menu compatto ☰ da 44 px (`MenuButton`).
+- **Area riservata e tabellone**: `Scoreboard` ha la variante del mockup; l'area riservata usa il menu laterale (vedi
+  «Area riservata»).
+- **Font monospazio**: in SIR VOLLEY `--sir-font-mono` è Google Sans Code (prima codici e token ricadevano su
+  `ui-monospace`).
+- **Tagli e sovrapposizioni**: le righe a specchio delle statistiche (`StatSlides.tsx`) sono una griglia
+  barra | valore | etichetta | valore | barra con valore largo almeno `6ch`; i nomi lunghi stanno su al massimo 2 righe, con
+  `title`, e vanno a capo dopo «_» (`BreakableName` in `components/ui.tsx`); le liste di giocatori si impilano nei
+  contenitori stretti; «Confronto squadre» ha colonne fisse; in TV `BlockLayout` misura l'altezza reale dei blocchi e
+  rifà i gruppi della rotazione (`tvGroups` con `measured`, `lib/layout.ts`), una scheda più alta dello schermo scorre
+  dentro; le diapositive a tutto schermo scorrono sugli schermi bassi; il tabellone dà ai parziali al massimo il 40%
+  della larghezza e ai nomi fino a 3 righe; i titoli delle schede sono larghi almeno 12 rem, con i comandi sotto.
 - **Limiti noti**: nessun logo per squadra (scelta di Luca); il tema forzato non dà avvisi di contrasto (`brandContrastIssues`
   è vuoto); dopo il primo salvataggio il layout del cliente resta fisso anche se cambia modello (va reimpostato con
   «Ripristina predefinito» in «Pagina pubblica»); l'anteprima tablet dell'editor è a 1024 px.
@@ -566,6 +587,34 @@ Variabili e comandi di `docker compose` sono in `docs/server.md`; il portale è 
 | `pnpm --filter @sir/web test` | `vitest run` (jsdom) |
 | `pnpm --filter @sir/web sample-match` | rigenera `src/blocks/sampleMatch.json` (partita d'esempio dell'anteprima); un test ne verifica la coerenza |
 
+### Verifica visiva
+Screenshot di una pagina con un Chrome headless senza installazione: `chrome-headless-shell` in una cartella temporanea
+(il disco del server è quasi pieno), con le librerie mancanti estratte nella stessa cartella. Il portale deve già
+rispondere all'URL indicato (demo o Docker Compose, sopra).
+
+```bash
+# --- variabili ---
+CARTELLA="/tmp/sir-chrome"                       # cartella temporanea per Chrome e librerie (si cancella a fine lavoro)
+URL="http://localhost:5173/"                     # pagina da fotografare (con la demo: l'URL stampato dal comando demo)
+LARGHEZZA=1920                                   # larghezza della finestra in px
+ALTEZZA=1080                                     # altezza della finestra in px
+FILE="/tmp/sir-chrome/schermata.png"             # file PNG di uscita
+
+# --- comandi ---
+mkdir -p "$CARTELLA/librerie"
+npx @puppeteer/browsers install chrome-headless-shell@stable --path "$CARTELLA"
+(cd "$CARTELLA/librerie" && apt-get download libnspr4 libnss3 libasound2t64 \
+  && for deb in *.deb; do dpkg-deb -x "$deb" "$CARTELLA"; done)
+CHROME="$(find "$CARTELLA" -name chrome-headless-shell -type f | head -n 1)"
+export LD_LIBRARY_PATH="$CARTELLA/usr/lib/x86_64-linux-gnu:$CARTELLA/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
+"$CHROME" --no-sandbox --disable-gpu --hide-scrollbars \
+  --window-size="$LARGHEZZA,$ALTEZZA" --virtual-time-budget=5000 \
+  --screenshot="$FILE" "$URL"
+```
+
+Il nome del pacchetto delle librerie audio cambia con la distribuzione (`libasound2` o `libasound2t64`). Le pagine
+dell'area riservata chiedono il login: per queste serve una pagina pubblica o la demo.
+
 ### Collaudo del 2026-10-14
 - **Compose**: `docker compose -p sirrealtime up -d --build` con `.env` da `.env.example` (`POSTGRES_PASSWORD`, `ADMIN_*`,
   `WEB_PORT=8085` perché la 8080 era occupata, `COOKIE_SECURE=false` in http locale). `postgres`, `server` e `web` healthy;
@@ -628,7 +677,7 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
   `components/ui.tsx` (`CardCollapseContext`), `styles/index.css`
 - Modelli grafici: `apps/web/src/lib/branding.ts` (`applyTemplate`, `initTemplate`, `useTemplate`, `useOurTeamColors`),
   `lib/teamColors.ts` (`teamColorVars`), `lib/theme.ts` (`forcedTheme`, `useForcedTheme`), `lib/layout.ts` (`viewportClass`,
-  `templateLayouts`), `components/TemplateFooter.tsx`, `MenuButton.tsx`, `BrandMark.tsx`, `BrandingPreview.tsx`,
+  `templateLayouts`), `MenuButton.tsx`, `BrandMark.tsx`, `BrandingPreview.tsx`,
   `styles/tokens.css` (`[data-template='sir-volley']`), `styles/fonts.css`, `scripts/trim-logo.ts`, `public/templates/sir-volley/`;
   contratti in `packages/shared/src/templates.ts`, `ourTeam.ts` (`docs/architettura.md`); originali in `docs/grafica/`
 - Link breve e QR: `apps/web/src/qr/` (`qrImage.ts`, `qrCanvas.ts`, `ShareQr.tsx`), `pages/admin/ShareLinksPage.tsx`;

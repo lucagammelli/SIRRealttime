@@ -14,7 +14,7 @@ import type {
 import { periodSummary, roleDuels, scorers, teamDuel } from '@sir/volley-stats';
 import type { ReactNode } from 'react';
 import { barShares, leader } from '../charts/compare.ts';
-import { Card, Empty } from '../components/ui.tsx';
+import { BreakableName, Card, Empty } from '../components/ui.tsx';
 import { formatCount, formatPct, playerName, teamName, teamShort } from '../lib/format.ts';
 import { duelRoles, periodLabel } from '../lib/intermission.ts';
 import { useReducedMotion } from '../lib/theme.ts';
@@ -72,7 +72,7 @@ export const SHORT_ROW: Record<TeamDuelKey, string> = {
  */
 const TYPE = {
   full: {
-    team: 'text-xl lg:text-4xl',
+    team: 'text-xl lg:text-4xl lg:[@media(max-height:820px)]:text-2xl',
     score: 'text-5xl lg:text-7xl',
     huge: 'text-6xl lg:text-8xl',
     value: 'text-2xl lg:text-4xl',
@@ -88,7 +88,7 @@ const TYPE = {
     duelRole: 'text-xs lg:text-xl',
   },
   card: {
-    team: 'text-xl',
+    team: 'text-base',
     score: 'text-4xl',
     huge: 'text-5xl',
     value: 'text-lg',
@@ -140,7 +140,7 @@ function TitleBand({ title, period, size }: { title: string; period: Period; siz
   if (size === 'card') return null;
   return (
     <p className="flex justify-center">
-      <span className="rounded-card bg-primary px-5 py-1.5 font-display text-lg font-bold uppercase tracking-wide text-on-primary lg:text-3xl">
+      <span className="rounded-card bg-primary px-5 py-1.5 font-display text-lg font-bold uppercase tracking-wide text-on-primary lg:text-3xl lg:[@media(max-height:820px)]:text-xl">
         {title}
         <span className="opacity-80"> · {periodLabel(period)}</span>
       </span>
@@ -156,12 +156,49 @@ function ScoreLine({ state, summary, size }: { state: MatchState; summary: Perio
       ? `Parziale ${summary.score.home} a ${summary.score.away}`
       : `Set vinti ${summary.score.home} a ${summary.score.away}`;
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-4 font-display font-bold uppercase">
-      <span className={`truncate text-right ${t.team} ${INK.home}`}>{teamName(state.teams, 'home')}</span>
-      <span aria-label={label} className={`tabular-nums text-text ${t.score}`}>
+    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-4 font-display font-bold uppercase">
+      <TeamTitle state={state} side="home" className={`text-right ${t.team}`} />
+      <span aria-label={label} className={`tabular-nums whitespace-nowrap text-text ${t.score}`}>
         {summary.score.home}-{summary.score.away}
       </span>
-      <span className={`truncate ${t.team} ${INK.away}`}>{teamName(state.teams, 'away')}</span>
+      <TeamTitle state={state} side="away" className={t.team} />
+    </div>
+  );
+}
+
+/**
+ * Name of a team in a statistic: at most two lines, wrapping between its words and parts («PERUGIA_AMICHEVOLI»),
+ * then an ellipsis; the whole name in `title`.
+ */
+function TeamTitle({
+  state,
+  side,
+  className = '',
+  plain = false,
+}: {
+  state: MatchState;
+  side: Side;
+  className?: string;
+  /** In the colour of the text instead of the colour of the team. */
+  plain?: boolean;
+}) {
+  const name = teamName(state.teams, side);
+  return (
+    <span
+      title={name}
+      className={`line-clamp-2 min-w-0 max-w-full break-words leading-tight ${plain ? 'text-text' : INK[side]} ${className}`}
+    >
+      <BreakableName text={name} />
+    </span>
+  );
+}
+
+/** The two team names over the mirrored rows: home on the left, away on the right, never one over the other. */
+function TeamHeader({ state, size }: { state: MatchState; size: StatSize }) {
+  return (
+    <div className={`grid grid-cols-2 gap-x-4 font-display font-bold uppercase ${typeOf(size).team}`}>
+      <TeamTitle state={state} side="home" />
+      <TeamTitle state={state} side="away" className="text-right" />
     </div>
   );
 }
@@ -194,37 +231,40 @@ export function MirrorRow({
   const shares = barShares({ kind, home, away });
   const best = leader({ better, home, away });
   const { value, bar, rowLabel } = typeOf(size, dense);
+  // One grid: bar | value | label | value | bar. The values have their own columns, at least 6 characters wide
+  // («100,0%») with tabular figures: a value never covers its bar or the label, whatever the width of the card.
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-3">
-      <div className="flex items-center justify-end gap-3">
-        <span className={`relative w-full overflow-hidden rounded-full bg-surface-2 ${bar}`}>
-          <span
-            className={`sir-bar absolute inset-y-0 right-0 origin-right rounded-full ${enter.grow} ${BAR.home}`}
-            style={{ width: `${shares.home * 100}%` }}
-          />
-        </span>
+    <div
+      data-mirror-row=""
+      className="grid grid-cols-[minmax(1.5rem,1fr)_auto_auto_auto_minmax(1.5rem,1fr)] items-center gap-x-2 sm:gap-x-3"
+    >
+      <span className={`relative w-full overflow-hidden rounded-full bg-surface-2 ${bar}`}>
         <span
-          className={`tabular-nums min-w-[3ch] text-right font-display font-bold ${value} ${best === 'home' ? INK.home : 'text-text'}`}
-        >
-          {valueText(kind, home)}
-        </span>
-      </div>
+          className={`sir-bar absolute inset-y-0 right-0 origin-right rounded-full ${enter.grow} ${BAR.home}`}
+          style={{ width: `${shares.home * 100}%` }}
+        />
+      </span>
+      <span
+        data-value="home"
+        className={`tabular-nums min-w-[6ch] whitespace-nowrap text-right font-display font-bold ${value} ${best === 'home' ? INK.home : 'text-text'}`}
+      >
+        {valueText(kind, home)}
+      </span>
       <span className={`text-center font-medium uppercase leading-tight tracking-wide text-muted ${rowLabel}`}>
         {label}
       </span>
-      <div className="flex items-center gap-3">
+      <span
+        data-value="away"
+        className={`tabular-nums min-w-[6ch] whitespace-nowrap text-left font-display font-bold ${value} ${best === 'away' ? INK.away : 'text-text'}`}
+      >
+        {valueText(kind, away)}
+      </span>
+      <span className={`relative w-full overflow-hidden rounded-full bg-surface-2 ${bar}`}>
         <span
-          className={`tabular-nums min-w-[3ch] font-display font-bold ${value} ${best === 'away' ? INK.away : 'text-text'}`}
-        >
-          {valueText(kind, away)}
-        </span>
-        <span className={`relative w-full overflow-hidden rounded-full bg-surface-2 ${bar}`}>
-          <span
-            className={`sir-bar absolute inset-y-0 left-0 origin-left rounded-full ${enter.grow} ${BAR.away}`}
-            style={{ width: `${shares.away * 100}%` }}
-          />
-        </span>
-      </div>
+          className={`sir-bar absolute inset-y-0 left-0 origin-left rounded-full ${enter.grow} ${BAR.away}`}
+          style={{ width: `${shares.away * 100}%` }}
+        />
+      </span>
     </div>
   );
 }
@@ -244,26 +284,44 @@ function PlayerList({
   const enter = useEnter();
   const t = typeOf(size, rows.length > DENSE_ROWS);
   if (rows.length === 0) return <p className={`text-center text-muted ${t.note}`}>{empty}</p>;
+  // Two lists side by side from 28 rem of the container (`TeamLists`), one under the other below: the away list is
+  // mirrored only when side by side. Name on one line with an ellipsis (whole name in `title`), the detail under it.
   return (
     <ol className={`space-y-1.5 ${enter[side]}`}>
-      {rows.map((r) => (
-        <li
-          key={r.number}
-          className={`flex items-center gap-3 ${side === 'away' ? 'flex-row-reverse text-right' : ''}`}
-        >
-          <span
-            className={`tabular-nums inline-flex shrink-0 items-center justify-center rounded-card font-display font-bold ${BG[side]} ${t.chip}`}
+      {rows.map((r) => {
+        const name = surname(r.player, r.number);
+        return (
+          <li
+            key={r.number}
+            className={`flex items-center gap-3 ${side === 'away' ? '@md:flex-row-reverse @md:text-right' : ''}`}
           >
-            {r.number}
-          </span>
-          <span className={`min-w-0 flex-1 truncate font-display font-semibold uppercase text-text ${t.name}`}>
-            {surname(r.player, r.number)}
-            {r.detail && <span className={`ml-2 normal-case text-muted ${t.detail}`}>{r.detail}</span>}
-          </span>
-          <span className={`tabular-nums font-display font-bold text-text ${t.value}`}>{r.value}</span>
-        </li>
-      ))}
+            <span
+              className={`tabular-nums inline-flex shrink-0 items-center justify-center rounded-card font-display font-bold ${BG[side]} ${t.chip}`}
+            >
+              {r.number}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col leading-tight">
+              <span title={name} className={`truncate font-display font-semibold uppercase text-text ${t.name}`}>
+                {name}
+              </span>
+              {r.detail && <span className={`truncate text-muted ${t.detail}`}>{r.detail}</span>}
+            </span>
+            <span className={`tabular-nums shrink-0 whitespace-nowrap font-display font-bold text-text ${t.value}`}>
+              {r.value}
+            </span>
+          </li>
+        );
+      })}
     </ol>
+  );
+}
+
+/** The lists of the two teams: side by side when the container is at least 28 rem wide, otherwise one under the other. */
+function TeamLists({ children }: { children: ReactNode }) {
+  return (
+    <div className="@container">
+      <div className="grid grid-cols-1 gap-x-8 gap-y-4 @md:grid-cols-2 @4xl:gap-x-24">{children}</div>
+    </div>
   );
 }
 
@@ -275,7 +333,13 @@ function Frame({ size, title, children }: { size: StatSize; title: string; child
         <div className="space-y-3">{children}</div>
       </Card>
     );
-  return <div className="mx-auto flex h-full w-full max-w-6xl flex-col justify-center gap-6">{children}</div>;
+  // At least as tall as the slide (centred), taller when its rows need it (the slide scrolls); less space between the
+  // parts on low screens.
+  return (
+    <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col justify-center gap-6 [@media(max-height:820px)]:gap-3">
+      {children}
+    </div>
+  );
 }
 
 const noData = (period: Period): string =>
@@ -334,7 +398,7 @@ export function SetScorersView({
     <Frame size={size} title={`${title} · ${periodLabel(period)}`}>
       <TitleBand title={title} period={period} size={size} />
       <ScoreLine state={state} summary={summary} size={size} />
-      <div className="grid grid-cols-2 gap-x-10">
+      <TeamLists>
         {SIDES.map((side) => (
           <PlayerList
             key={side}
@@ -349,7 +413,7 @@ export function SetScorersView({
             }))}
           />
         ))}
-      </div>
+      </TeamLists>
     </Frame>
   );
 }
@@ -414,14 +478,14 @@ export function CountView({
   return (
     <Frame size={size} title={`${text.title} · ${periodLabel(period)}`}>
       <TitleBand title={text.title} period={period} size={size} />
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-6 font-display font-bold uppercase">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-4 font-display font-bold uppercase">
         {SIDES.map((side) => (
           <div
             key={side}
-            className={`flex flex-col ${side === 'home' ? 'order-1 items-end' : 'order-3 items-start'} ${enter[side]}`}
+            className={`flex min-w-0 flex-col ${side === 'home' ? 'order-1 items-end text-right' : 'order-3 items-start'} ${enter[side]}`}
           >
-            <span className={`tabular-nums ${t.huge} ${INK[side]}`}>{count(side)}</span>
-            <span className={`${t.team} text-text`}>{teamName(state.teams, side)}</span>
+            <span className={`tabular-nums leading-none ${t.huge} ${INK[side]}`}>{count(side)}</span>
+            <TeamTitle state={state} side={side} plain className={t.team} />
           </div>
         ))}
         <span className={`order-2 text-muted ${t.team}`}>{text.many}</span>
@@ -429,7 +493,7 @@ export function CountView({
       {total === 0 ? (
         <p className={`text-center text-muted ${t.note}`}>{none}</p>
       ) : (
-        <div className="grid grid-cols-2 gap-x-10">
+        <TeamLists>
           {SIDES.map((side) => (
             <PlayerList
               key={side}
@@ -439,7 +503,7 @@ export function CountView({
               rows={list(side).map((s) => ({ number: s.number, player: s.player, value: String(s.count) }))}
             />
           ))}
-        </div>
+        </TeamLists>
       )}
     </Frame>
   );
@@ -498,10 +562,7 @@ export function AttackView({
   return (
     <Frame size={size} title={`${title} · ${periodLabel(period)}`}>
       <TitleBand title={title} period={period} size={size} />
-      <div className={`grid grid-cols-2 font-display font-bold uppercase ${typeOf(size).team}`}>
-        <span className={`truncate ${INK.home}`}>{teamName(state.teams, 'home')}</span>
-        <span className={`truncate text-right ${INK.away}`}>{teamName(state.teams, 'away')}</span>
-      </div>
+      <TeamHeader state={state} size={size} />
       <div className="space-y-3">
         <MirrorRow
           label="Punti in attacco"
@@ -519,7 +580,7 @@ export function AttackView({
           size={size}
         />
       </div>
-      <div className="grid grid-cols-2 gap-x-10">
+      <TeamLists>
         {SIDES.map((side) => (
           <PlayerList
             key={side}
@@ -534,7 +595,7 @@ export function AttackView({
             }))}
           />
         ))}
-      </div>
+      </TeamLists>
     </Frame>
   );
 }
@@ -596,12 +657,13 @@ function DuelPlayer({
       >
         {line.number}
       </span>
-      <span className={`max-w-full truncate font-display font-bold uppercase text-text ${t.duelName}`}>
+      <span
+        title={surname(line.player, line.number)}
+        className={`max-w-full truncate font-display font-bold uppercase text-text ${t.duelName}`}
+      >
         {surname(line.player, line.number)}
       </span>
-      <span className={`font-display font-semibold uppercase ${INK[side]} ${t.duelTeam}`}>
-        {teamName(state.teams, side)}
-      </span>
+      <TeamTitle state={state} side={side} className={`font-display font-semibold uppercase ${t.duelTeam}`} />
       <span className={`uppercase tracking-wide text-muted ${t.duelRole}`}>{ROLE_LABELS[role].one}</span>
     </div>
   );
@@ -726,10 +788,7 @@ export function TeamDuelView({
   return (
     <Frame size={size} title={`${title} · ${periodLabel(period)}`}>
       <TitleBand title={title} period={period} size={size} />
-      <div className={`grid grid-cols-2 font-display font-bold uppercase ${typeOf(size).team}`}>
-        <span className={`truncate ${INK.home}`}>{teamName(state.teams, 'home')}</span>
-        <span className={`truncate text-right ${INK.away}`}>{teamName(state.teams, 'away')}</span>
-      </div>
+      <TeamHeader state={state} size={size} />
       <div className={big && !dense ? 'space-y-2 lg:space-y-3' : 'space-y-1.5'}>
         {rows.map((r) => (
           <MirrorRow

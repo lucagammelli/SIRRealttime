@@ -114,6 +114,16 @@
     linear-gradient(90deg, var(--sir-home-glow), transparent 38%, transparent 62%, var(--sir-away-glow)),
     linear-gradient(180deg, var(--sir-glow), transparent 70%);
 }
+/*
+ * Big screen: a card taller than its cell (even after the groups are made again with its real height, see
+ * BlockLayout) scrolls inside its body, never cut without a sign.
+ */
+[data-tv-block] .sir-card-body {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
 /* Horizontal scroll inside its card (wide tables on the phone): the page does not move with it. */
 .sir-scroll-x {
   overflow-x: auto;
@@ -179,6 +189,9 @@
 [data-template='sir-volley'] .sir-team-name {
   font-size: var(--sir-team-size);
 }
+[data-template='sir-volley'] .sir-team-name[data-long='true'] {
+  font-size: calc(var(--sir-team-size) * 0.75);
+}
 [data-template='sir-volley'] .sir-chart {
   height: var(--sir-chart-height);
 }
@@ -187,13 +200,6 @@
 }
 [data-template='sir-volley'] .sir-navbar-logo {
   height: var(--sir-logo-height);
-}
-[data-template='sir-volley'] .sir-footer {
-  margin-top: 24px;
-  padding-bottom: max(12px, env(safe-area-inset-bottom));
-}
-[data-template='sir-volley'] .sir-footer-logo {
-  height: var(--sir-footer-logo-height);
 }
 
 /* Short animations at every point (≤ 600 ms), off with prefers-reduced-motion. */

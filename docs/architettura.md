@@ -135,9 +135,9 @@ portale calcola variabili e avvisi di contrasto con queste funzioni, il server n
 Modelli grafici (`templates.ts`): elenco chiuso `TEMPLATE_IDS` (`standard`, `sir-volley`), `TemplateIdSchema`,
 `DEFAULT_TEMPLATE` (`standard`), `TEMPLATES` (`TemplateDefinition`: etichetta, `forcedTheme` `'dark'` o null, `ourColor`
 `home` | `accent`, colori del modello, superfici scure `darkSurface` / `darkInkSurface` / `darkBackground`, immagini
-`navbarLogo` e `footerLogo`, `footerText`, `courtArrows` `evaluation` | `team`) e `templateOf(id)` (modello standard per un
+`navbarLogo`, `courtArrows` `evaluation` | `team`) e `templateOf(id)` (modello standard per un
 id sconosciuto). `standard` è l'aspetto di prima; `sir-volley` è il modello «SIR VOLLEY» (solo scuro, rosso `#e30613`,
-bianco, logo e «Powered by Istante®»). Specifiche e originali grafici di Luca: `docs/grafica/`. I token CSS del modello
+bianco, logo; nessun piè di pagina). Specifiche e originali grafici di Luca: `docs/grafica/`. I token CSS del modello
 stanno in `apps/web/src/styles/tokens.css` (`docs/portale.md`).
 
 Nostra squadra (`ourTeam.ts`): `OurTeamSchema` / `OurTeam` (`code` e `name`, testi semplici, `OUR_TEAM_CODE_MAX` 10,

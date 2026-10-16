@@ -345,7 +345,8 @@ function PauseView({
           )}
         </div>
       </header>
-      <div key={`${slide.id}-${tick}`} className="sir-fade min-h-0 flex-1 overflow-hidden">
+      {/* Taller than the screen (many rows, small screen): the slide scrolls, it is never cut. */}
+      <div key={`${slide.id}-${tick}`} className="sir-fade min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {renderSlide(slide, env, 'full')}
       </div>
       {dots}

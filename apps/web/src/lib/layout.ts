@@ -199,27 +199,57 @@ export function packRows(blocks: readonly LayoutBlock[]): LayoutRow[] {
   return rows;
 }
 
+/**
+ * Heights measured on the big screen (rem, by block id): what a block really needs when its content is taller than
+ * its smallest height (long lists, long names). They only raise the smallest height of the type.
+ */
+export type MeasuredRem = Readonly<Record<string, number>>;
+
+/** Smallest height of a block: the one of its type, or the measured one when taller. */
+export function blockMinRem(
+  block: LayoutBlock,
+  minRem: Record<BlockType, number> = TV_BLOCK_MIN_REM,
+  measured: MeasuredRem = {},
+): number {
+  return Math.max(minRem[block.type], measured[block.id] ?? 0);
+}
+
 /** Height of a row: the tallest of its blocks. */
-export function rowMinRem(row: LayoutRow, minRem: Record<BlockType, number> = TV_BLOCK_MIN_REM): number {
-  return Math.max(0, ...row.map((b) => minRem[b.type]));
+export function rowMinRem(
+  row: LayoutRow,
+  minRem: Record<BlockType, number> = TV_BLOCK_MIN_REM,
+  measured: MeasuredRem = {},
+): number {
+  return Math.max(0, ...row.map((b) => blockMinRem(b, minRem, measured)));
+}
+
+/**
+ * Pure: the measures of a screen added to the known ones, only where a block needs more (by more than 0.1 rem); the
+ * same object when nothing changes (no new render).
+ */
+export function raiseMeasured(known: MeasuredRem, found: MeasuredRem): MeasuredRem {
+  const raised = Object.entries(found).filter(([id, rem]) => rem > (known[id] ?? 0) + 0.1);
+  return raised.length === 0 ? known : { ...known, ...Object.fromEntries(raised) };
 }
 
 /**
  * Groups of the big screen: the blocks under the scoreboard in rows, and the rows in groups that fit `availableRem`
  * (height under the scoreboard, `gapRem` between rows). A row taller than the space is a group on its own; the first
- * group holds the most important blocks (shown fixed with reduced motion).
+ * group holds the most important blocks (shown fixed with reduced motion). `measured`: heights measured on the
+ * screen, taller than the smallest of the type (see `MeasuredRem`).
  */
 export function tvGroups(
   blocks: readonly LayoutBlock[],
   availableRem: number,
   gapRem = 1,
   minRem: Record<BlockType, number> = TV_BLOCK_MIN_REM,
+  measured: MeasuredRem = {},
 ): LayoutGroup[] {
   const groups: LayoutGroup[] = [];
   let group: LayoutGroup = [];
   let used = 0;
   for (const row of packRows(blocks.filter((b) => b.type !== 'scoreboard'))) {
-    const height = rowMinRem(row, minRem);
+    const height = rowMinRem(row, minRem, measured);
     const needed = group.length === 0 ? height : used + gapRem + height;
     if (group.length > 0 && needed > availableRem) {
       groups.push(group);

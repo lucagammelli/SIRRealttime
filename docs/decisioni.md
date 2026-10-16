@@ -188,5 +188,12 @@ Una riga per decisione: data, scelta, motivo.
   sovrappone al finale (`docs/architettura.md`).
 - 2026-10-16: le diapositive senza dati sono saltate nelle pause (nei blocchi un messaggio), perché una pausa non mostri
   schermate vuote (`docs/portale.md`).
+- 2026-10-16: area riservata con menu laterale a gruppi al posto della barra a pillole, perché le voci sono salite a nove
+  e sul telefono non stavano più (`docs/portale.md`).
+- 2026-10-16: tolto «Powered by Istante®» (piè di pagina, immagine, `footerLogo`/`footerText`), su richiesta di Luca.
+- 2026-10-16: in TV l'altezza dei blocchi è misurata sullo schermo e i gruppi rifatti, invece di stime fisse, perché le
+  stime tagliavano o sovrapponevano le schede con nomi e liste lunghe.
+- 2026-10-16: verifica visiva con Chrome headless in una cartella temporanea, senza installarlo, perché il disco del
+  server è quasi pieno (`docs/portale.md`, «Verifica visiva»).
 - 2026-10-16: la pausa «ogni N punti» è attiva di default per tutti i clienti (richiesta di Luca) e si spegne da
   «Pause e sponsor» (`docs/portale.md`).

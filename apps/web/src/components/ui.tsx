@@ -1,5 +1,30 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { createContext, useContext, useEffect, useId, useRef, useState } from 'react';
+import { createContext, Fragment, useContext, useEffect, useId, useRef, useState } from 'react';
+
+/**
+ * A name of the scout file (team, player) that may wrap also after `_`, `/`, `-` and `.` («PERUGIA_AMICHEVOLI»):
+ * a line break opportunity (`<wbr>`) after each of them, so a long name wraps between its parts instead of in the
+ * middle of a word. Only React text.
+ */
+export function BreakableName({ text }: { text: string }) {
+  const parts = text.split(/(?<=[_/.-])/u);
+  let offset = 0;
+  return (
+    <>
+      {parts.map((part, i) => {
+        // Key: where the part starts in the string (parts of one string never move).
+        const key = offset;
+        offset += part.length;
+        return (
+          <Fragment key={key}>
+            {part}
+            {i < parts.length - 1 && <wbr />}
+          </Fragment>
+        );
+      })}
+    </>
+  );
+}
 
 /**
  * Cards inside this context become collapsible sections (phone layout of the match page): the title is a button with
@@ -41,7 +66,8 @@ export function Card({
           data-open={shown}
           className={`sir-card-head flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 ${shown ? 'pt-4' : 'py-1'}`}
         >
-          <div className="min-w-0 flex-1">
+          {/* At least 12 rem for the title: narrower, the actions go to the next line (never a word per line). */}
+          <div className="min-w-0 flex-[1_1_12rem]">
             {title &&
               (collapsible ? (
                 <h2 className="sir-card-title font-display text-lg font-semibold uppercase tracking-wide text-text">

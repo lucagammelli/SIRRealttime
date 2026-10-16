@@ -6,7 +6,6 @@ import { Intermission } from '../components/Intermission.tsx';
 import { LiveMatch } from '../components/LiveMatch.tsx';
 import { Overlay } from '../components/Overlay.tsx';
 import { StatusScreen } from '../components/StatusScreen.tsx';
-import { TemplateFooter } from '../components/TemplateFooter.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import type { ProbeResult } from '../lib/liveConnection.ts';
 import { useIdle, useTvRootClass, useWakeLock } from '../lib/tvScreen.ts';
@@ -203,7 +202,6 @@ export function LivePage() {
           {...(inScoreboard ? { controls } : {})}
         />
       </main>
-      <TemplateFooter className={tv ? 'mt-2 shrink-0 pb-0' : 'sir-page mx-auto w-full max-w-7xl'} />
       {data?.kind === 'state' && (
         <Overlay
           key={`avvisi-${data.matchId}`}

@@ -220,7 +220,14 @@ function TenantEditor({
 }
 
 /** Client the admin pages work on (superadmin only), in the bar of the reserved area. */
-export function TenantSelector({ tenants }: { tenants: AsyncState<TenantSummary[]> }) {
+export function TenantSelector({
+  tenants,
+  stacked = false,
+}: {
+  tenants: AsyncState<TenantSummary[]>;
+  /** Label over a full width select (side menu of the reserved area); otherwise on one line. */
+  stacked?: boolean;
+}) {
   const errorMessage = useApiError();
   const { user, updateUser } = useAuth();
   const [busy, setBusy] = useState(false);
@@ -248,14 +255,16 @@ export function TenantSelector({ tenants }: { tenants: AsyncState<TenantSummary[
 
   const list = tenants.data ?? (user.tenant ? [{ ...user.tenant, hostnames: [], createdAt: '' }] : []);
   return (
-    <span className="inline-flex items-center gap-2">
-      <label className="inline-flex items-center gap-2 text-xs text-muted">
+    <span className={stacked ? 'flex flex-col gap-1' : 'inline-flex items-center gap-2'}>
+      <label className={`text-xs text-muted ${stacked ? 'flex flex-col gap-1' : 'inline-flex items-center gap-2'}`}>
         Cliente
         <select
           value={current}
           disabled={busy}
           onChange={(e) => void choose(e.target.value)}
-          className="rounded-card border border-border bg-surface-2 px-2 py-1 text-sm text-text focus:border-focus"
+          className={`rounded-card border border-border bg-surface-2 px-2 py-1 text-sm text-text focus:border-focus ${
+            stacked ? 'min-h-9 w-full min-w-0 pointer-coarse:min-h-11' : ''
+          }`}
         >
           {current === '' && (
             <option value="" disabled>

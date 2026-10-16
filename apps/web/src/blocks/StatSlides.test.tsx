@@ -289,3 +289,74 @@ describe('statistics as blocks of the page', () => {
     expect(slideText()).toContain('Il 9° set non è ancora iniziato.');
   });
 });
+
+describe('rows value/bar and long names: never one over the other', () => {
+  /** The example match with the long names of a real file. */
+  const longNames = (): MatchState => {
+    const copy = structuredClone(sample);
+    copy.teams.home = { ...copy.teams.home, name: 'SIR SUSA SCAI PERUGIA_AMICHEVOLI' };
+    copy.teams.away = { ...copy.teams.away, name: 'SUNTORY SUNBIRDS OSAKA' };
+    return copy;
+  };
+
+  it('«Squadre a confronto» as a block: both teams, a value of each team in every row', () => {
+    const state = longNames();
+    const layout = TenantLayoutSchema.parse({ tablet: [{ id: 'f', type: 'teamDuel', options: { period: 'match' } }] });
+    render(<MatchView state={state} device="tablet" layout={layout} />);
+    const card = screen.getByRole('heading', { name: 'Squadre a confronto · Partita' }).closest('section');
+    if (!card) throw new Error('card');
+    expect(within(card).getByTitle('SIR SUSA SCAI PERUGIA_AMICHEVOLI')).toBeTruthy();
+    expect(within(card).getByTitle('SUNTORY SUNBIRDS OSAKA')).toBeTruthy();
+    const rows = teamDuel(state, MATCH_PERIOD);
+    const shown = card.querySelectorAll('[data-mirror-row]');
+    expect(shown).toHaveLength(rows.length);
+    rows.forEach((row, i) => {
+      const line = shown[i] as HTMLElement;
+      const text = (v: number | null): string => (row.kind === 'ratio' ? formatPct(v) : String(v ?? '–'));
+      expect(line.querySelector('[data-value="home"]')?.textContent).toBe(text(row.home));
+      expect(line.querySelector('[data-value="away"]')?.textContent).toBe(text(row.away));
+    });
+  });
+
+  it('every row is one grid bar | value | label | value | bar: values in their own columns, at least «100,0%»', () => {
+    draw(sample, { type: 'attack', options: { period: 'match' } });
+    const rows = [...document.querySelectorAll<HTMLElement>('[data-mirror-row]')];
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      expect(row.className).toContain('grid-cols-[minmax(1.5rem,1fr)_auto_auto_auto_minmax(1.5rem,1fr)]');
+      const cells = [...row.children];
+      expect(cells).toHaveLength(5);
+      expect(cells[0]?.querySelector('.sir-bar')).toBeTruthy();
+      expect(cells[4]?.querySelector('.sir-bar')).toBeTruthy();
+      for (const cell of [cells[1], cells[3]]) {
+        // A value is a sibling of the bars, never inside them, and never narrower than its text.
+        expect(cell?.querySelector('.sir-bar')).toBeNull();
+        expect(cell?.className).toContain('min-w-[6ch]');
+        expect(cell?.className).toContain('whitespace-nowrap');
+        expect(cell?.className).toContain('tabular-nums');
+      }
+      expect(cells[1]?.className).toContain('text-right');
+      expect(cells[3]?.className).toContain('text-left');
+    }
+  });
+
+  it('long names wrap between their parts, at most on two lines, with the whole name in the title', () => {
+    draw(longNames(), { type: 'teamDuel', options: { period: 'match' } });
+    const home = screen.getByTitle('SIR SUSA SCAI PERUGIA_AMICHEVOLI');
+    expect(home.className).toContain('line-clamp-2');
+    expect(home.querySelectorAll('wbr')).toHaveLength(1);
+    expect(home.textContent).toBe('SIR SUSA SCAI PERUGIA_AMICHEVOLI');
+  });
+
+  it('lists of the players side by side only in a wide card, the full slide scrolls instead of cutting', () => {
+    draw(sample, { type: 'attack', options: { period: 'match' } });
+    const lists = screen.getAllByRole('list');
+    const grid = lists[0]?.parentElement;
+    expect(grid?.className).toContain('grid-cols-1');
+    expect(grid?.className).toContain('@md:grid-cols-2');
+    expect(grid?.parentElement?.className).toContain('@container');
+    const frame = grid?.parentElement?.parentElement;
+    expect(frame?.className).toContain('min-h-full');
+    expect(frame?.className).not.toMatch(/(^| )h-full( |$)/);
+  });
+});

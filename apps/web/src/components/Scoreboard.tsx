@@ -8,8 +8,11 @@ import type { SetPartial } from '../lib/scoreboard.ts';
 import { useStickyOffset } from '../lib/useLayout.ts';
 import { matchHeadline, matchMinutes, matchWinner, setPartials, statusLabel } from '../lib/scoreboard.ts';
 import { BrandMark } from './BrandMark.tsx';
+import { BreakableName } from './ui.tsx';
 
 const SIDES: Side[] = ['home', 'away'];
+/** Team names longer than this (characters) are written smaller in the scoreboard of the template. */
+const LONG_NAME = 20;
 /** Team colour for big text (score, names on the tablet: 3:1 is enough) and as small text (`-ink`, 4.5:1). */
 const TEXT: Record<Side, string> = { home: 'text-home', away: 'text-away' };
 const INK: Record<Side, string> = { home: 'text-home-ink', away: 'text-away-ink' };
@@ -284,10 +287,13 @@ function TemplateScoreboard({
     >
       <ServeDot side={side} active={serving === side} />
       <h2
-        className={`sir-team-name min-w-0 break-words font-display text-2xl font-bold uppercase leading-[1.05] text-text ${side === 'away' ? 'text-right' : ''}`}
+        data-long={names[side].length > LONG_NAME}
+        className={`sir-team-name line-clamp-3 min-w-0 break-words font-display font-bold uppercase leading-[1.05] text-text ${
+          names[side].length > LONG_NAME ? 'text-xl' : 'text-2xl'
+        } ${side === 'away' ? 'text-right' : ''}`}
         title={names[side]}
       >
-        {names[side]}
+        <BreakableName text={names[side]} />
       </h2>
       <div className="flex shrink-0 flex-col items-center gap-1">
         <span
@@ -302,14 +308,14 @@ function TemplateScoreboard({
           <span className="rounded-button bg-accent px-2 py-0.5 text-xs font-semibold text-on-accent">Vince</span>
         )}
       </div>
-      {side === 'home' && <span className="hidden text-sm font-semibold uppercase text-muted lg:inline">Set</span>}
+      {side === 'home' && <span className="hidden text-sm font-semibold uppercase text-muted xl:inline">Set</span>}
     </div>
   );
   return (
     <section
       aria-label="Tabellone"
       data-variant="template"
-      className="sir-scoreboard sir-card overflow-hidden rounded-panel border border-border shadow-card"
+      className="sir-scoreboard sir-card @container overflow-hidden rounded-panel border border-border shadow-card"
     >
       <div className="sir-card-head flex flex-wrap items-center justify-between gap-2 px-4 pt-3" data-open="true">
         <div className="flex min-w-0 items-center gap-3">
@@ -326,7 +332,8 @@ function TemplateScoreboard({
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-4 py-3 sm:gap-6">
         {team('home')}
-        <div className="order-2 flex flex-col items-center gap-2">
+        {/* At most 40% of the scoreboard: the partials wrap on two lines and leave room to the names. */}
+        <div className="order-2 flex max-w-[min(34rem,40cqw)] flex-col items-center gap-2">
           <Score state={state} names={names} size="text-6xl" colon="sir-score text-5xl" />
           <TemplatePartials partials={partials} />
         </div>

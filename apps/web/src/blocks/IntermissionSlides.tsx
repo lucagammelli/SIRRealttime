@@ -4,6 +4,7 @@ import type { Side, StatLine } from '@sir/volley-stats';
 import { matchMvp, setRecap } from '@sir/volley-stats';
 import type { ReactNode } from 'react';
 import { Partials } from '../components/Scoreboard.tsx';
+import { BreakableName } from '../components/ui.tsx';
 import { formatPct, playerName, teamName, teamShort } from '../lib/format.ts';
 import { statPeriod } from '../lib/intermission.ts';
 import { setPartials } from '../lib/scoreboard.ts';
@@ -97,16 +98,20 @@ function SetSummarySlide({ env, size }: { env: SlideEnv; size: SlideSize }) {
     );
   }
   return (
-    <div className="mx-auto flex h-full w-full max-w-4xl flex-col justify-center gap-4">
+    <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col justify-center gap-4">
       <p className="text-center font-display text-xl font-semibold uppercase tracking-wide text-muted">
         Riepilogo del {recap.set}° set
       </p>
       <p className="flex flex-wrap items-baseline justify-center gap-x-4 font-display font-bold uppercase">
-        <span className={`text-2xl ${TEXT.home}`}>{teamName(state.teams, 'home')}</span>
+        <span className={`min-w-0 max-w-full break-words text-2xl ${TEXT.home}`}>
+          <BreakableName text={teamName(state.teams, 'home')} />
+        </span>
         <span className="tabular text-5xl text-text">
           {recap.homeScore}-{recap.awayScore}
         </span>
-        <span className={`text-2xl ${TEXT.away}`}>{teamName(state.teams, 'away')}</span>
+        <span className={`min-w-0 max-w-full break-words text-2xl ${TEXT.away}`}>
+          <BreakableName text={teamName(state.teams, 'away')} />
+        </span>
       </p>
       <table className="w-full border-collapse text-base">
         <caption className="sr-only">Statistiche del {recap.set}° set</caption>
@@ -163,19 +168,23 @@ function FinalResultSlide({ env, size }: { env: SlideEnv; size: SlideSize }) {
     );
   }
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
+    <div className="flex min-h-full flex-col items-center justify-center gap-6 text-center">
       <p className="font-display text-xl font-semibold uppercase tracking-wide text-muted">
         {state.status === 'finished' ? 'Risultato finale' : 'Risultato'}
       </p>
       <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 font-display font-bold uppercase">
-        <span className={`text-3xl ${TEXT.home}`}>{teamName(state.teams, 'home')}</span>
+        <span className={`min-w-0 max-w-full break-words text-3xl ${TEXT.home}`}>
+          <BreakableName text={teamName(state.teams, 'home')} />
+        </span>
         <span
           className="tabular text-7xl text-text"
           aria-label={`Set vinti ${state.setsWon.home} a ${state.setsWon.away}`}
         >
           {state.setsWon.home}-{state.setsWon.away}
         </span>
-        <span className={`text-3xl ${TEXT.away}`}>{teamName(state.teams, 'away')}</span>
+        <span className={`min-w-0 max-w-full break-words text-3xl ${TEXT.away}`}>
+          <BreakableName text={teamName(state.teams, 'away')} />
+        </span>
       </div>
       <Partials partials={partials} />
     </div>
@@ -197,7 +206,7 @@ function MvpSlide({ env, size }: { env: SlideEnv; size: SlideSize }) {
     );
   }
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+    <div className="flex min-h-full flex-col items-center justify-center gap-4 text-center">
       <p className="font-display text-xl font-semibold uppercase tracking-wide text-muted">MVP della partita</p>
       <p className="font-display text-5xl font-bold uppercase text-text">
         <span className={`tabular mr-4 ${TEXT[mvp.team]}`}>{mvp.number}</span>
@@ -231,7 +240,7 @@ function SponsorSlide({
   if (!src) return null;
   const alt = images.length > 0 ? `Sponsor ${index + 1} di ${images.length}` : 'Sponsor';
   return (
-    <div className="flex h-full items-center justify-center">
+    <div className="flex min-h-full items-center justify-center">
       <img
         key={src}
         src={src}
@@ -267,7 +276,7 @@ export function renderSlide(slide: IntermissionSlide, env: SlideEnv, size: Slide
       return <MvpSlide env={env} size={size} />;
     case 'setScores':
       return size === 'full' ? (
-        <div className="flex h-full flex-col items-center justify-center gap-4">
+        <div className="flex min-h-full flex-col items-center justify-center gap-4">
           <p className="font-display text-xl font-semibold uppercase tracking-wide text-muted">Parziali dei set</p>
           <Partials partials={setPartials(env.state)} />
         </div>

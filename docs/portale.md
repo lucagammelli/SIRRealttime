@@ -591,6 +591,9 @@ Variabili e comandi di `docker compose` sono in `docs/server.md`; il portale è 
 Screenshot di una pagina con un Chrome headless senza installazione: `chrome-headless-shell` in una cartella temporanea
 (il disco del server è quasi pieno), con le librerie mancanti estratte nella stessa cartella. Il portale deve già
 rispondere all'URL indicato (demo o Docker Compose, sopra).
+Attenzione: con `--virtual-time-budget` Chrome headless non fa avanzare le animazioni CSS, quindi pause e diapositive
+restano ferme ai primi istanti della dissolvenza (sembrano trasparenti). Per controllarle si usa uno screenshot via CDP in
+tempo reale (`--remote-debugging-port`, poi `Page.captureScreenshot` dopo qualche secondo).
 
 ```bash
 # --- variabili ---

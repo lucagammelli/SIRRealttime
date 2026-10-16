@@ -274,9 +274,10 @@ function PauseView({
           ref={banner}
           aria-labelledby={titleId}
           data-intermission="banner"
-          className="sir-flash fixed inset-x-0 bottom-0 z-40 border-t-4 border-accent bg-surface shadow-card"
+          className="fixed inset-x-0 bottom-0 z-40 border-t-4 border-accent bg-surface shadow-card"
         >
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 sm:px-5">
+          {/* Only the content comes in: the band itself is always opaque (never the page through it). */}
+          <div className="sir-flash mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 sm:px-5">
             <h2 id={titleId} className="font-display text-sm font-bold uppercase tracking-wide text-accent">
               {title}
             </h2>
@@ -325,9 +326,12 @@ function PauseView({
       aria-labelledby={titleId}
       data-intermission="fullscreen"
       onKeyDown={trap}
-      className="sir-flash fixed inset-0 z-50 flex flex-col gap-3 border-t-4 border-accent bg-bg p-4 text-text lg:p-6"
+      // Opaque from the first frame, on the whole screen also while the slide scrolls: no entrance animation on the
+      // dialog itself (an opacity animation not run to its end, e.g. a browser that skips frames, left the page
+      // visible under it); only its content comes in.
+      className="fixed inset-0 z-50 flex flex-col gap-3 overflow-hidden border-t-4 border-accent bg-bg p-4 text-text lg:p-6"
     >
-      <header className="flex flex-wrap items-center justify-between gap-3">
+      <header className="sir-flash flex flex-wrap items-center justify-between gap-3">
         <h2 id={titleId} className="font-display text-2xl font-bold uppercase tracking-wide text-accent">
           {title}
         </h2>

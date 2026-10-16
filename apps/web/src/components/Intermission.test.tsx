@@ -150,6 +150,26 @@ describe('Intermission: full screen and banner', () => {
     expect(screen.getByRole('status').textContent).toBe('Fine 1° set');
   });
 
+  it('the full screen pause and the banner are opaque from the first frame: never the page through them', () => {
+    // An opacity animation (sir-flash, sir-fade) on the dialog itself left it see-through while it ran, or for good in a
+    // browser that skips the frames: only its content may come in, the panel always has the opaque page background.
+    const OPACITY_ANIMATIONS = /(^| )(sir-flash|sir-fade|sir-overlay|opacity-\d+|bg-bg\/\d+)( |$)/;
+    setup(setBreak, { device: 'tablet' });
+    const full = dialog();
+    expect(full?.className).toMatch(/(^| )bg-bg( |$)/);
+    expect(full?.className).toMatch(/(^| )fixed( |$)/);
+    expect(full?.className).toMatch(/(^| )inset-0( |$)/);
+    expect(full?.className).not.toMatch(OPACITY_ANIMATIONS);
+    expect(full?.querySelector('header')?.className).toContain('sir-flash');
+    // The slide scrolls inside the dialog, which stays as tall as the screen.
+    const slide = full?.querySelector('.overflow-y-auto');
+    expect(slide?.parentElement).toBe(full);
+    cleanup();
+    setup(setBreak, { device: 'phone' });
+    expect(banner()?.className).toMatch(/(^| )bg-surface( |$)/);
+    expect(banner()?.className).not.toMatch(OPACITY_ANIMATIONS);
+  });
+
   it('time-out: compact banner with the sponsor and the team that called it', () => {
     setup(timeout, {
       device: 'tv',

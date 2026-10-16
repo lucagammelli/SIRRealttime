@@ -169,6 +169,86 @@ clienti**, costruito da `scripts/costruisci-agente.sh` in `AGENT_DOWNLOAD_DIR` i
   Scelta in `docs/decisioni.md`.
 - Nginx (`docker/web.nginx.conf`) ha `proxy_buffering off` solo per questa rotta (`docs/portale.md`).
 
+### Campionati (`apps/server/src/leagues/`, `src/routes/leagues.ts`)
+Il server scarica dai **siti ufficiali** calendario, classifica, squadre e loghi dei campionati. Oggi c'è un solo
+fornitore, la Lega Pallavolo Serie A (`https://www.legavolley.it`, `LeagueProviderSchema` = `legavolley`). I dati sono
+pubblici e **comuni a tutti i clienti** (nessun `tenant_id`): si scaricano una volta sola. Per ora li vede solo il
+superadmin; l'uso nelle pagine dei clienti è nei lavori seguenti (`docs/piano.md`, «Campionati»). Fonte: dati ufficiali
+della Lega; **l'uso dei marchi (loghi) va ancora chiarito con la Lega e i club** (punto aperto).
+
+**Come si aggiunge**: `POST /api/admin/leagues` con `{ provider, externalId, season }`. `externalId` è l'`IdCampionato` del
+sito e **cambia a ogni stagione** (SuperLega 2025/26 = 974, 2026/27 = 999); `season` è il primo anno (2025 = 2025/2026).
+Al primo aggiornamento la pagina scaricata deve mostrare lo stesso `IdCampionato` e la stessa stagione, altrimenti
+l'aggiornamento fallisce con un messaggio che chiede di controllarli.
+
+**Cosa si scarica** (`legavolley.ts`): il calendario (`/calendario/?Anno=<anno>&IdCampionato=N`, con `&IdFase=F&IdSquadra=0`
+per ogni fase), la classifica «fino ad oggi» (`/classifica/`), la pagina di ogni squadra (`/team/N`: palazzetto, indirizzo,
+città) e il logo (`/GetLogo.aspx`, con `Web=1`: con `Web=0` il sito dà un segnaposto 2x2 anche a squadre che un logo
+ce l'hanno). Struttura del sito: una tabella per giornata con colonne `#`, data e ora ufficiale, casa, risultato, ospite,
+arbitri, impianto, note; l'id della squadra è nell'`onclick` (`/team/N`); la classifica ha 18 colonne e nessun id squadra
+(si abbina alle squadre del calendario per nome, senza maiuscole, spazi e accenti: `teamNameKey`). L'id stabile di una
+partita (`fixtures.external_id`) è il **numero ufficiale** (`n<numero>`; senza numero, fase, giornata e squadre).
+
+**Regole di buona educazione e sicurezza** (`legavolley.ts`, `fetcher.ts`):
+
+- gli URL si costruiscono solo da numeri validati (`calendarUrl`, `standingsUrl`, `teamUrl`, `logoUrl`); `rejectedUrlReason`
+  rifiuta ogni altro schema, host, credenziali, frammento, i percorsi vietati da `robots.txt`
+  (`LEGAVOLLEY_ROBOTS_DISALLOWED`, controllato il 2026-10-16) e quelli fuori da `LEGAVOLLEY_ALLOWED_PATHS`;
+- redirect seguiti a mano, al massimo 3 e solo verso URL ammessi;
+- timeout di 15 s (`DOWNLOAD_TIMEOUT_MS`) valido anche per la lettura del corpo; al massimo 2 MB per pagina e 300 KB per
+  logo (`DOWNLOAD_LIMITS`), contati **anche dopo la decompressione**;
+- una richiesta per volta, con almeno 1 s fra due partenze (`MIN_REQUEST_INTERVAL_MS`);
+- `User-Agent` `SIRRealtime/<versione> (+<contatto>)` (`leagueUserAgent`), con contatto `LEAGUE_CONTACT` o, se manca,
+  `PUBLIC_BASE_URL`;
+- richieste condizionate (`ETag` / `Last-Modified` in `league_http_cache`), salvate **solo dopo** la scrittura dei dati: un
+  aggiornamento fallito riscarica tutto;
+- il lettore HTML è nostro (`html.ts`, nessuna libreria): tokenizer, albero costruito con una pila esplicita (nessuna
+  ricorsione) e profondità massima 512, estrazione di tabelle e `select`. I caratteri NUL delle pagine sono tolti alla decodifica
+  (`decodePage`, `fetcher.ts`), perché PostgreSQL non li salva;
+- ora ufficiale italiana convertita in UTC con `Intl` (`romeTime.ts`), ora legale compresa; limiti di sicurezza
+  `MAX_PHASES` 12, `MAX_TEAMS` 64, `MAX_FIXTURES` 2000.
+
+**Aggiornamento di un campionato** (`LeagueService`, `sync.ts`):
+
+1. si prende il **lease** (`leagues.sync_started_at`) con una `UPDATE` condizionata: dura 15 minuti (`SYNC_LEASE_MS`) ed è
+   rinnovato durante l'aggiornamento (al massimo una scrittura al minuto, `LEASE_RENEW_MS`, prima di ogni scrittura e fra una
+   squadra e l'altra) solo finché è ancora nostro; un lease più vecchio è di un processo morto e si riprende. Se un altro
+   processo lo ha ripreso, l'aggiornamento si ferma e **non scrive l'esito**, che spetta a chi ha il lease. Chi non lo
+   ottiene riceve «già in corso»;
+2. si scaricano le fasi del calendario e (sempre, oppure solo se una partita è diventata «giocata») la classifica;
+   **nessuna transazione resta aperta durante i download**;
+3. si scrive tutto in una sola transazione con un **advisory lock** (`pg_advisory_xact_lock`) preso solo qui: partite
+   inserite o aggiornate solo se cambia `content_hash`, partite sparite dalla fase cancellate, classifica sostituita per
+   intero. Una fase che ora risulta **vuota non cancella** le sue partite;
+4. si scaricano pagine squadra e loghi mancanti o più vecchi di 7 giorni (`TEAM_DETAILS_MAX_AGE_MS`). Un errore di una
+   squadra non annulla l'aggiornamento: l'esito è `ok` con messaggio «Aggiornato con avvisi: …» (pagine squadra non lette,
+   loghi non validi o non scaricati, loghi assenti; anche un errore interno nella fase squadre e loghi dà questo esito:
+   calendario e classifica sono già salvati);
+5. l'esito (`lastStatus`, `lastMessage`, `lastSyncAt`, `lastSuccessAt`) si registra sempre e il lease si libera. Un errore di
+   rete o di formato **non perde i dati già salvati**.
+
+**Loghi**: salvati in `ASSETS_DIR/_leagues/<sha256>` (`assetStore.ts`: `writeLeagueLogoFile`, `readLeagueLogoFile`), dopo il
+controllo dei byte con `inspectImage` (PNG, JPEG, WebP, SVG a lista di elementi ammessi); le immagini sotto 16 px per lato
+(`LOGO_MIN_SIDE`) sono il segnaposto del sito e si scartano. Un logo uguale a uno già salvato non si duplica. Il file ha il
+nome del suo hash: la risposta pubblica è `immutable`. I loghi non più usati restano in `team_logos` (limite noto).
+
+**Pianificazione** (`LeagueScheduler`, `scheduler.ts`, spenta con `LEAGUE_SYNC=off`): ogni minuto cerca cosa è dovuto e aggiorna
+un campionato alla volta (`dueSyncs`, pura): ogni notte dopo le 04:00 ora italiana (`NIGHTLY_HOUR`) con la classifica; nei
+giorni con almeno una partita, ogni 10 minuti (`MATCH_DAY_INTERVAL_MS`), con la classifica solo dopo un nuovo risultato.
+
+**Rotte** (solo superadmin, limite admin; vedi «Endpoint»): `GET /api/admin/leagues` (elenco con `sync.running`),
+`POST /api/admin/leagues` (201; 409 se già presente), `GET /api/admin/leagues/:id` (squadre, partite, classifica) e
+`POST /api/admin/leagues/:id/sync` («Aggiorna ora»): risponde **202** e lavora in background (circa 30 s per la
+SuperLega), **409** se un aggiornamento è già in corso, **429** oltre `RATE_LIMIT_LEAGUE_SYNC` al minuto per IP.
+Pubblica: `GET /api/public/team-logos/:id`, `Content-Type` dal database (riconosciuto dai byte al download), `nosniff`,
+`Content-Disposition: inline`, `cache-control` immutabile, e per gli SVG la stessa CSP delle immagini dei clienti.
+
+**Limiti noti**: i parziali dei set non sono nel calendario (`result.sets` è `null`); «rinviata» si riconosce da una parola
+chiave nelle Note; non c'è un nome breve della squadra (`short_name` resta vuoto).
+
+**Prova reale** (2026-10-16, `IdCampionato` 974, 2025/26): 22 giornate, 132 partite, 12 squadre, 12 loghi; Perugia prima con
+58 punti. Le pagine vere usate dai test sono in `apps/server/test/fixtures/legavolley/`.
+
 ### Ingest (`POST /api/ingest`, protocollo 1)
 L'agente invia una richiesta `IngestRequest` (`packages/shared/src/ingest.ts`):
 
@@ -305,6 +385,11 @@ rifiutata dallo schema.
 | DELETE | `/api/admin/assets/:id` | sessione | admin |
 | GET | `/api/admin/agent/info` | sessione | admin |
 | GET | `/api/admin/agent/download` | sessione, limite proprio `RATE_LIMIT_AGENT_DOWNLOAD` | admin |
+| GET | `/api/public/team-logos/:id` | rate limit pubblico (logo di una squadra dei campionati, uguale per tutti i clienti) | - |
+| GET | `/api/admin/leagues` | sessione | superadmin |
+| POST | `/api/admin/leagues` | sessione | superadmin |
+| GET | `/api/admin/leagues/:id` | sessione | superadmin |
+| POST | `/api/admin/leagues/:id/sync` | sessione, limite proprio `RATE_LIMIT_LEAGUE_SYNC` | superadmin |
 | GET | `/api/admin/matches` | sessione | viewer |
 | GET | `/api/admin/matches/:id` | sessione | viewer |
 | POST | `/api/admin/agents` | sessione | admin |
@@ -369,7 +454,8 @@ ping, disconnette chi non ha risposto al precedente e chiude i client con creden
 ### Rate limit
 Per indirizzo IP e per minuto. Default (`DEFAULT_RATE_LIMITS`, `apps/server/src/context.ts`), modificabili con le variabili
 `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_PUBLIC_WS`, `RATE_LIMIT_PUBLIC_INVALID`,
-`RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`, `RATE_LIMIT_AGENT_DOWNLOAD` (download dell'agente, 10): login 10, ingest 600, `GET /api/public/:token/state` 6000, apertura di
+`RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`, `RATE_LIMIT_AGENT_DOWNLOAD` (download dell'agente, 10),
+`RATE_LIMIT_LEAGUE_SYNC` («Aggiorna ora» di un campionato, 6): login 10, ingest 600, `GET /api/public/:token/state` 6000, apertura di
 `/ws/public/:token` 6000, rotte admin 300 (incluse `/api/auth/logout`, `/api/auth/me`, `/ws/admin`), creazione di una
 registrazione agente 10 (la rotta `/status` usa il limite dell'ingest, perché l'agente interroga ogni 5 s). Oltre il
 limite: 429.
@@ -439,8 +525,11 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `ASSETS_QUOTA_MB` | `50` | spazio massimo delle immagini di ogni cliente, in MB (intero da 1 a 1000); oltre, 409 |
 | `RATE_LIMIT_AGENT_DOWNLOAD` | `10` | richieste al minuto per IP su `GET /api/admin/agent/download` (intero da 1 a 100000) |
 | `AGENT_DOWNLOAD_DIR` | `data/downloads` (container: `/data/downloads`) | cartella con `sir-agent.exe` e `sir-agent.json` (da `scripts/costruisci-agente.sh`); relativa alla cartella di avvio; vuota: il portale dice che l'agente non è pubblicato |
+| `RATE_LIMIT_LEAGUE_SYNC` | `6` | «Aggiorna ora» dei campionati al minuto per IP su `POST /api/admin/leagues/:id/sync` (intero da 1 a 100000) |
+| `LEAGUE_SYNC` | `on` | `on`/`off`: aggiornamento automatico dei campionati (notte e giorni di partita). `off` in sviluppo, nei test e nelle scansioni DAST: resta il pulsante «Aggiorna ora» |
+| `LEAGUE_CONTACT` | `PUBLIC_BASE_URL` | contatto scritto nello `User-Agent` delle richieste a legavolley.it (ASCII stampabile, al massimo 200 caratteri) |
 
-Le nove `RATE_LIMIT_*`, le due `WS_MAX_*` e `SHARE_CODE_SECRET` sono anche in `.env.example` e `docker-compose.yml`
+Le dieci `RATE_LIMIT_*`, le due `WS_MAX_*` e `SHARE_CODE_SECRET` sono anche in `.env.example` e `docker-compose.yml`
 (nel compose `SHARE_CODE_SECRET` è `${SHARE_CODE_SECRET:?…}`: senza la variabile nel `.env` ogni comando `docker compose`
 fallisce).
 
@@ -466,6 +555,12 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `agents` | `tenant_id`, `name`, `token_hash`, `revoked`, `last_seen_at` |
 | `matches` | `tenant_id`, `match_key` (unica per `tenant_id` + `match_key`), `header`, `line_count`, `content_hash`, `last_seq`, `agent_id`, `live` (una per cliente), `state` (jsonb), `version` |
 | `scout_lines` | `match_id`, `idx`, `text` (chiave primaria `match_id` + `idx`) |
+| `leagues` | **comune a tutti i clienti** (migrazione `0005_leagues.sql`): `provider`, `external_id` (`IdCampionato`; unico con `provider`), `season`, `name`, `phases` (jsonb), `last_sync_at`, `last_success_at`, `last_status` (`never`/`ok`/`error`), `last_message`, `sync_started_at` (lease) |
+| `league_teams` | `league_id`, `external_id` (unico per campionato), `name`, `short_name`, `city`, `venue`, `venue_address`, `logo_id`, `details_fetched_at`, `logo_fetched_at` |
+| `fixtures` | `league_id`, `external_id` (`n<numero ufficiale>`; unico per campionato), `number`, fase, giornata, `starts_at` (UTC), `home_team_id`, `away_team_id`, impianto, `status` (`scheduled`/`played`/`postponed`), `home_sets`, `away_sets`, `set_scores`, `provider_match_id`, `note`, `content_hash` |
+| `standings` | chiave `league_id` + `position`: `team_id` (nullo se il nome non è nel calendario), `team_name`, punti, partite, set e punti fatti e subiti, quozienti, `by_result` |
+| `team_logos` | `sha256` (unico), `mime`, `width`, `height`, `bytes`: il file è `ASSETS_DIR/_leagues/<sha256>` |
+| `league_http_cache` | `url` (chiave), `etag`, `last_modified` |
 | `share_tokens` | `tenant_id`, `token_hash`, `match_id` (null: segue la live), `label`, `expires_at`, `revoked`, `short_code_hash` (unica, null finché non assegnato), `short_code_salt` (migrazione `0004_short_codes.sql`) |
 | `assets` | `tenant_id`, `kind` (enum `asset_kind`: `logo`/`sponsor`), `sha256`, `mime`, `width`, `height`, `bytes`, `created_at`; indice univoco `assets_tenant_sha256_kind_idx` su cliente + `sha256` + `kind` (migrazione `0003_assets.sql`) |
 | `agent_registrations` | `tenant_id`, `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at` (migrazione `0001_agent_registrations.sql`) |
@@ -563,7 +658,8 @@ Il token agente va nell'intestazione `Authorization: Bearer <token>` di `POST /a
 | `pnpm --filter @sir/server test` | `vitest run` con PGlite in memoria, non serve Postgres |
 | `pnpm --filter @sir/server db:generate` | `drizzle-kit generate` dopo una modifica a `schema.ts` |
 
-I test (`apps/server/test/`: `auth`, `config`, `hub`, `ingest`, `limits`, `migration`, `public`, `registration`, `shortCodes`, `tenants`) usano PGlite. Per la configurazione
+I test (`apps/server/test/`: `auth`, `config`, `hub`, `ingest`, `limits`, `migration`, `public`, `registration`, `shortCodes`, `tenants`, `leagues`, `leaguesHtml`, `leagueFetcher`, `legavolley`) usano PGlite; i campionati non scaricano
+nulla: i test di `legavolley` leggono le pagine vere salvate in `apps/server/test/fixtures/legavolley/`. Per la configurazione
 di vitest vedi `docs/infrastruttura.md`.
 
 ### Docker Compose
@@ -640,7 +736,8 @@ API_KEY="<chiave API>"                   # chiave API StackHawk dell'organizzazi
 # cd "$RADICE/apps/server" && DATABASE_URL="pglite:memory" COOKIE_SECURE="false" \
 #   ADMIN_EMAIL="$ADMIN_EMAIL_SCAN" ADMIN_PASSWORD="$ADMIN_PASSWORD_SCAN" CORS_ORIGIN="http://localhost:5173" \
 #   RATE_LIMIT_LOGIN=100000 RATE_LIMIT_ADMIN=100000 RATE_LIMIT_PUBLIC=100000 RATE_LIMIT_INGEST=100000 \
-#   RATE_LIMIT_REGISTER=100000 RATE_LIMIT_PUBLIC_WS=100000 RATE_LIMIT_PUBLIC_INVALID=100000 pnpm dev
+#   RATE_LIMIT_REGISTER=100000 RATE_LIMIT_PUBLIC_WS=100000 RATE_LIMIT_PUBLIC_INVALID=100000 \
+#   RATE_LIMIT_LEAGUE_SYNC=100000 LEAGUE_SYNC=off pnpm dev   # LEAGUE_SYNC=off: la scansione non scarica da legavolley.it
 
 # --- comandi ---
 cd "$RADICE"
@@ -687,6 +784,11 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
 - Agente scaricabile: `src/routes/agentDownload.ts` (`agentDownloadRoutes`, `readmeText`), `src/agentRelease.ts`
   (`AgentReleaseStore`), `src/lib/zip.ts` (`zipStream`, `fileCrc32`), `packages/shared/src/agentDownload.ts`, test
   `apps/server/test/agentDownload.test.ts`; script `scripts/costruisci-agente.sh`; pagina in `docs/portale.md`
+- Campionati: `src/leagues/` (`html.ts` lettore HTML, `romeTime.ts` ora italiana, `legavolley.ts` URL e parser
+  `parseCalendar`/`parseStandings`/`parseTeam`, `fetcher.ts` `LeagueFetcher`, `sync.ts` `LeagueService`, `scheduler.ts`
+  `LeagueScheduler`/`dueSyncs`), `src/routes/leagues.ts` (`leagueRoutes`, `leaguePublicRoutes`), `src/assetStore.ts`
+  (loghi), `src/db/schema.ts`, `drizzle/0005_leagues.sql`, `packages/shared/src/leagues.ts`; test
+  `apps/server/test/leagues.test.ts`, `leaguesHtml.test.ts`, `leagueFetcher.test.ts`, `legavolley.test.ts`
 - Link brevi: `src/lib/shortCode.ts` (`deriveShortCode`, `shortCodeLookupHash`), `src/shareCodes.ts` (`insertShareToken`,
   `ensureShortCode`, `syncShortCodes`, `currentShortCode`), `src/lib/failureLimiter.ts` (`hasRecent`),
   `packages/shared/src/admin.ts` (`ShortCodeSchema`, `normalizeShortCode`, `formatShortCode`, `ShareTokenParamSchema`),

@@ -9,6 +9,7 @@ import type { IngestRequest } from '@sir/shared';
 import { DEFAULT_TENANT_SLUG, diffScoutLines, hashScoutLines, splitDvwText } from '@sir/shared';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
+import type { AppOptions } from '../src/app.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import type { RateLimits } from '../src/context.js';
@@ -43,6 +44,7 @@ export interface TestServer {
 export async function startServer(
   rateLimits: Partial<RateLimits> = {},
   env: Record<string, string> = {},
+  appOptions: Pick<AppOptions, 'leagueFetcher'> = {},
 ): Promise<TestServer> {
   const database = createPgliteDatabase();
   await database.migrate();
@@ -55,6 +57,7 @@ export async function startServer(
     COOKIE_SECURE: 'false',
     LOG_LEVEL: 'silent',
     ASSETS_DIR: assetsDir,
+    LEAGUE_SYNC: 'off',
     ...env,
   });
   let now: Date | null = null;
@@ -72,9 +75,16 @@ export async function startServer(
       register: 10_000,
       shortCodeInvalidTotal: 10_000,
       agentDownload: 10_000,
+      leagueSync: 10_000,
       ...rateLimits,
     },
     now: () => now ?? new Date(),
+    // No request ever leaves a test: without a fake fetch the league sites are unreachable.
+    leagueFetcher: {
+      fetch: () => Promise.reject(new Error('no network in tests')),
+      minIntervalMs: 0,
+      ...appOptions.leagueFetcher,
+    },
   });
   const [tenant] = await database.db
     .select({ id: tenants.id })

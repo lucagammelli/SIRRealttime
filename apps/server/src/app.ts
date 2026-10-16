@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import fastifyCookie from '@fastify/cookie';
 import fastifyCors from '@fastify/cors';
 import fastifyHelmet from '@fastify/helmet';
@@ -14,6 +15,10 @@ import { IngestService } from './ingest.js';
 import { HttpError } from './lib/errors.js';
 import { FailureLimiter } from './lib/failureLimiter.js';
 import { ResyncScheduler } from './lib/resync.js';
+import type { LeagueFetcherOptions } from './leagues/fetcher.js';
+import { LeagueFetcher, leagueUserAgent } from './leagues/fetcher.js';
+import { LeagueScheduler } from './leagues/scheduler.js';
+import { LeagueService } from './leagues/sync.js';
 import { TtlCache } from './lib/ttlCache.js';
 import { adminRoutes } from './routes/admin.js';
 import { agentDownloadRoutes } from './routes/agentDownload.js';
@@ -21,6 +26,7 @@ import { authRoutes } from './routes/auth.js';
 import { brandingAdminRoutes, brandingPublicRoutes } from './routes/branding.js';
 import { healthRoutes } from './routes/health.js';
 import { ingestRoutes } from './routes/ingest.js';
+import { leaguePublicRoutes, leagueRoutes } from './routes/leagues.js';
 import { publicRoutes } from './routes/public.js';
 import { registrationRoutes } from './routes/registration.js';
 import { tenantRoutes } from './routes/tenants.js';
@@ -34,6 +40,8 @@ export interface AppOptions {
   rateLimits?: Partial<RateLimits>;
   socketLimits?: Partial<SocketLimits>;
   now?: () => Date;
+  /** Downloads from the league sites (tests: fake fetch, no pacing). */
+  leagueFetcher?: Partial<Omit<LeagueFetcherOptions, 'userAgent'>>;
 }
 
 type LoggerOption = Exclude<FastifyServerOptions['logger'], undefined>;
@@ -44,9 +52,21 @@ const WS_MAX_PAYLOAD = 4 * 1024;
 /** Hostnames and share tokens kept in the lookup caches (the oldest go first). */
 const LOOKUP_CACHE_ENTRIES = 10_000;
 
+/** Version of the server package (in the User-Agent of the downloads from the league sites). */
+function serverVersion(): string {
+  try {
+    const pkg: unknown = createRequire(import.meta.url)('../package.json');
+    return typeof pkg === 'object' && pkg !== null && 'version' in pkg && typeof pkg.version === 'string'
+      ? pkg.version
+      : '0';
+  } catch {
+    return '0';
+  }
+}
+
 /** Share tokens appear in public paths: they are masked in the logs (not the graphics routes of the client). */
 export function redactUrl(url: string): string {
-  if (/^\/api\/public\/(?:tenant(?:[?#]|$)|assets\/)/.test(url)) return url;
+  if (/^\/api\/public\/(?:tenant(?:[?#]|$)|assets\/|team-logos\/)/.test(url)) return url;
   return url.replace(/^\/(api|ws)\/public\/[^/?#]+/, '/$1/public/[token]');
 }
 
@@ -96,6 +116,16 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const now = options.now ?? (() => new Date());
   const rateLimits = { ...config.rateLimits, ...options.rateLimits };
   const hub = new LiveHub(now);
+  const leagues = new LeagueService({
+    db,
+    fetcher: new LeagueFetcher({
+      userAgent: leagueUserAgent(serverVersion(), config.leagueContact),
+      ...options.leagueFetcher,
+    }),
+    assetsDir: config.assetsDir,
+    now,
+    log: app.log,
+  });
   const ctx: AppContext = {
     config,
     db,
@@ -111,6 +141,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     publicFailures: new FailureLimiter(rateLimits.publicInvalid, 60_000, now),
     shortCodeFailures: new FailureLimiter(rateLimits.shortCodeInvalidTotal, 60_000, now),
     resync: new ResyncScheduler(now),
+    leagues,
     now,
   };
 
@@ -149,6 +180,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   healthRoutes(app, ctx);
   ingestRoutes(app, ctx);
   brandingPublicRoutes(app, ctx);
+  leaguePublicRoutes(app, ctx);
   publicRoutes(app, ctx);
   registrationRoutes(app, ctx);
   // Checks with a cost or a rejection go in preParsing/preValidation/preHandler: the rate limit of a route is an
@@ -160,9 +192,21 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     tenantRoutes(scope, ctx);
     brandingAdminRoutes(scope, ctx);
     agentDownloadRoutes(scope, ctx);
+    leagueRoutes(scope, ctx);
     done();
   });
 
-  app.addHook('onClose', () => ctx.hub.closeAll());
+  // Automatic updates of the championships only when the server is ready (LEAGUE_SYNC=off: never).
+  const scheduler = config.leagueSync ? new LeagueScheduler({ db, leagues, now, log: app.log }) : null;
+  app.addHook('onReady', (done) => {
+    scheduler?.start();
+    done();
+  });
+  app.addHook('onClose', async () => {
+    ctx.hub.closeAll();
+    leagues.close();
+    await scheduler?.stop();
+    await leagues.idle();
+  });
   return app;
 }

@@ -197,3 +197,20 @@ Una riga per decisione: data, scelta, motivo.
   server è quasi pieno (`docs/portale.md`, «Verifica visiva»).
 - 2026-10-16: la pausa «ogni N punti» è attiva di default per tutti i clienti (richiesta di Luca) e si spegne da
   «Pause e sponsor» (`docs/portale.md`).
+- 2026-10-16: i campionati si scaricano solo dai siti ufficiali (oggi `www.legavolley.it`), con host, percorsi e
+  `robots.txt` controllati prima di ogni richiesta, e senza librerie di scraping (richiesta di Luca), perché i dati sono
+  della Lega e il server deve comportarsi da client educato (`docs/server.md`, «Campionati»).
+- 2026-10-16: lettore HTML nostro (`apps/server/src/leagues/html.ts`: tokenizer, pila esplicita, profondità 512) invece di
+  una libreria, perché serve solo leggere tabelle e `select`, nessuna dipendenza in più e nessuna ricorsione su pagine
+  ostili (`docs/server.md`).
+- 2026-10-16: tabelle dei campionati (`leagues`, `league_teams`, `fixtures`, `standings`, `team_logos`) comuni a tutti i
+  clienti, senza `tenant_id`, perché i dati sono pubblici e si scaricano una volta sola invece che una per cliente
+  (`docs/server.md`, `docs/architettura.md`).
+- 2026-10-16: aggiornamento con lease (`sync_started_at`, 15 minuti) e advisory lock solo nella scrittura, perché nessuna
+  transazione deve restare aperta durante i download (lenti, anche 1 s fra una richiesta e l'altra) e due processi non
+  devono aggiornare lo stesso campionato insieme (`docs/server.md`).
+- 2026-10-16: id della partita = numero ufficiale (`n<numero>`), perché è stabile anche se cambiano data, ora o squadre di
+  una partita rinviata (`docs/server.md`).
+- 2026-10-16: loghi delle squadre in cache con nome sha256, sostituibili (riscaricati dopo 7 giorni), perché il sito può
+  cambiarli; limite noto: quelli non più usati restano in `team_logos`. L'uso dei marchi va chiarito con Lega e club
+  (`docs/server.md`).

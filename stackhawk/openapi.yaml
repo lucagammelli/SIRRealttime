@@ -115,6 +115,22 @@ paths:
       responses:
         '200': { description: file dell'immagine (PNG, JPEG, WebP o SVG) }
         '404': { description: immagine inesistente o di un altro cliente }
+  /api/public/team-logos/{id}:
+    get:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
+      responses:
+        '200':
+          {
+            description: logo di una squadra scaricato dal sito della Lega (PNG,
+            JPEG,
+            WebP o SVG),
+            comune a tutti i clienti,
+          }
+        '404': { description: logo inesistente }
   /api/admin/matches:
     get:
       responses:
@@ -461,6 +477,63 @@ paths:
         '204': { description: eliminata }
         '404': { description: non trovata }
         '409': { description: 'in uso nella grafica, nella pagina pubblica o nelle pause' }
+  /api/admin/leagues:
+    get:
+      responses:
+        '200': { description: campionati scaricati con lo stato dell'ultimo aggiornamento (solo superadmin) }
+        '403': { description: non superadmin }
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, externalId, season]
+              additionalProperties: false
+              properties:
+                provider: { type: string, enum: [legavolley], example: legavolley }
+                externalId:
+                  {
+                    type: integer,
+                    minimum: 1,
+                    maximum: 99999999,
+                    description: IdCampionato di legavolley.it,
+                    example: 974,
+                  }
+                season:
+                  { type: integer, minimum: 1945, maximum: 2100, description: primo anno della stagione, example: 2025 }
+      responses:
+        '201': { description: campionato aggiunto (dati scaricati con «Aggiorna ora» o di notte) }
+        '400': { description: dati non validi }
+        '409': { description: campionato già presente }
+  /api/admin/leagues/{id}:
+    get:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
+      responses:
+        '200': { description: squadre, calendario e classifica del campionato }
+        '404': { description: non trovato }
+  /api/admin/leagues/{id}/sync:
+    post:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, example: {} }
+      responses:
+        '202': { description: aggiornamento avviato in background (scarica da www.legavolley.it) }
+        '404': { description: non trovato }
+        '409': { description: aggiornamento già in corso }
+        '429': { description: troppi aggiornamenti al minuto }
 components:
   schemas:
     LayoutBlocks:

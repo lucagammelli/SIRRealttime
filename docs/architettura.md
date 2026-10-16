@@ -223,6 +223,16 @@ mai un token; `allowHttpPrivateNetwork` solo per `http` verso IPv4 privato), `ag
 `AGENT_LOGO_FILES`, `AGENT_LOGO_MAX_BYTES` (2 MB), `AGENT_LOGO_MAX_SIDE` (1024). `isPrivateIPv4` è qui (era nell'agente), perché la
 usano sia l'agente sia lo zip. Server in `docs/server.md`, finestra in `docs/agente.md`, pagina in `docs/portale.md`.
 
+Campionati (`leagues.ts`, dati pubblici scaricati dai siti ufficiali, **comuni a tutti i clienti**): `LeagueProviderSchema`
+(oggi solo `legavolley`), `LeagueExternalIdSchema` (intero positivo fino a `LEAGUE_MAX_EXTERNAL_ID` 99.999.999),
+`LeagueSeasonSchema` (primo anno, 1945-2100), `seasonLabel` (`2025` → `2025/2026`), `CreateLeagueRequestSchema` (strict:
+`provider`, `externalId`, `season`; per `legavolley` l'`externalId` è l'`IdCampionato`, diverso a ogni stagione),
+`LeagueSyncStateSchema` (`status` `never`/`ok`/`error`, `message`, `at`, `lastSuccessAt`, `running`), `LeagueSummarySchema`
+con `LeaguePhaseSchema`, `LeagueListResponseSchema`, `LeagueTeamSchema` (con `logoUrl`), `LeagueFixtureSchema`
+(`FixtureStatusSchema` `scheduled`/`played`/`postponed`, `FixtureResultSchema` con `sets` nullo se il fornitore non dà i
+parziali, `FixtureTeamRefSchema`), `StandingRowSchema`, `LeagueDetailResponseSchema` e `publicTeamLogoPath`
+(`/api/public/team-logos/<id>`). Rotte e scaricamento in `docs/server.md` («Campionati»); test `packages/shared/src/leagues.test.ts`.
+
 Ogni schema ha il tipo omonimo senza `Schema` (`z.infer`). Dettagli d'uso: `docs/server.md`.
 
 ### Regole
@@ -248,7 +258,7 @@ pnpm --filter @sir/server test      # il flusso completo agente→server→WebSo
 ```
 
 ## Riferimenti
-- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `index.ts`
+- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `leagues.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
 - `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`, `apps/web/src/App.tsx`
 - `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/portale.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,

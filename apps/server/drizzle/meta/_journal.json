@@ -36,6 +36,13 @@
       "when": 1792101262437,
       "tag": "0004_short_codes",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792156562442,
+      "tag": "0005_leagues",
+      "breakpoints": true
     }
   ]
 }

@@ -13,3 +13,5 @@ docs/
 .claude/
 # Partita d’esempio dell’editor della pagina pubblica, generata (pnpm --filter @sir/web sample-match).
 apps/web/src/blocks/sampleMatch.json
+# Pagine vere dei siti dei campionati (HTML malformato di proposito): restano come scaricate.
+apps/server/test/fixtures/

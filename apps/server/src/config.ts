@@ -56,6 +56,13 @@ const EnvSchema = z
     AGENT_DOWNLOAD_DIR: z.string().min(1).default('data/downloads'),
     RATE_LIMIT_SHORT_CODE_INVALID: perMinute(DEFAULT_RATE_LIMITS.shortCodeInvalidTotal),
     RATE_LIMIT_AGENT_DOWNLOAD: perMinute(DEFAULT_RATE_LIMITS.agentDownload),
+    RATE_LIMIT_LEAGUE_SYNC: perMinute(DEFAULT_RATE_LIMITS.leagueSync),
+    LEAGUE_SYNC: z.enum(['on', 'off']).default('on'),
+    LEAGUE_CONTACT: z
+      .string()
+      .max(200)
+      .regex(/^[\x20-\x7e]*$/)
+      .optional(),
     SHARE_CODE_SECRET: z.string().min(SHARE_CODE_SECRET_MIN_LENGTH).max(1024).optional(),
     NODE_ENV: z.string().optional(),
   })
@@ -100,6 +107,13 @@ export interface Config {
   shareCodeSecret: string;
   /** True when shareCodeSecret is DEV_SHARE_CODE_SECRET (SHARE_CODE_SECRET not set, not production). */
   shareCodeSecretIsDefault: boolean;
+  /**
+   * Automatic updates of the championships (night and match days); false (`LEAGUE_SYNC=off`, tests and development):
+   * only «Aggiorna ora» of the admin area.
+   */
+  leagueSync: boolean;
+  /** Contact in the User-Agent of the downloads from the league sites (default: PUBLIC_BASE_URL). */
+  leagueContact: string;
 }
 
 export class ConfigError extends Error {
@@ -140,6 +154,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       register: e.RATE_LIMIT_REGISTER,
       shortCodeInvalidTotal: e.RATE_LIMIT_SHORT_CODE_INVALID,
       agentDownload: e.RATE_LIMIT_AGENT_DOWNLOAD,
+      leagueSync: e.RATE_LIMIT_LEAGUE_SYNC,
     },
     socketLimits: { perIp: e.WS_MAX_PER_IP, total: e.WS_MAX_TOTAL },
     defaultTenantSlug: noDefaultTenant ? null : e.DEFAULT_TENANT_SLUG,
@@ -148,5 +163,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     agentDownloadDir: resolve(e.AGENT_DOWNLOAD_DIR),
     shareCodeSecret: e.SHARE_CODE_SECRET ?? DEV_SHARE_CODE_SECRET,
     shareCodeSecretIsDefault: e.SHARE_CODE_SECRET === undefined,
+    leagueSync: e.LEAGUE_SYNC === 'on',
+    leagueContact: e.LEAGUE_CONTACT?.trim() || e.PUBLIC_BASE_URL,
   };
 }

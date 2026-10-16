@@ -62,6 +62,10 @@ services:
       ASSETS_QUOTA_MB: ${ASSETS_QUOTA_MB:-50}
       # Agente per Windows offerto dal portale (sir-agent.exe e sir-agent.json di scripts/costruisci-agente.sh).
       AGENT_DOWNLOAD_DIR: /data/downloads
+      # Campionati scaricati da www.legavolley.it (on: ogni notte e nei giorni di gara; off: solo «Aggiorna ora»).
+      LEAGUE_SYNC: ${LEAGUE_SYNC:-on}
+      LEAGUE_CONTACT: ${LEAGUE_CONTACT:-}
+      RATE_LIMIT_LEAGUE_SYNC: ${RATE_LIMIT_LEAGUE_SYNC:-6}
     volumes:
       - assets:/data/assets
       # Sola lettura: la scrive solo scripts/costruisci-agente.sh sull'host (USCITA = AGENT_DOWNLOAD_HOST_DIR).

@@ -53,11 +53,11 @@ const UPLOAD_BODY_LIMIT = ASSET_MAX_BASE64_LENGTH + 1024;
  */
 const ASSET_LOCK_KEY = 0x53494153;
 /** The id of an image changes when its file changes: the file can stay in any cache for a year. */
-const IMMUTABLE = 'public, max-age=31536000, immutable';
+export const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable';
 /** The graphics of a client change rarely and the server cache lasts 30 s as well. */
 const TENANT_CACHE = 'public, max-age=30';
 /** An SVG opened directly (not through <img>) runs nothing and loads nothing. */
-const SVG_CSP = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
+export const SVG_CSP = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
 
 const RawDataSchema = z.object({ data: z.string() });
 const tooLarge = (): HttpError => new HttpError(413, 'TOO_LARGE', 'Immagine troppo grande (massimo 2 MB)');
@@ -154,7 +154,7 @@ export function brandingPublicRoutes(app: FastifyInstance, ctx: AppContext): voi
       .header('content-type', mime.data === 'image/svg+xml' ? 'image/svg+xml; charset=utf-8' : mime.data)
       .header('x-content-type-options', 'nosniff')
       .header('content-disposition', 'inline')
-      .header('cache-control', IMMUTABLE);
+      .header('cache-control', IMMUTABLE_CACHE);
     if (mime.data === 'image/svg+xml') void reply.header('content-security-policy', SVG_CSP);
     return reply.send(file);
   });

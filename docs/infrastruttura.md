@@ -105,6 +105,10 @@ binario della piattaforma come dipendenza opzionale.
 - Volume `downloads` (o cartella dell'host `AGENT_DOWNLOAD_HOST_DIR`): montato **in sola lettura** su `/data/downloads` nel
   servizio `server`, con `AGENT_DOWNLOAD_DIR=/data/downloads`. Lo riempie solo `scripts/costruisci-agente.sh` (sotto);
   vuoto, il portale dice che l'agente non è pubblicato. Il server non lo scrive mai.
+- Campionati: il servizio `server` di `docker-compose.yml` passa `LEAGUE_SYNC` (default `on`), `LEAGUE_CONTACT` (vuoto: il
+  server usa `PUBLIC_BASE_URL`) e `RATE_LIMIT_LEAGUE_SYNC` (6). Il server **esce in https** verso `www.legavolley.it`
+  (l'unico host ammesso): in una rete con uscita filtrata va consentito. I loghi scaricati stanno in `_leagues` dentro il
+  volume `assets` (`ASSETS_DIR`): il backup del volume li comprende. Descrizione in `docs/server.md` («Campionati»).
 - `.dockerignore`: esclude dal contesto `node_modules`, `dist`, `coverage`, log, `.git`, `.env` e `.env.*` (tranne
   `.env.example`), `.claude`, `docs` e `samples`.
 - Provato il 2026-10-14: `docker compose -p sirrealtime up -d --build` con `.env` da `.env.example`: `postgres`, `server`
@@ -122,7 +126,7 @@ rilascio e l'altro. Il bundle principale è di circa 132 KB gzip. Le altre dipen
   `SESSION_TTL_HOURS`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `PUBLIC_BASE_URL`, `LOG_LEVEL`, `TRUST_PROXY`,
   `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_PUBLIC_WS`, `RATE_LIMIT_PUBLIC_INVALID`, `RATE_LIMIT_SHORT_CODE_INVALID`, `RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`, `SHARE_CODE_SECRET`,
   `RATE_LIMIT_AGENT_DOWNLOAD`, `WS_MAX_PER_IP`, `WS_MAX_TOTAL`, `MATCH_MAX_LINES`, `DEFAULT_TENANT_SLUG`, `ASSETS_DIR`,
-  `ASSETS_QUOTA_MB`, `AGENT_DOWNLOAD_DIR`) e quelle di Docker Compose (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
+  `ASSETS_QUOTA_MB`, `AGENT_DOWNLOAD_DIR`, `RATE_LIMIT_LEAGUE_SYNC`, `LEAGUE_SYNC`, `LEAGUE_CONTACT`) e quelle di Docker Compose (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
   `SERVER_BIND`, `WEB_BIND`, `WEB_PORT`, `AGENT_DOWNLOAD_HOST_DIR`).
   Descrizione e default in `docs/server.md`. Il file `.env` vero non va mai nel repository.
 - `DEFAULT_TENANT_SLUG` (cliente degli hostname sconosciuti, default `predefinito`) è commentata in `.env.example` e

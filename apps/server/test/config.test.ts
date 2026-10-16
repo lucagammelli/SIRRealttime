@@ -24,9 +24,19 @@ describe('loadConfig', () => {
         register: 10,
         shortCodeInvalidTotal: 1000,
         agentDownload: 10,
+        leagueSync: 6,
       },
       socketLimits: { perIp: 2000, total: 6000 },
+      leagueSync: true,
+      leagueContact: 'http://localhost:5173',
     });
+  });
+
+  it('reads the switch and the contact of the championship updates', () => {
+    const c = loadConfig({ DATABASE_URL: 'x', LEAGUE_SYNC: 'off', LEAGUE_CONTACT: 'info@club.example.org' });
+    expect(c).toMatchObject({ leagueSync: false, leagueContact: 'info@club.example.org' });
+    expect(() => loadConfig({ DATABASE_URL: 'x', LEAGUE_SYNC: 'no' })).toThrow(/LEAGUE_SYNC/);
+    expect(() => loadConfig({ DATABASE_URL: 'x', LEAGUE_CONTACT: 'a\nb' })).toThrow(/LEAGUE_CONTACT/);
   });
 
   it('reads the folder and the quota of the images', () => {
@@ -57,6 +67,7 @@ describe('loadConfig', () => {
       RATE_LIMIT_PUBLIC_INVALID: '30',
       RATE_LIMIT_SHORT_CODE_INVALID: '500',
       RATE_LIMIT_AGENT_DOWNLOAD: '3',
+      RATE_LIMIT_LEAGUE_SYNC: '2',
     });
     expect(c.rateLimits).toEqual({
       login: 5,
@@ -68,6 +79,7 @@ describe('loadConfig', () => {
       register: 20,
       shortCodeInvalidTotal: 500,
       agentDownload: 3,
+      leagueSync: 2,
     });
     for (const value of ['0', '-1', '1.5', 'abc', '100001']) {
       expect(() => loadConfig({ DATABASE_URL: 'x', RATE_LIMIT_LOGIN: value })).toThrow(/RATE_LIMIT_LOGIN/);
@@ -150,6 +162,9 @@ describe('redactUrl', () => {
 
   it('keeps the graphics routes of the client readable', () => {
     expect(redactUrl('/api/public/tenant')).toBe('/api/public/tenant');
+    expect(redactUrl('/api/public/team-logos/00000000-0000-4000-8000-000000000000')).toBe(
+      '/api/public/team-logos/00000000-0000-4000-8000-000000000000',
+    );
     expect(redactUrl('/api/public/assets/00000000-0000-4000-8000-000000000000')).toBe(
       '/api/public/assets/00000000-0000-4000-8000-000000000000',
     );

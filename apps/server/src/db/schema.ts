@@ -1,3 +1,4 @@
+import type { LeaguePhase, SetScore } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
 import { sql } from 'drizzle-orm';
 import {
@@ -10,6 +11,7 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -228,6 +230,150 @@ export const assets = pgTable(
   (t) => [uniqueIndex('assets_tenant_sha256_kind_idx').on(t.tenantId, t.sha256, t.kind)],
 );
 
+// --- Championships (common to every client: public data of the official sites) ---------------------------------
+
+export const leagueProvider = pgEnum('league_provider', ['legavolley']);
+export const leagueSyncStatus = pgEnum('league_sync_status', ['never', 'ok', 'error']);
+export const fixtureStatus = pgEnum('fixture_status', ['scheduled', 'played', 'postponed']);
+
+/** Championships downloaded from a provider (on legavolley.it `external_id` is the `IdCampionato`, one per season). */
+export const leagues = pgTable(
+  'leagues',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    provider: leagueProvider('provider').notNull(),
+    externalId: integer('external_id').notNull(),
+    /** First year of the season (2025 = 2025/2026). */
+    season: integer('season').notNull(),
+    /** Official name, null until the first good update. */
+    name: text('name'),
+    phases: jsonb('phases')
+      .$type<LeaguePhase[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    /** Last attempt and last good update; status and message of the last attempt (the data stay the good ones). */
+    lastSyncAt: timestamp('last_sync_at', { withTimezone: true }),
+    lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
+    lastStatus: leagueSyncStatus('last_status').notNull().default('never'),
+    lastMessage: text('last_message'),
+    /** Lease of the running update (null: none); an old lease (crashed process) is taken over. */
+    syncStartedAt: timestamp('sync_started_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('leagues_provider_external_idx').on(t.provider, t.externalId)],
+);
+
+/** Downloaded team logos, checked by `inspectImage`; the file is `<ASSETS_DIR>/_leagues/<sha256>`. */
+export const teamLogos = pgTable('team_logos', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sha256: text('sha256').notNull().unique(),
+  mime: text('mime').notNull(),
+  width: integer('width').notNull(),
+  height: integer('height').notNull(),
+  bytes: integer('bytes').notNull(),
+  downloadedAt: timestamp('downloaded_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+const leagueId = () =>
+  uuid('league_id')
+    .notNull()
+    .references(() => leagues.id, { onDelete: 'cascade' });
+
+export const leagueTeams = pgTable(
+  'league_teams',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    leagueId: leagueId(),
+    /** Id of the team on the provider (on legavolley.it one per season). */
+    externalId: integer('external_id').notNull(),
+    name: text('name').notNull(),
+    shortName: text('short_name'),
+    city: text('city'),
+    venue: text('venue'),
+    venueAddress: text('venue_address'),
+    logoId: uuid('logo_id').references(() => teamLogos.id, { onDelete: 'set null' }),
+    /** Last download of the team page and of the logo (refreshed after 7 days). */
+    detailsFetchedAt: timestamp('details_fetched_at', { withTimezone: true }),
+    logoFetchedAt: timestamp('logo_fetched_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('league_teams_league_external_idx').on(t.leagueId, t.externalId)],
+);
+
+/** Matches of the calendar of a championship. */
+export const fixtures = pgTable(
+  'fixtures',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    leagueId: leagueId(),
+    /** Stable within the championship: `n<official number>`, otherwise phase, round and teams. */
+    externalId: text('external_id').notNull(),
+    number: integer('number'),
+    phaseId: integer('phase_id').notNull(),
+    phase: text('phase').notNull(),
+    round: integer('round'),
+    roundLabel: text('round_label').notNull(),
+    /** Official start in UTC; null when not set yet. */
+    startsAt: timestamp('starts_at', { withTimezone: true }),
+    homeTeamId: uuid('home_team_id')
+      .notNull()
+      .references(() => leagueTeams.id, { onDelete: 'cascade' }),
+    awayTeamId: uuid('away_team_id')
+      .notNull()
+      .references(() => leagueTeams.id, { onDelete: 'cascade' }),
+    venue: text('venue'),
+    venueCity: text('venue_city'),
+    venueAddress: text('venue_address'),
+    status: fixtureStatus('status').notNull(),
+    homeSets: integer('home_sets'),
+    awaySets: integer('away_sets'),
+    setScores: jsonb('set_scores').$type<SetScore[]>(),
+    providerMatchId: integer('provider_match_id'),
+    note: text('note'),
+    /** sha256 of the downloaded values: an update that changes nothing does not touch the row. */
+    contentHash: text('content_hash').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('fixtures_league_external_idx').on(t.leagueId, t.externalId),
+    index('fixtures_starts_at_idx').on(t.startsAt),
+  ],
+);
+
+/** Standings of a championship as last downloaded (replaced as a whole). */
+export const standings = pgTable(
+  'standings',
+  {
+    leagueId: leagueId(),
+    position: integer('position').notNull(),
+    /** Team with the same name in the calendar; null when none. */
+    teamId: uuid('team_id').references(() => leagueTeams.id, { onDelete: 'set null' }),
+    teamName: text('team_name').notNull(),
+    points: integer('points').notNull(),
+    played: integer('played').notNull(),
+    won: integer('won').notNull(),
+    lost: integer('lost').notNull(),
+    setsWon: integer('sets_won').notNull(),
+    setsLost: integer('sets_lost').notNull(),
+    pointsFor: integer('points_for').notNull(),
+    pointsAgainst: integer('points_against').notNull(),
+    setRatio: real('set_ratio'),
+    pointRatio: real('point_ratio'),
+    /** Matches by result: 3-0, 3-1, 3-2, 2-3, 1-3, 0-3. */
+    byResult: jsonb('by_result').$type<number[]>(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.leagueId, t.position] })],
+);
+
+/** ETag and Last-Modified of the pages and logos downloaded, sent back as If-None-Match / If-Modified-Since. */
+export const leagueHttpCache = pgTable('league_http_cache', {
+  url: text('url').primaryKey(),
+  etag: text('etag'),
+  lastModified: text('last_modified'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const schema = {
   tenants,
   userRole,
@@ -241,4 +387,13 @@ export const schema = {
   shareTokens,
   assetKind,
   assets,
+  leagueProvider,
+  leagueSyncStatus,
+  fixtureStatus,
+  leagues,
+  teamLogos,
+  leagueTeams,
+  fixtures,
+  standings,
+  leagueHttpCache,
 };

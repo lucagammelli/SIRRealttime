@@ -3,6 +3,7 @@ import type { Config } from './config.js';
 import type { Db } from './db/index.js';
 import type { LiveHub, StatePublisher } from './hub.js';
 import type { IngestService } from './ingest.js';
+import type { LeagueService } from './leagues/sync.js';
 import type { FailureLimiter } from './lib/failureLimiter.js';
 import type { ResyncScheduler } from './lib/resync.js';
 import type { TtlCache } from './lib/ttlCache.js';
@@ -28,6 +29,8 @@ export interface RateLimits {
   shortCodeInvalidTotal: number;
   /** Downloads of the agent zip (`GET /api/admin/agent/download`, about 90 MB each). */
   agentDownload: number;
+  /** «Aggiorna ora» of a championship (`POST /api/admin/leagues/:id/sync`): each one downloads pages of the league site. */
+  leagueSync: number;
 }
 
 export const DEFAULT_RATE_LIMITS: RateLimits = {
@@ -40,6 +43,7 @@ export const DEFAULT_RATE_LIMITS: RateLimits = {
   register: 10,
   shortCodeInvalidTotal: 1000,
   agentDownload: 10,
+  leagueSync: 6,
 };
 
 /** Most public WebSockets open at the same time, per client IP and in total. */
@@ -81,6 +85,8 @@ export interface AppContext {
   shortCodeFailures: FailureLimiter;
   /** Pacing of the full states sent because of `resync` (per socket and per IP). */
   resync: ResyncScheduler;
+  /** Downloads and updates of the championships (common to every client). */
+  leagues: LeagueService;
   now: () => Date;
 }
 

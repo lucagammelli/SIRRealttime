@@ -357,7 +357,9 @@ paths:
     get:
       responses:
         '200':
-          { description: 'pause della pagina pubblica del cliente della sessione: time-out, fine set, fine partita' }
+          {
+            description: 'pause della pagina pubblica del cliente della sessione: time-out, fine set, fine partita, ogni N punti',
+          }
     put:
       requestBody:
         required: true
@@ -376,6 +378,20 @@ paths:
                     '3': { $ref: '#/components/schemas/Intermission' }
                     '4': { $ref: '#/components/schemas/Intermission' }
                 matchEnd: { $ref: '#/components/schemas/Intermission' }
+                milestone:
+                  allOf:
+                    - { $ref: '#/components/schemas/Intermission' }
+                    - type: object
+                      properties:
+                        every: { type: integer, minimum: 4, maximum: 25, example: 8 }
+                        stopBeforeEnd:
+                          {
+                            type: integer,
+                            minimum: 1,
+                            maximum: 15,
+                            example: 5,
+                            description: 'niente pausa negli ultimi K punti del set (traguardo 25, 15 al tie-break)',
+                          }
       responses:
         '200': { description: pause salvate }
         '400':
@@ -472,6 +488,12 @@ components:
                 lastPoint,
                 setScores,
                 topPlayers,
+                setScorers,
+                aces,
+                blocks,
+                attack,
+                roleDuel,
+                teamDuel,
               ]
             example: message
           width: { type: integer, minimum: 1, maximum: 12, example: 12 }
@@ -479,7 +501,7 @@ components:
           collapsed: { type: boolean, example: false }
           options:
             type: object
-            description: 'opzioni del tipo: message text, qr caption, sponsor images e seconds, logo variant, topPlayers count e team'
+            description: 'opzioni del tipo: message text, qr caption, sponsor images e seconds, logo variant, topPlayers count e team; statistiche period (set, match), setScorers e attack limit, roleDuel role (rotate, opposite, outside, middle, setter, libero), teamDuel rows'
             example: { text: Benvenuti al palazzetto! }
     Intermission:
       type: object
@@ -502,12 +524,28 @@ components:
               id: { type: string, pattern: '^[A-Za-z0-9_-]{1,40}$', example: grazie }
               type:
                 type: string
-                enum: [setSummary, finalResult, mvp, setScores, sponsor, message, qr, logo]
+                enum:
+                  [
+                    setSummary,
+                    finalResult,
+                    mvp,
+                    setScores,
+                    setScorers,
+                    aces,
+                    blocks,
+                    attack,
+                    roleDuel,
+                    teamDuel,
+                    sponsor,
+                    message,
+                    qr,
+                    logo,
+                  ]
                 example: message
               seconds: { type: integer, minimum: 3, maximum: 60, example: 8 }
               options:
                 type: object
-                description: 'opzioni come i blocchi: message text e size, qr caption, sponsor images e seconds, logo variant'
+                description: 'opzioni come i blocchi: message text e size, qr caption, sponsor images e seconds, logo variant; statistiche period, limit, role, rows'
                 example: { text: Grazie per aver seguito la partita }
     Overlay:
       type: object

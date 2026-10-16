@@ -11,10 +11,12 @@ import { BLOCK_OPTIONS, BlockIdSchema } from './layout.js';
  * itself when the play starts again (first action or point after it: the phase goes back to `rally`); the end of the
  * match stays until the viewer goes back to the page. The end of set can be different for every set (1st-4th: the
  * 5th set ends the match); a set without its own pause uses the generic one, as a whole.
+ * `milestone` («ogni N punti») is not a phase: a short pause during the set every `every` points (sum of the two
+ * scores, `pointMilestone` of @sir/volley-stats), never in the last `stopBeforeEnd` points of the set; it shows its slides once.
  */
 
-/** Pauses of the match, as the kinds of `MatchPhase`. */
-export const INTERMISSION_KINDS = ['timeout', 'setBreak', 'matchEnd'] as const;
+/** Pauses of the match: the kinds of `MatchPhase` with a pause, and the «ogni N punti» during the set. */
+export const INTERMISSION_KINDS = ['timeout', 'setBreak', 'matchEnd', 'milestone'] as const;
 export type IntermissionKind = (typeof INTERMISSION_KINDS)[number];
 
 /** `fullscreen`: over the page, with a button to go back; `banner`: fixed at the bottom, the page stays usable. */
@@ -28,13 +30,22 @@ export type SetBreakSet = (typeof SET_BREAK_SETS)[number];
 /**
  * Types of slide, closed list. `setSummary`: statistics of the set just closed (of the set in progress during a
  * time-out); `finalResult`: sets won and partials; `mvp`: best player of the match; `setScores`: partials of the sets;
- * `sponsor`, `message`, `qr`, `logo`: as the blocks of the page with the same name (same options).
+ * `setScorers` (partial and scorers), `aces`, `blocks`, `attack`, `roleDuel` (player against player of a role),
+ * `teamDuel` (team against team): statistics of a period, the set of the pause or the match (`period`), as the blocks
+ * of the page with the same name; `sponsor`, `message`, `qr`, `logo`: as the blocks of the page with the same name
+ * (same options).
  */
 export const SLIDE_TYPES = [
   'setSummary',
   'finalResult',
   'mvp',
   'setScores',
+  'setScorers',
+  'aces',
+  'blocks',
+  'attack',
+  'roleDuel',
+  'teamDuel',
   'sponsor',
   'message',
   'qr',
@@ -61,6 +72,12 @@ export const SLIDE_OPTIONS = {
   finalResult: NoSlideOptionsSchema,
   mvp: NoSlideOptionsSchema,
   setScores: NoSlideOptionsSchema,
+  setScorers: BLOCK_OPTIONS.setScorers,
+  aces: BLOCK_OPTIONS.aces,
+  blocks: BLOCK_OPTIONS.blocks,
+  attack: BLOCK_OPTIONS.attack,
+  roleDuel: BLOCK_OPTIONS.roleDuel,
+  teamDuel: BLOCK_OPTIONS.teamDuel,
   sponsor: BLOCK_OPTIONS.sponsor,
   message: BLOCK_OPTIONS.message,
   qr: BLOCK_OPTIONS.qr,
@@ -81,6 +98,12 @@ export const IntermissionSlideSchema = z.discriminatedUnion('type', [
   slideOf('finalResult', SLIDE_OPTIONS.finalResult.prefault({})),
   slideOf('mvp', SLIDE_OPTIONS.mvp.prefault({})),
   slideOf('setScores', SLIDE_OPTIONS.setScores.prefault({})),
+  slideOf('setScorers', SLIDE_OPTIONS.setScorers.prefault({})),
+  slideOf('aces', SLIDE_OPTIONS.aces.prefault({})),
+  slideOf('blocks', SLIDE_OPTIONS.blocks.prefault({})),
+  slideOf('attack', SLIDE_OPTIONS.attack.prefault({})),
+  slideOf('roleDuel', SLIDE_OPTIONS.roleDuel.prefault({})),
+  slideOf('teamDuel', SLIDE_OPTIONS.teamDuel.prefault({})),
   slideOf('sponsor', SLIDE_OPTIONS.sponsor.prefault({})),
   slideOf('message', SLIDE_OPTIONS.message.prefault({})),
   slideOf('qr', SLIDE_OPTIONS.qr.prefault({})),
@@ -112,10 +135,24 @@ interface PauseDefaults {
   slides: IntermissionSlideInput[];
 }
 
+/** «Ogni N punti»: points between two pauses (sum of the two scores), limits and default. */
+export const MILESTONE_MIN_EVERY = 4;
+export const MILESTONE_MAX_EVERY = 25;
+export const MILESTONE_DEFAULT_EVERY = 8;
+/**
+ * «Non negli ultimi K punti»: no «ogni N punti» once the leading team is K points or less from the end of the set
+ * (`toTarget` of `pointMilestone`: 25, 15 at the tie-break), e.g. K = 5: none from 20 points, from 10 at the tie-break.
+ */
+export const MILESTONE_MIN_STOP_BEFORE_END = 1;
+export const MILESTONE_MAX_STOP_BEFORE_END = 15;
+export const MILESTONE_DEFAULT_STOP_BEFORE_END = 5;
+
 /**
  * Defaults: time-out as a compact banner with the sponsors; end of set full screen on TV and tablet, banner on the
- * phone, with the summary of the set and the sponsors, 5 s after the set closes; end of match full screen with the
- * result, the MVP, the thanks and the sponsors.
+ * phone, 5 s after the set closes, with the summary of the set, partial and scorers, aces, blocks, the player duels
+ * of every role in turn, the team comparison and the sponsors; end of match full screen with the result, the MVP,
+ * the statistics of the whole match, the thanks and the sponsors; «ogni N punti» every 8 points but the last 5 of the set, banner
+ * (full screen on TV) with partial and scorers and the team comparison of the set in progress.
  */
 const DEFAULTS: Record<IntermissionKind, PauseDefaults> = {
   timeout: {
@@ -130,6 +167,11 @@ const DEFAULTS: Record<IntermissionKind, PauseDefaults> = {
     delaySeconds: 5,
     slides: [
       { id: 'setSummary', type: 'setSummary', seconds: 12 },
+      { id: 'setScorers', type: 'setScorers', seconds: 10 },
+      { id: 'aces', type: 'aces', seconds: 8 },
+      { id: 'blocks', type: 'blocks', seconds: 8 },
+      { id: 'roleDuel', type: 'roleDuel', seconds: 8 },
+      { id: 'teamDuel', type: 'teamDuel', seconds: 10 },
       { id: 'sponsor', type: 'sponsor', seconds: 8 },
     ],
   },
@@ -140,40 +182,76 @@ const DEFAULTS: Record<IntermissionKind, PauseDefaults> = {
     slides: [
       { id: 'finalResult', type: 'finalResult', seconds: 10 },
       { id: 'mvp', type: 'mvp', seconds: 10 },
+      { id: 'setScorers', type: 'setScorers', seconds: 10, options: { period: 'match' } },
+      { id: 'roleDuel', type: 'roleDuel', seconds: 8, options: { period: 'match' } },
+      { id: 'teamDuel', type: 'teamDuel', seconds: 10, options: { period: 'match' } },
       { id: 'thanks', type: 'message', seconds: 8, options: { text: THANKS_MESSAGE, size: 'large' } },
       { id: 'sponsor', type: 'sponsor', seconds: 8 },
     ],
   },
+  milestone: {
+    enabled: true,
+    modes: { tv: 'fullscreen', tablet: 'banner', phone: 'banner' },
+    delaySeconds: 3,
+    slides: [
+      { id: 'setScorers', type: 'setScorers', seconds: 8 },
+      {
+        id: 'teamDuel',
+        type: 'teamDuel',
+        seconds: 8,
+        options: { rows: ['points', 'aces', 'killPct', 'blocks', 'errors'] },
+      },
+    ],
+  },
 };
 
-/** Schema of one pause of `kind`: every missing field takes the default of that kind. */
-const pauseSchema = (kind: IntermissionKind) => {
+/** Fields of one pause of `kind`: every missing field takes the default of that kind. */
+const pauseShape = (kind: IntermissionKind) => {
   const d = DEFAULTS[kind];
-  return z
-    .strictObject({
-      enabled: z.boolean().default(d.enabled),
-      modes: z
-        .strictObject({
-          tv: ModeSchema.default(d.modes.tv),
-          tablet: ModeSchema.default(d.modes.tablet),
-          phone: ModeSchema.default(d.modes.phone),
-        })
-        .prefault({}),
-      /** Seconds between the start of the pause and its screen (the scoreboard shows the end of the set first). */
-      delaySeconds: z.int().min(0).max(INTERMISSION_MAX_DELAY_SECONDS).default(d.delaySeconds),
-      slides: IntermissionSlidesSchema.default(() => IntermissionSlidesSchema.parse(d.slides)),
-    })
-    .refine((p) => !p.enabled || p.slides.length > 0, {
-      message: 'una pausa attiva ha almeno una diapositiva',
-      path: ['slides'],
-    });
+  return {
+    enabled: z.boolean().default(d.enabled),
+    modes: z
+      .strictObject({
+        tv: ModeSchema.default(d.modes.tv),
+        tablet: ModeSchema.default(d.modes.tablet),
+        phone: ModeSchema.default(d.modes.phone),
+      })
+      .prefault({}),
+    /** Seconds between the start of the pause and its screen (the scoreboard shows the end of the set first). */
+    delaySeconds: z.int().min(0).max(INTERMISSION_MAX_DELAY_SECONDS).default(d.delaySeconds),
+    slides: IntermissionSlidesSchema.default(() => IntermissionSlidesSchema.parse(d.slides)),
+  };
 };
+
+const ACTIVE_HAS_SLIDES = {
+  check: (p: { enabled: boolean; slides: readonly unknown[] }) => !p.enabled || p.slides.length > 0,
+  params: { message: 'una pausa attiva ha almeno una diapositiva', path: ['slides'] },
+};
+
+const pauseSchema = (kind: IntermissionKind) =>
+  z.strictObject(pauseShape(kind)).refine(ACTIVE_HAS_SLIDES.check, ACTIVE_HAS_SLIDES.params);
 
 export const TimeoutIntermissionSchema = pauseSchema('timeout');
 export const SetBreakIntermissionSchema = pauseSchema('setBreak');
 export const MatchEndIntermissionSchema = pauseSchema('matchEnd');
 export type Intermission = z.output<typeof SetBreakIntermissionSchema>;
 export type IntermissionInput = z.input<typeof SetBreakIntermissionSchema>;
+
+/** «Ogni N punti»: a pause with its rule (every how many points, not after which score). */
+export const MilestoneIntermissionSchema = z
+  .strictObject({
+    ...pauseShape('milestone'),
+    /** Points between two pauses: sum of the two scores of the set (8: at 8, 16, 24, ... points played). */
+    every: z.int().min(MILESTONE_MIN_EVERY).max(MILESTONE_MAX_EVERY).default(MILESTONE_DEFAULT_EVERY),
+    /** «Non negli ultimi K punti»: none once max(home, away) ≥ points to win the set − K. */
+    stopBeforeEnd: z
+      .int()
+      .min(MILESTONE_MIN_STOP_BEFORE_END)
+      .max(MILESTONE_MAX_STOP_BEFORE_END)
+      .default(MILESTONE_DEFAULT_STOP_BEFORE_END),
+  })
+  .refine(ACTIVE_HAS_SLIDES.check, ACTIVE_HAS_SLIDES.params);
+export type MilestoneIntermission = z.output<typeof MilestoneIntermissionSchema>;
 
 /** Own end-of-set pause of the sets 1-4 (missing: the generic `setBreak`). */
 export const SetBreakBySetSchema = z.strictObject({
@@ -190,6 +268,7 @@ export const TenantIntermissionsSchema = z.strictObject({
   setBreak: SetBreakIntermissionSchema.prefault({}),
   setBreakBySet: SetBreakBySetSchema.prefault({}),
   matchEnd: MatchEndIntermissionSchema.prefault({}),
+  milestone: MilestoneIntermissionSchema.prefault({}),
 });
 export type TenantIntermissions = z.output<typeof TenantIntermissionsSchema>;
 export type TenantIntermissionsInput = z.input<typeof TenantIntermissionsSchema>;
@@ -199,9 +278,9 @@ export function defaultIntermissions(): TenantIntermissions {
   return TenantIntermissionsSchema.parse({});
 }
 
-/** Pure: the default pause of `kind` (a new object at every call). */
+/** Pure: the default pause of `kind` (a new object at every call; for `milestone` with its rule). */
 export function defaultIntermission(kind: IntermissionKind): Intermission {
-  return pauseSchema(kind).parse({});
+  return kind === 'milestone' ? MilestoneIntermissionSchema.parse({}) : pauseSchema(kind).parse({});
 }
 
 /** Pure: a stored pauses document with the missing fields filled; an invalid one reads as the defaults. */
@@ -232,7 +311,7 @@ export function intermissionFor(
 /** Pure: every pause of a document (the generic ones and the own pauses of the sets). */
 export function allIntermissions(config: TenantIntermissions): Intermission[] {
   const own = SET_BREAK_SETS.map((s) => config.setBreakBySet[s]).filter((p): p is Intermission => p !== undefined);
-  return [config.timeout, config.setBreak, ...own, config.matchEnd];
+  return [config.timeout, config.setBreak, ...own, config.matchEnd, config.milestone];
 }
 
 /** Pure: ids of the images used by the sponsor slides of every pause (each once, in order of appearance). */

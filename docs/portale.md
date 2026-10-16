@@ -91,7 +91,7 @@ Prima si verifica la sessione («Verifica della sessione…»); senza sessione c
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, password di almeno 12 caratteri, ruolo), «Utenti» |
 | Grafica | `/admin/grafica` | solo admin (il superadmin lavora sul cliente scelto) | colori, nome e loghi del cliente, vedi «Grafica per cliente» |
 | Pagina pubblica | `/admin/pagina` | solo admin (il superadmin lavora sul cliente scelto) | blocchi della pagina della partita per TV, tablet e telefono, vedi «Pagina pubblica a blocchi» |
-| Pause e sponsor | `/admin/pause` | solo admin (il superadmin lavora sul cliente scelto) | schermate di time-out, fine set e fine partita, vedi «Pause della partita» |
+| Pause e sponsor | `/admin/pause` | solo admin (il superadmin lavora sul cliente scelto) | schermate di time-out, fine set, fine partita e «ogni N punti», vedi «Pause della partita» |
 | Avvisi | `/admin/avvisi` | solo admin (il superadmin lavora sul cliente scelto) | avvisi sugli eventi della partita, vedi «Avvisi sugli eventi» |
 | Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname; «Crea cliente»), «Clienti» con «Modifica» (nome e hostname, «Salva») |
 | Esci | - | tutti | chiude la sessione |
@@ -295,6 +295,15 @@ pagina di prima.
 | Ultimo punto | - | squadra, punteggio e come è stato vinto (`LastPointBlock`) |
 | Parziali dei set | - | punteggio di ogni set (`SetScoresBlock`) |
 | Migliori giocatori | «Quanti» (1-10), «Squadra» Entrambe / Casa / Ospiti | classifica a punti di `topPlayers` (`docs/statistiche.md`); tabella Giocatore, Att, Muro, Ace, Punti |
+| Parziale e marcatori, Ace, Muri, Attacco, Sfida per ruolo, Squadre a confronto | periodo («Il set in corso» / «Tutta la partita»), «Marcatori per squadra» (3-8) o «Attaccanti per squadra» (1-5), «Ruolo» (predefinito «Tutti i ruoli, a rotazione»), «Righe del confronto» (nessuna scelta = tutte) | viste in stile TV dei calcoli di `period.ts` (`docs/statistiche.md`), le stesse delle diapositive delle pause; senza dati un messaggio (per esempio «Nessun dato della partita.») |
+
+Le sei viste statistiche (`blocks/StatSlides.tsx`) hanno tre misure: `full` (tutto schermo, per le diapositive a tutto schermo),
+`card` (riquadro dentro la pagina, per i blocchi) e `compact` (una riga per la banda). Casa sempre a sinistra, colori secondo
+«nostra squadra»; barre e nomi entrano con un'animazione di 500 ms (`sir-enter-left`, `sir-enter-right`, `sir-grow`),
+spenta con `prefers-reduced-motion`. I testi (nomi dei giocatori) sono sempre testo React, mai HTML. Le opzioni si modificano con
+`pages/admin/StatOptionsFields.tsx`, usato sia da «Pagina pubblica» sia da «Pause e sponsor». Il registro (`registry.tsx`) disegna
+queste viste anche come blocchi della pagina, con le stesse etichette di `SLIDE_LABELS`; la pagina usa il set in corso
+(`statPeriod`), il confronto di `charts/compare.ts` usa `teamDuel` di `@sir/volley-stats` (niente più calcoli copiati).
 
 - **Pagina «Pagina pubblica»** (`src/pages/admin/LayoutPage.tsx`, rotta `/admin/pagina`, solo admin; titolo scheda
   «Pagina pubblica · Area riservata»). Tre schede «TV», «Tablet», «Telefono». Per ogni blocco: maniglia ⠿ (trascinamento),
@@ -323,6 +332,14 @@ Quando la partita ha una pausa il portale mostra una schermata con riepilogo e s
 fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la configurazione del cliente da
 `intermissions` di `GET /api/public/tenant` (`docs/architettura.md`, «Pause della partita»; `docs/server.md`).
 
+- **«Ogni N punti»** (`milestone`): pausa breve durante il set, non una fase. `milestoneStep` (`lib/intermission.ts`, pura) la
+  apre quando `pointMilestone` dà una soglia più alta di quella già raggiunta nel set (la memoria tiene per set la soglia più
+  alta, anche se non ha aperto nulla; una correzione dello scout che la abbassa non la riapre). Non si apre: al primo stato,
+  dopo una riconnessione o un `resync` (solo aggiornamenti `live`), con un time-out, una fine set o una fine partita in corso
+  (che hanno la precedenza e la chiudono), né vicino al traguardo del set: con `stopBeforeEnd` K (predefinito 5) niente pausa
+  se una squadra è a K punti dal traguardo (25, 15 al tie-break; il traguardo viene da `@sir/volley-stats`). Mostra le sue
+  diapositive una volta e si chiude da sola; se time-out e fine set sono disattivati resta fino al suo timer. Titolo
+  (`pauseTitle`): «2° set: 9-7». È attiva di default per tutti i clienti e si spegne da «Pause e sponsor».
 - **Quando compare** (`components/Intermission.tsx`, montato da `LivePage.tsx` sotto la pagina): per `timeout`, `setBreak` e
   `matchEnd`, se la pausa è attiva (`intermissionFor`) e ha almeno una diapositiva da mostrare. Parte dopo il ritardo
   `delaySeconds` della pausa (il tabellone mostra prima la fine del set); **non si applica a chi apre la pagina durante
@@ -344,14 +361,19 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   (`setRecap`: punteggio, tabella per squadra con punti, attacco, efficienza, battuta, ricezione, muri, errori e «Migliore
   del set»), «Risultato» (set vinti e parziali), «MVP» (`matchMvp`: maglia, nome, punti, attacchi vincenti, muri, ace,
   efficienza d'attacco), «Parziali dei set», «Sponsor», «Messaggio», «Codice QR», «Logo» (gli ultimi quattro come i blocchi
-  omonimi, `docs/portale.md` «Pagina pubblica a blocchi»). Le diapositive senza nulla da mostrare sono saltate
+  omonimi, `docs/portale.md` «Pagina pubblica a blocchi»), più le sei viste statistiche in stile TV: «Parziale e marcatori»,
+  «Ace», «Muri» (titolo «Muri vincenti»), «Attacco», «Sfida per ruolo» e «Squadre a confronto» (misure e animazioni in
+  «Pagina pubblica a blocchi»). «Sfida per ruolo» a rotazione diventa una diapositiva per ogni ruolo con un duello (id
+  `<id>:<ruolo>`, ognuna per i suoi secondi). Le diapositive senza nulla da mostrare sono saltate
   (`visibleSlides`): lo sponsor senza immagini usa il logo sponsor della grafica, e se non c'è nemmeno quello è saltato;
-  il riepilogo senza il set, l'MVP senza giocatori con punti, i parziali senza set. **Conseguenza**: la pausa time-out di
+  il riepilogo senza il set, l'MVP senza giocatori con punti, i parziali senza set, ace/muri/attacco senza nemmeno un punto
+  o tentativo, il confronto senza righe con valori, il duello senza giocatori. **Conseguenza**: la pausa time-out di
   default (solo sponsor) non compare se il cliente non ha né immagini sponsor né logo sponsor.
 - **Caricamento della grafica** (`useTenantIntermissions` in `lib/branding.ts`, stato caricamento/caricata/fallita):
   finché `GET /api/public/tenant` non risponde non si mostra nessuna pausa; se fallisce valgono i predefiniti.
 - **Pagina «Pause e sponsor»** (`src/pages/admin/IntermissionsPage.tsx`, rotta `/admin/pause`, solo admin; titolo scheda
-  «Pause e sponsor · Area riservata»). Schede «Time-out», «Fine set», «Fine partita»; per «Fine set» una seconda fila
+  «Pause e sponsor · Area riservata»). Schede «Time-out», «Fine set», «Fine partita», «Ogni N punti» (con «Ogni quanti punti»,
+  4-25, e il campo «Non negli ultimi punti del set» per `stopBeforeEnd`, con il traguardo da `setTarget` di volley-stats); per «Fine set» una seconda fila
   «Tutti i set», «1° set»…«4° set» con la casella «Pausa propria per la fine del N° set» (senza, quel set usa «Tutti i
   set»). Per ogni pausa: «Pausa attiva», «Come si mostra» (per TV, tablet e telefono «Tutto schermo» o «Banda in basso»),
   «Ritardo prima della pausa (secondi)», elenco di diapositive riordinabili con «Sposta su» e «Sposta giù» (niente
@@ -591,7 +613,8 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
 - Pause della partita: `apps/web/src/components/Intermission.tsx` (`Intermission`), `blocks/IntermissionSlides.tsx`
   (`renderSlide`, `SLIDE_LABELS`), `lib/intermission.ts` (`phaseOf`, `describePause`, `activePause`, `visibleSlides`,
   `pauseTitle`, `previewState`), `lib/branding.ts` (`useTenantIntermissions`), `pages/admin/IntermissionsPage.tsx`,
-  `pages/admin/intermissionEditor.ts`; contratto in `packages/shared/src/intermissions.ts` (`docs/architettura.md`), fase e
+  `pages/admin/intermissionEditor.ts`, `pages/admin/StatOptionsFields.tsx`, `blocks/StatSlides.tsx`, `milestoneStep`,
+  `milestonePause`, `statPeriod`, `duelRoles` in `lib/intermission.ts`; contratto in `packages/shared/src/intermissions.ts` (`docs/architettura.md`), fase e
   riepiloghi in `packages/volley-stats/src/phase.ts`, `recap.ts` (`docs/statistiche.md`), API in `docs/server.md`
 - Avvisi sugli eventi: `apps/web/src/components/Overlay.tsx` (`Overlay`, `OverlayBanner`), `lib/overlay.ts`
   (`overlayFor`, `unseenEvents`, `enqueue`, `nextOverlay`, `sampleEvent`), `lib/branding.ts` (`useTenantOverlays`),

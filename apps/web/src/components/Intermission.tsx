@@ -1,13 +1,21 @@
 import type { Intermission as PauseConfig, TenantIntermissions } from '@sir/shared';
-import type { MatchState } from '@sir/volley-stats';
+import type { MatchState, PointMilestone } from '@sir/volley-stats';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { BlockBrand } from '../blocks/env.ts';
 import type { SlideEnv } from '../blocks/IntermissionSlides.tsx';
 import { renderSlide } from '../blocks/IntermissionSlides.tsx';
 import { teamName } from '../lib/format.ts';
-import type { ActivePause } from '../lib/intermission.ts';
-import { activePause, describePause, pauseTitle, phaseOf, visibleSlides } from '../lib/intermission.ts';
+import type { ActivePause, MilestoneMemory } from '../lib/intermission.ts';
+import {
+  activePause,
+  describePause,
+  milestonePause,
+  milestoneStep,
+  pauseTitle,
+  phaseOf,
+  visibleSlides,
+} from '../lib/intermission.ts';
 import type { Device } from '../lib/layout.ts';
 import { useReducedMotion } from '../lib/theme.ts';
 import { useElementHeight } from '../lib/useLayout.ts';
@@ -22,7 +30,10 @@ const FOCUSABLE = 'button:not([disabled]), [href], input, select, textarea, [tab
  * during the pause). Full screen (dialog over the page, «Torna alla partita» and Esc close it) or banner fixed at the
  * bottom (the page and its scoreboard stay visible), as chosen for the device. It closes by itself when the play
  * starts again. The slides stop with «Ferma rotazione» (the same switch of the big screen) and with reduced motion.
- * `preview`: the pause of the editor, shown at once, never focused nor closed.
+ * During the set the «ogni N punti» pause opens when a live update reaches a new threshold (`milestoneStep`): never at
+ * the first state, after a reconnection or a resync (`live` false), never over a time-out, an end of set or the end
+ * of the match (they go first and close it); it shows its slides once and closes by itself.
+ * `preview`: the pause of the editor, shown at once, never focused nor closed (in play: the «ogni N punti»).
  */
 export function Intermission({
   state,
@@ -35,8 +46,11 @@ export function Intermission({
   pageUrl,
   preview,
   onFullscreenChange,
+  live = false,
 }: {
   state: MatchState;
+  /** The state is a live update (`LiveData.live`): only these can open the «ogni N punti». */
+  live?: boolean;
   /** Pauses of the client (the defaults when its graphics could not be loaded); null while loading: none. */
   config: TenantIntermissions | null;
   device: Device;
@@ -55,11 +69,30 @@ export function Intermission({
   const described = describePause(phase);
   // A pause already in progress when the page opens is shown at once.
   const [initialKey] = useState(() => described?.key ?? null);
+  const phaseActive = !preview && config ? activePause(state, config) : null;
+  const milestoneConfig = !preview && config ? config.milestone : null;
+
+  // «Ogni N punti»: every new state goes through the rule; a more important pause closes the one on screen.
+  const memory = useRef<MilestoneMemory | null>(null);
+  const [milestone, setMilestone] = useState<PointMilestone | null>(null);
+  const blocked = phaseActive !== null;
+  useEffect(() => {
+    const step = milestoneStep(memory.current, state, { pause: milestoneConfig, live, blocked });
+    memory.current = step.memory;
+    if (step.open) setMilestone(step.open);
+    else if (blocked || !milestoneConfig?.enabled) setMilestone(null);
+  }, [state, live, blocked, milestoneConfig]);
+
+  const previewMilestone: Omit<ActivePause, 'pause'> = {
+    kind: 'milestone',
+    key: 'milestone-preview',
+    set: state.live.set,
+    team: null,
+    score: { home: state.live.homeScore, away: state.live.awayScore },
+  };
   const active: ActivePause | null = preview
-    ? described && { ...described, pause: preview }
-    : config
-      ? activePause(state, config)
-      : null;
+    ? { ...(described ?? previewMilestone), pause: preview }
+    : (phaseActive ?? (milestone && milestoneConfig ? milestonePause(milestone, milestoneConfig) : null));
   const key = active?.key ?? null;
   const delayMs = preview || key === initialKey ? 0 : (active?.pause.delaySeconds ?? 0) * 1000;
   const [shownKey, setShownKey] = useState<string | null>(null);
@@ -77,6 +110,20 @@ export function Intermission({
   }, [key, delayMs]);
 
   const visible = active !== null && shownKey === key && closedKey !== key;
+  // The «ogni N punti» shows its slides once, then the match comes back.
+  const onceMs =
+    visible && !preview && active.kind === 'milestone'
+      ? visibleSlides(state, active, { sponsorLogo }).reduce((sum, s) => sum + s.seconds, 0) * 1000
+      : null;
+  // Counted from when the pause shows: the next points (new states) do not restart it.
+  const once = useRef(0);
+  once.current = onceMs ?? 0;
+  const counting = onceMs !== null;
+  useEffect(() => {
+    if (!counting) return;
+    const id = setTimeout(() => setMilestone(null), once.current);
+    return () => clearTimeout(id);
+  }, [key, counting]);
   const fullscreen =
     visible &&
     !preview &&

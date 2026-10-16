@@ -150,11 +150,17 @@ phone }`, ogni dispositivo un elenco ordinato (al massimo `LAYOUT_MAX_BLOCKS` = 
 discriminata chiusa su `type`. Ogni blocco ha `id` (`BlockIdSchema`, unico nell'elenco), `type`, `width` (1-12 su
 `LAYOUT_COLUMNS` = 12, solo i valori di `BLOCK_WIDTHS` per quel tipo), `visible`, `collapsed` (solo telefono) e `options`
 (`BLOCK_OPTIONS`, uno schema strict per tipo). Tipi (`BLOCK_TYPES`): `scoreboard`, `momentum`, `comparison`, `players`,
-`court`, `rotations`, `logo`, `sponsor`, `message`, `qr`, `lastPoint`, `setScores`, `topPlayers`. Opzioni: `logo`
+`court`, `rotations`, `logo`, `sponsor`, `message`, `qr`, `lastPoint`, `setScores`, `topPlayers`, `setScorers`, `aces`,
+`blocks`, `attack`, `roleDuel`, `teamDuel` (statistiche in stile TV, vedi sotto). Opzioni: `logo`
 `variant` (`main` | `mark`); `sponsor` `images` (al massimo `SPONSOR_MAX_IMAGES` = 12 id di immagini del cliente) e
 `seconds` (3-60, predefinito 8); `message` `text` (testo semplice, al massimo `MESSAGE_MAX_LENGTH` = 280) e `size`
 (`normal` | `large`); `qr` `caption` (al massimo `QR_CAPTION_MAX_LENGTH` = 80, predefinito `QR_DEFAULT_CAPTION`);
-`topPlayers` `count` (1-`TOP_PLAYERS_MAX` = 10) e `team` (`both` | `home` | `away`). Regole sull'elenco
+`topPlayers` `count` (1-`TOP_PLAYERS_MAX` = 10) e `team` (`both` | `home` | `away`). Opzioni dei sei nuovi blocchi (le
+stesse delle diapositive omonime): `period` (`STAT_PERIODS`: `set` predefinito, `match`) in tutti; `limit` in `setScorers`
+(`SCORERS_MIN` 3 - `SCORERS_MAX` 8, predefinito 5) e in `attack` (`ATTACKERS_MIN` 1 - `ATTACKERS_MAX` 5, predefinito 3);
+`role` in `roleDuel` (`DUEL_ROLE_CHOICES`: `rotate` predefinito, cioè un duello per ogni ruolo, oppure
+`opposite`/`outside`/`middle`/`setter`/`libero`); `rows` in `teamDuel` (`TEAM_DUEL_KEYS` di volley-stats, chiavi delle righe di `teamDuel`
+di `@sir/volley-stats`; vuoto = tutte). Regole sull'elenco
 (`DeviceBlocksSchema`): id unici, un solo `scoreboard`, larghezze ammesse. `{}` vale il predefinito
 (`defaultLayout(template)`, `defaultDeviceBlocks(dispositivo, template)`: per `standard` i sei blocchi di prima con
 larghezze 12/8/6/4; per `sir-volley` la pagina del mockup: tabellone, poi andamento, confronto e mappe di campo a un terzo
@@ -167,19 +173,27 @@ opzioni predefinite), `LayoutResponseSchema` (`GET`/`PUT /api/admin/layout`); `P
 editor in `docs/portale.md`, classifica in `docs/statistiche.md`.
 
 Pause della partita (`intermissions.ts`): `TenantIntermissionsSchema` / `TenantIntermissions` = `{ version, timeout,
-setBreak, setBreakBySet, matchEnd }`. Tre tipi di pausa (`INTERMISSION_KINDS`: `timeout`, `setBreak`, `matchEnd`, come i
-`kind` di `MatchPhase` in `docs/statistiche.md`). Ogni pausa ha `enabled`, `modes` (per `tv`, `tablet`, `phone`:
+setBreak, setBreakBySet, matchEnd, milestone }`. Quattro tipi di pausa (`INTERMISSION_KINDS`: `timeout`, `setBreak`,
+`matchEnd`, come i `kind` di `MatchPhase` in `docs/statistiche.md`, e `milestone`, «ogni N punti», che non è una fase).
+Ogni pausa ha `enabled`, `modes` (per `tv`, `tablet`, `phone`:
 `fullscreen` o `banner`, `INTERMISSION_MODES`), `delaySeconds` (0-`INTERMISSION_MAX_DELAY_SECONDS` = 60) e `slides`
 (al massimo `INTERMISSION_MAX_SLIDES` = 12, id unici). Una pausa attiva ha almeno una diapositiva. Tipi di diapositiva
-(`SLIDE_TYPES`): `setSummary`, `finalResult`, `mvp`, `setScores` (senza opzioni) e `sponsor`, `message`, `qr`, `logo`
-(le stesse opzioni dei blocchi omonimi, `SLIDE_OPTIONS` da `BLOCK_OPTIONS`); ogni diapositiva ha `seconds` (3-60,
+(`SLIDE_TYPES`): `setSummary`, `finalResult`, `mvp`, `setScores` (senza opzioni) e `setScorers`, `aces`, `blocks`,
+`attack`, `roleDuel`, `teamDuel`, `sponsor`, `message`, `qr`, `logo` (le stesse opzioni dei blocchi omonimi,
+`SLIDE_OPTIONS` da `BLOCK_OPTIONS`; per le statistiche `period` è il set della pausa o la partita); ogni diapositiva ha `seconds` (3-60,
 predefinito 8: `SLIDE_MIN_SECONDS`, `SLIDE_MAX_SECONDS`, `SLIDE_DEFAULT_SECONDS`). `setBreakBySet` (chiavi `'1'`-`'4'`,
 `SET_BREAK_SETS`) dà a un set una pausa propria che **sostituisce per intero** quella generica `setBreak`, senza fonderla;
 il 5° set chiude la partita e usa `matchEnd`. Il ritorno alla partita non è configurabile: avviene alla prima azione.
 `{}` vale i predefiniti (`defaultIntermissions`, `defaultIntermission(kind)`): time-out a banda su ogni dispositivo con una
 diapositiva sponsor (10 s); fine set a tutto schermo su TV e tablet e a banda sul telefono, ritardo 5 s, con
-`setSummary` (12 s) e sponsor (8 s); fine partita a tutto schermo su ogni dispositivo, ritardo 5 s, con `finalResult`,
-`mvp`, un messaggio `THANKS_MESSAGE` («Grazie per aver seguito la partita», grande) e sponsor. Funzioni pure:
+`setSummary` (12 s), poi `setScorers`, `aces`, `blocks`, `roleDuel` (a rotazione), `teamDuel` e sponsor; fine partita a
+tutto schermo su ogni dispositivo, ritardo 5 s, con `finalResult`, `mvp`, `setScorers`, `roleDuel` e `teamDuel` con
+`period: 'match'`, un messaggio `THANKS_MESSAGE` («Grazie per aver seguito la partita», grande) e sponsor.
+`milestone` (`MilestoneIntermissionSchema`) ha in più `every` (punti fra due pause, somma dei due punteggi del set:
+`MILESTONE_MIN_EVERY` 4 - `MILESTONE_MAX_EVERY` 25, predefinito 8) e `stopBeforeEnd` K (predefinito 5: nessuna pausa se una
+squadra è a K punti o meno dal traguardo del set, 25 o 15 al tie-break, calcolato da `@sir/volley-stats`, non nel
+contratto); predefiniti: attiva per tutti i clienti, banda su tablet e telefono e tutto schermo su TV, ritardo 3 s,
+diapositive `setScorers` e `teamDuel` del set in corso. Funzioni pure:
 `resolveIntermissions` (un documento non valido vale i predefiniti), `intermissionFor(config, kind, set?)` (la pausa da
 usare, null se spenta o senza diapositive), `allIntermissions`, `intermissionImageIds` (immagini delle diapositive
 sponsor, per i controlli del server). `IntermissionsResponseSchema` (`GET`/`PUT /api/admin/intermissions`);

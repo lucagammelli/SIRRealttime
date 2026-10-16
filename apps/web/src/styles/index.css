@@ -261,11 +261,53 @@
 .sir-overlay {
   animation: sir-overlay 450ms ease-out;
 }
+/* Statistics of the pauses in television style (blocks/StatSlides.tsx): the two sides come in from their edge and the
+   mirrored bars grow from the centre, 500 ms. */
+@keyframes sir-enter-left {
+  0% {
+    opacity: 0;
+    transform: translateX(-32px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes sir-enter-right {
+  0% {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes sir-grow {
+  0% {
+    transform: scaleX(0);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+.sir-enter-left {
+  animation: sir-enter-left 500ms ease-out;
+}
+.sir-enter-right {
+  animation: sir-enter-right 500ms ease-out;
+}
+.sir-grow {
+  animation: sir-grow 500ms ease-out;
+}
 @media (prefers-reduced-motion: reduce) {
   .sir-pop,
   .sir-flash,
   .sir-fade,
   .sir-overlay,
+  .sir-enter-left,
+  .sir-enter-right,
+  .sir-grow,
   .sir-pulse {
     animation: none;
   }

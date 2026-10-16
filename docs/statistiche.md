@@ -144,7 +144,7 @@ giocatori su una partita o su un set.
   (salvo `specialRole` `L`, contato libero). Il libero si ordina per ricezioni + difese (`reception`, `digs`).
 - `teamDuel(state, period)`: righe del «Confronto squadre» del portale (`TeamDuelRow`: gruppo, etichetta, `count`/`ratio`,
   valori casa e ospite, `better` `high`/`low`). Side-out e break point (`momentum`) solo per la partita intera, perché non
-  sono divisi per set. Set inesistente: le righe restano, con i valori `home` e `away` a `null` (come `teamComparison` del portale). Il portale passerà a usarla nel prossimo job.
+  sono divisi per set. Set inesistente: le righe restano, con i valori `home` e `away` a `null` (come `teamComparison` del portale). Il portale la usa (`charts/compare.ts`, diapositive e blocchi «Squadre a confronto»).
 - `pointMilestone(state, every)`: soglia «ogni `every` punti» del set in corso, cioè il multiplo più grande di `every` nella
   somma dei punti del set; chiave `set-N-soglia` (es. `set-2-16`), con set e punteggio. `null` se il set è chiuso (c'è la
   pausa di fine set), la partita non è in corso o `every` non è un intero >= 1. Dipende solo dallo stato: il portale tiene

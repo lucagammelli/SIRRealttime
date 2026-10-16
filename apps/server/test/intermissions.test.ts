@@ -83,6 +83,43 @@ describe('pauses of the public page', () => {
     expect((await call(HOST_A, cookieA, { url: URL })).json<IntermissionsResponse>().intermissions).toEqual(saved);
   });
 
+  it('saves the «ogni N punti» and the statistics slides; refuses an N out of its limits', async () => {
+    const res = await putPauses(HOST_A, cookieA, {
+      milestone: {
+        every: 12,
+        stopBeforeEnd: 3,
+        slides: [
+          { id: 'd', type: 'roleDuel', options: { role: 'libero', period: 'match' } },
+          { id: 't', type: 'teamDuel', options: { rows: ['points', 'blocks'] } },
+        ],
+      },
+      setBreak: {
+        slides: [
+          { id: 'a', type: 'aces' },
+          { id: 'k', type: 'attack', options: { limit: 2 } },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const saved = res.json<IntermissionsResponse>().intermissions;
+    expect(saved.milestone).toMatchObject({ every: 12, stopBeforeEnd: 3, enabled: true });
+    expect(saved.milestone.slides[0]).toEqual({
+      id: 'd',
+      type: 'roleDuel',
+      seconds: 8,
+      options: { role: 'libero', period: 'match' },
+    });
+    expect(saved.setBreak.slides[1]?.options).toEqual({ period: 'set', limit: 2 });
+    expect(await publicPauses(HOST_A)).toEqual(saved);
+    for (const bad of [
+      { milestone: { every: 3 } },
+      { milestone: { stopBeforeEnd: 16 } },
+      { milestone: { maxTeamScore: 20 } },
+      { milestone: { slides: [{ id: 'd', type: 'roleDuel', options: { role: 'allenatore' } }] } },
+    ])
+      expect((await putPauses(HOST_A, cookieA, bad)).statusCode).toBe(400);
+  });
+
   it('refuses unknown slides, bad durations and delays, unknown fields', async () => {
     for (const bad of [
       { timeout: { slides: [{ id: 'x', type: 'video' }] } },

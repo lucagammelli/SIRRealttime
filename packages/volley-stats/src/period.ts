@@ -1,4 +1,5 @@
 import type { PlayerRole } from '@sir/dvw-parser';
+import { setTarget } from './events.js';
 import { emptyStatLine } from './stats.js';
 import type { MatchState, PlayerRef, Ratio, Side, StatLine } from './types.js';
 import { SIDES } from './util.js';
@@ -185,7 +186,13 @@ export function scorers(state: PeriodState, period: Period, team: Side, limit: n
 }
 
 /** Ruoli dei duelli, nell'ordine in cui si mostrano. */
-export const DUEL_ROLES: readonly PlayerRole[] = ['opposite', 'outside', 'middle', 'setter', 'libero'];
+export const DUEL_ROLES = [
+  'opposite',
+  'outside',
+  'middle',
+  'setter',
+  'libero',
+] as const satisfies readonly PlayerRole[];
 
 export interface RoleDuel {
   role: PlayerRole;
@@ -234,9 +241,28 @@ export function roleDuels(state: PeriodState, period: Period): RoleDuel[] {
 export type TeamDuelGroup =
   'Punti' | 'Battuta' | 'Ricezione' | 'Attacco' | 'Muro' | 'Difesa' | 'Errori' | 'Cambio palla';
 
+/** Chiavi delle righe del confronto squadra contro squadra, nell'ordine di `teamDuel` (le ultime due: solo partita). */
+export const TEAM_DUEL_KEYS = [
+  'points',
+  'aces',
+  'serveErrors',
+  'serveEff',
+  'recPositive',
+  'recPerfect',
+  'kills',
+  'killPct',
+  'attackEff',
+  'blocks',
+  'digs',
+  'errors',
+  'sideOut',
+  'breakPoint',
+] as const;
+export type TeamDuelKey = (typeof TEAM_DUEL_KEYS)[number];
+
 /** Riga del confronto squadra contro squadra. */
 export interface TeamDuelRow {
-  key: string;
+  key: TeamDuelKey;
   group: TeamDuelGroup;
   label: string;
   kind: 'count' | 'ratio';
@@ -247,7 +273,7 @@ export interface TeamDuelRow {
 }
 
 const TEAM_ROWS: {
-  key: string;
+  key: Exclude<TeamDuelKey, 'sideOut' | 'breakPoint'>;
   group: TeamDuelGroup;
   label: string;
   kind: 'count' | 'ratio';
@@ -345,6 +371,14 @@ export interface PointMilestone {
   threshold: number;
   homeScore: number;
   awayScore: number;
+  /** Punti per vincere il set (`setTarget`: 25, 15 al tie-break): per non aprire la pausa nel finale del set. */
+  target: number;
+  /**
+   * Punti mancanti al traguardo della squadra in vantaggio: `target − max(casa, ospite)`, ≤ 0 ai vantaggi. Il portale
+   * non apre la pausa quando sono `≤ K` (opzione «non negli ultimi K punti»), es. K = 5: niente dal 20 nei set a 25,
+   * dal 10 al tie-break.
+   */
+  toTarget: number;
 }
 
 /**
@@ -370,5 +404,7 @@ export function pointMilestone(
     threshold,
     homeScore: set.homeScore,
     awayScore: set.awayScore,
+    target: setTarget(set.number),
+    toTarget: setTarget(set.number) - Math.max(set.homeScore, set.awayScore),
   };
 }

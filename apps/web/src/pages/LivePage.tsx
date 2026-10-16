@@ -61,7 +61,7 @@ export async function probeShareToken(token: string, fetchImpl: typeof fetch = f
  * end of match) the pause chosen by the client (page «Pause e sponsor») goes over the page or at its bottom: none while
  * its graphics are loading, the default pauses when they cannot be loaded. The events of the match that arrive live
  * (ace, set point, ...) show an overlay for a few seconds as chosen by the client (page «Avvisi»), never over a full
- * screen pause.
+ * screen pause. During the set the «ogni N punti» pause opens with the live updates only.
  */
 export function LivePage() {
   const { token = '' } = useParams();
@@ -219,6 +219,7 @@ export function LivePage() {
           key={data.matchId}
           onFullscreenChange={setPauseFullscreen}
           state={data.state}
+          live={data.live === true}
           config={intermissions}
           device={device}
           paused={rotationPaused}

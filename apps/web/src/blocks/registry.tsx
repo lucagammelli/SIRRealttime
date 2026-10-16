@@ -11,6 +11,8 @@ import { TeamComparison } from '../components/TeamComparison.tsx';
 import { LogoBlock, MessageBlock, QrBlock, SponsorBlock } from './BrandBlocks.tsx';
 import type { BlockEnv } from './env.ts';
 import { LastPointBlock, SetScoresBlock, TopPlayersBlock } from './MatchBlocks.tsx';
+import { AttackView, CountView, RoleDuelView, SetScorersView, TeamDuelView } from './StatSlides.tsx';
+import { statPeriod } from '../lib/intermission.ts';
 
 /** On the big screen every card fills its cell and never grows it. */
 const TV_CARD = 'h-full min-h-0 overflow-hidden';
@@ -35,6 +37,10 @@ export interface BlockDefinition<T extends BlockType = BlockType> {
 type Registry = { [T in BlockType]: BlockDefinition<T> };
 
 const tv = (env: BlockEnv): boolean => env.device === 'tv';
+
+/** Statistics block of a period: the set in progress (`set`) or the whole match, in the card size. */
+const statsOf = (period: 'set' | 'match', env: BlockEnv) =>
+  ({ state: env.state, period: statPeriod(period, env.state.live.set), size: 'card' }) as const;
 
 const define = <T extends BlockType>(
   type: T,
@@ -91,6 +97,30 @@ export const BLOCKS: Registry = {
   topPlayers: define('topPlayers', 'Migliori giocatori', 'I giocatori con più punti.', (b, env) => (
     <TopPlayersBlock options={b.options} env={env} />
   )),
+  setScorers: define(
+    'setScorers',
+    'Parziale e marcatori',
+    'Punteggio del set in corso (o set vinti) e i giocatori con più punti.',
+    (b, env) => <SetScorersView {...statsOf(b.options.period, env)} options={b.options} />,
+  ),
+  aces: define('aces', 'Ace', 'Ace di ogni squadra e chi li ha fatti.', (b, env) => (
+    <CountView {...statsOf(b.options.period, env)} kind="aces" />
+  )),
+  blocks: define('blocks', 'Muri', 'Muri vincenti di ogni squadra e chi li ha fatti.', (b, env) => (
+    <CountView {...statsOf(b.options.period, env)} kind="blocks" />
+  )),
+  attack: define('attack', 'Attacco', 'Percentuali d’attacco delle squadre e migliori attaccanti.', (b, env) => (
+    <AttackView {...statsOf(b.options.period, env)} options={b.options} />
+  )),
+  roleDuel: define('roleDuel', 'Sfida per ruolo', 'Giocatore contro giocatore dello stesso ruolo.', (b, env) => (
+    <RoleDuelView {...statsOf(b.options.period, env)} role={b.options.role} paused={env.paused} />
+  )),
+  teamDuel: define(
+    'teamDuel',
+    'Squadre a confronto',
+    'Le due squadre fondamentale per fondamentale, in grande.',
+    (b, env) => <TeamDuelView {...statsOf(b.options.period, env)} options={b.options} />,
+  ),
   logo: define('logo', 'Logo', 'Logo del cliente (orizzontale o quadrato).', (b, env) => (
     <LogoBlock options={b.options} env={env} />
   )),

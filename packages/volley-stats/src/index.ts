@@ -24,11 +24,13 @@ export {
   recentEvents,
   RUN_MIN_POINTS,
   setPointTeam,
+  setTarget,
 } from './events.js';
 export type { Mvp, SetRecap } from './recap.js';
 export {
   DUEL_ROLES,
   MATCH_PERIOD,
+  TEAM_DUEL_KEYS,
   periodSummary,
   pointMilestone,
   roleDuels,
@@ -44,6 +46,7 @@ export type {
   RoleDuel,
   Scorer,
   TeamDuelGroup,
+  TeamDuelKey,
   TeamDuelRow,
   TeamPeriodSummary,
 } from './period.js';

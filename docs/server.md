@@ -107,7 +107,9 @@ La fase della partita (`state.phase`) è calcolata da `@sir/volley-stats` (`docs
 nulla, la fase viaggia nello stato come ogni altro campo. `{}` è valido e vale i predefiniti (`resolveIntermissions`).
 
 - **Rotte admin** (ruolo `admin`; il superadmin lavora sul cliente attivo, `adminTenantId`): `GET /api/admin/intermissions`
-  e `PUT /api/admin/intermissions`; il corpo del `PUT` è il documento delle pause e la risposta è `IntermissionsResponse`
+  e `PUT /api/admin/intermissions` (nessuna rotta nuova per le diapositive in stile TV e per «ogni N punti»: lo schema
+  condiviso accetta i nuovi tipi di diapositiva, `milestone` con `every` e `stopBeforeEnd`; documenti salvati prima restano
+  validi, i campi mancanti prendono i predefiniti); il corpo del `PUT` è il documento delle pause e la risposta è `IntermissionsResponse`
   (`tenantName`, `intermissions`). Validazione con lo schema condiviso (tipi di diapositiva chiusi, durate 3-60 s, ritardo
   0-60 s, al massimo 12 diapositive, una pausa attiva con almeno una diapositiva): altrimenti 400.
 - **Immagini degli sponsor**: gli id delle diapositive `sponsor` (`intermissionImageIds`) devono essere immagini di quel

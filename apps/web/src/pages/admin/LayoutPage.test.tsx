@@ -271,4 +271,21 @@ describe('«Pagina pubblica» page', () => {
       options: { images: [SPONSOR], seconds: 12 },
     });
   });
+  it('adds a player duel block for the TV, with the options of the statistics slides', async () => {
+    const { calls } = mockServer();
+    renderAt('/admin/pagina');
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Tipo di blocco' }), {
+      target: { value: 'roleDuel' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi blocco' }));
+    const period = screen.getByRole('combobox', { name: 'Periodo: Sfida per ruolo' });
+    expect(within(period).getByRole('option', { name: 'Il set in corso' })).toBeTruthy();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Ruolo: Sfida per ruolo' }), { target: { value: 'libero' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salva' }));
+    await screen.findByText(/Pagina pubblica salvata/);
+    expect((lastPut(calls)?.body as TenantLayout).tv.at(-1)).toMatchObject({
+      type: 'roleDuel',
+      options: { period: 'set', role: 'libero' },
+    });
+  });
 });

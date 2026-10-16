@@ -10,6 +10,8 @@ import {
   roleDuels,
   scorers,
   setPeriod,
+  setTarget,
+  TEAM_DUEL_KEYS,
   teamDuel,
 } from './index.js';
 import type { MatchState } from './index.js';
@@ -201,7 +203,13 @@ describe('pointMilestone', () => {
 
   it('soglie multiple di N sul totale del set in corso', () => {
     expect(pointMilestone(build(pts(3)), 4)).toBeNull();
-    expect(pointMilestone(build(pts(4)), 4)).toMatchObject({ key: 'set-1-4', threshold: 4, homeScore: 4 });
+    expect(pointMilestone(build(pts(4)), 4)).toMatchObject({
+      key: 'set-1-4',
+      threshold: 4,
+      homeScore: 4,
+      target: 25,
+      toTarget: 21,
+    });
     expect(pointMilestone(build(pts(7)), 4)?.key).toBe('set-1-4');
     expect(pointMilestone(build(pts(8)), 4)?.key).toBe('set-1-8');
   });
@@ -214,6 +222,25 @@ describe('pointMilestone', () => {
       ...Array.from({ length: 8 }, (_, i) => row(`*p0${i + 1}:00`, 2)),
     ]);
     expect(pointMilestone(s, 8)).toMatchObject({ key: 'set-2-8', set: 2 });
+  });
+
+  it('traguardo del set e punti che mancano alla squadra in vantaggio: 25, 15 al tie-break', () => {
+    expect(pointMilestone(build(pts(20)), 4)).toMatchObject({ target: 25, toTarget: 5 });
+    const base = build(pts(8));
+    const tieBreak = {
+      status: 'inProgress' as const,
+      live: { ...base.live, set: 5 },
+      sets: [{ ...base.sets[0], number: 5, homeScore: 5, awayScore: 8, finished: false } as MatchState['sets'][number]],
+    };
+    expect(pointMilestone(tieBreak, 4)).toMatchObject({ set: 5, threshold: 12, target: 15, toTarget: 7 });
+    expect(setTarget(4)).toBe(25);
+    expect(setTarget(5)).toBe(15);
+  });
+
+  it('chiavi del confronto squadre: TEAM_DUEL_KEYS, nel loro ordine', () => {
+    const s = build(pts(8));
+    expect(teamDuel(s, MATCH_PERIOD).map((r) => r.key)).toEqual([...TEAM_DUEL_KEYS]);
+    expect(teamDuel(s, setPeriod(1)).map((r) => r.key)).toEqual(TEAM_DUEL_KEYS.slice(0, -2));
   });
 
   it('set chiuso, partita non iniziata o every non valido: null', () => {

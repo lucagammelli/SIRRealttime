@@ -48,8 +48,8 @@ export const LONG_RALLY_MIN_ATTACKS = 4;
 export const COMEBACK_MIN_POINTS = 3;
 
 const SETS_TO_WIN = 3;
-/** Punti per vincere il set: 25, 15 al tie-break (5° set). */
-const setTarget = (set: number): number => (set >= 5 ? 15 : 25);
+/** Funzione pura: punti per vincere il set (senza i due di scarto): 25, 15 al tie-break (5° set). */
+export const setTarget = (set: number): number => (set >= 5 ? 15 : 25);
 /** Punteggio da cui pareggio e sorpasso si segnalano sempre: 15 nei set a 25, 9 al tie-break (3/5 del set). */
 const lateScore = (set: number): number => Math.round((setTarget(set) * 3) / 5);
 

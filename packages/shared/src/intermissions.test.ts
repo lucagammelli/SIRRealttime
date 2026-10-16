@@ -1,5 +1,15 @@
+import { DUEL_ROLES, TEAM_DUEL_KEYS } from '@sir/volley-stats';
 import { describe, expect, it } from 'vitest';
 import {
+  DUEL_ROLE_CHOICES,
+  MILESTONE_DEFAULT_EVERY,
+  MILESTONE_DEFAULT_STOP_BEFORE_END,
+  MILESTONE_MAX_EVERY,
+  MILESTONE_MAX_STOP_BEFORE_END,
+  MILESTONE_MIN_EVERY,
+  MILESTONE_MIN_STOP_BEFORE_END,
+  SCORERS_MAX,
+  SCORERS_MIN,
   allIntermissions,
   defaultIntermission,
   defaultIntermissions,
@@ -21,6 +31,7 @@ const IMG_A = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
 const IMG_B = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
 
 const types = (slides: readonly { type: string }[]): string[] => slides.map((s) => s.type);
+const SET_BREAK_TYPES = ['setSummary', 'setScorers', 'aces', 'blocks', 'roleDuel', 'teamDuel', 'sponsor'];
 
 describe('pauses of the public page: defaults', () => {
   it('reads the empty database document as the defaults of every pause', () => {
@@ -37,19 +48,49 @@ describe('pauses of the public page: defaults', () => {
     expect(types(timeout.slides)).toEqual(['sponsor']);
   });
 
-  it('end of set: full screen on TV and tablet, banner on the phone, summary and sponsors after 5 s', () => {
+  it('end of set: full screen on TV and tablet, banner on the phone, summary, statistics of the set and sponsors after 5 s', () => {
     const { setBreak } = defaultIntermissions();
     expect(setBreak.modes).toEqual({ tv: 'fullscreen', tablet: 'fullscreen', phone: 'banner' });
     expect(setBreak.delaySeconds).toBe(5);
-    expect(types(setBreak.slides)).toEqual(['setSummary', 'sponsor']);
+    expect(types(setBreak.slides)).toEqual(SET_BREAK_TYPES);
+    const duel = setBreak.slides.find((s) => s.type === 'roleDuel');
+    expect(duel?.options).toEqual({ period: 'set', role: 'rotate' });
+    const scorers = setBreak.slides.find((s) => s.type === 'setScorers');
+    expect(scorers?.options).toEqual({ period: 'set', limit: 5 });
+    const team = setBreak.slides.find((s) => s.type === 'teamDuel');
+    expect(team?.options).toEqual({ period: 'set', rows: [] });
   });
 
-  it('end of match: full screen with result, MVP, thanks and sponsors', () => {
+  it('end of match: full screen with result, MVP, statistics of the match, thanks and sponsors', () => {
     const { matchEnd } = defaultIntermissions();
     expect(matchEnd.modes).toEqual({ tv: 'fullscreen', tablet: 'fullscreen', phone: 'fullscreen' });
-    expect(types(matchEnd.slides)).toEqual(['finalResult', 'mvp', 'message', 'sponsor']);
-    expect(matchEnd.slides[2]).toMatchObject({ options: { text: THANKS_MESSAGE, size: 'large' } });
+    expect(types(matchEnd.slides)).toEqual([
+      'finalResult',
+      'mvp',
+      'setScorers',
+      'roleDuel',
+      'teamDuel',
+      'message',
+      'sponsor',
+    ]);
+    for (const slide of matchEnd.slides.slice(2, 5)) expect(slide.options).toMatchObject({ period: 'match' });
+    expect(matchEnd.slides[5]).toMatchObject({ options: { text: THANKS_MESSAGE, size: 'large' } });
     expect(THANKS_MESSAGE).toBe('Grazie per aver seguito la partita');
+  });
+
+  it('«ogni N punti»: every 8 points but the last 5 of the set, banner (full screen on TV), scorers and teams of the set', () => {
+    const { milestone } = defaultIntermissions();
+    expect(milestone).toMatchObject({
+      enabled: true,
+      every: MILESTONE_DEFAULT_EVERY,
+      stopBeforeEnd: MILESTONE_DEFAULT_STOP_BEFORE_END,
+    });
+    expect(MILESTONE_DEFAULT_EVERY).toBe(8);
+    expect(MILESTONE_DEFAULT_STOP_BEFORE_END).toBe(5);
+    expect(milestone.modes).toEqual({ tv: 'fullscreen', tablet: 'banner', phone: 'banner' });
+    expect(types(milestone.slides)).toEqual(['setScorers', 'teamDuel']);
+    for (const slide of milestone.slides) expect(slide.options).toMatchObject({ period: 'set' });
+    expect(defaultIntermission('milestone')).toEqual(milestone);
   });
 
   it('a partial pause takes the defaults of its own kind', () => {
@@ -59,14 +100,87 @@ describe('pauses of the public page: defaults', () => {
     });
     expect(config.timeout).toEqual({ ...defaultIntermission('timeout'), delaySeconds: 3 });
     expect(config.setBreak.modes).toEqual({ tv: 'banner', tablet: 'fullscreen', phone: 'banner' });
-    expect(types(config.setBreak.slides)).toEqual(['setSummary', 'sponsor']);
+    expect(types(config.setBreak.slides)).toEqual(SET_BREAK_TYPES);
   });
 
   it('every slide type has defaults and every default is a new object', () => {
     for (const type of SLIDE_TYPES) expect(IntermissionSlideSchema.safeParse({ id: type, type }).success).toBe(true);
     const a = defaultIntermissions();
     a.setBreak.slides.pop();
-    expect(defaultIntermissions().setBreak.slides).toHaveLength(2);
+    expect(defaultIntermissions().setBreak.slides).toHaveLength(SET_BREAK_TYPES.length);
+  });
+
+  it('a document saved before the new slides and the «ogni N punti» stays valid as it was', () => {
+    const old = {
+      version: 1,
+      timeout: { enabled: true, modes: { tv: 'banner', tablet: 'banner', phone: 'banner' }, delaySeconds: 0 },
+      setBreak: { slides: [{ id: 'setSummary', type: 'setSummary', seconds: 12, options: {} }] },
+      setBreakBySet: { '2': { slides: [{ id: 'q', type: 'qr', seconds: 8, options: { caption: 'Ciao' } }] } },
+      matchEnd: { slides: [{ id: 'mvp', type: 'mvp', seconds: 10, options: {} }] },
+    };
+    const parsed = TenantIntermissionsSchema.safeParse(old);
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(types(parsed.data.setBreak.slides)).toEqual(['setSummary']);
+    expect(types(parsed.data.matchEnd.slides)).toEqual(['mvp']);
+    expect(parsed.data.milestone).toEqual(defaultIntermission('milestone'));
+    expect(resolveIntermissions(old)).toEqual(parsed.data);
+  });
+});
+
+describe('pauses of the public page: slides of the statistics', () => {
+  const parse = (doc: unknown) => TenantIntermissionsSchema.safeParse(doc);
+  const slide = (type: string, options: unknown) => ({ setBreak: { slides: [{ id: 's', type, options }] } });
+
+  it('period of the set or of the match, nothing else', () => {
+    for (const type of ['setScorers', 'aces', 'blocks', 'attack', 'roleDuel', 'teamDuel']) {
+      expect(parse(slide(type, { period: 'match' })).success).toBe(true);
+      expect(parse(slide(type, { period: 'set' })).success).toBe(true);
+      expect(parse(slide(type, { period: 'week' })).success).toBe(false);
+      expect(parse(slide(type, { period: 'set', extra: 1 })).success).toBe(false);
+    }
+  });
+
+  it('scorers: 3-8 for each team', () => {
+    expect(parse(slide('setScorers', { limit: SCORERS_MIN })).success).toBe(true);
+    expect(parse(slide('setScorers', { limit: SCORERS_MAX })).success).toBe(true);
+    expect(parse(slide('setScorers', { limit: SCORERS_MIN - 1 })).success).toBe(false);
+    expect(parse(slide('setScorers', { limit: SCORERS_MAX + 1 })).success).toBe(false);
+  });
+
+  it('player duel: one role of the duels or all of them in turn', () => {
+    expect(DUEL_ROLE_CHOICES).toEqual(['rotate', ...DUEL_ROLES]);
+    for (const role of DUEL_ROLE_CHOICES) expect(parse(slide('roleDuel', { role })).success).toBe(true);
+    expect(parse(slide('roleDuel', { role: 'coach' })).success).toBe(false);
+  });
+
+  it('team duel: rows of TEAM_DUEL_KEYS of @sir/volley-stats, chosen once each (empty: all)', () => {
+    expect(parse(slide('teamDuel', { rows: ['points', 'aces'] })).success).toBe(true);
+    expect(parse(slide('teamDuel', { rows: [...TEAM_DUEL_KEYS] })).success).toBe(true);
+    expect(parse(slide('teamDuel', { rows: [] })).success).toBe(true);
+    expect(parse(slide('teamDuel', { rows: ['points', 'points'] })).success).toBe(false);
+    expect(parse(slide('teamDuel', { rows: ['height'] })).success).toBe(false);
+  });
+
+  it('«ogni N punti»: N 4-25, «non negli ultimi K punti» 1-15, an active pause has slides', () => {
+    const m = (milestone: unknown) => parse({ milestone });
+    expect(m({ every: MILESTONE_MIN_EVERY }).success).toBe(true);
+    expect(m({ every: MILESTONE_MAX_EVERY }).success).toBe(true);
+    expect(m({ every: MILESTONE_MIN_EVERY - 1 }).success).toBe(false);
+    expect(m({ every: MILESTONE_MAX_EVERY + 1 }).success).toBe(false);
+    expect(m({ every: 7.5 }).success).toBe(false);
+    expect(m({ stopBeforeEnd: MILESTONE_MIN_STOP_BEFORE_END }).success).toBe(true);
+    expect(m({ stopBeforeEnd: MILESTONE_MAX_STOP_BEFORE_END }).success).toBe(true);
+    expect(m({ stopBeforeEnd: MILESTONE_MIN_STOP_BEFORE_END - 1 }).success).toBe(false);
+    expect(m({ stopBeforeEnd: MILESTONE_MAX_STOP_BEFORE_END + 1 }).success).toBe(false);
+    expect(m({ maxTeamScore: 20 }).success).toBe(false);
+    expect(m({ slides: [] }).success).toBe(false);
+    expect(m({ enabled: false, slides: [] }).success).toBe(true);
+    expect(m({ html: '<b>' }).success).toBe(false);
+    const parsed = TenantIntermissionsSchema.parse({ milestone: { every: 10, modes: { phone: 'fullscreen' } } });
+    expect(parsed.milestone).toMatchObject({ every: 10, stopBeforeEnd: 5 });
+    expect(parsed.milestone.modes).toEqual({ tv: 'fullscreen', tablet: 'banner', phone: 'fullscreen' });
+    expect(intermissionFor(parsed, 'milestone')).toBe(parsed.milestone);
   });
 });
 
@@ -157,7 +271,7 @@ describe('pauses of the public page: inheritance and images', () => {
   });
 
   it('lists every pause and the images of every sponsor slide once', () => {
-    expect(allIntermissions(config)).toHaveLength(5);
+    expect(allIntermissions(config)).toHaveLength(6);
     expect(intermissionImageIds(config)).toEqual([IMG_A, IMG_B]);
     expect(intermissionImageIds(defaultIntermissions())).toEqual([]);
   });

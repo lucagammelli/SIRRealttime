@@ -2,6 +2,7 @@ import type {
   Intermission,
   IntermissionKind,
   IntermissionSlide,
+  MilestoneIntermission,
   SetBreakSet,
   SlideType,
   TenantIntermissions,
@@ -34,11 +35,20 @@ export function pauseAt(config: TenantIntermissions, target: PauseTarget): Inter
   return config[target as IntermissionKind];
 }
 
-/** Replaces the pause at `target`. */
+/** Replaces the pause at `target` (the «ogni N punti» keeps its rule unless `pause` has one). */
 export function withPause(config: TenantIntermissions, target: PauseTarget, pause: Intermission): TenantIntermissions {
   const set = targetSet(target);
   if (set) return { ...config, setBreakBySet: { ...config.setBreakBySet, [set]: pause } };
+  if (target === 'milestone') return { ...config, milestone: { ...config.milestone, ...pause } };
   return { ...config, [target as IntermissionKind]: pause };
+}
+
+/** Changes the rule of the «ogni N punti»: every how many points, not in the last K points of the set. */
+export function withMilestoneRule(
+  config: TenantIntermissions,
+  rule: Partial<Pick<MilestoneIntermission, 'every' | 'stopBeforeEnd'>>,
+): TenantIntermissions {
+  return { ...config, milestone: { ...config.milestone, ...rule } };
 }
 
 /** Gives the set its own pause (a copy of the generic end of set) or takes it away (back to the generic one). */
@@ -104,7 +114,8 @@ export function pauseProblems(config: TenantIntermissions): Set<PauseTarget> {
     if (first === 'setBreakBySet' && typeof second === 'string') {
       const set = targetSet(`setBreak-${second}` as PauseTarget);
       if (set) out.add(`setBreak-${set}`);
-    } else if (first === 'timeout' || first === 'setBreak' || first === 'matchEnd') out.add(first);
+    } else if (first === 'timeout' || first === 'setBreak' || first === 'matchEnd' || first === 'milestone')
+      out.add(first);
   }
   return out;
 }

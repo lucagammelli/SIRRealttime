@@ -40,6 +40,7 @@ import { LayoutScaleContext } from '../../lib/useLayout.ts';
 import { socketUrl, useLiveSocket } from '../../lib/useLiveSocket.ts';
 import { useApiError } from './auth.tsx';
 import { inputClass } from './forms.tsx';
+import { StatOptionsFields, withStatOptions } from './StatOptionsFields.tsx';
 import { addBlock, canAdd, layoutProblems, moveBlock, removeBlock, resetDevice, updateBlock } from './layoutEditor.ts';
 
 export const DEVICE_LABELS: Record<LayoutDevice, string> = { tv: 'TV', tablet: 'Tablet', phone: 'Telefono' };
@@ -336,6 +337,20 @@ export function BlockOptionsEditor({
         </div>
       );
     }
+    case 'setScorers':
+    case 'aces':
+    case 'blocks':
+    case 'attack':
+    case 'roleDuel':
+    case 'teamDuel':
+      return (
+        <StatOptionsFields
+          item={block}
+          name={label}
+          setLabel="Il set in corso"
+          onChange={(item) => onChange(withStatOptions(block, item))}
+        />
+      );
     default:
       return null;
   }

@@ -5,6 +5,7 @@ import { matchMvp, setRecap } from '@sir/volley-stats';
 import type { ReactNode } from 'react';
 import { Partials } from '../components/Scoreboard.tsx';
 import { formatPct, playerName, teamName, teamShort } from '../lib/format.ts';
+import { statPeriod } from '../lib/intermission.ts';
 import { setPartials } from '../lib/scoreboard.ts';
 import { ShareQr } from '../qr/ShareQr.tsx';
 import {
@@ -17,6 +18,7 @@ import {
   useImageRotation,
 } from './BrandBlocks.tsx';
 import type { BlockEnv } from './env.ts';
+import { AttackView, CountView, RoleDuelView, SetScorersView, TeamDuelView } from './StatSlides.tsx';
 
 /** `full`: the slide fills the screen of a full-screen pause; `compact`: one line of a banner. */
 export type SlideSize = 'full' | 'compact';
@@ -37,6 +39,21 @@ export const SLIDE_LABELS: Record<SlideType, { label: string; description: strin
   finalResult: { label: 'Risultato', description: 'Set vinti e parziali della partita.' },
   mvp: { label: 'MVP', description: 'Il migliore della partita (punti, poi efficienza d’attacco).' },
   setScores: { label: 'Parziali dei set', description: 'Punteggio di ogni set.' },
+  setScorers: {
+    label: 'Parziale e marcatori',
+    description: 'Punteggio del set (o set vinti) e i giocatori con più punti di ogni squadra.',
+  },
+  aces: { label: 'Ace', description: 'Ace di ogni squadra e chi li ha fatti.' },
+  blocks: { label: 'Muri', description: 'Muri vincenti di ogni squadra e chi li ha fatti.' },
+  attack: {
+    label: 'Attacco',
+    description: 'Percentuale di punti ed efficienza d’attacco delle squadre, con i migliori attaccanti.',
+  },
+  roleDuel: {
+    label: 'Sfida per ruolo',
+    description: 'Giocatore contro giocatore dello stesso ruolo (opposti, schiacciatori, centrali, …).',
+  },
+  teamDuel: { label: 'Squadre a confronto', description: 'Le due squadre fondamentale per fondamentale.' },
   sponsor: { label: 'Sponsor', description: 'Immagini degli sponsor a rotazione (o il logo sponsor della grafica).' },
   message: { label: 'Messaggio', description: 'Un testo a scelta (senza formattazione).' },
   qr: { label: 'Codice QR', description: 'QR del link di questa pagina.' },
@@ -256,6 +273,48 @@ export function renderSlide(slide: IntermissionSlide, env: SlideEnv, size: Slide
         </div>
       ) : (
         <Partials partials={setPartials(env.state)} compact />
+      );
+    case 'setScorers':
+      return (
+        <SetScorersView
+          state={env.state}
+          period={statPeriod(slide.options.period, env.set)}
+          options={slide.options}
+          size={size}
+        />
+      );
+    case 'aces':
+    case 'blocks':
+      return (
+        <CountView state={env.state} period={statPeriod(slide.options.period, env.set)} kind={slide.type} size={size} />
+      );
+    case 'attack':
+      return (
+        <AttackView
+          state={env.state}
+          period={statPeriod(slide.options.period, env.set)}
+          options={slide.options}
+          size={size}
+        />
+      );
+    case 'roleDuel':
+      return (
+        <RoleDuelView
+          state={env.state}
+          period={statPeriod(slide.options.period, env.set)}
+          role={slide.options.role}
+          size={size}
+          paused={env.paused}
+        />
+      );
+    case 'teamDuel':
+      return (
+        <TeamDuelView
+          state={env.state}
+          period={statPeriod(slide.options.period, env.set)}
+          options={slide.options}
+          size={size}
+        />
       );
     case 'sponsor':
       return <SponsorSlide slide={slide} env={env} size={size} />;

@@ -77,6 +77,16 @@ describe('layout of the public page', () => {
     expect(parseBlock({ type: 'momentum', options: { any: 1 } }).success).toBe(false);
   });
 
+  it('statistics of a period as blocks too (the same options of the slides of the pauses)', () => {
+    expect(parseBlock({ type: 'setScorers' }).data?.options).toEqual({ period: 'set', limit: 5 });
+    expect(parseBlock({ type: 'aces' }).data?.options).toEqual({ period: 'set' });
+    expect(parseBlock({ type: 'blocks', options: { period: 'match' } }).data?.options).toEqual({ period: 'match' });
+    expect(parseBlock({ type: 'attack' }).data?.options).toEqual({ period: 'set', limit: 3 });
+    expect(parseBlock({ type: 'roleDuel' }).data?.options).toEqual({ period: 'set', role: 'rotate' });
+    expect(parseBlock({ type: 'teamDuel' }).data?.options).toEqual({ period: 'set', rows: [] });
+    expect(parseBlock({ type: 'attack', options: { limit: 6 } }).success).toBe(false);
+  });
+
   it('checks the options of each type: plain texts, image ids, durations and counts within limits', () => {
     expect(parseBlock({ type: 'message', options: { text: '  Forza ragazzi!  ' } }).data?.options).toEqual({
       text: 'Forza ragazzi!',

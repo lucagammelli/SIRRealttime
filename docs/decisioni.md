@@ -181,3 +181,12 @@ Una riga per decisione: data, scelta, motivo.
   modelli, perché migliorano la lettura su schermo piccolo anche nel modello standard (`docs/portale.md`).
 - 2026-10-16: niente loghi di squadra nel modello SIR VOLLEY per ora (scelta di Luca), perché i dati non li hanno
   (`docs/portale.md`).
+- 2026-10-16: le diapositive in stile TV sono una vista dei calcoli di `period.ts`, perché i numeri restano in un solo
+  posto (`volley-stats`) e il confronto del portale non duplica più le righe (`docs/portale.md`).
+- 2026-10-16: la pausa «ogni N punti» ha una regola relativa al traguardo del set (`stopBeforeEnd`, predefinito 5: niente
+  pausa a 5 punti o meno dal 25, o dal 15 al tie-break) e non un punteggio fisso, perché vale per ogni set e non si
+  sovrappone al finale (`docs/architettura.md`).
+- 2026-10-16: le diapositive senza dati sono saltate nelle pause (nei blocchi un messaggio), perché una pausa non mostri
+  schermate vuote (`docs/portale.md`).
+- 2026-10-16: la pausa «ogni N punti» è attiva di default per tutti i clienti (richiesta di Luca) e si spegne da
+  «Pause e sponsor» (`docs/portale.md`).

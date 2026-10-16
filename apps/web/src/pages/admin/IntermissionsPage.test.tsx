@@ -121,15 +121,21 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const SET_BREAK_IDS = ['setSummary', 'setScorers', 'aces', 'blocks', 'roleDuel', 'teamDuel', 'sponsor'];
+
 describe('editing helpers of the pauses', () => {
   it('add, move, remove slides and reset a pause', () => {
-    const pause = defaultIntermission('setBreak');
-    const added = addSlide(addSlide(pause, 'qr'), 'qr');
+    const pause = { ...defaultIntermission('setBreak'), slides: defaultIntermission('setBreak').slides.slice(0, 1) };
+    const added = addSlide(addSlide(addSlide(pause, 'sponsor'), 'qr'), 'qr');
     expect(added.slides.map((s) => s.id)).toEqual(['setSummary', 'sponsor', 'qr', 'qr-2']);
     expect(added.slides.at(-1)).toMatchObject({ seconds: 8, options: { caption: 'Segui la partita sul telefono' } });
     expect(moveSlide(added, 3, 0).slides[0]?.id).toBe('qr-2');
     expect(moveSlide(added, 0, 99).slides.at(-1)?.id).toBe('setSummary');
     expect(removeSlide(added, 'sponsor').slides.map((s) => s.id)).toEqual(['setSummary', 'qr', 'qr-2']);
+    expect(addSlide(pause, 'roleDuel').slides.at(-1)).toMatchObject({
+      type: 'roleDuel',
+      options: { period: 'set', role: 'rotate' },
+    });
     expect(freeSlideId(added.slides, 'mvp')).toBe('mvp');
     const config = withPause(defaultIntermissions(), 'timeout', { ...pause, delaySeconds: 9 });
     expect(config.timeout.delaySeconds).toBe(9);
@@ -168,11 +174,11 @@ describe('«Pause e sponsor» page', () => {
     renderAt('/admin/pause');
     expect(await screen.findByRole('link', { name: 'Pause e sponsor' })).toBeTruthy();
     const pauses = within(await screen.findByRole('tablist', { name: 'Pausa' })).getAllByRole('tab');
-    expect(pauses.map((t) => t.textContent)).toEqual(['Time-out', 'Fine set', 'Fine partita']);
+    expect(pauses.map((t) => t.textContent)).toEqual(['Time-out', 'Fine set', 'Fine partita', 'Ogni N punti']);
     expect(pauses[1]?.getAttribute('aria-selected')).toBe('true');
     const sets = within(screen.getByRole('tablist', { name: 'Set' })).getAllByRole('tab');
     expect(sets.map((t) => t.textContent)).toEqual(['Tutti i set', '1° set', '2° set', '3° set', '4° set']);
-    expect(order()).toEqual(['setSummary', 'sponsor']);
+    expect(order()).toEqual(SET_BREAK_IDS);
     // TV preview of the example match with the end of its first set, full screen
     const tv = await screen.findByTestId('anteprima-tv');
     const dialog = await within(tv).findByRole('dialog', { name: 'Fine 1° set' });
@@ -234,8 +240,9 @@ describe('«Pause e sponsor» page', () => {
     expect(screen.getByText(/si usa la pausa di «Tutti i set»/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Ripristina predefinito' })).toHaveProperty('disabled', true);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Pausa propria per la fine del 3° set' }));
-    expect(order()).toEqual(['setSummary', 'sponsor']);
-    fireEvent.click(screen.getByRole('button', { name: 'Rimuovi Sponsor' }));
+    expect(order()).toEqual(SET_BREAK_IDS);
+    for (const name of ['Sponsor', 'Parziale e marcatori', 'Ace', 'Muri', 'Sfida per ruolo', 'Squadre a confronto'])
+      fireEvent.click(screen.getByRole('button', { name: `Rimuovi ${name}` }));
     fireEvent.click(screen.getByRole('tab', { name: 'Fine partita' }));
     fireEvent.click(screen.getByRole('switch', { name: 'Pausa attiva' }));
     expect(screen.getByText('Pausa disattivata: gli spettatori non la vedono.')).toBeTruthy();
@@ -247,7 +254,62 @@ describe('«Pause e sponsor» page', () => {
     expect(saved.matchEnd.enabled).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Ripristina predefinito' }));
     expect(screen.getByRole('switch', { name: 'Pausa attiva' })).toHaveProperty('checked', true);
-    expect(order()).toEqual(['finalResult', 'mvp', 'thanks', 'sponsor']);
+    expect(order()).toEqual(['finalResult', 'mvp', 'setScorers', 'roleDuel', 'teamDuel', 'thanks', 'sponsor']);
     expect(screen.getByText('Modifiche non salvate.')).toBeTruthy();
+  });
+  it('«Ogni N punti»: the rule, the options of the statistics slides, the preview in play, and saves', async () => {
+    const { calls } = mockServer();
+    renderAt('/admin/pause');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Ogni N punti' }));
+    expect(order()).toEqual(['setScorers', 'teamDuel']);
+    expect(screen.getByText(/ogni N punti giocati/)).toBeTruthy();
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Ogni quanti punti' }), { target: { value: '10' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Non negli ultimi punti del set' }), {
+      target: { value: '99' },
+    });
+    expect(screen.getByText(/arriva a 10 punti \(mai al tie-break\)/)).toBeTruthy();
+    expect(screen.getByText(/dopo 10, 20, 30 punti giocati/)).toBeTruthy();
+    // the options of the statistics: period, how many scorers, rows of the comparison
+    fireEvent.change(screen.getByRole('combobox', { name: 'Marcatori per squadra: Parziale e marcatori' }), {
+      target: { value: '3' },
+    });
+    expect(screen.getByRole('combobox', { name: 'Periodo: Parziale e marcatori' })).toHaveProperty('value', 'set');
+    expect(screen.getByRole('checkbox', { name: 'Punti' })).toHaveProperty('checked', true);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Errori' }));
+    // a duel of the opposites, on the whole match
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tipo di diapositiva' }), { target: { value: 'roleDuel' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi diapositiva' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Ruolo: Sfida per ruolo' }), {
+      target: { value: 'opposite' },
+    });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Periodo: Sfida per ruolo' }), {
+      target: { value: 'match' },
+    });
+    // the preview: the example match in play, full screen on the TV with the score of the set in the title
+    const tv = await screen.findByTestId('anteprima-tv');
+    const dialog = await within(tv).findByRole('dialog', { name: /° set: \d+-\d+$/ });
+    expect(within(dialog).getByText('Parziale e marcatori')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Salva' }));
+    await screen.findByText(/Pause salvate/);
+    const saved = savedBody(calls).milestone;
+    expect(saved).toMatchObject({ every: 10, stopBeforeEnd: 15, enabled: true });
+    expect(saved.slides).toMatchObject([
+      { type: 'setScorers', options: { period: 'set', limit: 3 } },
+      { type: 'teamDuel', options: { period: 'set', rows: ['points', 'aces', 'killPct', 'blocks'] } },
+      { type: 'roleDuel', options: { period: 'match', role: 'opposite' } },
+    ]);
+  });
+
+  it('the end of set offers the new slides with «il set appena chiuso»', async () => {
+    mockServer();
+    renderAt('/admin/pause');
+    await screen.findByRole('tablist', { name: 'Pausa' });
+    const period = screen.getByRole('combobox', { name: 'Periodo: Ace' });
+    expect(within(period).getByRole('option', { name: 'Il set appena chiuso' })).toBeTruthy();
+    const types = within(screen.getByRole('combobox', { name: 'Tipo di diapositiva' }))
+      .getAllByRole('option')
+      .map((o) => o.textContent);
+    for (const name of ['Parziale e marcatori', 'Ace', 'Muri', 'Attacco', 'Sfida per ruolo', 'Squadre a confronto'])
+      expect(types).toContain(name);
   });
 });

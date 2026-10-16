@@ -143,6 +143,10 @@ dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in q
     SIR Real Time, «Powered by Istante®» in fondo, pagina predefinita come il mockup (specifiche e originali in
     `docs/grafica/`), «Nostra squadra» che segue i colori del cliente e breakpoint telefono/tablet/desktop per tutti i
     modelli (`docs/portale.md`, `docs/architettura.md`, `docs/server.md`); da provare su dispositivi veri.
+11. `diapositive-tv` (**fatto**, 2026-10-16): sei viste statistiche in stile TV (parziale e marcatori, ace, muri, attacco,
+    sfida per ruolo, squadre a confronto) come diapositive delle pause e come blocchi della pagina, nuova pausa «ogni N
+    punti» (attiva di default, non vicino al traguardo del set) e nuovi predefiniti di fine set e fine partita
+    (`docs/portale.md`, `docs/architettura.md`, `docs/server.md`, `docs/statistiche.md`); da provare su una TV vera.
 
 **Fase Multi-cliente completata** (2026-10-16): tutti i lavori sono fatti.
 

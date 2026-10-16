@@ -6,6 +6,7 @@ import type {
   IntermissionSlide,
   LayoutBlock,
   LayoutDevice,
+  MilestoneIntermission,
   SetBreakSet,
   SlideType,
   TenantIntermissions,
@@ -18,12 +19,17 @@ import {
   IntermissionSlideSchema,
   IntermissionsResponseSchema,
   LAYOUT_DEVICES,
+  MILESTONE_MAX_EVERY,
+  MILESTONE_MAX_STOP_BEFORE_END,
+  MILESTONE_MIN_EVERY,
+  MILESTONE_MIN_STOP_BEFORE_END,
   publicAssetPath,
   SET_BREAK_SETS,
   SLIDE_TYPES,
   SPONSOR_MAX_IMAGES,
 } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
+import { setTarget } from '@sir/volley-stats';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BlockBrand } from '../../blocks/env.ts';
@@ -50,8 +56,11 @@ import {
   setOwnPause,
   targetSet,
   updateSlide,
+  withMilestoneRule,
   withPause,
 } from './intermissionEditor.ts';
+import type { StatItem } from './StatOptionsFields.tsx';
+import { StatOptionsFields, withStatOptions } from './StatOptionsFields.tsx';
 import {
   blockBrandOf,
   BlockOptionsEditor,
@@ -68,14 +77,39 @@ const KIND_LABELS: Record<IntermissionKind, string> = {
   timeout: 'Time-out',
   setBreak: 'Fine set',
   matchEnd: 'Fine partita',
+  milestone: 'Ogni N punti',
 };
 const KIND_HINTS: Record<IntermissionKind, string> = {
   timeout: 'Dal time-out alla prima azione dopo: di solito una banda compatta con gli sponsor.',
   setBreak: 'Dalla fine del set alla prima azione del set successivo.',
   matchEnd: 'Dalla fine dell’ultimo set; resta finché lo spettatore torna alla partita.',
+  milestone:
+    'Durante il set, ogni N punti giocati (somma dei due punteggi): mostra le sue diapositive una volta e si chiude da sola. Mai nel finale del set, mai sopra un time-out o la fine del set.',
+};
+/** What «set» means for the statistics slides of each pause. */
+const SET_LABELS: Record<IntermissionKind, string> = {
+  timeout: 'Il set in corso',
+  setBreak: 'Il set appena chiuso',
+  matchEnd: 'L’ultimo set',
+  milestone: 'Il set in corso',
 };
 const MODE_LABELS: Record<IntermissionMode, string> = { fullscreen: 'Tutto schermo', banner: 'Banda in basso' };
-const KINDS: readonly IntermissionKind[] = ['timeout', 'setBreak', 'matchEnd'];
+const KINDS: readonly IntermissionKind[] = ['timeout', 'setBreak', 'matchEnd', 'milestone'];
+
+/** A statistics slide as the item of the options editor shared with the blocks. */
+function slideAsStat(slide: IntermissionSlide): StatItem | null {
+  switch (slide.type) {
+    case 'setScorers':
+    case 'aces':
+    case 'blocks':
+    case 'attack':
+    case 'roleDuel':
+    case 'teamDuel':
+      return slide;
+    default:
+      return null;
+  }
+}
 
 /** Options of a slide as the block of the same type, for the options editor of the blocks (sponsor, message, ...). */
 function slideAsBlock(slide: IntermissionSlide): LayoutBlock | null {
@@ -306,8 +340,10 @@ function PauseEditor({
           }}
         />
         <span className="text-xs text-muted">
-          {kind === 'setBreak' ? 'Il tabellone mostra prima la fine del set.' : 'Da 0 a 60.'} La pausa si chiude da sola
-          alla ripresa del gioco.
+          {kind === 'setBreak' ? 'Il tabellone mostra prima la fine del set.' : 'Da 0 a 60.'}{' '}
+          {kind === 'milestone'
+            ? 'La pausa si chiude da sola dopo le sue diapositive.'
+            : 'La pausa si chiude da sola alla ripresa del gioco.'}
         </span>
       </label>
       {slides.length === 0 ? (
@@ -318,6 +354,7 @@ function PauseEditor({
         <ol ref={list} aria-label={`Diapositive (${KIND_LABELS[kind]})`} className="space-y-2">
           {slides.map((slide, index) => {
             const block = slideAsBlock(slide);
+            const stat = slideAsStat(slide);
             return (
               <SlideRow
                 key={slide.id}
@@ -337,6 +374,14 @@ function PauseEditor({
                   onAnnounce(`${SLIDE_LABELS[slide.type].label} rimossa.`);
                 }}
               >
+                {stat && (
+                  <StatOptionsFields
+                    item={stat}
+                    name={SLIDE_LABELS[slide.type].label}
+                    setLabel={SET_LABELS[kind]}
+                    onChange={(next) => onChange((p) => updateSlide(p, slide.id, (s) => withStatOptions(s, next)))}
+                  />
+                )}
                 {block && (
                   <BlockOptionsEditor
                     block={block}
@@ -375,6 +420,63 @@ function PauseEditor({
           {slides.length} di al massimo {INTERMISSION_MAX_SLIDES} diapositive.
         </span>
       </div>
+    </div>
+  );
+}
+
+/** Whole number within limits from a number field (empty or wrong: the lowest). */
+const clampInt = (text: string, min: number, max: number): number => {
+  const n = Math.round(Number(text));
+  return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : min;
+};
+
+/** Rule of the «ogni N punti»: every how many points, not in the last K points of the set. */
+function MilestoneRule({
+  pause,
+  onChange,
+}: {
+  pause: MilestoneIntermission;
+  onChange: (rule: Partial<Pick<MilestoneIntermission, 'every' | 'stopBeforeEnd'>>) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-4 text-sm text-text">
+      <label className="flex items-center gap-2">
+        Ogni quanti punti
+        <input
+          type="number"
+          className={`${inputClass} w-20`}
+          min={MILESTONE_MIN_EVERY}
+          max={MILESTONE_MAX_EVERY}
+          step={1}
+          value={pause.every}
+          onChange={(e) => onChange({ every: clampInt(e.target.value, MILESTONE_MIN_EVERY, MILESTONE_MAX_EVERY) })}
+        />
+      </label>
+      <label className="flex items-center gap-2">
+        Non negli ultimi punti del set
+        <input
+          type="number"
+          className={`${inputClass} w-20`}
+          min={MILESTONE_MIN_STOP_BEFORE_END}
+          max={MILESTONE_MAX_STOP_BEFORE_END}
+          step={1}
+          value={pause.stopBeforeEnd}
+          onChange={(e) =>
+            onChange({
+              stopBeforeEnd: clampInt(e.target.value, MILESTONE_MIN_STOP_BEFORE_END, MILESTONE_MAX_STOP_BEFORE_END),
+            })
+          }
+        />
+      </label>
+      <p className="w-full text-xs text-muted">
+        Con {pause.every}: dopo {pause.every}, {pause.every * 2}, {pause.every * 3} punti giocati nel set (somma dei due
+        punteggi). Mai negli ultimi {pause.stopBeforeEnd} punti: niente quando una squadra arriva a{' '}
+        {setTarget(1) - pause.stopBeforeEnd} punti (
+        {setTarget(5) - pause.stopBeforeEnd > 0
+          ? `${setTarget(5) - pause.stopBeforeEnd} al tie-break`
+          : 'mai al tie-break'}
+        ). N da {MILESTONE_MIN_EVERY} a {MILESTONE_MAX_EVERY}.
+      </p>
     </div>
   );
 }
@@ -519,7 +621,7 @@ function IntermissionsEditor({
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,32rem)]">
       <Card
         title="Pause e sponsor"
-        subtitle={`Cliente: ${tenantName}. Cosa vedono gli spettatori durante i time-out, tra un set e l’altro e a fine partita.`}
+        subtitle={`Cliente: ${tenantName}. Cosa vedono gli spettatori durante i time-out, tra un set e l’altro, a fine partita e ogni N punti durante il set.`}
       >
         <div className="space-y-4">
           <TabList
@@ -576,6 +678,14 @@ function IntermissionsEditor({
                   )}
                   {editor}
                 </div>
+              </>
+            ) : kind === 'milestone' ? (
+              <>
+                <MilestoneRule
+                  pause={draft.milestone}
+                  onChange={(rule) => setDraft((d) => withMilestoneRule(d, rule))}
+                />
+                {editor}
               </>
             ) : (
               editor

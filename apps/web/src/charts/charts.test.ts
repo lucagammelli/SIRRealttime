@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MATCH_PERIOD, setPeriod, teamDuel } from '@sir/volley-stats';
 import { midMatchState, stateAfter } from '../test/fixtures.ts';
 import { barShares, leader, teamComparison } from './compare.ts';
 import { breakPointCount, defaultMomentumSet, leadBound, momentumSeries, momentumSets } from './momentum.ts';
@@ -59,6 +60,11 @@ describe('team comparison', () => {
     expect(kills?.away).toBe(final.stats.away.total.attack.kills);
     const so = rows.find((r) => r.key === 'sideOut');
     expect(so?.home).toBe(final.momentum.home.sideOutPct);
+  });
+
+  it('is teamDuel of @sir/volley-stats, for the match and for a set', () => {
+    expect(teamComparison(final, null)).toEqual(teamDuel(final, MATCH_PERIOD));
+    expect(teamComparison(final, 2)).toEqual(teamDuel(final, setPeriod(2)));
   });
 
   it('per set uses bySet and leaves out the match-only rows', () => {

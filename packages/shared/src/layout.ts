@@ -1,3 +1,4 @@
+import { DUEL_ROLES, TEAM_DUEL_KEYS } from '@sir/volley-stats';
 import { z } from 'zod';
 import { AssetIdSchema } from './assets.js';
 import { TENANT_CONFIG_VERSION } from './configVersion.js';
@@ -34,6 +35,12 @@ export const BLOCK_TYPES = [
   'lastPoint',
   'setScores',
   'topPlayers',
+  'setScorers',
+  'aces',
+  'blocks',
+  'attack',
+  'roleDuel',
+  'teamDuel',
 ] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 
@@ -59,6 +66,12 @@ export const BLOCK_WIDTHS: Record<BlockType, readonly number[]> = {
   lastPoint: ANY,
   setScores: MEDIUM,
   topPlayers: MEDIUM,
+  setScorers: MEDIUM,
+  aces: MEDIUM,
+  blocks: MEDIUM,
+  attack: MEDIUM,
+  roleDuel: MEDIUM,
+  teamDuel: MEDIUM,
 };
 
 /** Most images in the rotation of a sponsor block. */
@@ -107,6 +120,60 @@ export const TopPlayersOptionsSchema = z.strictObject({
   team: z.enum(['both', 'home', 'away']).default('both'),
 });
 
+/**
+ * Period of the statistics of a block or a slide (`Period` of @sir/volley-stats): `set` the set of the pause (just
+ * closed, or in progress during a time-out or an «ogni N punti»; for a block of the page the set in progress), `match`
+ * the whole match.
+ */
+export const STAT_PERIODS = ['set', 'match'] as const;
+export type StatPeriod = (typeof STAT_PERIODS)[number];
+const PeriodSchema = z.enum(STAT_PERIODS).default('set');
+
+/** Scorers of each team in «Parziale e marcatori»: limits and default. */
+export const SCORERS_MIN = 3;
+export const SCORERS_MAX = 8;
+export const SCORERS_DEFAULT = 5;
+/** Best attackers of each team in «Attacco»: limits and default. */
+export const ATTACKERS_MIN = 1;
+export const ATTACKERS_MAX = 5;
+export const ATTACKERS_DEFAULT = 3;
+
+export const SetScorersOptionsSchema = z.strictObject({
+  period: PeriodSchema,
+  /** Most scorers shown for each team. */
+  limit: z.int().min(SCORERS_MIN).max(SCORERS_MAX).default(SCORERS_DEFAULT),
+});
+
+/** Aces and blocks: count of each team and who scored them. */
+export const PeriodOptionsSchema = z.strictObject({ period: PeriodSchema });
+
+export const AttackOptionsSchema = z.strictObject({
+  period: PeriodSchema,
+  limit: z.int().min(ATTACKERS_MIN).max(ATTACKERS_MAX).default(ATTACKERS_DEFAULT),
+});
+
+/**
+ * Role of a player against player duel: one role (`DUEL_ROLES` of @sir/volley-stats, in its order), or `rotate`
+ * every role with a duel in turn.
+ */
+export const DUEL_ROLE_CHOICES = ['rotate', ...DUEL_ROLES] as const;
+export type DuelRoleChoice = (typeof DUEL_ROLE_CHOICES)[number];
+
+export const RoleDuelOptionsSchema = z.strictObject({
+  period: PeriodSchema,
+  role: z.enum(DUEL_ROLE_CHOICES).default('rotate'),
+});
+
+export const TeamDuelOptionsSchema = z.strictObject({
+  period: PeriodSchema,
+  /** Rows chosen (`TEAM_DUEL_KEYS` of @sir/volley-stats, shown in its order); empty: every row. */
+  rows: z
+    .array(z.enum(TEAM_DUEL_KEYS))
+    .max(TEAM_DUEL_KEYS.length)
+    .refine((rows) => new Set(rows).size === rows.length, { message: 'riga ripetuta' })
+    .default([]),
+});
+
 /** Options of every type (an empty object for the blocks without options). */
 export const BLOCK_OPTIONS = {
   scoreboard: NoOptionsSchema,
@@ -122,6 +189,12 @@ export const BLOCK_OPTIONS = {
   lastPoint: NoOptionsSchema,
   setScores: NoOptionsSchema,
   topPlayers: TopPlayersOptionsSchema,
+  setScorers: SetScorersOptionsSchema,
+  aces: PeriodOptionsSchema,
+  blocks: PeriodOptionsSchema,
+  attack: AttackOptionsSchema,
+  roleDuel: RoleDuelOptionsSchema,
+  teamDuel: TeamDuelOptionsSchema,
 } as const satisfies Record<BlockType, z.ZodType>;
 
 /** Stable id of a block inside the list of a device (letters, digits, `-` and `_`). */
@@ -153,6 +226,12 @@ export const LayoutBlockSchema = z.discriminatedUnion('type', [
   blockOf('lastPoint', BLOCK_OPTIONS.lastPoint.prefault({})),
   blockOf('setScores', BLOCK_OPTIONS.setScores.prefault({})),
   blockOf('topPlayers', BLOCK_OPTIONS.topPlayers.prefault({})),
+  blockOf('setScorers', BLOCK_OPTIONS.setScorers.prefault({})),
+  blockOf('aces', BLOCK_OPTIONS.aces.prefault({})),
+  blockOf('blocks', BLOCK_OPTIONS.blocks.prefault({})),
+  blockOf('attack', BLOCK_OPTIONS.attack.prefault({})),
+  blockOf('roleDuel', BLOCK_OPTIONS.roleDuel.prefault({})),
+  blockOf('teamDuel', BLOCK_OPTIONS.teamDuel.prefault({})),
 ]);
 export type LayoutBlock = z.output<typeof LayoutBlockSchema>;
 export type LayoutBlockInput = z.input<typeof LayoutBlockSchema>;

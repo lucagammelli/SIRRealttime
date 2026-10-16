@@ -1,11 +1,13 @@
 import type { TenantIntermissionsInput } from '@sir/shared';
 import { defaultIntermissions, TenantIntermissionsSchema, THANKS_MESSAGE } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
+import { MATCH_PERIOD } from '@sir/volley-stats';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { activePause, previewState, visibleSlides } from '../lib/intermission.ts';
+import { activePause, duelRoles, previewState, visibleSlides } from '../lib/intermission.ts';
 import type { Device } from '../lib/layout.ts';
-import { midMatchState, stateAfter } from '../test/fixtures.ts';
+import { midMatchState, scoreAt, stateAfter } from '../test/fixtures.ts';
+import { ROLE_LABELS } from '../blocks/StatSlides.tsx';
 import { Intermission } from './Intermission.tsx';
 
 const SPONSOR = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
@@ -196,13 +198,31 @@ describe('Intermission: slides', () => {
     act(() => {
       vi.advanceTimersByTime(10_000);
     });
+    expect(screen.getByText('Parziale e marcatori')).toBeTruthy();
+    // statistics of the whole match, the duels of every role in turn
+    expect(screen.getByLabelText(`Set vinti ${finished.setsWon.home} a ${finished.setsWon.away}`)).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+    const roles = duelRoles(finished, MATCH_PERIOD);
+    expect(roles.length).toBeGreaterThan(0);
+    for (const role of roles) {
+      expect(screen.getByRole('dialog').textContent).toContain(`Sfida tra ${ROLE_LABELS[role].many}`);
+      act(() => {
+        vi.advanceTimersByTime(8000);
+      });
+    }
+    expect(screen.getByText('Squadre a confronto')).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
     expect(screen.getByText(THANKS_MESSAGE)).toBeTruthy();
     // the sponsor slide without images nor sponsor logo is skipped: back to the first one
     act(() => {
       vi.advanceTimersByTime(8000);
     });
     expect(screen.getByText('Risultato finale')).toBeTruthy();
-    expect(screen.getByRole('img', { name: 'Schermata 1 di 3' })).toBeTruthy();
+    expect(screen.getByRole('img', { name: `Schermata 1 di ${5 + roles.length}` })).toBeTruthy();
   });
 
   it('«Ferma rotazione» stops the slides (the same switch of the page)', () => {
@@ -251,5 +271,90 @@ describe('Intermission: slides', () => {
     expect(visibleSlides(state, active, { sponsorLogo: '/logo.png' })).toHaveLength(1);
     setup(state, { sponsorLogo: '/api/public/assets/logo' });
     expect(screen.getByRole('img', { name: 'Sponsor' }).getAttribute('src')).toBe('/api/public/assets/logo');
+  });
+});
+
+describe('Intermission: «ogni N punti»', () => {
+  function live(device: Device = 'tablet', config: TenantIntermissionsInput = {}) {
+    const parsed = TenantIntermissionsSchema.parse(config);
+    const element = (s: MatchState, isLive: boolean) => (
+      <Intermission state={s} live={isLive} config={parsed} device={device} paused={false} />
+    );
+    const view = render(element(scoreAt(4, 3), false));
+    return { update: (s: MatchState, isLive = true) => view.rerender(element(s, isLive)) };
+  }
+  const shown = () => document.querySelector('[data-intermission]');
+  const wait = (ms: number) =>
+    act(() => {
+      vi.advanceTimersByTime(ms);
+    });
+
+  it('opens at a new threshold after its delay, as a banner with the score, shows its slides once and closes', () => {
+    const page = live();
+    page.update(scoreAt(4, 4));
+    expect(shown()).toBeNull();
+    wait(3000);
+    expect(banner()?.textContent).toContain(`${mid.live.set}° set: 4-4`);
+    expect(banner()?.textContent).toContain('Marcatori · ');
+    // the next point does not close it nor restart it
+    page.update(scoreAt(5, 4));
+    wait(8000);
+    expect(banner()?.textContent).toContain('Squadre · ');
+    wait(8000);
+    expect(shown()).toBeNull();
+    page.update(scoreAt(6, 4));
+    wait(5000);
+    expect(shown()).toBeNull();
+  });
+
+  it('full screen on the TV', () => {
+    const page = live('tv');
+    page.update(scoreAt(4, 4));
+    wait(3000);
+    expect(screen.getByRole('dialog', { name: `${mid.live.set}° set: 4-4` })).toBeTruthy();
+  });
+
+  it('nothing at the first state, after a reconnection, past «non dopo il punto», or after a correction', () => {
+    const page = live();
+    // reconnection: the state with the threshold is not a live update
+    page.update(scoreAt(4, 4), false);
+    page.update(scoreAt(5, 4));
+    wait(5000);
+    expect(shown()).toBeNull();
+    // the scout takes the point back, then gives it again: same threshold, nothing
+    page.update(scoreAt(4, 3));
+    page.update(scoreAt(4, 4));
+    wait(5000);
+    expect(shown()).toBeNull();
+    // last part of the set
+    page.update(scoreAt(21, 10));
+    page.update(scoreAt(21, 11));
+    wait(5000);
+    expect(shown()).toBeNull();
+  });
+
+  it('a time-out goes first: it closes the «ogni N punti» and that threshold does not come back', () => {
+    const page = live('tablet', { timeout: { slides: [{ id: 'm', type: 'message' }] } });
+    page.update(scoreAt(4, 4));
+    wait(3000);
+    expect(banner()?.textContent).toContain('Marcatori · ');
+    const timeoutAt = previewState(scoreAt(4, 4), 'timeout');
+    page.update(timeoutAt);
+    expect(banner()?.textContent).toContain('Time-out');
+    page.update(scoreAt(5, 4));
+    wait(5000);
+    expect(shown()).toBeNull();
+    // a threshold reached during a pause is not shown after it
+    page.update(previewState(scoreAt(8, 8), 'timeout'));
+    page.update(scoreAt(9, 8));
+    wait(5000);
+    expect(shown()).toBeNull();
+  });
+
+  it('off: nothing', () => {
+    const page = live('tablet', { milestone: { enabled: false } });
+    page.update(scoreAt(4, 4));
+    wait(5000);
+    expect(shown()).toBeNull();
   });
 });

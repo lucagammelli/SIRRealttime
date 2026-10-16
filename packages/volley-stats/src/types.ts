@@ -203,6 +203,54 @@ export type MatchPhase =
 
 export type MatchPhaseKind = MatchPhase['kind'];
 
+/**
+ * Eventi della partita per gli avvisi del portale (vedi `detectEvents` in events.ts): punto diretto (`ace`, `block`),
+ * serie (`run`), scambio lungo (`longRally`), `setPoint`, `matchPoint`, `tie` (pareggio), `lead` (sorpasso),
+ * `timeout`, `substitution`, `setEnd`, `matchEnd`.
+ */
+export type MatchEventKind =
+  | 'ace'
+  | 'block'
+  | 'run'
+  | 'longRally'
+  | 'setPoint'
+  | 'matchPoint'
+  | 'tie'
+  | 'lead'
+  | 'timeout'
+  | 'substitution'
+  | 'setEnd'
+  | 'matchEnd';
+
+/** Giocatore di un evento: numero di maglia e anagrafica, se la maglia è nell'elenco della squadra. */
+export interface EventPlayer {
+  number: number;
+  firstName: string | null;
+  lastName: string | null;
+}
+
+export interface MatchEvent {
+  /** Stabile: lo stesso evento ha lo stesso id a ogni nuovo calcolo dello stato (tipo, set, punteggio o conteggio). */
+  id: string;
+  kind: MatchEventKind;
+  /** Indice della riga scout che l'ha generato. */
+  index: number;
+  set: number;
+  /** Squadra dell'evento (chi segna, chi chiama il time-out, chi vince il set); `null` se nessuna. */
+  team: Side | null;
+  /** Giocatore dell'ace o del muro, o che entra col cambio. */
+  player: EventPlayer | null;
+  /** Giocatore che esce col cambio. */
+  playerOut: EventPlayer | null;
+  /** Punteggio del set dopo l'evento. */
+  homeScore: number;
+  awayScore: number;
+  /** `run`: punti consecutivi; `longRally`: attacchi del rally; altrimenti `null`. */
+  count: number | null;
+  /** Priorità predefinita 1-10 (più alta = più importante). */
+  priority: number;
+}
+
 export interface MatchState {
   teams: Record<Side, TeamRef>;
   players: Record<Side, PlayerRef[]>;
@@ -216,4 +264,6 @@ export interface MatchState {
   zones: Record<Side, TeamZones>;
   /** Fase della partita (pause del portale); manca negli stati salvati prima che esistesse. */
   phase: MatchPhase;
+  /** Ultimi eventi (al massimo RECENT_EVENTS_LIMIT), dal più vecchio; manca negli stati salvati prima che esistesse. */
+  events: MatchEvent[];
 }

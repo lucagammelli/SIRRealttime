@@ -20,6 +20,8 @@ export interface Tenant {
   layout: Record<string, unknown>;
   /** Stored pauses of the public page (read it with `resolveIntermissions` of `@sir/shared`). */
   intermissions: Record<string, unknown>;
+  /** Stored overlays of the events of the match (read it with `resolveOverlays` of `@sir/shared`). */
+  overlays: Record<string, unknown>;
 }
 
 const TENANT_COLUMNS = {
@@ -30,6 +32,7 @@ const TENANT_COLUMNS = {
   branding: tenants.branding,
   layout: tenants.layout,
   intermissions: tenants.intermissions,
+  overlays: tenants.overlays,
 };
 
 /**

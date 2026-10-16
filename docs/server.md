@@ -41,8 +41,7 @@ appartiene a un cliente e nessuna query legge o cambia righe di un altro (filtro
   (oggi `docker/web.nginx.conf` ha `server_name _`); i certificati https per ogni hostname sono a cura del deploy.
 - **Documenti di configurazione** (`branding`, `layout`, `intermissions`, `overlays`, jsonb): `branding` ha i campi della
   grafica (vedi «Grafica per cliente»); `layout` quelli della pagina pubblica (vedi «Pagina pubblica a blocchi»);
-  `intermissions` le pause (vedi «Pause della partita»); `overlays` è ancora uno schema `{ version: 1 }` strict vuoto,
-  riempito dai lavori successivi (`docs/piano.md`).
+  `intermissions` le pause (vedi «Pause della partita»); `overlays` gli avvisi sugli eventi (vedi «Avvisi sugli eventi»).
 
 ### Grafica per cliente (`apps/server/src/routes/branding.ts`)
 Ogni cliente ha nome visualizzato, cinque colori e tre immagini (`TenantBrandingSchema`, `tenants.branding`). Il portale
@@ -114,6 +113,21 @@ nulla, la fase viaggia nello stato come ogni altro campo. `{}` è valido e vale 
   se il cliente non ha configurato nulla.
 - **Eliminazione di un'immagine**: se è usata in una diapositiva sponsor, `DELETE /api/admin/assets/:id` risponde 409
   «Immagine in uso nelle pause: toglila dalla diapositiva sponsor prima di eliminarla».
+
+### Avvisi sugli eventi (`apps/server/src/routes/branding.ts`)
+Ogni cliente sceglie quali eventi della partita (ace, set point, match point…) compaiono come avviso breve sopra la pagina
+pubblica, con testo, durata, dispositivi e priorità (`TenantOverlaysSchema`, `tenants.overlays`; forma, segnaposto e
+predefiniti in `docs/architettura.md`, schermata ed editor in `docs/portale.md`). Gli eventi (`state.events`) sono calcolati
+da `@sir/volley-stats` (`docs/statistiche.md`) e viaggiano nello stato come ogni altro campo: il server non decide nulla.
+`{}` è valido e vale i predefiniti (`resolveOverlays`).
+
+- **Rotte admin** (ruolo `admin`; il superadmin lavora sul cliente attivo, `adminTenantId`): `GET /api/admin/overlays` e
+  `PUT /api/admin/overlays`; il corpo del `PUT` è il documento degli avvisi e la risposta è `OverlaysResponse`
+  (`tenantName`, `overlays`). Validazione con lo schema condiviso (eventi e segnaposto in lista chiusa, testo senza `<` e `>`,
+  durata 2-8 s, priorità 1-10): altrimenti 400. Nessuna immagine, quindi nessun controllo sugli asset. Dopo il salvataggio si
+  svuota la cache degli hostname (`forgetTenants`).
+- **Rotta pubblica**: `overlays` è anche in `GET /api/public/tenant` (`PublicTenantResponseSchema`), con i predefiniti se il
+  cliente non ha configurato nulla (`apps/server/src/tenancy.ts` legge la colonna).
 
 ### Ingest (`POST /api/ingest`, protocollo 1)
 L'agente invia una richiesta `IngestRequest` (`packages/shared/src/ingest.ts`):
@@ -244,6 +258,8 @@ rifiutata dallo schema.
 | PUT | `/api/admin/layout` | sessione | admin |
 | GET | `/api/admin/intermissions` | sessione | admin |
 | PUT | `/api/admin/intermissions` | sessione | admin |
+| GET | `/api/admin/overlays` | sessione | admin |
+| PUT | `/api/admin/overlays` | sessione | admin |
 | GET | `/api/admin/assets` | sessione | admin |
 | POST | `/api/admin/assets` | sessione (corpo fino a ~2,7 MB) | admin |
 | DELETE | `/api/admin/assets/:id` | sessione | admin |
@@ -619,6 +635,9 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
 - Pause della partita: `src/routes/branding.ts` (`GET`/`PUT /api/admin/intermissions`, `GET /api/public/tenant`),
   `packages/shared/src/intermissions.ts` (`TenantIntermissionsSchema`, `resolveIntermissions`, `intermissionImageIds`,
   `IntermissionsResponseSchema`), test `apps/server/test/intermissions.test.ts`; schermate in `docs/portale.md`
+- Avvisi sugli eventi: `src/routes/branding.ts` (`GET`/`PUT /api/admin/overlays`, `GET /api/public/tenant`),
+  `src/tenancy.ts`, `packages/shared/src/overlays.ts` (`TenantOverlaysSchema`, `resolveOverlays`, `OverlaysResponseSchema`),
+  test `apps/server/test/overlays.test.ts`; eventi in `docs/statistiche.md`, schermate in `docs/portale.md`
 - Link brevi: `src/lib/shortCode.ts` (`deriveShortCode`, `shortCodeLookupHash`), `src/shareCodes.ts` (`insertShareToken`,
   `ensureShortCode`, `syncShortCodes`, `currentShortCode`), `src/lib/failureLimiter.ts` (`hasRecent`),
   `packages/shared/src/admin.ts` (`ShortCodeSchema`, `normalizeShortCode`, `formatShortCode`, `ShareTokenParamSchema`),

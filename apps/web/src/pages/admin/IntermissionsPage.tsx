@@ -106,7 +106,7 @@ function withBlockOptions(slide: IntermissionSlide, block: LayoutBlock): Intermi
 /** Durations offered for a slide: the list of the sponsor blocks, with the value saved when it is not in it. */
 const secondsChoices = (current: number): number[] => [...new Set([...SPONSOR_SECONDS, current])].sort((a, b) => a - b);
 
-function TabList<T extends string>({
+export function TabList<T extends string>({
   label,
   tabs,
   value,

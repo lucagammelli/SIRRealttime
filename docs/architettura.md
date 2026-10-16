@@ -48,7 +48,7 @@ simulatore (`docs/agente.md`) o con i test del server (`apps/server/test/ingest.
 | `@sir/dvw-simulator` | `tools/dvw-simulator` | dvw-parser | genera e "suona" file DVW sintetici; è anche dev-dependency di volley-stats, shared e server (per i test) |
 
 ### Contratti di `packages/shared`
-Esportati da `packages/shared/src/index.ts` (`admin.ts`, `assets.ts`, `colors.ts`, `ingest.ts`, `messages.ts`, `patch.ts`, `registration.ts`, `tenant.ts`).
+Esportati da `packages/shared/src/index.ts` (`admin.ts`, `assets.ts`, `colors.ts`, `ingest.ts`, `intermissions.ts`, `layout.ts`, `messages.ts`, `overlays.ts`, `patch.ts`, `registration.ts`, `tenant.ts`).
 
 Ingest (`ingest.ts`):
 
@@ -111,7 +111,7 @@ Auto-registrazione dell'agente (`registration.ts`): `PAIRING_CODE_ALPHABET`, `PA
 Clienti (`tenant.ts`): `DEFAULT_TENANT_SLUG` (`predefinito`), `TENANT_SLUG_PATTERN`, `TenantSlugSchema`,
 `TENANT_MAX_HOSTNAMES` (20), `isValidHostname`, `HostnameSchema`, `HostnamesSchema`, `TENANT_CONFIG_VERSION` (1) e i
 quattro documenti di configurazione `TenantBrandingSchema`, `TenantLayoutSchema`, `TenantIntermissionsSchema`,
-`TenantOverlaysSchema` (strict, con `version`; `TenantOverlaysSchema` per ora senza altri campi), `TenantRefSchema`, `TenantSummarySchema`,
+`TenantOverlaysSchema` (strict, con `version`), `TenantRefSchema`, `TenantSummarySchema`,
 `CreateTenantRequestSchema`, `UpdateTenantRequestSchema`, `SetActiveTenantRequestSchema`. Regole di funzionamento in
 `docs/server.md` («Clienti»), pagine in `docs/portale.md`.
 
@@ -166,6 +166,21 @@ sponsor, per i controlli del server). `IntermissionsResponseSchema` (`GET`/`PUT 
 `PublicTenantResponseSchema` contiene anche `intermissions`. Server in `docs/server.md` («Pause della partita»),
 schermate ed editor in `docs/portale.md`, fase e riepiloghi in `docs/statistiche.md`.
 
+Avvisi sugli eventi (`overlays.ts`): `TenantOverlaysSchema` / `TenantOverlays` = `{ version, ace, block, run, longRally,
+setPoint, matchPoint, tie, lead, timeout, substitution, setEnd, matchEnd }` (`OVERLAY_KINDS`, gli eventi di
+`MatchState.events`, `docs/statistiche.md`; strict). Ogni avviso (`Overlay`) ha `enabled`, `text`, `seconds`
+(`OVERLAY_MIN_SECONDS` 2 - `OVERLAY_MAX_SECONDS` 8, predefinito 4), `devices` (`tv`, `tablet`, `phone`) e `priority`
+(1-10, predefinita quella dell'evento in `volley-stats`). Il testo è semplice (al massimo `OVERLAY_TEXT_MAX` = 80) con i soli
+segnaposto di `OVERLAY_PLACEHOLDERS`: `{giocatore}`, `{numero}`, `{squadra}`, `{punteggio}`, `{set}`, `{serie}`,
+`{attacchi}`. `overlayTextProblem` (e `OverlayTextSchema`) rifiuta segnaposto sconosciuti, graffe fuori da un segnaposto e i
+caratteri `<` e `>`; `fillOverlayText(testo, valori)` li sostituisce (valore mancante: vuoto) e ripulisce gli spazi. `{}` vale
+i predefiniti (`defaultOverlays`, `defaultOverlay(kind)`, `defaultOverlayText`, `resolveOverlays`: un documento non valido
+vale i predefiniti), per esempio «ACE! {giocatore}», «Muro di {giocatore}», «Break di {serie} punti per {squadra}», «SET
+POINT {squadra}», «MATCH POINT {squadra}», «{squadra} vince il {set}° set {punteggio}», «{squadra} vince la partita!».
+Time-out spento (la pausa lo mostra già); cambio e scambio lungo non sul telefono. `OverlaysResponseSchema`
+(`GET`/`PUT /api/admin/overlays`); `PublicTenantResponseSchema` contiene anche `overlays`. `TENANT_CONFIG_VERSION` resta 1.
+Server in `docs/server.md` («Avvisi sugli eventi»), portale ed editor in `docs/portale.md`.
+
 Ogni schema ha il tipo omonimo senza `Schema` (`z.infer`). Dettagli d'uso: `docs/server.md`.
 
 ### Regole
@@ -191,7 +206,7 @@ pnpm --filter @sir/server test      # il flusso completo agente→server→WebSo
 ```
 
 ## Riferimenti
-- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `configVersion.ts`, `index.ts`
+- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `configVersion.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
 - `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`, `apps/web/src/App.tsx`
 - `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/portale.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,

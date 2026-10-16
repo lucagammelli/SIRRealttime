@@ -34,6 +34,7 @@ export function Intermission({
   sponsorLogo = null,
   pageUrl,
   preview,
+  onFullscreenChange,
 }: {
   state: MatchState;
   /** Pauses of the client (the defaults when its graphics could not be loaded); null while loading: none. */
@@ -47,6 +48,8 @@ export function Intermission({
   pageUrl?: string;
   /** Editor: this pause, for the phase of `state`, even when it is off. */
   preview?: PauseConfig;
+  /** Told whether a full screen pause is on screen (the overlays of the events stay away from it). */
+  onFullscreenChange?: (shown: boolean) => void;
 }) {
   const phase = phaseOf(state);
   const described = describePause(phase);
@@ -73,7 +76,18 @@ export function Intermission({
     return () => clearTimeout(id);
   }, [key, delayMs]);
 
-  if (!active || shownKey !== key || closedKey === key) return null;
+  const visible = active !== null && shownKey === key && closedKey !== key;
+  const fullscreen =
+    visible &&
+    !preview &&
+    active.pause.modes[device] === 'fullscreen' &&
+    visibleSlides(state, active, { sponsorLogo }).length > 0;
+  useEffect(() => {
+    onFullscreenChange?.(fullscreen);
+  }, [fullscreen, onFullscreenChange]);
+  useEffect(() => () => onFullscreenChange?.(false), [onFullscreenChange]);
+
+  if (!active || !visible) return null;
   return (
     <PauseView
       key={active.key}

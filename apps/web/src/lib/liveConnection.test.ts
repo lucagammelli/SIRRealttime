@@ -322,6 +322,36 @@ describe('LiveConnection: patches, resync and gzip', () => {
     conn.stop();
   });
 
+  it('marks as live only the updates: not the first state of a socket nor the answer to a resync', () => {
+    const { conn, last } = setup();
+    conn.start();
+    last().open();
+    const live = (): boolean | undefined => {
+      const data = conn.current().data;
+      return data?.kind === 'state' ? data.live : undefined;
+    };
+    last().deliver(stateMsg(MATCH_A, 1, 0));
+    expect(live()).toBeUndefined();
+    last().deliver(patchMsg(MATCH_A, 1, 2, 1));
+    expect(live()).toBe(true);
+    // a full state sent instead of a patch (too big) is an update too
+    last().deliver(stateMsg(MATCH_A, 3, 2));
+    expect(live()).toBe(true);
+    // missing step: the full state of the resync only brings the match up to date
+    last().deliver(patchMsg(MATCH_A, 5, 6, 9));
+    last().deliver(stateMsg(MATCH_A, 6, 9));
+    expect(live()).toBeUndefined();
+    // a new socket (reconnection): its first state is not live
+    last().serverClose(1006);
+    vi.advanceTimersByTime(10_000);
+    last().open();
+    last().deliver(stateMsg(MATCH_A, 7, 10));
+    expect(live()).toBeUndefined();
+    last().deliver(patchMsg(MATCH_A, 7, 8, 11));
+    expect(live()).toBe(true);
+    conn.stop();
+  });
+
   it('sends resync again when its full state does not arrive, and stops once it does', () => {
     const { conn, last } = setup();
     conn.start();

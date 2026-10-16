@@ -86,6 +86,7 @@ Prima si verifica la sessione («Verifica della sessione…»); senza sessione c
 | Grafica | `/admin/grafica` | solo admin (il superadmin lavora sul cliente scelto) | colori, nome e loghi del cliente, vedi «Grafica per cliente» |
 | Pagina pubblica | `/admin/pagina` | solo admin (il superadmin lavora sul cliente scelto) | blocchi della pagina della partita per TV, tablet e telefono, vedi «Pagina pubblica a blocchi» |
 | Pause e sponsor | `/admin/pause` | solo admin (il superadmin lavora sul cliente scelto) | schermate di time-out, fine set e fine partita, vedi «Pause della partita» |
+| Avvisi | `/admin/avvisi` | solo admin (il superadmin lavora sul cliente scelto) | avvisi sugli eventi della partita, vedi «Avvisi sugli eventi» |
 | Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname; «Crea cliente»), «Clienti» con «Modifica» (nome e hostname, «Salva») |
 | Esci | - | tutti | chiude la sessione |
 
@@ -296,6 +297,44 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   chiede conferma solo alla chiusura della scheda). Un'immagine usata in una diapositiva sponsor non si può eliminare dalla
   pagina «Grafica» finché non viene tolta. Da provare su dispositivi veri (TV a 4-5 m, telefono con la banda).
 
+### Avvisi sugli eventi (messaggi rapidi sopra la pagina)
+Quando succede qualcosa in partita (ace, set point, match point…) compare per pochi secondi un messaggio sopra la pagina.
+Il portale non rileva nulla: gli eventi vengono da `state.events` (`docs/statistiche.md`, «Eventi della partita»), la
+configurazione del cliente da `overlays` di `GET /api/public/tenant` (`docs/architettura.md`, «Avvisi sugli eventi»;
+`docs/server.md`).
+
+- **Quando compare** (`components/Overlay.tsx`, montato da `LivePage.tsx` accanto a `Intermission`): per ogni evento nuovo
+  il cui avviso è acceso e ammesso sul dispositivo; testo da `overlayText` (`fillOverlayText` di `@sir/shared`), sempre testo
+  semplice, mai HTML. Il riquadro ha il colore della squadra dell'evento (neutro senza squadra), cade dall'alto con
+  l'animazione `.sir-overlay` (450 ms, spenta con `prefers-reduced-motion`) e resta per i secondi scelti.
+- **Nessun avviso per ciò che è già successo**: non compaiono all'apertura della pagina, dopo una riconnessione né dopo un
+  `resync`, perché lo stato in arrivo in quei casi non è un aggiornamento dal vivo (`LiveData.live`, `liveConnection.ts`: falso
+  per il primo stato di ogni socket e per la risposta a un `resync`). Un rally passato corretto dallo scout cambia il
+  punteggio e quindi gli id: si mostrano solo gli eventi dalla riga più alta già vista in poi, quelli precedenti sono
+  ignorati.
+- **Coda** (`lib/overlay.ts`): uno alla volta. Al massimo 5 in attesa (`OVERLAY_QUEUE_MAX`, restano i più recenti), nessuno
+  aspetta più di 10 s (`OVERLAY_MAX_AGE_MS`: poi è scartato). Tra quelli in coda va prima la priorità più alta, a parità
+  l'evento più vecchio: un match point scavalca un ace.
+- **Con una pausa**: sopra una pausa a tutto schermo gli avvisi sono scartati (`blocked`, e quello a video sparisce); sopra la
+  banda e nel resto della pagina compaiono. Fine set e fine partita compaiono come avviso nei secondi prima della pausa
+  (il ritardo `delaySeconds` della pausa, `docs/portale.md` «Pause della partita»).
+- **Accessibilità**: regione `aria-live="polite"` con `aria-atomic="true"`: i lettori di schermo leggono il testo senza
+  spostare il focus.
+- **Caricamento della grafica** (`useTenantOverlays` in `lib/branding.ts`, stato caricamento/caricata/fallita): finché
+  `GET /api/public/tenant` non risponde non si mostra nessun avviso; se fallisce valgono i predefiniti.
+- **Pagina «Avvisi»** (`src/pages/admin/OverlaysPage.tsx`, rotta `/admin/avvisi`, solo admin; titolo scheda «Avvisi · Area
+  riservata»). Scheda «Avvisi» (sottotitolo «Cliente: …») con l'elenco «Eventi» (Fine partita, Match point, Fine set, Set
+  point, Ace, Muro punto, Sorpasso, Pareggio, Break, Time-out, Scambio lungo, Cambio) e, in alto, i «Segnaposto ammessi nel
+  testo». Per ogni evento: interruttore acceso/spento, «Testo» (il risultato con i dati d'esempio compare sotto, «Risultato:
+  …», oppure il problema: vuoto, oltre 80 caratteri, segnaposto sconosciuto, `<` o `>`), «Secondi» (2-8), «Priorità» (1-10),
+  i dispositivi (TV, tablet, telefono), «Prova» e «Ripristina predefinito» (solo di quell'evento). In fondo «Salva» (dopo:
+  «Avvisi salvati: valgono da subito per tutti gli spettatori.»), disattivato senza modifiche o con un testo non valido, e
+  l'avviso «Modifiche non salvate.». La scheda «Anteprima» mostra la pagina del dispositivo scelto (partita live del cliente
+  o «Partita d'esempio») e «Prova» ci fa comparire l'avviso con le modifiche non salvate, per i suoi secondi. Il browser
+  chiede conferma solo alla chiusura della scheda. Logica pura: `lib/overlay.ts` (`overlayValues`, `overlayText`,
+  `overlayFor`, `unseenEvents`, `enqueue`, `nextOverlay`, `sampleEvent`).
+- **Limiti noti**: come nelle altre pagine di configurazione, cambiando voce del menu le modifiche non salvate si perdono.
+
 ### Grafica del portale
 Strisce nei colori delle squadre, cifre del punteggio con animazione `sir-pop`, «IN DIRETTA» pieno (testo
 `--sir-on-live`), gradienti leggeri (`--sir-glow`, `--sir-glow-soft`, `--sir-home-glow`, `--sir-away-glow`, in
@@ -478,6 +517,11 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
   `pauseTitle`, `previewState`), `lib/branding.ts` (`useTenantIntermissions`), `pages/admin/IntermissionsPage.tsx`,
   `pages/admin/intermissionEditor.ts`; contratto in `packages/shared/src/intermissions.ts` (`docs/architettura.md`), fase e
   riepiloghi in `packages/volley-stats/src/phase.ts`, `recap.ts` (`docs/statistiche.md`), API in `docs/server.md`
+- Avvisi sugli eventi: `apps/web/src/components/Overlay.tsx` (`Overlay`, `OverlayBanner`), `lib/overlay.ts`
+  (`overlayFor`, `unseenEvents`, `enqueue`, `nextOverlay`, `sampleEvent`), `lib/branding.ts` (`useTenantOverlays`),
+  `lib/liveConnection.ts` (`live`), `pages/admin/OverlaysPage.tsx`, `styles/index.css` (`.sir-overlay`); contratto in
+  `packages/shared/src/overlays.ts` (`docs/architettura.md`), eventi in `packages/volley-stats/src/events.ts`
+  (`docs/statistiche.md`), API in `docs/server.md`; test `Overlay.test.tsx`, `OverlaysPage.test.tsx`
 - Portale adattivo: `apps/web/src/lib/layout.ts` (`deviceFor`, `tvModeOf`, `defaultLayouts`, `blocksFor`, `packRows`, `tvGroups`, `rotationIndex`),
   `lib/useLayout.ts` (`useStickyOffset`), `lib/tvScreen.ts` (`useWakeLock`, `useIdle`), `components/BlockLayout.tsx`,
   `components/ui.tsx` (`CardCollapseContext`), `styles/index.css`

@@ -22,6 +22,8 @@ Il calcolo riparte da zero a ogni aggiornamento (nessuno stato conservato tra du
 - `rotations`: per squadra, 6 righe (posizione 1-6 del palleggiatore).
 - `zones`: per squadra mappe `attack` e `serve` (celle partenza → arrivo), anche per giocatore in `players`.
 - `phase` (`MatchPhase`): fase della partita per le pause del portale, vedi «Fase della partita».
+- `events` (`MatchEvent[]`): gli ultimi 20 eventi (`RECENT_EVENTS_LIMIT`) per gli avvisi del portale, vedi «Eventi della
+  partita».
 
 ### Regole di calcolo
 - **Punteggio**: solo dalle righe `point`; mai dal conteggio delle azioni.
@@ -78,6 +80,39 @@ righe del `.dvw`**: nessun orologio, quindi è deterministica e uguale per tutti
 - **Fine partita**: solo con `**Nset` e 3 set vinti (`status` `finished`), quindi vale anche per il 15-13 al quinto set e per
   i vantaggi.
 
+### Eventi della partita (`events`, `detectEvents` in `events.ts`)
+Alimentano gli avvisi del portale (`docs/portale.md`, «Avvisi sugli eventi»). Sono calcolati qui, dalle sole righe del
+`.dvw`, perché il portale non ha le azioni del rally. `detectEvents(tl, players)` è pura e non lancia: riusa
+`buildTimeline` e `describePoint` (esportata da `score.ts`) e i nomi dei giocatori di `playerRefs` (`players.ts`).
+`computeMatchState` mette in `MatchState.events` solo gli ultimi 20. Ogni `MatchEvent` ha `id`, `kind`, `index` (riga
+scout), `set`, `team`, `player`, `playerOut`, `homeScore`, `awayScore` (dopo l'evento), `count` e `priority` (1-10,
+`MATCH_EVENT_PRIORITY`).
+
+| `kind` | Quando | `team` / dati |
+|---|---|---|
+| `ace` | punto diretto in battuta (`#`) | squadra che segna, `player` |
+| `block` | punto diretto a muro (`#`) | squadra che segna, `player` |
+| `run` | dal 3° punto di fila (`RUN_MIN_POINTS`) e poi a ogni punto in più | squadra che segna, `count` = punti di fila |
+| `longRally` | rally con almeno 4 attacchi (`LONG_RALLY_MIN_ATTACKS`; le alzate non sono sempre registrate, quindi si contano gli attacchi) | squadra che segna, `count` = attacchi |
+| `setPoint` / `matchPoint` | una squadra arriva a un punto dal set; `matchPoint` se ha già 2 set vinti | la squadra col set point |
+| `tie` | pareggio dal 15-15 (9-9 al tie-break) o dopo una rimonta di 3 punti (`COMEBACK_MIN_POINTS`) | squadra che pareggia |
+| `lead` | sorpasso, con la stessa soglia del pareggio | squadra che passa avanti |
+| `timeout` | riga time-out | squadra che lo chiama |
+| `substitution` | riga cambio | `player` entra, `playerOut` esce |
+| `setEnd` | riga `**Nset` | squadra che vince il set |
+| `matchEnd` | `**Nset` che dà il 3° set vinto (al posto di `setEnd`, come la fase `matchEnd`) | squadra che vince |
+
+- **Set point / match point** (`setPointTeam(set, home, away)`): solo quando la situazione nasce. 24-20 sì; 24-21 no (era già
+  set point); 25-24 dopo il 24-24 sì di nuovo. Valgono anche ai vantaggi e al tie-break (set a 15). Con due set pari il
+  match point può nascere per entrambe.
+- **Sorpasso**: vale solo se passa avanti chi era dietro prima del pareggio; il pareggio e il sorpasso a punteggi bassi si
+  segnalano solo dopo una rimonta di 3 punti.
+- **Id stabili**: tipo + set + punteggio (`ace-2-14-9`), il time-out col conteggio della squadra nel set, `matchEnd` senza
+  altro. Rileggendo lo stesso file, o con righe in più, gli stessi eventi hanno lo stesso id: il portale li riconosce.
+- **Priorità predefinita** (la più alta si mostra prima): `matchEnd` 10, `matchPoint` 9, `setEnd` 8, `setPoint` 7, `ace` e
+  `block` 6, `lead` 5, `tie`, `run` e `timeout` 4, `longRally` 3, `substitution` 2.
+- Un set nuovo senza `**Nset` per il precedente conta come chiuso per i set vinti, senza evento.
+
 ### Riepilogo del set e MVP (`recap.ts`)
 - `setRecap(state, set)`: funzione pura sul solo set `set` (null se il set non c'è). Dà punteggio ufficiale (righe `point`),
   `winner`, `finished`, `durationMinutes`, le statistiche di squadra **del solo set** (`teams`, righe `StatLine`) e il
@@ -123,5 +158,8 @@ Verifiche fatte:
 - `packages/volley-stats/src/phase.ts`: `computePhase` (test in `phase.test.ts`); tipi `MatchPhase`, `MatchPhaseKind` in `types.ts`.
 - `packages/volley-stats/src/recap.ts`: `setRecap`, `matchMvp`, tipi `SetRecap`, `Mvp` (test in `recap.test.ts`); schermate in
   `docs/portale.md`, configurazione in `docs/architettura.md`.
+- `packages/volley-stats/src/events.ts`: `detectEvents`, `recentEvents`, `matchEvents`, `setPointTeam`, `MATCH_EVENT_KINDS`,
+  `MATCH_EVENT_PRIORITY` (test in `events.test.ts`); tipi `MatchEvent`, `MatchEventKind`, `EventPlayer` in `types.ts`,
+  `playerRefs` in `players.ts`; avvisi in `docs/portale.md`, configurazione in `docs/architettura.md`.
 - `packages/volley-stats/src/util.ts`: `ratio`, `timeToSeconds`.
 - Parser e tipi di ingresso: `docs/dvw-parser.md`; piano: `docs/piano.md` §2.

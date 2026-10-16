@@ -100,7 +100,7 @@ export function computeStatus(tl: Timeline, setsWon: Record<Side, number>): Matc
 const isError = (a: ActionEntry): boolean =>
   a.evaluation === '=' || (a.evaluation === '/' && (a.skill === 'attack' || a.skill === 'block'));
 
-function describePoint(p: PointEvent): LastPoint {
+export function describePoint(p: PointEvent): LastPoint {
   const base = { set: p.set, team: p.scorer, homeScore: p.homeScore, awayScore: p.awayScore };
   const mk = (kind: LastPoint['kind'], a: ActionEntry, label: string): LastPoint => ({
     ...base,

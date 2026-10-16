@@ -102,7 +102,7 @@ paths:
       responses:
         '200':
           {
-            description: "grafica del cliente dell'hostname: nome, colori, loghi, blocchi e pause della pagina pubblica",
+            description: "grafica del cliente dell'hostname: nome, colori, loghi, blocchi, pause e avvisi della pagina pubblica",
           }
         '404': { description: hostname senza cliente }
   /api/public/assets/{id}:
@@ -367,6 +367,33 @@ paths:
           {
             description: 'tipo di diapositiva sconosciuto, durata o ritardo fuori dai limiti, immagine non del cliente',
           }
+  /api/admin/overlays:
+    get:
+      responses:
+        '200': { description: 'avvisi degli eventi della partita del cliente della sessione: ace, muro, set point…' }
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ace: { $ref: '#/components/schemas/Overlay' }
+                block: { $ref: '#/components/schemas/Overlay' }
+                run: { $ref: '#/components/schemas/Overlay' }
+                longRally: { $ref: '#/components/schemas/Overlay' }
+                setPoint: { $ref: '#/components/schemas/Overlay' }
+                matchPoint: { $ref: '#/components/schemas/Overlay' }
+                tie: { $ref: '#/components/schemas/Overlay' }
+                lead: { $ref: '#/components/schemas/Overlay' }
+                timeout: { $ref: '#/components/schemas/Overlay' }
+                substitution: { $ref: '#/components/schemas/Overlay' }
+                setEnd: { $ref: '#/components/schemas/Overlay' }
+                matchEnd: { $ref: '#/components/schemas/Overlay' }
+      responses:
+        '200': { description: avvisi salvati }
+        '400': { description: 'evento o segnaposto sconosciuto, HTML nel testo, durata o priorità fuori dai limiti' }
   /api/admin/assets:
     get:
       responses:
@@ -467,6 +494,23 @@ components:
                 type: object
                 description: 'opzioni come i blocchi: message text e size, qr caption, sponsor images e seconds, logo variant'
                 example: { text: Grazie per aver seguito la partita }
+    Overlay:
+      type: object
+      properties:
+        enabled: { type: boolean, example: true }
+        text:
+          type: string
+          maxLength: 80
+          description: 'testo semplice, segnaposto {giocatore} {numero} {squadra} {punteggio} {set} {serie} {attacchi}; niente < >'
+          example: 'ACE! {giocatore}'
+        seconds: { type: integer, minimum: 2, maximum: 8, example: 4 }
+        devices:
+          type: object
+          properties:
+            tv: { type: boolean, example: true }
+            tablet: { type: boolean, example: true }
+            phone: { type: boolean, example: true }
+        priority: { type: integer, minimum: 1, maximum: 10, example: 6 }
   securitySchemes:
     agentToken:
       type: http

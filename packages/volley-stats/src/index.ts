@@ -1,35 +1,33 @@
-import type { ParsedMatch, PlayerInfo } from '@sir/dvw-parser';
+import type { ParsedMatch } from '@sir/dvw-parser';
+import { detectEvents, recentEvents } from './events.js';
 import { computeMomentum } from './momentum.js';
 import { computePhase } from './phase.js';
+import { playerRefs } from './players.js';
 import { computeRotations } from './rotations.js';
 import { computeLive, computeSets, computeSetsWon, computeStatus } from './score.js';
 import { computeStats } from './stats.js';
 import { buildTimeline } from './timeline.js';
-import type { MatchState, PlayerRef, TeamRef } from './types.js';
+import type { MatchState, TeamRef } from './types.js';
 import { computeZones } from './zones.js';
 
 export * from './types.js';
 export { topPlayers } from './leaders.js';
 export type { TopPlayer, TopPlayersOptions } from './leaders.js';
 export { matchMvp, setRecap } from './recap.js';
+export {
+  COMEBACK_MIN_POINTS,
+  LONG_RALLY_MIN_ATTACKS,
+  MATCH_EVENT_KINDS,
+  MATCH_EVENT_PRIORITY,
+  matchEvents,
+  RECENT_EVENTS_LIMIT,
+  recentEvents,
+  RUN_MIN_POINTS,
+  setPointTeam,
+} from './events.js';
 export type { Mvp, SetRecap } from './recap.js';
 
 const teamRef = (t: ParsedMatch['home']): TeamRef => ({ name: t?.name ?? null, code: t?.code ?? null });
-
-function playerRefs(players: PlayerInfo[]): PlayerRef[] {
-  const out: PlayerRef[] = [];
-  for (const p of players) {
-    if (p.number === undefined) continue;
-    out.push({
-      number: p.number,
-      firstName: p.firstName ?? null,
-      lastName: p.lastName ?? null,
-      role: p.role ?? null,
-      specialRole: p.specialRole ?? null,
-    });
-  }
-  return out;
-}
 
 /**
  * Stato completo della partita dall'output del parser: funzione pura, deterministica, JSON-serializzabile.
@@ -40,9 +38,10 @@ export function computeMatchState(parsed: ParsedMatch): MatchState {
   const sets = computeSets(parsed, tl);
   const setsWon = computeSetsWon(sets);
   const status = computeStatus(tl, setsWon);
+  const players = { home: playerRefs(parsed.homePlayers), away: playerRefs(parsed.awayPlayers) };
   return {
     teams: { home: teamRef(parsed.home), away: teamRef(parsed.away) },
-    players: { home: playerRefs(parsed.homePlayers), away: playerRefs(parsed.awayPlayers) },
+    players,
     sets,
     setsWon,
     status,
@@ -52,5 +51,6 @@ export function computeMatchState(parsed: ParsedMatch): MatchState {
     rotations: computeRotations(tl.points),
     zones: computeZones(tl.resolved),
     phase: computePhase(tl, sets, status, setsWon),
+    events: recentEvents(detectEvents(tl, players)),
   };
 }

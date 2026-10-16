@@ -110,6 +110,24 @@ describe('Intermission: when it opens and closes', () => {
     expect(dialog()).toBeNull();
   });
 
+  it('tells when a full screen pause is on screen (the overlays of the events stay away from it)', () => {
+    const onFullscreenChange = vi.fn();
+    const config = TenantIntermissionsSchema.parse({});
+    const element = (s: MatchState, device: Device) => (
+      <Intermission state={s} config={config} device={device} paused={false} onFullscreenChange={onFullscreenChange} />
+    );
+    const view = render(element(setBreak, 'tablet'));
+    expect(onFullscreenChange).toHaveBeenLastCalledWith(true);
+    view.rerender(element(setBreak, 'phone'));
+    expect(onFullscreenChange).toHaveBeenLastCalledWith(false);
+    view.rerender(element(setBreak, 'tablet'));
+    expect(onFullscreenChange).toHaveBeenLastCalledWith(true);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onFullscreenChange).toHaveBeenLastCalledWith(false);
+    view.rerender(element(inPlay, 'tablet'));
+    expect(onFullscreenChange).toHaveBeenLastCalledWith(false);
+  });
+
   it('a set with its own pause uses it', () => {
     setup(setBreak, { config: { setBreakBySet: { '1': { slides: [{ id: 'q', type: 'qr' }] } } } });
     expect(screen.getByRole('heading', { name: 'Segui la partita sul telefono' })).toBeTruthy();

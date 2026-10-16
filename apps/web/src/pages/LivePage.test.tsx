@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultBranding, defaultIntermissions, TenantLayoutSchema } from '@sir/shared';
+import { defaultBranding, defaultIntermissions, defaultOverlays, TenantLayoutSchema } from '@sir/shared';
 import { initBranding, setTenantLook, tenantLookOf } from '../lib/branding.ts';
 import type { LiveSnapshot } from '../lib/liveConnection.ts';
 import { TV_ROOT_CLASS } from '../lib/tvScreen.ts';
@@ -182,6 +182,7 @@ describe('LivePage layout of the client', () => {
           images: { logoMain: null, logoMark: null, sponsorLogo: null },
           layout,
           intermissions: defaultIntermissions(),
+          overlays: defaultOverlays(),
         }),
       ),
     );
@@ -213,6 +214,7 @@ describe('LivePage pauses of the client', () => {
             images: { logoMain: null, logoMark: null, sponsorLogo: null },
             layout: TenantLayoutSchema.parse({}),
             intermissions: defaultIntermissions(),
+            overlays: defaultOverlays(),
           }),
         ),
       );

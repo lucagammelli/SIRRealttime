@@ -5,6 +5,7 @@ export * from './ingest.js';
 export * from './intermissions.js';
 export * from './layout.js';
 export * from './messages.js';
+export * from './overlays.js';
 export * from './patch.js';
 export * from './registration.js';
 export * from './strings.js';

@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AssetListResponse, AssetSummary, BrandingResponse, PublicTenantResponse } from '@sir/shared';
-import { ASSET_MAX_BYTES, defaultIntermissions, defaultLayout } from '@sir/shared';
+import { ASSET_MAX_BYTES, defaultIntermissions, defaultLayout, defaultOverlays } from '@sir/shared';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
@@ -65,6 +65,7 @@ describe('public graphics of the client of the hostname', () => {
       images: { logoMain: null, logoMark: null, sponsorLogo: null },
       layout: defaultLayout(),
       intermissions: defaultIntermissions(),
+      overlays: defaultOverlays(),
     });
   });
 

@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from 'react-router';
 import { BrandMark } from '../components/BrandMark.tsx';
 import { Intermission } from '../components/Intermission.tsx';
 import { LiveMatch } from '../components/LiveMatch.tsx';
+import { Overlay } from '../components/Overlay.tsx';
 import { StatusScreen } from '../components/StatusScreen.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import type { ProbeResult } from '../lib/liveConnection.ts';
@@ -11,7 +12,7 @@ import { useIdle, useTvRootClass, useWakeLock } from '../lib/tvScreen.ts';
 import { tvModeOf } from '../lib/layout.ts';
 import { useDevice } from '../lib/useLayout.ts';
 import { socketUrl, useLiveSocket } from '../lib/useLiveSocket.ts';
-import { useBrandName, useTenantIntermissions, useTenantLook } from '../lib/branding.ts';
+import { useBrandName, useTenantIntermissions, useTenantLook, useTenantOverlays } from '../lib/branding.ts';
 import { teamName } from '../lib/format.ts';
 
 /** Wait when a 503/429 has no readable Retry-After. */
@@ -51,7 +52,9 @@ export async function probeShareToken(token: string, fetchImpl: typeof fetch = f
  * groups that the viewer can stop. The blocks are the ones chosen by the client for the device (page «Pagina pubblica»
  * of the reserved area), the defaults until its graphics are loaded. In the pauses of the match (time-out, end of set,
  * end of match) the pause chosen by the client (page «Pause e sponsor») goes over the page or at its bottom: none while
- * its graphics are loading, the default pauses when they cannot be loaded.
+ * its graphics are loading, the default pauses when they cannot be loaded. The events of the match that arrive live
+ * (ace, set point, ...) show an overlay for a few seconds as chosen by the client (page «Avvisi»), never over a full
+ * screen pause.
  */
 export function LivePage() {
   const { token = '' } = useParams();
@@ -77,6 +80,8 @@ export function LivePage() {
   const brand = useBrandName();
   const look = useTenantLook();
   const intermissions = useTenantIntermissions();
+  const overlays = useTenantOverlays();
+  const [pauseFullscreen, setPauseFullscreen] = useState(false);
   const blockBrand = useMemo(
     () => (look ? { name: look.name, logoMain: look.images.logoMain, logoMark: look.images.logoMark } : null),
     [look],
@@ -191,8 +196,19 @@ export function LivePage() {
         />
       </main>
       {data?.kind === 'state' && (
+        <Overlay
+          key={`avvisi-${data.matchId}`}
+          state={data.state}
+          live={data.live === true}
+          config={overlays}
+          device={device}
+          blocked={pauseFullscreen}
+        />
+      )}
+      {data?.kind === 'state' && (
         <Intermission
           key={data.matchId}
+          onFullscreenChange={setPauseFullscreen}
           state={data.state}
           config={intermissions}
           device={device}

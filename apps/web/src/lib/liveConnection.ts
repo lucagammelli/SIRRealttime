@@ -10,7 +10,19 @@ export const CLOSE_SESSION_ENDED = 4401;
 
 export type ConnectionStatus = 'connecting' | 'live' | 'reconnecting' | 'invalid' | 'unauthorized';
 
-export type LiveData = { kind: 'state'; matchId: string; version: number; state: MatchState } | { kind: 'noMatch' };
+export type LiveData =
+  | {
+      kind: 'state';
+      matchId: string;
+      version: number;
+      state: MatchState;
+      /**
+       * True when the state is a live update (a patch, or a full state sent after an update); missing for the first
+       * state of a connection and the answer to a `resync`, which only bring the match up to date (no overlays).
+       */
+      live?: boolean;
+    }
+  | { kind: 'noMatch' };
 
 export interface LiveSnapshot {
   status: ConnectionStatus;
@@ -212,6 +224,8 @@ export class LiveConnection {
     let pending = 0;
     /** A `resync` was sent and its full state has not arrived yet. */
     let resyncing = false;
+    /** The first full state of this socket has arrived: the next states are live updates. */
+    let synced = false;
     /** Sends `resync`, and again every `resyncRetry` until a full state arrives. */
     const askResync = (): void => {
       resyncing = true;
@@ -234,15 +248,19 @@ export class LiveConnection {
         if (resyncing) return;
         const next = applyPatchMessage(this.snapshot.data, message);
         if (next === 'resync') askResync();
-        else if (next) this.update({ data: next, error: null, status: 'live' });
+        else if (next?.kind === 'state') this.update({ data: { ...next, live: true }, error: null, status: 'live' });
         return;
       }
+      let live = false;
       if (message.type === 'state') {
+        live = synced && !resyncing;
+        synced = true;
         resyncing = false;
         this.clearResyncTimer();
       }
       const next = applyMessage(this.snapshot.data, message);
-      if (next) this.update({ data: next, error: null, status: 'live' });
+      if (next)
+        this.update({ data: next.kind === 'state' && live ? { ...next, live } : next, error: null, status: 'live' });
     };
     socket.onopen = () => {
       opened = true;

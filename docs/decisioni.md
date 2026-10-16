@@ -135,3 +135,13 @@ Una riga per decisione: data, scelta, motivo.
   nessuna, per non far lampeggiare pause sbagliate (`docs/portale.md`).
 - 2026-10-15: nessun logo per squadra, si usa il logo del cliente, perché i dati non hanno loghi di squadra e ne
   basta uno per cliente (`docs/portale.md`).
+- 2026-10-15: eventi della partita (ace, set point, ...) calcolati in `volley-stats` e mandati nello stato (`events`, ultimi
+  20), perché il portale non ha le azioni del rally e i calcoli di pallavolo non si duplicano (`docs/statistiche.md`).
+- 2026-10-15: id degli eventi = tipo + set + punteggio, e il portale mostra solo gli eventi dalla riga più alta già vista in
+  poi, perché una correzione dello scout a un rally passato cambia i punteggi e non deve rifar comparire avvisi vecchi
+  (`docs/portale.md`).
+- 2026-10-15: soglie degli avvisi: scambio lungo da 4 attacchi (le alzate non sono sempre registrate); pareggio e sorpasso solo
+  dal 15-15 (9-9 al tie-break) o dopo una rimonta di 3 punti, perché a punteggi bassi sarebbero un avviso a ogni punto
+  (`docs/statistiche.md`).
+- 2026-10-15: avvisi scartati sopra una pausa a tutto schermo (e nessun avviso all'apertura, dopo resync o riconnessione),
+  perché non devono coprire il riepilogo né raccontare cose già successe (`docs/portale.md`).

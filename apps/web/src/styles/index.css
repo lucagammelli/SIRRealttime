@@ -141,10 +141,29 @@
 .sir-fade {
   animation: sir-flash 500ms ease-out;
 }
+/* Overlay of an event (components/Overlay.tsx): drops in from above, 450 ms. */
+@keyframes sir-overlay {
+  0% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.92);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(0) scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.sir-overlay {
+  animation: sir-overlay 450ms ease-out;
+}
 @media (prefers-reduced-motion: reduce) {
   .sir-pop,
   .sir-flash,
   .sir-fade,
+  .sir-overlay,
   .sir-pulse {
     animation: none;
   }

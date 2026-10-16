@@ -16,6 +16,7 @@ import { LiveAdminPage } from './LiveAdminPage.tsx';
 import { LoginPage } from './LoginPage.tsx';
 import { MatchDetailPage } from './MatchDetailPage.tsx';
 import { MatchesPage } from './MatchesPage.tsx';
+import { OverlaysPage } from './OverlaysPage.tsx';
 import { ShareLinksPage } from './ShareLinksPage.tsx';
 import { loadTenants, TenantSelector, TenantsPage } from './TenantsPage.tsx';
 import { UsersPage } from './UsersPage.tsx';
@@ -66,6 +67,7 @@ function AdminLayout() {
           { to: '/admin/grafica', label: 'Grafica' },
           { to: '/admin/pagina', label: 'Pagina pubblica' },
           { to: '/admin/pause', label: 'Pause e sponsor' },
+          { to: '/admin/avvisi', label: 'Avvisi' },
         ]
       : []),
     ...(isSuperadmin ? [{ to: '/admin/clienti', label: 'Clienti' }] : []),
@@ -122,6 +124,7 @@ function AdminLayout() {
           <Route path="grafica" element={adminOnly(<BrandingPage />)} />
           <Route path="pagina" element={adminOnly(<LayoutPage />)} />
           <Route path="pause" element={adminOnly(<IntermissionsPage />)} />
+          <Route path="avvisi" element={adminOnly(<OverlaysPage />)} />
           <Route path="clienti" element={superadminOnly(<TenantsPage tenants={tenants} />)} />
           <Route path="*" element={<Navigate to="/admin/live" replace />} />
         </Routes>

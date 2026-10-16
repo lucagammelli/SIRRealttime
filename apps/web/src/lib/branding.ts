@@ -1,5 +1,17 @@
-import type { BrandPalette, PublicTenantResponse, TenantIntermissions, TenantLayout } from '@sir/shared';
-import { brandPalette, DEFAULT_BRAND_NAME, defaultIntermissions, PublicTenantResponseSchema } from '@sir/shared';
+import type {
+  BrandPalette,
+  PublicTenantResponse,
+  TenantIntermissions,
+  TenantLayout,
+  TenantOverlays,
+} from '@sir/shared';
+import {
+  brandPalette,
+  DEFAULT_BRAND_NAME,
+  defaultIntermissions,
+  defaultOverlays,
+  PublicTenantResponseSchema,
+} from '@sir/shared';
 import { useSyncExternalStore } from 'react';
 import type { ResolvedTheme } from './theme.ts';
 import { currentTheme, subscribeThemeEvents } from './theme.ts';
@@ -17,6 +29,8 @@ export interface TenantLook {
   layout: TenantLayout;
   /** Pauses of the public page (time-out, end of set, end of match). */
   intermissions: TenantIntermissions;
+  /** Overlays of the events of the match (ace, set point, ...). */
+  overlays: TenantOverlays;
 }
 
 let look: TenantLook | null = null;
@@ -25,6 +39,8 @@ export type TenantLookStatus = 'loading' | 'loaded' | 'failed';
 let status: TenantLookStatus = 'loading';
 /** Pauses used when the graphics cannot be loaded: the defaults of the shared contract. */
 const DEFAULT_INTERMISSIONS: TenantIntermissions = defaultIntermissions();
+/** Overlays used when the graphics cannot be loaded: the defaults of the shared contract. */
+const DEFAULT_OVERLAYS: TenantOverlays = defaultOverlays();
 /** Bumped at every change of the variables: the charts read the palette again. */
 let revision = 0;
 const listeners = new Set<() => void>();
@@ -88,6 +104,7 @@ export function tenantLookOf(tenant: PublicTenantResponse): TenantLook {
     palette: brandPalette(tenant.branding.colors),
     layout: tenant.layout,
     intermissions: tenant.intermissions,
+    overlays: tenant.overlays,
   };
 }
 
@@ -161,6 +178,17 @@ export function useTenantIntermissions(): TenantIntermissions | null {
   const state = useTenantLookStatus();
   if (current) return current.intermissions;
   return state === 'failed' ? DEFAULT_INTERMISSIONS : null;
+}
+
+/**
+ * Overlays of the events of the match: the ones of the client once its graphics are loaded, the defaults when the
+ * load failed, none (null) while it is still loading.
+ */
+export function useTenantOverlays(): TenantOverlays | null {
+  const current = useTenantLook();
+  const state = useTenantLookStatus();
+  if (current) return current.overlays;
+  return state === 'failed' ? DEFAULT_OVERLAYS : null;
 }
 
 /** Changes at every new set of variables (graphics or theme): key for re-reading the palette of the charts. */

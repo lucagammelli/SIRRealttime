@@ -129,7 +129,10 @@ dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in q
    schermo o a banda per dispositivo; pausa propria per i set 1-4, pagina «Pause e sponsor», `GET`/`PUT
    /api/admin/intermissions`, fase della partita in `volley-stats` (`docs/statistiche.md`, `docs/architettura.md`,
    `docs/server.md`, `docs/portale.md`).
-8. `avvisi-eventi`: messaggi rapidi sopra la pagina (ace, set point, match point…).
+8. `avvisi-eventi` (**fatto**): messaggi rapidi sopra la pagina per 12 eventi (ace, muro punto, break, scambio lungo, set
+   point, match point, pareggio, sorpasso, time-out, cambio, fine set, fine partita), con testo a segnaposto, durata,
+   dispositivi e priorità per cliente; eventi calcolati in `volley-stats`, pagina «Avvisi», `GET`/`PUT
+   /api/admin/overlays` (`docs/statistiche.md`, `docs/architettura.md`, `docs/server.md`, `docs/portale.md`).
 9. `agente-scaricabile`: exe scaricabile dal portale con la grafica del cliente.
 
 Piano completo e scelte di Luca nel piano approvato della fase.

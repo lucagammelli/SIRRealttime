@@ -6,6 +6,7 @@ import type {
   BrandingResponse,
   IntermissionsResponse,
   LayoutResponse,
+  OverlaysResponse,
   PublicTenantResponse,
   TenantBranding,
 } from '@sir/shared';
@@ -23,9 +24,11 @@ import {
   resolveBranding,
   resolveIntermissions,
   resolveLayout,
+  resolveOverlays,
   TenantBrandingSchema,
   TenantIntermissionsSchema,
   TenantLayoutSchema,
+  TenantOverlaysSchema,
   UploadAssetRequestSchema,
 } from '@sir/shared';
 import { desc, eq, inArray, ne, sql } from 'drizzle-orm';
@@ -123,6 +126,7 @@ export function brandingPublicRoutes(app: FastifyInstance, ctx: AppContext): voi
       },
       layout: resolveLayout(tenant.layout),
       intermissions: resolveIntermissions(tenant.intermissions),
+      overlays: resolveOverlays(tenant.overlays),
     };
   });
 
@@ -262,6 +266,34 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     forgetTenants(ctx);
     request.log.info({ tenantId, userId: request.user?.id }, 'pause della pagina pubblica salvate');
     return intermissionsOf(tenantId);
+  });
+
+  const overlaysOf = async (tenantId: string): Promise<OverlaysResponse> => {
+    const tenant = await findTenant(ctx, { id: tenantId });
+    if (!tenant) throw notFound();
+    return { tenantName: tenant.name, overlays: resolveOverlays(tenant.overlays) };
+  };
+
+  app.get('/api/admin/overlays', admin, async (request): Promise<OverlaysResponse> =>
+    overlaysOf(adminTenantId(request)),
+  );
+
+  /**
+   * Replaces the overlays of the events of the match (closed list of events and placeholders, durations, devices and
+   * priorities checked by the shared schema). No images: no check of the assets.
+   */
+  app.put('/api/admin/overlays', admin, async (request): Promise<OverlaysResponse> => {
+    const tenantId = adminTenantId(request);
+    const overlays = validate(TenantOverlaysSchema, request.body);
+    const updated = await ctx.db
+      .update(tenants)
+      .set({ overlays })
+      .where(eq(tenants.id, tenantId))
+      .returning({ id: tenants.id });
+    if (updated.length === 0) throw notFound();
+    forgetTenants(ctx);
+    request.log.info({ tenantId, userId: request.user?.id }, 'avvisi della pagina pubblica salvati');
+    return overlaysOf(tenantId);
   });
 
   app.get('/api/admin/assets', admin, async (request): Promise<AssetListResponse> => {

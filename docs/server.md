@@ -175,7 +175,8 @@ Il server scarica dai **siti ufficiali** calendario, classifica, squadre e loghi
 fornitore, la Lega Pallavolo Serie A (`https://www.legavolley.it`, `LeagueProviderSchema` = `legavolley`). I dati sono
 pubblici e **comuni a tutti i clienti** (nessun `tenant_id`): si scaricano una volta sola. Le rotte `/api/admin/leagues`
 sono del superadmin; ogni cliente sceglie fra i campionati già noti la sua squadra (vedi «Club, calendario e
-abbinamento»); blocchi e diapositive della classifica sono nel lavoro seguente (`docs/piano.md`, «Campionati»). Fonte: dati ufficiali
+abbinamento»); la classifica va ai blocchi e alle diapositive del portale con la rotta pubblica descritta in «Club,
+calendario e abbinamento» (`docs/portale.md`, «Blocchi del calendario»). Fonte: dati ufficiali
 della Lega; **l'uso dei marchi (loghi) va ancora chiarito con la Lega e i club** (punto aperto).
 
 **Come si aggiunge**: `POST /api/admin/leagues` con `{ provider, externalId, season }`. `externalId` è l'`IdCampionato` del
@@ -334,6 +335,27 @@ possibili; ne resta live uno solo.
 - `GET /api/admin/calendar` → `CalendarResponse`: `fixtures` (`ClubFixture`: partita, `state`, link breve con codice e URL,
   `.dvw` abbinato) ordinate per data e numero ufficiale, e `pending` (al massimo 50 `.dvw` da confermare, con data del file e
   candidati). `state` viene da `clubFixtureState` (`scheduled`, `live`, `finished`, `postponed`, `pending`, `removed`).
+
+**Rotta pubblica per i blocchi** (`clubPublicRoutes` in `routes/club.ts`, `publicSchedule` in `club.ts`): `GET
+/api/public/tenant/schedule` → `ScheduleResponse` (`docs/architettura.md`). Il cliente viene dall'hostname (`hostTenant`,
+404 se sconosciuto), senza token, con il limite delle rotte pubbliche; solo dati pubblici del campionato (squadre, loghi
+`/api/public/team-logos/:id`, orario, impianto, link breve, classifica), mai dati delle partite. Risposta con
+`Cache-Control: public, max-age=60`.
+
+- **Partite**: le prossime `SCHEDULE_MAX_FIXTURES` (3) del club con stato `scheduled` nel calendario, non rimosse
+  (`removed_at` nullo), con inizio non più vecchio di 4 ore (`SCHEDULE_GRACE_MS`: una partita iniziata da poco senza `.dvw`
+  conta ancora come prossima), ordinate per inizio; una partita con un `.dvw` finito è esclusa. `shortUrl` è il link breve
+  non revocato né scaduto (`<base>/l/<codice>`), `null` altrimenti. `live` è `true` se un `.dvw` di quella partita è live
+  (il blocco «Prossima partita» salta le partite live).
+- **Classifica**: del campionato della prima partita in arrivo; se non c'è, del primo campionato del cliente (nell'ordine
+  di scelta) che ha una classifica salvata. Ogni riga ha `ours` per la squadra scelta dal cliente nel campionato.
+- **Senza club** (nessun campionato con squadra): risposta vuota valida (`EMPTY_SCHEDULE`).
+- **Cache del server** (`ctx.caches.schedule`, `SCHEDULE_CACHE_TTL_MS` = 60 s, per cliente in `context.ts`): si svuota al
+  salvataggio del club e a ogni nuova copia del calendario (`refreshClub`), all'inizio e alla fine di una partita (ingest,
+  `routes/ingest.ts`) e alla revoca di un link (`forgetShareToken` in `state.ts`, per tutti i clienti). Il flag `live` può
+  quindi arrivare in ritardo fino a 60 s negli altri casi.
+- **Limiti noti**: una partita senza orario non è mostrata; la partita iniziata da meno di 4 ore senza `.dvw` conta ancora
+  come prossima.
 
 **Limiti noti**: le partite non abbinate si spengono a vicenda (due amichevoli contemporanee si alternano il link «segue la
 live»); revocando il link di una partita non se ne crea uno nuovo (il «Calendario» lo mostra revocato); amichevoli e coppe
@@ -904,11 +926,11 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
   (loghi), `src/db/schema.ts`, `drizzle/0005_leagues.sql`, `packages/shared/src/leagues.ts`; test
   `apps/server/test/leagues.test.ts`, `leaguesHtml.test.ts`, `leagueFetcher.test.ts`, `legavolley.test.ts`
 - Club e calendario: `src/club.ts` (`refreshClientFixtures`, `evaluateFixtureLink`, `scheduledMessage`, `upcomingOf`,
-  `fixtureLabel`, `tenantsOfLeague`, `leaguesWithClubMatches`), `src/leagues/match.ts` (`linkFixture`, `teamNameScore`,
+  `fixtureLabel`, `tenantsOfLeague`, `leaguesWithClubMatches`, `publicSchedule`), `src/leagues/match.ts` (`linkFixture`, `teamNameScore`,
   `nameTokens`, `dvwFacts`, `parseDvwDate`), `src/matchLock.ts` (`lockTenantMatches`, `switchOffOthers`, `canStayLive`),
   `src/state.ts` (`currentMessage`, `announceFixture`, `refreshClub`, `targetOf`), `src/hub.ts` (`Target` `fixture`,
   `PublishRoute`, `retarget`, `currentScheduled`, `rememberScheduled`, `SCHEDULED_TTL_MS`), `src/routes/club.ts`
-  (`clubRoutes`), `drizzle/0006_club.sql`, `packages/shared/src/club.ts`; pagine in `docs/portale.md`
+  (`clubRoutes`, `clubPublicRoutes`), `src/context.ts` (`SCHEDULE_CACHE_TTL_MS`), `drizzle/0006_club.sql`, `packages/shared/src/club.ts`; pagine in `docs/portale.md`
 - Link brevi: `src/lib/shortCode.ts` (`deriveShortCode`, `shortCodeLookupHash`), `src/shareCodes.ts` (`insertShareToken`,
   `ensureShortCode`, `syncShortCodes`, `currentShortCode`), `src/lib/failureLimiter.ts` (`hasRecent`),
   `packages/shared/src/admin.ts` (`ShortCodeSchema`, `normalizeShortCode`, `formatShortCode`, `ShareTokenParamSchema`),

@@ -155,7 +155,8 @@ discriminata chiusa su `type`. Ogni blocco ha `id` (`BlockIdSchema`, unico nell'
 `LAYOUT_COLUMNS` = 12, solo i valori di `BLOCK_WIDTHS` per quel tipo), `visible`, `collapsed` (solo telefono) e `options`
 (`BLOCK_OPTIONS`, uno schema strict per tipo). Tipi (`BLOCK_TYPES`): `scoreboard`, `momentum`, `comparison`, `players`,
 `court`, `rotations`, `logo`, `sponsor`, `message`, `qr`, `lastPoint`, `setScores`, `topPlayers`, `setScorers`, `aces`,
-`blocks`, `attack`, `roleDuel`, `teamDuel` (statistiche in stile TV, vedi sotto). Opzioni: `logo`
+`blocks`, `attack`, `roleDuel`, `teamDuel` (statistiche in stile TV, vedi sotto), `nextMatch` e `standings` («Prossima
+partita» e «Classifica» del club, larghezze 4/6/8/12, vedi «Club e calendario»). Opzioni: `logo`
 `variant` (`main` | `mark`); `sponsor` `images` (al massimo `SPONSOR_MAX_IMAGES` = 12 id di immagini del cliente) e
 `seconds` (3-60, predefinito 8); `message` `text` (testo semplice, al massimo `MESSAGE_MAX_LENGTH` = 280) e `size`
 (`normal` | `large`); `qr` `caption` (al massimo `QR_CAPTION_MAX_LENGTH` = 80, predefinito `QR_DEFAULT_CAPTION`);
@@ -164,7 +165,9 @@ stesse delle diapositive omonime): `period` (`STAT_PERIODS`: `set` predefinito, 
 (`SCORERS_MIN` 3 - `SCORERS_MAX` 8, predefinito 5) e in `attack` (`ATTACKERS_MIN` 1 - `ATTACKERS_MAX` 5, predefinito 3);
 `role` in `roleDuel` (`DUEL_ROLE_CHOICES`: `rotate` predefinito, cioè un duello per ogni ruolo, oppure
 `opposite`/`outside`/`middle`/`setter`/`libero`); `rows` in `teamDuel` (`TEAM_DUEL_KEYS` di volley-stats, chiavi delle righe di `teamDuel`
-di `@sir/volley-stats`; vuoto = tutte). Regole sull'elenco
+di `@sir/volley-stats`; vuoto = tutte); `qr` in `nextMatch` (booleano, predefinito `true`); `scope` in `standings`
+(`STANDINGS_SCOPES`: `top` le prime `count` righe, `all` tutta, `around` la nostra squadra ±`STANDINGS_AROUND` = 2;
+predefinito `around`) e `count` (`STANDINGS_MIN_ROWS` 3 - `STANDINGS_MAX_ROWS` 16, predefinito 5, usato solo da `top`). Regole sull'elenco
 (`DeviceBlocksSchema`): id unici, un solo `scoreboard`, larghezze ammesse. `{}` vale il predefinito
 (`defaultLayout(template)`, `defaultDeviceBlocks(dispositivo, template)`: per `standard` i sei blocchi di prima con
 larghezze 12/8/6/4; per `sir-volley` la pagina del mockup: tabellone, poi andamento, confronto e mappe di campo a un terzo
@@ -183,16 +186,17 @@ Ogni pausa ha `enabled`, `modes` (per `tv`, `tablet`, `phone`:
 `fullscreen` o `banner`, `INTERMISSION_MODES`), `delaySeconds` (0-`INTERMISSION_MAX_DELAY_SECONDS` = 60) e `slides`
 (al massimo `INTERMISSION_MAX_SLIDES` = 12, id unici). Una pausa attiva ha almeno una diapositiva. Tipi di diapositiva
 (`SLIDE_TYPES`): `setSummary`, `finalResult`, `mvp`, `setScores` (senza opzioni) e `setScorers`, `aces`, `blocks`,
-`attack`, `roleDuel`, `teamDuel`, `sponsor`, `message`, `qr`, `logo` (le stesse opzioni dei blocchi omonimi,
+`attack`, `roleDuel`, `teamDuel`, `nextMatch`, `standings`, `sponsor`, `message`, `qr`, `logo` (le stesse opzioni dei blocchi omonimi,
 `SLIDE_OPTIONS` da `BLOCK_OPTIONS`; per le statistiche `period` è il set della pausa o la partita); ogni diapositiva ha `seconds` (3-60,
 predefinito 8: `SLIDE_MIN_SECONDS`, `SLIDE_MAX_SECONDS`, `SLIDE_DEFAULT_SECONDS`). `setBreakBySet` (chiavi `'1'`-`'4'`,
 `SET_BREAK_SETS`) dà a un set una pausa propria che **sostituisce per intero** quella generica `setBreak`, senza fonderla;
 il 5° set chiude la partita e usa `matchEnd`. Il ritorno alla partita non è configurabile: avviene alla prima azione.
 `{}` vale i predefiniti (`defaultIntermissions`, `defaultIntermission(kind)`): time-out a banda su ogni dispositivo con una
 diapositiva sponsor (10 s); fine set a tutto schermo su TV e tablet e a banda sul telefono, ritardo 5 s, con
-`setSummary` (12 s), poi `setScorers`, `aces`, `blocks`, `roleDuel` (a rotazione), `teamDuel` e sponsor; fine partita a
+`setSummary` (12 s), poi `setScorers`, `aces`, `blocks`, `roleDuel` (a rotazione), `teamDuel`, `standings`, `nextMatch`
+(10 s ciascuna) e sponsor; fine partita a
 tutto schermo su ogni dispositivo, ritardo 5 s, con `finalResult`, `mvp`, `setScorers`, `roleDuel` e `teamDuel` con
-`period: 'match'`, un messaggio `THANKS_MESSAGE` («Grazie per aver seguito la partita», grande) e sponsor.
+`period: 'match'`, `standings`, `nextMatch`, un messaggio `THANKS_MESSAGE` («Grazie per aver seguito la partita», grande) e sponsor.
 `milestone` (`MilestoneIntermissionSchema`) ha in più `every` (punti fra due pause, somma dei due punteggi del set:
 `MILESTONE_MIN_EVERY` 4 - `MILESTONE_MAX_EVERY` 25, predefinito 8) e `stopBeforeEnd` K (predefinito 5: nessuna pausa se una
 squadra è a K punti o meno dal traguardo del set, 25 o 15 al tie-break, calcolato da `@sir/volley-stats`, non nel
@@ -247,7 +251,14 @@ del nome); `FixtureLinkSchema` (`auto`/`manual`/`pending`/`none`), `ClubFixtureS
 `UpcomingFixtureSchema` (ciò che la pagina pubblica mostra prima del `.dvw`: solo dati pubblici del campionato),
 `ClubFixtureSchema`, `PendingMatchSchema`, `FixtureCandidateSchema`, `CalendarResponseSchema`,
 `LinkMatchFixtureRequestSchema` (`PUT /api/admin/matches/:id/fixture`, `clientFixtureId` nullo = «nessuna (amichevole)»).
-Rotte, abbinamento e tabelle in `docs/server.md` («Club, calendario e abbinamento»), pagine in `docs/portale.md`; test
+Per i blocchi e le diapositive «Prossima partita» e «Classifica»: `ScheduleResponseSchema` (`GET /api/public/tenant/schedule`:
+`fixtures`, al massimo `SCHEDULE_MAX_FIXTURES` = 3, e `standings`), `ScheduleFixtureSchema` (dati pubblici della partita più
+`live` e `shortUrl`, il link breve del suo QR, nullo se revocato), `ScheduleStandingsSchema` (`leagueName`, `updatedAt`,
+`rows`), `ScheduleStandingRowSchema` (posizione, squadra, punti, giocate, vinte, perse, set vinti e persi, `logoUrl`, `ours`
+= la squadra del club), `EMPTY_SCHEDULE` (senza club: nessuna partita e nessuna classifica) e `standingsRowsToShow(righe,
+scope, count)` (pura: `top` le prime `count`, `all` tutte, `around` la nostra squadra ±2 con la finestra che scorre ai
+bordi per tenere sempre 5 righe; senza la nostra squadra, le prime `count`). Rotta in `docs/server.md`, blocchi in
+`docs/portale.md` («Blocchi del calendario»). Rotte, abbinamento e tabelle in `docs/server.md` («Club, calendario e abbinamento»), pagine in `docs/portale.md`; test
 `packages/shared/src/club.test.ts`.
 
 Ogni schema ha il tipo omonimo senza `Schema` (`z.infer`). Dettagli d'uso: `docs/server.md`.

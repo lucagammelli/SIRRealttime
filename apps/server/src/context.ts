@@ -1,4 +1,4 @@
-import type { UserRole } from '@sir/shared';
+import type { ScheduleResponse, UserRole } from '@sir/shared';
 import type { Config } from './config.js';
 import type { Db } from './db/index.js';
 import type { LiveHub, StatePublisher } from './hub.js';
@@ -60,12 +60,17 @@ export const SERVER_FULL_RETRY_AFTER_S = 20;
 /** Lifetime of the cached client of a hostname and of a cached share token. */
 export const LOOKUP_CACHE_TTL_MS = 30_000;
 
+/** Lifetime of the cached public schedule (matches and standings) of a client. */
+export const SCHEDULE_CACHE_TTL_MS = 60_000;
+
 /** In-memory lookups (30 s), invalidated at once when a client changes or a link is revoked. */
 export interface LookupCaches {
   /** Client of a hostname (`''`: no valid hostname), null: none. */
   hosts: TtlCache<string, Tenant | null>;
   /** Valid share tokens, by `<tenantId>:<sha256 of the token>` (short codes: `<tenantId>:c:<keyed hash of the code>`). */
   shares: TtlCache<string, ResolvedShareToken>;
+  /** `GET /api/public/tenant/schedule` by client id (60 s; emptied when the club changes or a match starts or ends). */
+  schedule: TtlCache<string, ScheduleResponse>;
 }
 
 /** Shared services of the routes. */

@@ -1,4 +1,4 @@
-import type { Intermission as PauseConfig, TenantIntermissions } from '@sir/shared';
+import type { Intermission as PauseConfig, ScheduleResponse, TenantIntermissions } from '@sir/shared';
 import type { MatchState, PointMilestone } from '@sir/volley-stats';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
@@ -17,6 +17,7 @@ import {
   visibleSlides,
 } from '../lib/intermission.ts';
 import type { Device } from '../lib/layout.ts';
+import { intermissionsUseSchedule, isScheduleType, useSchedule } from '../lib/schedule.ts';
 import { useReducedMotion } from '../lib/theme.ts';
 import { useElementHeight } from '../lib/useLayout.ts';
 
@@ -47,6 +48,7 @@ export function Intermission({
   preview,
   onFullscreenChange,
   live = false,
+  schedule,
 }: {
   state: MatchState;
   /** The state is a live update (`LiveData.live`): only these can open the «ogni N punti». */
@@ -64,7 +66,15 @@ export function Intermission({
   preview?: PauseConfig;
   /** Told whether a full screen pause is on screen (the overlays of the events stay away from it). */
   onFullscreenChange?: (shown: boolean) => void;
+  /** Matches and standings of the club (the editor passes an example); missing: read from the server when needed. */
+  schedule?: ScheduleResponse | null;
 }) {
+  const needsSchedule = preview ? preview.slides.some((s) => isScheduleType(s.type)) : intermissionsUseSchedule(config);
+  const fetched = useSchedule(
+    schedule === undefined && needsSchedule,
+    `${state.status}:${state.setsWon.home}-${state.setsWon.away}`,
+  );
+  const data = schedule === undefined ? fetched : schedule;
   const phase = phaseOf(state);
   const described = describePause(phase);
   // A pause already in progress when the page opens is shown at once.
@@ -113,7 +123,7 @@ export function Intermission({
   // The «ogni N punti» shows its slides once, then the match comes back.
   const onceMs =
     visible && !preview && active.kind === 'milestone'
-      ? visibleSlides(state, active, { sponsorLogo }).reduce((sum, s) => sum + s.seconds, 0) * 1000
+      ? visibleSlides(state, active, { sponsorLogo, schedule: data }).reduce((sum, s) => sum + s.seconds, 0) * 1000
       : null;
   // Counted from when the pause shows: the next points (new states) do not restart it.
   const once = useRef(0);
@@ -128,7 +138,7 @@ export function Intermission({
     visible &&
     !preview &&
     active.pause.modes[device] === 'fullscreen' &&
-    visibleSlides(state, active, { sponsorLogo }).length > 0;
+    visibleSlides(state, active, { sponsorLogo, schedule: data }).length > 0;
   useEffect(() => {
     onFullscreenChange?.(fullscreen);
   }, [fullscreen, onFullscreenChange]);
@@ -145,6 +155,7 @@ export function Intermission({
       {...(onTogglePaused ? { onTogglePaused } : {})}
       look={look}
       sponsorLogo={sponsorLogo}
+      schedule={data}
       {...(pageUrl === undefined ? {} : { pageUrl })}
       preview={preview !== undefined}
       onClose={close}
@@ -160,6 +171,7 @@ function PauseView({
   onTogglePaused,
   look,
   sponsorLogo,
+  schedule,
   pageUrl,
   preview,
   onClose,
@@ -171,6 +183,7 @@ function PauseView({
   onTogglePaused?: () => void;
   look: BlockBrand | null;
   sponsorLogo: string | null;
+  schedule: ScheduleResponse | null;
   pageUrl?: string;
   preview: boolean;
   onClose: () => void;
@@ -178,7 +191,7 @@ function PauseView({
   const reduced = useReducedMotion();
   const titleId = useId();
   const mode = active.pause.modes[device];
-  const slides = visibleSlides(state, active, { sponsorLogo });
+  const slides = visibleSlides(state, active, { sponsorLogo, schedule });
   const [tick, setTick] = useState(0);
   const index = slides.length > 0 ? tick % slides.length : 0;
   const slide = slides[index];
@@ -222,6 +235,7 @@ function PauseView({
     brandInScoreboard: false,
     brand: look,
     paused: paused || reduced,
+    schedule,
     set: active.set,
     sponsorLogo,
     ...(pageUrl === undefined ? {} : { pageUrl }),
@@ -281,7 +295,7 @@ function PauseView({
             <h2 id={titleId} className="font-display text-sm font-bold uppercase tracking-wide text-accent">
               {title}
             </h2>
-            <div key={`${slide.id}-${tick}`} className="sir-fade min-w-0 flex-1 basis-48">
+            <div key={`${slide.id}-${tick}`} className="sir-fade min-w-0 flex-1 basis-full sm:basis-48">
               {renderSlide(slide, env, 'compact')}
             </div>
             <div className="flex items-center gap-2">

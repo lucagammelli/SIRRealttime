@@ -87,6 +87,28 @@ describe('layout of the public page', () => {
     expect(parseBlock({ type: 'attack', options: { limit: 6 } }).success).toBe(false);
   });
 
+  it('«Prossima partita» and «Classifica»: options, widths and limits', () => {
+    expect(parseBlock({ type: 'nextMatch' }).data?.options).toEqual({ qr: true });
+    expect(parseBlock({ type: 'nextMatch', options: { qr: false } }).data?.options).toEqual({ qr: false });
+    expect(parseBlock({ type: 'standings' }).data?.options).toEqual({ scope: 'around', count: 5 });
+    expect(parseBlock({ type: 'standings', options: { scope: 'top', count: 8 } }).success).toBe(true);
+    expect(parseBlock({ type: 'standings', options: { scope: 'top', count: 2 } }).success).toBe(false);
+    expect(parseBlock({ type: 'standings', options: { count: 17 } }).success).toBe(false);
+    expect(parseBlock({ type: 'standings', options: { scope: 'metà' } }).success).toBe(false);
+    expect(parseBlock({ type: 'nextMatch', options: { extra: 1 } }).success).toBe(false);
+    const doc = {
+      version: 1,
+      tv: [
+        { id: 'n', type: 'nextMatch', width: 4 },
+        { id: 's', type: 'standings', width: 8 },
+      ],
+    };
+    expect(TenantLayoutSchema.safeParse(doc).success).toBe(true);
+    expect(TenantLayoutSchema.safeParse({ ...doc, tv: [{ id: 'n', type: 'nextMatch', width: 3 }] }).success).toBe(
+      false,
+    );
+  });
+
   it('checks the options of each type: plain texts, image ids, durations and counts within limits', () => {
     expect(parseBlock({ type: 'message', options: { text: '  Forza ragazzi!  ' } }).data?.options).toEqual({
       text: 'Forza ragazzi!',

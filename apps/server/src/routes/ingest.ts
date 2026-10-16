@@ -49,7 +49,11 @@ export function ingestRoutes(app: FastifyInstance, ctx: AppContext): void {
       const body = validate(IngestRequestSchema, request.body);
       // The match belongs to the client of the agent, whatever the hostname.
       const { response, published, route } = await ctx.ingest.ingest(agent, body);
-      if (published) ctx.publisher.publish(agent.tenantId, published, route);
+      if (published) {
+        ctx.publisher.publish(agent.tenantId, published, route);
+        // A match that starts or ends changes «Prossima partita»: the public schedule is read again.
+        if (route?.becameLive || published.state.status === 'finished') ctx.caches.schedule.delete(agent.tenantId);
+      }
       request.log.info(
         { matchKey: body.matchKey, seq: body.seq, kind: body.kind, lines: body.lines.length, status: response.status },
         'ingest',

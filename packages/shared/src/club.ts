@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { FixtureStatusSchema, LeagueExternalIdSchema, LeagueSeasonSchema, LeagueSyncStateSchema } from './leagues.js';
+import {
+  FixtureStatusSchema,
+  LeagueExternalIdSchema,
+  LeagueSeasonSchema,
+  LeagueSyncStateSchema,
+  StandingRowSchema,
+} from './leagues.js';
 import { OUR_TEAM_NAME_MAX, OurTeamSchema } from './ourTeam.js';
 
 /**
@@ -223,3 +229,89 @@ export type CalendarResponse = z.infer<typeof CalendarResponseSchema>;
 /** `PUT /api/admin/matches/:id/fixture`: the match of the calendar of a `.dvw`, or null for «nessuna (amichevole)». */
 export const LinkMatchFixtureRequestSchema = z.strictObject({ clientFixtureId: z.uuid().nullable() });
 export type LinkMatchFixtureRequest = z.infer<typeof LinkMatchFixtureRequestSchema>;
+
+/** Most matches of the club in `GET /api/public/tenant/schedule` (the block shows the first one that is not live). */
+export const SCHEDULE_MAX_FIXTURES = 3;
+
+/** A coming match of the club as the public blocks show it: teams, logos, time, venue and the short link of the match. */
+export const ScheduleFixtureSchema = UpcomingFixtureSchema.pick({
+  startsAt: true,
+  home: true,
+  away: true,
+  ourSide: true,
+  venue: true,
+  venueCity: true,
+  roundLabel: true,
+  leagueName: true,
+}).extend({
+  /** A `.dvw` of this match is being played now (the block «Prossima partita» skips it). */
+  live: z.boolean(),
+  /** Short public link of the match (`<base>/l/<code>`), the one of its QR; null when revoked. */
+  shortUrl: z.url().nullable(),
+});
+export type ScheduleFixture = z.infer<typeof ScheduleFixtureSchema>;
+
+/** A row of the standings as the public block shows it (the numbers are the ones of the league site). */
+export const ScheduleStandingRowSchema = StandingRowSchema.pick({
+  position: true,
+  teamName: true,
+  points: true,
+  played: true,
+  won: true,
+  lost: true,
+  setsWon: true,
+  setsLost: true,
+}).extend({
+  logoUrl: z.string().nullable(),
+  /** The team of the club. */
+  ours: z.boolean(),
+});
+export type ScheduleStandingRow = z.infer<typeof ScheduleStandingRowSchema>;
+
+export const ScheduleStandingsSchema = z.object({
+  leagueName: z.string().nullable(),
+  /** Time the standings were stored, null when unknown. */
+  updatedAt: z.iso.datetime().nullable(),
+  rows: z.array(ScheduleStandingRowSchema),
+});
+export type ScheduleStandings = z.infer<typeof ScheduleStandingsSchema>;
+
+/**
+ * `GET /api/public/tenant/schedule`: public data of the club of the client of the hostname for the blocks «Prossima
+ * partita» and «Classifica». Without a club: no matches and no standings (the blocks stay hidden).
+ */
+export const ScheduleResponseSchema = z.object({
+  fixtures: z.array(ScheduleFixtureSchema).max(SCHEDULE_MAX_FIXTURES),
+  standings: ScheduleStandingsSchema.nullable(),
+});
+export type ScheduleResponse = z.infer<typeof ScheduleResponseSchema>;
+
+export const EMPTY_SCHEDULE: ScheduleResponse = { fixtures: [], standings: null };
+
+/** Rows of the standings of a block: `top` the first N, `all` every row, `around` the club ±2 positions. */
+export const STANDINGS_SCOPES = ['top', 'all', 'around'] as const;
+export type StandingsScope = (typeof STANDINGS_SCOPES)[number];
+/** Rows around the team of the club in the scope `around`, on each side. */
+export const STANDINGS_AROUND = 2;
+
+/**
+ * Pure: the rows to show. `top`: the first `count`; `all`: every row; `around`: the team of the club and
+ * STANDINGS_AROUND rows on each side (the window slides to keep the same number of rows near the ends); without the
+ * team of the club it is the first rows.
+ */
+export function standingsRowsToShow(
+  rows: readonly ScheduleStandingRow[],
+  scope: StandingsScope,
+  count: number,
+): ScheduleStandingRow[] {
+  if (scope === 'all') return [...rows];
+  if (scope === 'around') {
+    const at = rows.findIndex((r) => r.ours);
+    const size = 2 * STANDINGS_AROUND + 1;
+    if (at !== -1) {
+      const start = Math.max(0, Math.min(at - STANDINGS_AROUND, rows.length - size));
+      return rows.slice(start, start + size);
+    }
+  }
+  return rows.slice(0, count);
+}

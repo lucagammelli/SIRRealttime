@@ -1,3 +1,4 @@
+import type { ScheduleResponse } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
 import type { ReactNode } from 'react';
 import type { Device } from '../lib/layout.ts';
@@ -21,6 +22,8 @@ export interface BlockEnv {
   brand: BlockBrand | null;
   /** Address of the page for the QR block (default: the address in the browser bar). */
   pageUrl?: string;
+  /** Matches and standings of the club for «Prossima partita» and «Classifica»; null: not loaded (or no club). */
+  schedule: ScheduleResponse | null;
   /** Automatic changes stopped by the viewer (big screen): the sponsor images do not rotate either. */
   paused: boolean;
 }

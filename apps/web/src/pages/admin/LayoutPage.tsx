@@ -30,6 +30,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BlockBrand } from '../../blocks/env.ts';
 import { BLOCKS, REGISTRY_TYPES } from '../../blocks/registry.tsx';
 import { loadSampleMatch } from '../../blocks/sampleMatch.ts';
+import { SAMPLE_SCHEDULE } from '../../blocks/sampleSchedule.ts';
 import { MatchView } from '../../components/MatchView.tsx';
 import { Button, Card, ErrorBox, Spinner } from '../../components/ui.tsx';
 import { apiRequest } from '../../lib/api.ts';
@@ -40,6 +41,7 @@ import { LayoutScaleContext } from '../../lib/useLayout.ts';
 import { socketUrl, useLiveSocket } from '../../lib/useLiveSocket.ts';
 import { useApiError } from './auth.tsx';
 import { inputClass } from './forms.tsx';
+import { CalendarOptionsFields } from './CalendarOptionsFields.tsx';
 import { StatOptionsFields, withStatOptions } from './StatOptionsFields.tsx';
 import { addBlock, canAdd, layoutProblems, moveBlock, removeBlock, resetDevice, updateBlock } from './layoutEditor.ts';
 
@@ -147,6 +149,7 @@ export function DevicePreview({
                 layout={layout}
                 look={look}
                 pageUrl={previewPageUrl()}
+                schedule={SAMPLE_SCHEDULE}
               />
             </div>
             {children}
@@ -234,6 +237,9 @@ export function BlockOptionsEditor({
           />
         </label>
       );
+    case 'nextMatch':
+    case 'standings':
+      return <CalendarOptionsFields block={block} onChange={onChange} name={label} />;
     case 'topPlayers':
       return (
         <div className="flex flex-wrap items-center gap-3 text-sm text-text">

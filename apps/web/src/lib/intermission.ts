@@ -8,6 +8,7 @@ import type {
   IntermissionKind,
   IntermissionSlide,
   MilestoneIntermission,
+  ScheduleResponse,
   StatPeriod,
   TenantIntermissions,
 } from '@sir/shared';
@@ -24,6 +25,7 @@ import {
   setRecap,
   teamDuel,
 } from '@sir/volley-stats';
+import { hasScheduleData } from './schedule.ts';
 
 /** A pause the page can open: its kind, the configuration chosen for it and the phase that opened it. */
 export interface ActivePause {
@@ -87,6 +89,8 @@ export function periodLabel(period: Period): string {
 export interface SlideContext {
   /** Sponsor logo of the branding, shown by a sponsor slide without images of its own. */
   sponsorLogo: string | null;
+  /** Matches and standings of the club (`useSchedule`): «Prossima partita» and «Classifica» need them. */
+  schedule?: ScheduleResponse | null;
 }
 
 /** Roles that have a player against player duel in the period (first pair of each role), in the order of the duels. */
@@ -133,6 +137,9 @@ export function visibleSlides(
     switch (slide.type) {
       case 'sponsor':
         return slide.options.images.length > 0 || context.sponsorLogo !== null ? [slide] : [];
+      case 'nextMatch':
+      case 'standings':
+        return hasScheduleData(slide.type, context.schedule) ? [slide] : [];
       case 'setSummary':
         return setRecap(state, active.set) !== null ? [slide] : [];
       case 'mvp':

@@ -152,6 +152,8 @@ export async function resolveShareToken(
 /** Forgets a share token at once (revocation): the next request reads the database again. */
 export function forgetShareToken(ctx: AppContext, shareTokenId: string): void {
   ctx.caches.shares.deleteWhere((share) => share.id === shareTokenId);
+  // The public schedule carries the short links of the matches of the club: a revoked one goes at once.
+  ctx.caches.schedule.clear();
 }
 
 export const targetOf = (share: ResolvedShareToken): Target =>
@@ -183,5 +185,6 @@ export async function announceFixture(ctx: AppContext, tenantId: string, clientF
 export async function refreshClub(ctx: AppContext, tenantId: string): Promise<void> {
   const linked = await refreshClientFixtures(ctx.db, ctx.config.shareCodeSecret, tenantId, ctx.now());
   ctx.hub.forgetScheduled(tenantId);
+  ctx.caches.schedule.delete(tenantId);
   for (const l of linked) await announceFixture(ctx, l.tenantId, l.clientFixtureId);
 }

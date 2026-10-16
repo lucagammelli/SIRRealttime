@@ -1,8 +1,16 @@
 import type { ParsedMatch } from '@sir/dvw-parser';
 import { parseDvw } from '@sir/dvw-parser';
-import type { FixtureCandidate, FixtureLink, ScheduledMessage, UpcomingFixture } from '@sir/shared';
-import { ourTeamSide, publicTeamLogoPath, resolveBranding } from '@sir/shared';
-import { and, asc, eq, gte, isNull, lt, notInArray, or, sql } from 'drizzle-orm';
+import type {
+  FixtureCandidate,
+  FixtureLink,
+  ScheduledMessage,
+  ScheduleFixture,
+  ScheduleResponse,
+  ScheduleStandings,
+  UpcomingFixture,
+} from '@sir/shared';
+import { EMPTY_SCHEDULE, ourTeamSide, publicTeamLogoPath, resolveBranding, SCHEDULE_MAX_FIXTURES } from '@sir/shared';
+import { and, asc, eq, gt, gte, inArray, isNull, lt, notInArray, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { Db } from './db/index.js';
 import {
@@ -12,6 +20,7 @@ import {
   leagueTeams,
   matches,
   shareTokens,
+  standings,
   tenantLeagues,
   tenants,
 } from './db/index.js';
@@ -21,7 +30,7 @@ import { dvwFacts, linkFixture } from './leagues/match.js';
 import { romeParts } from './leagues/romeTime.js';
 import type { Tx } from './matchLock.js';
 import { canStayLive, lockTenantMatches } from './matchLock.js';
-import { insertShareToken } from './shareCodes.js';
+import { ensureShortCode, insertShareToken } from './shareCodes.js';
 import { tenantScope } from './tenancy.js';
 
 /**
@@ -315,4 +324,126 @@ export async function leaguesWithClubMatches(db: Db, from: Date, to: Date): Prom
     .from(clientFixtures)
     .where(and(gte(clientFixtures.startsAt, from), lt(clientFixtures.startsAt, to), isNull(clientFixtures.removedAt)));
   return new Set(rows.map((r) => r.leagueId));
+}
+
+/** A match that began this long ago and has no `.dvw` yet is still «coming» (the page of the club waits for it). */
+const SCHEDULE_GRACE_MS = 4 * 3_600_000;
+/** Matches of the calendar read to find the first ones that are still to be played. */
+const SCHEDULE_CANDIDATES = 20;
+
+/**
+ * Public data of the club of a client for the blocks «Prossima partita» and «Classifica»: its next
+ * SCHEDULE_MAX_FIXTURES matches still to play (the ones with a `.dvw` being played now are flagged `live`; the ones
+ * already played or finished are left out) with their short link, and the standings of its main championship: the
+ * one of its next match (the nearest in time among its championships), otherwise the first with standings.
+ * Public data only; without a club it is empty.
+ */
+export async function publicSchedule(
+  db: Db,
+  secret: string,
+  tenantId: string,
+  baseUrl: string,
+  now: Date,
+): Promise<ScheduleResponse> {
+  const choices = await db
+    .select({ leagueId: tenantLeagues.leagueId, teamId: tenantLeagues.leagueTeamId, name: leagues.name })
+    .from(tenantLeagues)
+    .innerJoin(leagues, eq(leagues.id, tenantLeagues.leagueId))
+    .where(tenantScope(tenantLeagues, tenantId, sql`${tenantLeagues.leagueTeamId} is not null`))
+    .orderBy(asc(tenantLeagues.createdAt));
+  if (choices.length === 0) return EMPTY_SCHEDULE;
+  const rows = await db
+    .select()
+    .from(clientFixtures)
+    .where(
+      tenantScope(
+        clientFixtures,
+        tenantId,
+        isNull(clientFixtures.removedAt),
+        eq(clientFixtures.status, 'scheduled'),
+        gte(clientFixtures.startsAt, new Date(now.getTime() - SCHEDULE_GRACE_MS)),
+      ),
+    )
+    .orderBy(asc(clientFixtures.startsAt), asc(clientFixtures.id))
+    .limit(SCHEDULE_CANDIDATES);
+  const ids = rows.map((r) => r.id);
+  const [links, played] = ids.length
+    ? await Promise.all([
+        db
+          .select()
+          .from(shareTokens)
+          .where(
+            tenantScope(
+              shareTokens,
+              tenantId,
+              inArray(shareTokens.clientFixtureId, ids),
+              eq(shareTokens.revoked, false),
+              or(isNull(shareTokens.expiresAt), gt(shareTokens.expiresAt, now)),
+            ),
+          ),
+        db
+          .select({
+            clientFixtureId: matches.clientFixtureId,
+            live: matches.live,
+            status: sql<string | null>`${matches.state}->>'status'`,
+          })
+          .from(matches)
+          .where(tenantScope(matches, tenantId, inArray(matches.clientFixtureId, ids))),
+      ])
+    : [[], []];
+  const live = new Set(played.filter((m) => m.live).map((m) => m.clientFixtureId));
+  const finished = new Set(played.filter((m) => m.status === 'finished').map((m) => m.clientFixtureId));
+  const linkOf = new Map(links.map((l) => [l.clientFixtureId, l]));
+  const fixtureList: ScheduleFixture[] = [];
+  for (const row of rows) {
+    if (fixtureList.length >= SCHEDULE_MAX_FIXTURES) break;
+    // A finished `.dvw` stays «live» as the link of the client; the match is over all the same.
+    if (finished.has(row.id)) continue;
+    const link = linkOf.get(row.id);
+    const code = link ? (await ensureShortCode(db, secret, link)).code : null;
+    const { startsAt, home, away, ourSide, venue, venueCity, roundLabel, leagueName } = upcomingOf(row);
+    fixtureList.push({
+      startsAt,
+      home,
+      away,
+      ourSide,
+      venue,
+      venueCity,
+      roundLabel,
+      leagueName,
+      live: live.has(row.id),
+      shortUrl: code ? `${baseUrl}/l/${code}` : null,
+    });
+  }
+  // Main championship: the one of the nearest match, then the others in the order the client chose them.
+  const first = rows[0]?.leagueId;
+  const order = [...choices].sort((a, b) => Number(b.leagueId === first) - Number(a.leagueId === first));
+  let standingsOut: ScheduleStandings | null = null;
+  for (const choice of order) {
+    const list = await db
+      .select({ s: standings, logoId: leagueTeams.logoId })
+      .from(standings)
+      .leftJoin(leagueTeams, eq(leagueTeams.id, standings.teamId))
+      .where(eq(standings.leagueId, choice.leagueId))
+      .orderBy(asc(standings.position));
+    if (list.length === 0) continue;
+    standingsOut = {
+      leagueName: choice.name,
+      updatedAt: list[0]?.s.updatedAt.toISOString() ?? null,
+      rows: list.map(({ s, logoId }) => ({
+        position: s.position,
+        teamName: s.teamName,
+        points: s.points,
+        played: s.played,
+        won: s.won,
+        lost: s.lost,
+        setsWon: s.setsWon,
+        setsLost: s.setsLost,
+        logoUrl: logoPath(logoId),
+        ours: s.teamId !== null && s.teamId === choice.teamId,
+      })),
+    };
+    break;
+  }
+  return { fixtures: fixtureList, standings: standingsOut };
 }

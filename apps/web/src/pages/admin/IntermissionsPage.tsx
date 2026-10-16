@@ -35,6 +35,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BlockBrand } from '../../blocks/env.ts';
 import { SLIDE_LABELS } from '../../blocks/IntermissionSlides.tsx';
 import { loadSampleMatch } from '../../blocks/sampleMatch.ts';
+import { SAMPLE_SCHEDULE } from '../../blocks/sampleSchedule.ts';
 import { Intermission } from '../../components/Intermission.tsx';
 import { Button, Card, ErrorBox, Spinner } from '../../components/ui.tsx';
 import { apiRequest } from '../../lib/api.ts';
@@ -123,6 +124,10 @@ function slideAsBlock(slide: IntermissionSlide): LayoutBlock | null {
       return { ...base, type: 'qr', options: slide.options };
     case 'logo':
       return { ...base, type: 'logo', options: slide.options };
+    case 'nextMatch':
+      return { ...base, type: 'nextMatch', options: slide.options };
+    case 'standings':
+      return { ...base, type: 'standings', options: slide.options };
     default:
       return null;
   }
@@ -134,6 +139,8 @@ function withBlockOptions(slide: IntermissionSlide, block: LayoutBlock): Intermi
   if (slide.type === 'message' && block.type === 'message') return { ...slide, options: block.options };
   if (slide.type === 'qr' && block.type === 'qr') return { ...slide, options: block.options };
   if (slide.type === 'logo' && block.type === 'logo') return { ...slide, options: block.options };
+  if (slide.type === 'nextMatch' && block.type === 'nextMatch') return { ...slide, options: block.options };
+  if (slide.type === 'standings' && block.type === 'standings') return { ...slide, options: block.options };
   return slide;
 }
 
@@ -759,6 +766,7 @@ function IntermissionsEditor({
                   look={look}
                   sponsorLogo={sponsorLogo}
                   pageUrl={previewPageUrl()}
+                  schedule={SAMPLE_SCHEDULE}
                   preview={effective}
                 />
               </DevicePreview>

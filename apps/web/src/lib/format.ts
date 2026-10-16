@@ -85,6 +85,19 @@ const fixtureDate = new Intl.DateTimeFormat('it-IT', {
 });
 const fixtureTime = new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit' });
 
+const dayMonthYear = new Intl.DateTimeFormat('it-IT', {
+  timeZone: 'Europe/Rome',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
+
+/** Day of an ISO instant in Italian time, «16/10/2026»; `null` or not a date → «–». */
+export function formatDay(iso: string | null): string {
+  const d = iso ? new Date(iso) : null;
+  return d && !Number.isNaN(d.getTime()) ? dayMonthYear.format(d) : DASH;
+}
+
 /**
  * Official date and time of a match of the calendar, in Italian time like the league writes them: «dom 18 ott 2026»
  * and «18:00»; `null` (not set yet) → «Data da definire» and «–».

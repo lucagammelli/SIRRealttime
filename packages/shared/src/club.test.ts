@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { clubFixtureState, suggestedOurTeamName, UpdateClubRequestSchema } from './club.js';
+import {
+  clubFixtureState,
+  EMPTY_SCHEDULE,
+  ScheduleResponseSchema,
+  standingsRowsToShow,
+  suggestedOurTeamName,
+  UpdateClubRequestSchema,
+} from './club.js';
 import { ServerMessageSchema } from './messages.js';
 
 const ID = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
@@ -52,5 +59,44 @@ describe('club', () => {
     };
     expect(ServerMessageSchema.parse(message)).toEqual(message);
     expect(ServerMessageSchema.safeParse({ type: 'scheduled', fixture: {} }).success).toBe(false);
+  });
+});
+
+describe('rows of the standings of a block', () => {
+  const rows = Array.from({ length: 12 }, (_, i) => ({
+    position: i + 1,
+    teamName: `Squadra ${i + 1}`,
+    points: 30 - i,
+    played: 10,
+    won: 10 - i,
+    lost: i,
+    setsWon: 30 - i,
+    setsLost: i,
+    logoUrl: null,
+    ours: false,
+  }));
+  const withOurs = (position: number) => rows.map((r) => ({ ...r, ours: r.position === position }));
+  const positions = (list: readonly { position: number }[]) => list.map((r) => r.position);
+
+  it('shows the first N rows or all of them', () => {
+    expect(positions(standingsRowsToShow(rows, 'top', 4))).toEqual([1, 2, 3, 4]);
+    expect(standingsRowsToShow(rows, 'all', 4)).toHaveLength(12);
+  });
+
+  it('shows the club and two rows on each side, sliding at the ends', () => {
+    expect(positions(standingsRowsToShow(withOurs(6), 'around', 3))).toEqual([4, 5, 6, 7, 8]);
+    expect(positions(standingsRowsToShow(withOurs(1), 'around', 3))).toEqual([1, 2, 3, 4, 5]);
+    expect(positions(standingsRowsToShow(withOurs(12), 'around', 3))).toEqual([8, 9, 10, 11, 12]);
+    expect(positions(standingsRowsToShow(withOurs(11), 'around', 3))).toEqual([8, 9, 10, 11, 12]);
+  });
+
+  it('falls back to the first rows without the team of the club, and keeps a short table whole', () => {
+    expect(positions(standingsRowsToShow(rows, 'around', 3))).toEqual([1, 2, 3]);
+    expect(positions(standingsRowsToShow(withOurs(2).slice(0, 4), 'around', 3))).toEqual([1, 2, 3, 4]);
+  });
+
+  it('reads an empty schedule and refuses wrong data', () => {
+    expect(ScheduleResponseSchema.parse(EMPTY_SCHEDULE)).toEqual({ fixtures: [], standings: null });
+    expect(ScheduleResponseSchema.safeParse({ fixtures: [{}], standings: null }).success).toBe(false);
   });
 });

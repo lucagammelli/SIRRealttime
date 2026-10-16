@@ -31,7 +31,17 @@ const IMG_A = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
 const IMG_B = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
 
 const types = (slides: readonly { type: string }[]): string[] => slides.map((s) => s.type);
-const SET_BREAK_TYPES = ['setSummary', 'setScorers', 'aces', 'blocks', 'roleDuel', 'teamDuel', 'sponsor'];
+const SET_BREAK_TYPES = [
+  'setSummary',
+  'setScorers',
+  'aces',
+  'blocks',
+  'roleDuel',
+  'teamDuel',
+  'standings',
+  'nextMatch',
+  'sponsor',
+];
 
 describe('pauses of the public page: defaults', () => {
   it('reads the empty database document as the defaults of every pause', () => {
@@ -70,11 +80,13 @@ describe('pauses of the public page: defaults', () => {
       'setScorers',
       'roleDuel',
       'teamDuel',
+      'standings',
+      'nextMatch',
       'message',
       'sponsor',
     ]);
     for (const slide of matchEnd.slides.slice(2, 5)) expect(slide.options).toMatchObject({ period: 'match' });
-    expect(matchEnd.slides[5]).toMatchObject({ options: { text: THANKS_MESSAGE, size: 'large' } });
+    expect(matchEnd.slides[7]).toMatchObject({ options: { text: THANKS_MESSAGE, size: 'large' } });
     expect(THANKS_MESSAGE).toBe('Grazie per aver seguito la partita');
   });
 
@@ -91,6 +103,26 @@ describe('pauses of the public page: defaults', () => {
     expect(types(milestone.slides)).toEqual(['setScorers', 'teamDuel']);
     for (const slide of milestone.slides) expect(slide.options).toMatchObject({ period: 'set' });
     expect(defaultIntermission('milestone')).toEqual(milestone);
+  });
+
+  it('«Prossima partita» and «Classifica» come after the statistics, with the options of the blocks', () => {
+    const { setBreak, matchEnd } = defaultIntermissions();
+    for (const pause of [setBreak, matchEnd]) {
+      const list = types(pause.slides);
+      expect(list.indexOf('standings')).toBeGreaterThan(list.indexOf('teamDuel'));
+      expect(list.indexOf('nextMatch')).toBe(list.indexOf('standings') + 1);
+      expect(pause.slides.find((s) => s.type === 'standings')?.options).toEqual({ scope: 'around', count: 5 });
+      expect(pause.slides.find((s) => s.type === 'nextMatch')?.options).toEqual({ qr: true });
+    }
+    expect(IntermissionSlideSchema.safeParse({ id: 'c', type: 'standings', options: { scope: 'all' } }).success).toBe(
+      true,
+    );
+    expect(IntermissionSlideSchema.safeParse({ id: 'c', type: 'standings', options: { scope: 'tutte' } }).success).toBe(
+      false,
+    );
+    expect(IntermissionSlideSchema.safeParse({ id: 'c', type: 'nextMatch', options: { qr: 'si' } }).success).toBe(
+      false,
+    );
   });
 
   it('a partial pause takes the defaults of its own kind', () => {

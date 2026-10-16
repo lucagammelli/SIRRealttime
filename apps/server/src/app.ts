@@ -8,7 +8,7 @@ import Fastify from 'fastify';
 import type { FastifyError, FastifyInstance, FastifyRequest, FastifyServerOptions } from 'fastify';
 import type { Config } from './config.js';
 import type { AppContext, RateLimits, SocketLimits } from './context.js';
-import { LOOKUP_CACHE_TTL_MS } from './context.js';
+import { LOOKUP_CACHE_TTL_MS, SCHEDULE_CACHE_TTL_MS } from './context.js';
 import type { Db } from './db/index.js';
 import { LiveHub } from './hub.js';
 import { IngestService } from './ingest.js';
@@ -24,7 +24,7 @@ import { adminRoutes } from './routes/admin.js';
 import { agentDownloadRoutes } from './routes/agentDownload.js';
 import { authRoutes } from './routes/auth.js';
 import { brandingAdminRoutes, brandingPublicRoutes } from './routes/branding.js';
-import { clubRoutes } from './routes/club.js';
+import { clubPublicRoutes, clubRoutes } from './routes/club.js';
 import { healthRoutes } from './routes/health.js';
 import { ingestRoutes } from './routes/ingest.js';
 import { leaguePublicRoutes, leagueRoutes } from './routes/leagues.js';
@@ -144,6 +144,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     caches: {
       hosts: new TtlCache(LOOKUP_CACHE_TTL_MS, LOOKUP_CACHE_ENTRIES, now),
       shares: new TtlCache(LOOKUP_CACHE_TTL_MS, LOOKUP_CACHE_ENTRIES, now),
+      schedule: new TtlCache(SCHEDULE_CACHE_TTL_MS, LOOKUP_CACHE_ENTRIES, now),
     },
     publicFailures: new FailureLimiter(rateLimits.publicInvalid, 60_000, now),
     shortCodeFailures: new FailureLimiter(rateLimits.shortCodeInvalidTotal, 60_000, now),
@@ -188,6 +189,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   ingestRoutes(app, ctx);
   brandingPublicRoutes(app, ctx);
   leaguePublicRoutes(app, ctx);
+  clubPublicRoutes(app, ctx);
   publicRoutes(app, ctx);
   registrationRoutes(app, ctx);
   // Checks with a cost or a rejection go in preParsing/preValidation/preHandler: the rate limit of a route is an

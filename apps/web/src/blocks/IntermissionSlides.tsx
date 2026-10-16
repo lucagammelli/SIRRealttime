@@ -7,6 +7,7 @@ import { Partials } from '../components/Scoreboard.tsx';
 import { BreakableName } from '../components/ui.tsx';
 import { formatPct, playerName, teamName, teamShort } from '../lib/format.ts';
 import { statPeriod } from '../lib/intermission.ts';
+import { nextFixture } from '../lib/schedule.ts';
 import { setPartials } from '../lib/scoreboard.ts';
 import { ShareQr } from '../qr/ShareQr.tsx';
 import {
@@ -18,6 +19,7 @@ import {
   SponsorBlock,
   useImageRotation,
 } from './BrandBlocks.tsx';
+import { NextMatchView, StandingsView } from './CalendarBlocks.tsx';
 import type { BlockEnv } from './env.ts';
 import { AttackView, CountView, RoleDuelView, SetScorersView, TeamDuelView } from './StatSlides.tsx';
 
@@ -55,6 +57,14 @@ export const SLIDE_LABELS: Record<SlideType, { label: string; description: strin
     description: 'Giocatore contro giocatore dello stesso ruolo (opposti, schiacciatori, centrali, …).',
   },
   teamDuel: { label: 'Squadre a confronto', description: 'Le due squadre fondamentale per fondamentale.' },
+  nextMatch: {
+    label: 'Prossima partita',
+    description: 'La prossima partita del club con avversario, data, palazzetto e QR del suo link (solo con un club).',
+  },
+  standings: {
+    label: 'Classifica',
+    description: 'La classifica del campionato del club, con la nostra squadra evidenziata (solo con un club).',
+  },
   sponsor: { label: 'Sponsor', description: 'Immagini degli sponsor a rotazione (o il logo sponsor della grafica).' },
   message: { label: 'Messaggio', description: 'Un testo a scelta (senza formattazione).' },
   qr: { label: 'Codice QR', description: 'QR del link di questa pagina.' },
@@ -325,6 +335,25 @@ export function renderSlide(slide: IntermissionSlide, env: SlideEnv, size: Slide
           size={size}
         />
       );
+    case 'nextMatch': {
+      const fixture = nextFixture(env.schedule);
+      return fixture ? (
+        <NextMatchView
+          fixture={fixture}
+          options={slide.options}
+          env={env}
+          size={size === 'full' ? 'full' : 'compact'}
+        />
+      ) : null;
+    }
+    case 'standings':
+      return env.schedule?.standings ? (
+        <StandingsView
+          standings={env.schedule.standings}
+          options={slide.options}
+          size={size === 'full' ? 'full' : 'compact'}
+        />
+      ) : null;
     case 'sponsor':
       return <SponsorSlide slide={slide} env={env} size={size} />;
     case 'message':

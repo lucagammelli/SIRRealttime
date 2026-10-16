@@ -1,4 +1,4 @@
-import type { TenantLayout } from '@sir/shared';
+import type { ScheduleResponse, TenantLayout } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
 import type { ReactNode } from 'react';
 import type { BlockBrand } from '../blocks/env.ts';
@@ -6,6 +6,7 @@ import { renderLayoutBlock } from '../blocks/registry.tsx';
 import { useOurTeamColors, useTemplate } from '../lib/branding.ts';
 import type { Device, LayoutBlock } from '../lib/layout.ts';
 import { blocksFor } from '../lib/layout.ts';
+import { hasScheduleData, isScheduleType, useSchedule } from '../lib/schedule.ts';
 import { useDevice } from '../lib/useLayout.ts';
 import { BlockLayout } from './BlockLayout.tsx';
 
@@ -26,6 +27,7 @@ export function MatchView({
   look = null,
   pageUrl,
   rotationPaused = false,
+  schedule,
 }: {
   state: MatchState;
   status?: ReactNode;
@@ -38,11 +40,22 @@ export function MatchView({
   pageUrl?: string;
   /** Big screen: rotation of the groups (and of the sponsor images) stopped by the viewer. */
   rotationPaused?: boolean;
+  /** Matches and standings of the club (the editor passes an example); missing: read from the server when needed. */
+  schedule?: ScheduleResponse | null;
 }) {
   const auto = useDevice();
   const used: Device = device ?? (auto === 'tv' ? 'tablet' : auto);
   const template = useTemplate();
   useOurTeamColors(state.teams);
+  const all = blocksFor(layout, used, template.id);
+  // The schedule is asked for only by a page that has «Prossima partita» or «Classifica»; read again at every set.
+  const fetched = useSchedule(
+    schedule === undefined && all.some((b) => isScheduleType(b.type)),
+    `${state.status}:${state.setsWon.home}-${state.setsWon.away}`,
+  );
+  const data = schedule === undefined ? fetched : schedule;
+  // A block without data (no club, nothing to show yet) is left out, not an empty card.
+  const blocks = all.filter((b) => hasScheduleData(b.type, data));
 
   const renderBlock = (block: LayoutBlock): ReactNode =>
     renderLayoutBlock(block, {
@@ -52,15 +65,9 @@ export function MatchView({
       brandInScoreboard: brand,
       brand: look,
       paused: rotationPaused,
+      schedule: data,
       ...(pageUrl === undefined ? {} : { pageUrl }),
     });
 
-  return (
-    <BlockLayout
-      blocks={blocksFor(layout, used, template.id)}
-      device={used}
-      renderBlock={renderBlock}
-      rotationPaused={rotationPaused}
-    />
-  );
+  return <BlockLayout blocks={blocks} device={used} renderBlock={renderBlock} rotationPaused={rotationPaused} />;
 }

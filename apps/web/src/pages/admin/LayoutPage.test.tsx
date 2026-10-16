@@ -288,4 +288,21 @@ describe('«Pagina pubblica» page', () => {
       options: { period: 'set', role: 'libero' },
     });
   });
+  it('adds «Prossima partita» and «Classifica» with their options', async () => {
+    const { calls } = mockServer();
+    renderAt('/admin/pagina');
+    const type = await screen.findByRole('combobox', { name: 'Tipo di blocco' });
+    fireEvent.change(type, { target: { value: 'nextMatch' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi blocco' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Mostra il codice QR: Prossima partita' }));
+    fireEvent.change(type, { target: { value: 'standings' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi blocco' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Righe: Classifica' }), { target: { value: 'top' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Quante righe: Classifica' }), { target: { value: '8' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salva' }));
+    await screen.findByText(/Pagina pubblica salvata/);
+    const tv = (lastPut(calls)?.body as TenantLayout).tv;
+    expect(tv.at(-2)).toMatchObject({ type: 'nextMatch', options: { qr: false } });
+    expect(tv.at(-1)).toMatchObject({ type: 'standings', options: { scope: 'top', count: 8 } });
+  });
 });

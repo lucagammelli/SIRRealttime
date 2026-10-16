@@ -232,3 +232,12 @@ Una riga per decisione: data, scelta, motivo.
   (`docs/server.md`).
 - 2026-10-16: `client_fixtures` con `removed_at` invece di cancellare le partite sparite dal calendario, perché il loro link
   (QR già stampati) e i `.dvw` abbinati non si devono perdere se la Lega cambia il calendario (`docs/server.md`).
+- 2026-10-16: rotta pubblica `GET /api/public/tenant/schedule` con cache di 60 s (server e browser, svuotata agli eventi
+  che cambiano i dati), perché ogni spettatore della pagina la legge e i dati cambiano di rado: il database non deve
+  sentire ogni telefono (`docs/server.md`).
+- 2026-10-16: niente QR nella banda di «Prossima partita» sul telefono (il nome dell'avversario è il link), perché chi
+  guarda è già sul telefono e non può inquadrarlo (`docs/portale.md`, «Blocchi del calendario»).
+- 2026-10-16: blocchi e diapositive del calendario senza dati (nessun club, nessuna partita, classifica vuota) sono
+  saltati invece di mostrare una card vuota, perché una pausa o una pagina pubblica non devono mai mostrare vuoti.
+- 2026-10-16: la classifica è una tabella a colonne fisse (`table-fixed`: posizione, logo, squadra, Pt, G, V, P, SV, SP),
+  perché a distanza, in TV, le colonne devono restare allineate e leggibili con nomi di squadra di lunghezza diversa.

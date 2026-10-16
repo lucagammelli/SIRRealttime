@@ -32,7 +32,8 @@ export type SetBreakSet = (typeof SET_BREAK_SETS)[number];
  * time-out); `finalResult`: sets won and partials; `mvp`: best player of the match; `setScores`: partials of the sets;
  * `setScorers` (partial and scorers), `aces`, `blocks`, `attack`, `roleDuel` (player against player of a role),
  * `teamDuel` (team against team): statistics of a period, the set of the pause or the match (`period`), as the blocks
- * of the page with the same name; `sponsor`, `message`, `qr`, `logo`: as the blocks of the page with the same name
+ * of the page with the same name; `nextMatch` (next match of the club) and `standings` (standings of its championship),
+ * skipped when the client has no club; `sponsor`, `message`, `qr`, `logo`: as the blocks of the page with the same name
  * (same options).
  */
 export const SLIDE_TYPES = [
@@ -46,6 +47,8 @@ export const SLIDE_TYPES = [
   'attack',
   'roleDuel',
   'teamDuel',
+  'nextMatch',
+  'standings',
   'sponsor',
   'message',
   'qr',
@@ -78,6 +81,8 @@ export const SLIDE_OPTIONS = {
   attack: BLOCK_OPTIONS.attack,
   roleDuel: BLOCK_OPTIONS.roleDuel,
   teamDuel: BLOCK_OPTIONS.teamDuel,
+  nextMatch: BLOCK_OPTIONS.nextMatch,
+  standings: BLOCK_OPTIONS.standings,
   sponsor: BLOCK_OPTIONS.sponsor,
   message: BLOCK_OPTIONS.message,
   qr: BLOCK_OPTIONS.qr,
@@ -104,6 +109,8 @@ export const IntermissionSlideSchema = z.discriminatedUnion('type', [
   slideOf('attack', SLIDE_OPTIONS.attack.prefault({})),
   slideOf('roleDuel', SLIDE_OPTIONS.roleDuel.prefault({})),
   slideOf('teamDuel', SLIDE_OPTIONS.teamDuel.prefault({})),
+  slideOf('nextMatch', SLIDE_OPTIONS.nextMatch.prefault({})),
+  slideOf('standings', SLIDE_OPTIONS.standings.prefault({})),
   slideOf('sponsor', SLIDE_OPTIONS.sponsor.prefault({})),
   slideOf('message', SLIDE_OPTIONS.message.prefault({})),
   slideOf('qr', SLIDE_OPTIONS.qr.prefault({})),
@@ -150,8 +157,8 @@ export const MILESTONE_DEFAULT_STOP_BEFORE_END = 5;
 /**
  * Defaults: time-out as a compact banner with the sponsors; end of set full screen on TV and tablet, banner on the
  * phone, 5 s after the set closes, with the summary of the set, partial and scorers, aces, blocks, the player duels
- * of every role in turn, the team comparison and the sponsors; end of match full screen with the result, the MVP,
- * the statistics of the whole match, the thanks and the sponsors; «ogni N punti» every 8 points but the last 5 of the set, banner
+ * of every role in turn, the team comparison, the standings, the next match and the sponsors; end of match full screen with the result, the MVP,
+ * the statistics of the whole match, the standings, the next match, the thanks and the sponsors; «ogni N punti» every 8 points but the last 5 of the set, banner
  * (full screen on TV) with partial and scorers and the team comparison of the set in progress.
  */
 const DEFAULTS: Record<IntermissionKind, PauseDefaults> = {
@@ -172,6 +179,8 @@ const DEFAULTS: Record<IntermissionKind, PauseDefaults> = {
       { id: 'blocks', type: 'blocks', seconds: 8 },
       { id: 'roleDuel', type: 'roleDuel', seconds: 8 },
       { id: 'teamDuel', type: 'teamDuel', seconds: 10 },
+      { id: 'standings', type: 'standings', seconds: 10 },
+      { id: 'nextMatch', type: 'nextMatch', seconds: 10 },
       { id: 'sponsor', type: 'sponsor', seconds: 8 },
     ],
   },
@@ -185,6 +194,8 @@ const DEFAULTS: Record<IntermissionKind, PauseDefaults> = {
       { id: 'setScorers', type: 'setScorers', seconds: 10, options: { period: 'match' } },
       { id: 'roleDuel', type: 'roleDuel', seconds: 8, options: { period: 'match' } },
       { id: 'teamDuel', type: 'teamDuel', seconds: 10, options: { period: 'match' } },
+      { id: 'standings', type: 'standings', seconds: 10 },
+      { id: 'nextMatch', type: 'nextMatch', seconds: 10 },
       { id: 'thanks', type: 'message', seconds: 8, options: { text: THANKS_MESSAGE, size: 'large' } },
       { id: 'sponsor', type: 'sponsor', seconds: 8 },
     ],

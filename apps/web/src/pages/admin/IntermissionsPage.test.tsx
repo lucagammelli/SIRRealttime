@@ -121,7 +121,17 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const SET_BREAK_IDS = ['setSummary', 'setScorers', 'aces', 'blocks', 'roleDuel', 'teamDuel', 'sponsor'];
+const SET_BREAK_IDS = [
+  'setSummary',
+  'setScorers',
+  'aces',
+  'blocks',
+  'roleDuel',
+  'teamDuel',
+  'standings',
+  'nextMatch',
+  'sponsor',
+];
 
 describe('editing helpers of the pauses', () => {
   it('add, move, remove slides and reset a pause', () => {
@@ -241,7 +251,16 @@ describe('«Pause e sponsor» page', () => {
     expect(screen.getByRole('button', { name: 'Ripristina predefinito' })).toHaveProperty('disabled', true);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Pausa propria per la fine del 3° set' }));
     expect(order()).toEqual(SET_BREAK_IDS);
-    for (const name of ['Sponsor', 'Parziale e marcatori', 'Ace', 'Muri', 'Sfida per ruolo', 'Squadre a confronto'])
+    for (const name of [
+      'Sponsor',
+      'Parziale e marcatori',
+      'Ace',
+      'Muri',
+      'Sfida per ruolo',
+      'Squadre a confronto',
+      'Classifica',
+      'Prossima partita',
+    ])
       fireEvent.click(screen.getByRole('button', { name: `Rimuovi ${name}` }));
     fireEvent.click(screen.getByRole('tab', { name: 'Fine partita' }));
     fireEvent.click(screen.getByRole('switch', { name: 'Pausa attiva' }));
@@ -254,7 +273,17 @@ describe('«Pause e sponsor» page', () => {
     expect(saved.matchEnd.enabled).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Ripristina predefinito' }));
     expect(screen.getByRole('switch', { name: 'Pausa attiva' })).toHaveProperty('checked', true);
-    expect(order()).toEqual(['finalResult', 'mvp', 'setScorers', 'roleDuel', 'teamDuel', 'thanks', 'sponsor']);
+    expect(order()).toEqual([
+      'finalResult',
+      'mvp',
+      'setScorers',
+      'roleDuel',
+      'teamDuel',
+      'standings',
+      'nextMatch',
+      'thanks',
+      'sponsor',
+    ]);
     expect(screen.getByText('Modifiche non salvate.')).toBeTruthy();
   });
   it('«Ogni N punti»: the rule, the options of the statistics slides, the preview in play, and saves', async () => {
@@ -309,7 +338,16 @@ describe('«Pause e sponsor» page', () => {
     const types = within(screen.getByRole('combobox', { name: 'Tipo di diapositiva' }))
       .getAllByRole('option')
       .map((o) => o.textContent);
-    for (const name of ['Parziale e marcatori', 'Ace', 'Muri', 'Attacco', 'Sfida per ruolo', 'Squadre a confronto'])
+    for (const name of [
+      'Parziale e marcatori',
+      'Ace',
+      'Muri',
+      'Attacco',
+      'Sfida per ruolo',
+      'Squadre a confronto',
+      'Classifica',
+      'Prossima partita',
+    ])
       expect(types).toContain(name);
   });
 });

@@ -8,6 +8,7 @@ import type {
   ClubTeam,
   ClubTeamsResponse,
   PendingMatch,
+  ScheduleResponse,
 } from '@sir/shared';
 import {
   clubFixtureState,
@@ -21,7 +22,7 @@ import {
 } from '@sir/shared';
 import { and, asc, count, desc, eq, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { upcomingOf } from '../club.js';
+import { publicSchedule, upcomingOf } from '../club.js';
 import type { AppContext } from '../context.js';
 import { perMinute } from '../context.js';
 import { clientFixtures, leagues, leagueTeams, matches, shareTokens, tenantLeagues, tenants } from '../db/index.js';
@@ -36,6 +37,7 @@ import {
   adminTenantId,
   findTenant,
   forgetTenants,
+  hostTenant,
   publicBaseUrlFor,
   tenantDisplayName,
   tenantScope,
@@ -54,6 +56,33 @@ const teamOf = (t: TeamRow): ClubTeam => ({
   city: t.city,
   logoUrl: t.logoId ? publicTeamLogoPath(t.logoId) : null,
 });
+
+/** Cache of the browsers for the public schedule (the server keeps its own copy for the same time). */
+const SCHEDULE_BROWSER_CACHE = 'public, max-age=60';
+
+/**
+ * Public data of the club of the client of the hostname for the blocks «Prossima partita» and «Classifica»: no token,
+ * public data only (teams, logos, time, venue, short links, standings), never anything of the matches. Without a
+ * club: empty, valid answer.
+ */
+export function clubPublicRoutes(app: FastifyInstance, ctx: AppContext): void {
+  app.get(
+    '/api/public/tenant/schedule',
+    { config: perMinute(ctx.rateLimits.public) },
+    async (request, reply): Promise<ScheduleResponse> => {
+      const tenant = await hostTenant(ctx, request);
+      if (!tenant) throw notFound();
+      let schedule = ctx.caches.schedule.get(tenant.id);
+      if (!schedule) {
+        const base = publicBaseUrlFor(ctx.config.publicBaseUrl, tenant.hostnames);
+        schedule = await publicSchedule(ctx.db, ctx.config.shareCodeSecret, tenant.id, base, ctx.now());
+        ctx.caches.schedule.set(tenant.id, schedule);
+      }
+      void reply.header('cache-control', SCHEDULE_BROWSER_CACHE);
+      return schedule;
+    },
+  );
+}
 
 /**
  * The club of the client (admin): its championships and teams («Club»), its matches of the calendar with their links

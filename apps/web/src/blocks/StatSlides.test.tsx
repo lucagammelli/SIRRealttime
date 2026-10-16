@@ -47,6 +47,7 @@ const envOf = (state: MatchState, set: number, paused = false): SlideEnv => ({
   device: 'tv',
   brandInScoreboard: false,
   brand: null,
+  schedule: null,
   paused,
   set,
   sponsorLogo: null,

@@ -160,6 +160,8 @@ export const TV_BLOCK_MIN_REM: Record<BlockType, number> = {
   attack: 14,
   roleDuel: 16,
   teamDuel: 16,
+  nextMatch: 14,
+  standings: 20,
 };
 
 /**

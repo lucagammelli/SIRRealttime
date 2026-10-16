@@ -7,6 +7,7 @@ import { MatchView } from '../components/MatchView.tsx';
 import { playerName } from '../lib/format.ts';
 import { midMatchState } from '../test/fixtures.ts';
 import { shortCodeOf } from './BrandBlocks.tsx';
+import { SAMPLE_SCHEDULE } from './sampleSchedule.ts';
 import { BLOCKS, missingTypes, REGISTRY_TYPES } from './registry.tsx';
 
 // jsdom has no canvas: the chart wrapper is replaced by its accessible label.
@@ -48,7 +49,15 @@ describe('block registry', () => {
 
   it('draws every type of block on the page', () => {
     const blocks = BLOCK_TYPES.map((type) => ({ id: type, type }));
-    render(<MatchView state={midMatchState()} device="tablet" layout={layoutOf(blocks)} look={LOOK} />);
+    render(
+      <MatchView
+        state={midMatchState()}
+        device="tablet"
+        layout={layoutOf(blocks)}
+        look={LOOK}
+        schedule={SAMPLE_SCHEDULE}
+      />,
+    );
     for (const title of [
       'Andamento del set',
       'Confronto squadre',
@@ -60,6 +69,8 @@ describe('block registry', () => {
       'Migliori giocatori',
       'Sponsor',
       'Segui la partita sul telefono',
+      'Prossima partita',
+      'Classifica',
     ])
       expect(screen.getByRole('heading', { name: title })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Tabellone' })).toBeTruthy();

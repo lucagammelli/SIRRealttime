@@ -353,6 +353,8 @@ pagina di prima.
 | Parziali dei set | - | punteggio di ogni set (`SetScoresBlock`) |
 | Migliori giocatori | «Quanti» (1-10), «Squadra» Entrambe / Casa / Ospiti | classifica a punti di `topPlayers` (`docs/statistiche.md`); tabella Giocatore, Att, Muro, Ace, Punti |
 | Parziale e marcatori, Ace, Muri, Attacco, Sfida per ruolo, Squadre a confronto | periodo («Il set in corso» / «Tutta la partita»), «Marcatori per squadra» (3-8) o «Attaccanti per squadra» (1-5), «Ruolo» (predefinito «Tutti i ruoli, a rotazione»), «Righe del confronto» (nessuna scelta = tutte) | viste in stile TV dei calcoli di `period.ts` (`docs/statistiche.md`), le stesse delle diapositive delle pause; senza dati un messaggio (per esempio «Nessun dato della partita.») |
+| Prossima partita | «Mostra il codice QR del link della partita» (predefinito sì) | la prossima partita del club, vedi «Blocchi del calendario» |
+| Classifica | «Righe»: «Intorno alla nostra squadra (±2 posizioni)» (predefinito), «Le prime righe» (con «Quante righe», 3-16, predefinito 5), «Tutta la classifica» | la classifica del campionato del club, vedi «Blocchi del calendario» |
 
 Le sei viste statistiche (`blocks/StatSlides.tsx`) hanno tre misure: `full` (tutto schermo, per le diapositive a tutto schermo),
 `card` (riquadro dentro la pagina, per i blocchi) e `compact` (una riga per la banda). Casa sempre a sinistra, colori secondo
@@ -361,6 +363,34 @@ spenta con `prefers-reduced-motion`. I testi (nomi dei giocatori) sono sempre te
 `pages/admin/StatOptionsFields.tsx`, usato sia da «Pagina pubblica» sia da «Pause e sponsor». Il registro (`registry.tsx`) disegna
 queste viste anche come blocchi della pagina, con le stesse etichette di `SLIDE_LABELS`; la pagina usa il set in corso
 (`statPeriod`), il confronto di `charts/compare.ts` usa `teamDuel` di `@sir/volley-stats` (niente più calcoli copiati).
+
+#### Blocchi del calendario («Prossima partita» e «Classifica»)
+Dati del club scelto in «Club» (`docs/portale.md`, «Club e Calendario»); rotta, regole di scelta e cache in
+`docs/server.md` («Club, calendario e abbinamento», rotta pubblica per i blocchi); contratti in `docs/architettura.md`.
+Sono blocchi della pagina (larghezze 4/6/8/12) e diapositive delle pause (stesse opzioni), disegnati da
+`blocks/CalendarBlocks.tsx` in tre misure: `card` (blocco), `full` (diapositiva a tutto schermo), `compact` (banda).
+
+- **Dati** (`lib/schedule.ts`): `useSchedule` legge `GET /api/public/tenant/schedule` **una volta per pagina**, ogni 60 s e a
+  ogni cambio di stato o di set della partita; parte solo se la pagina ha un blocco o una diapositiva di questi tipi
+  (`isScheduleType`, `intermissionsUseSchedule`). Un errore lascia a video ciò che c'è. Il blocco o la diapositiva senza dati
+  (nessun club, nessuna partita in arrivo, classifica vuota: `hasScheduleData`) è **saltato**, non resta una card vuota.
+- **Prossima partita** (`NextMatchView`): la prima partita del club con orario che non è live (`nextFixture`). Avversario e
+  club con logo (o iniziali), «VS», «In casa» o «In trasferta», data e «ore HH:MM», palazzetto e città, nei colori di
+  «nostra squadra» e dell'avversario. Con l'opzione QR e un link non revocato: il QR del link breve della partita
+  (`ShareQr`, con il logo quadrato del cliente) e il testo «Inquadra il codice per seguire la partita» (a tutto schermo:
+  «Inquadra il codice per seguire la partita sul telefono»). Nella banda: «Prossima partita: <avversario> · In casa/In
+  trasferta · data»; **sul telefono la banda non ha il QR**, il nome dell'avversario è un link alla partita.
+- **Classifica** (`StandingsView`): tabella a colonne fisse (`table-fixed`) per leggersi bene in TV: posizione, logo, squadra,
+  Pt, G, V, P, SV, SP (i nomi completi nel `title` dell'abbreviazione). Le righe sono quelle di `standingsRowsToShow`
+  (`docs/architettura.md`); la nostra squadra è evidenziata (`aria-current`); sotto la tabella «Aggiornata al gg/mm/aaaa».
+  Nella banda una riga con la posizione, i punti, le partite e i set della nostra squadra.
+- **Opzioni** (`pages/admin/CalendarOptionsFields.tsx`): in «Pagina pubblica» e in «Pause e sponsor» (stesso componente).
+  Le anteprime degli editor usano dati inventati (`blocks/sampleSchedule.ts`, `SAMPLE_SCHEDULE`), mai quelli veri.
+- **Predefiniti**: «Classifica» e poi «Prossima partita» stanno dopo le statistiche nelle pause di fine set e di fine
+  partita. **Non** sono nel layout TV predefinito del modello `sir-volley` (la griglia è piena): si aggiungono da «Pagina
+  pubblica».
+- **Limiti noti**: il flag live può essere in ritardo fino a 60 s; la partita senza orario non si vede; una partita iniziata
+  da meno di 4 ore senza `.dvw` conta ancora come prossima.
 
 - **Pagina «Pagina pubblica»** (`src/pages/admin/LayoutPage.tsx`, rotta `/admin/pagina`, solo admin; titolo scheda
   «Pagina pubblica · Area riservata»). Tre schede «TV», «Tablet», «Telefono». Per ogni blocco: maniglia ⠿ (trascinamento),
@@ -420,7 +450,8 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   efficienza d'attacco), «Parziali dei set», «Sponsor», «Messaggio», «Codice QR», «Logo» (gli ultimi quattro come i blocchi
   omonimi, `docs/portale.md` «Pagina pubblica a blocchi»), più le sei viste statistiche in stile TV: «Parziale e marcatori»,
   «Ace», «Muri» (titolo «Muri vincenti»), «Attacco», «Sfida per ruolo» e «Squadre a confronto» (misure e animazioni in
-  «Pagina pubblica a blocchi»). «Sfida per ruolo» a rotazione diventa una diapositiva per ogni ruolo con un duello (id
+  «Pagina pubblica a blocchi»), e «Prossima partita» e «Classifica» (`CalendarBlocks.tsx`, vedi «Blocchi del
+  calendario»; i predefiniti le mettono dopo le statistiche di fine set e di fine partita). «Sfida per ruolo» a rotazione diventa una diapositiva per ogni ruolo con un duello (id
   `<id>:<ruolo>`, ognuna per i suoi secondi). Le diapositive senza nulla da mostrare sono saltate
   (`visibleSlides`): lo sponsor senza immagini usa il logo sponsor della grafica, e se non c'è nemmeno quello è saltato;
   il riepilogo senza il set, l'MVP senza giocatori con punti, i parziali senza set, ace/muri/attacco senza nemmeno un punto

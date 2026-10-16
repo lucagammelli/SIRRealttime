@@ -9,10 +9,12 @@ import { Rotations } from '../components/Rotations.tsx';
 import { Scoreboard } from '../components/Scoreboard.tsx';
 import { TeamComparison } from '../components/TeamComparison.tsx';
 import { LogoBlock, MessageBlock, QrBlock, SponsorBlock } from './BrandBlocks.tsx';
+import { NextMatchView, StandingsView } from './CalendarBlocks.tsx';
 import type { BlockEnv } from './env.ts';
 import { LastPointBlock, SetScoresBlock, TopPlayersBlock } from './MatchBlocks.tsx';
 import { AttackView, CountView, RoleDuelView, SetScorersView, TeamDuelView } from './StatSlides.tsx';
 import { statPeriod } from '../lib/intermission.ts';
+import { nextFixture } from '../lib/schedule.ts';
 
 /** On the big screen every card fills its cell and never grows it. */
 const TV_CARD = 'h-full min-h-0 overflow-hidden';
@@ -120,6 +122,24 @@ export const BLOCKS: Registry = {
     'Squadre a confronto',
     'Le due squadre fondamentale per fondamentale, in grande.',
     (b, env) => <TeamDuelView {...statsOf(b.options.period, env)} options={b.options} />,
+  ),
+  nextMatch: define(
+    'nextMatch',
+    'Prossima partita',
+    'La prossima partita del club con avversario, data, palazzetto e QR del suo link (si vede solo con un club).',
+    (b, env) => {
+      const fixture = nextFixture(env.schedule);
+      return fixture ? <NextMatchView fixture={fixture} options={b.options} env={env} size="card" /> : null;
+    },
+  ),
+  standings: define(
+    'standings',
+    'Classifica',
+    'La classifica del campionato del club, con la nostra squadra evidenziata (si vede solo con un club).',
+    (b, env) =>
+      env.schedule?.standings ? (
+        <StandingsView standings={env.schedule.standings} options={b.options} size="card" />
+      ) : null,
   ),
   logo: define('logo', 'Logo', 'Logo del cliente (orizzontale o quadrato).', (b, env) => (
     <LogoBlock options={b.options} env={env} />

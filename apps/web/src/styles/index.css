@@ -33,6 +33,14 @@
   --color-away-soft: var(--sir-away-soft);
   --color-on-away: var(--sir-on-away);
   --color-away-ink: var(--sir-away-ink);
+  --color-our: var(--sir-our);
+  --color-our-soft: var(--sir-our-soft);
+  --color-on-our: var(--sir-on-our);
+  --color-our-ink: var(--sir-our-ink);
+  --color-opponent: var(--sir-opponent);
+  --color-opponent-soft: var(--sir-opponent-soft);
+  --color-on-opponent: var(--sir-on-opponent);
+  --color-opponent-ink: var(--sir-opponent-ink);
   --color-hover: var(--sir-hover);
   --color-seg: var(--sir-seg-bg);
   --color-seg-text: var(--sir-seg-text);

@@ -167,7 +167,14 @@ Calendario, classifica, squadre e loghi dei campionati ufficiali, scaricati dai 
    del calendario (`docs/server.md`, «Club, calendario e abbinamento»; `docs/portale.md`). Provato sulla SuperLega 2026/27
    (999), Perugia: 22 partite con link. Limiti noti: le partite non abbinate si spengono a vicenda; revocando il link di una
    partita non se ne crea uno nuovo.
-3. `blocchi-calendario` (**da fare**): blocchi e diapositive «Prossima partita» e «Classifica» nelle pause e nella TV.
+3. `blocchi-calendario` (**fatto**, 2026-10-16): blocchi della pagina e diapositive delle pause «Prossima partita» (con QR
+   del link della partita) e «Classifica» (prime righe, tutta, intorno alla nostra squadra), rotta pubblica
+   `GET /api/public/tenant/schedule` (`docs/server.md`; `docs/portale.md`, «Blocchi del calendario»). Limiti noti:
+   «Prossima partita» non è nel layout TV predefinito di `sir-volley` (griglia piena); flag live in ritardo fino a 60 s;
+   la partita senza orario non si vede.
+
+**Fase «Campionati» completata** (2026-10-16) con la Lega Pallavolo Serie A. Passo futuro: il connettore FIPAV (altri
+campionati), con lo stesso schema di dati comuni a tutti i clienti.
 
 Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`IdCampionato` cambia ogni stagione
 (SuperLega 2025/26 = 974, 2026/27 = 999): a ogni stagione il campionato si aggiunge di nuovo.

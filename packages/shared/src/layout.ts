@@ -1,6 +1,7 @@
 import { DUEL_ROLES, TEAM_DUEL_KEYS } from '@sir/volley-stats';
 import { z } from 'zod';
 import { AssetIdSchema } from './assets.js';
+import { STANDINGS_SCOPES } from './club.js';
 import { TENANT_CONFIG_VERSION } from './configVersion.js';
 import { plainText } from './strings.js';
 import type { TemplateId } from './templates.js';
@@ -41,6 +42,8 @@ export const BLOCK_TYPES = [
   'attack',
   'roleDuel',
   'teamDuel',
+  'nextMatch',
+  'standings',
 ] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 
@@ -72,6 +75,8 @@ export const BLOCK_WIDTHS: Record<BlockType, readonly number[]> = {
   attack: MEDIUM,
   roleDuel: MEDIUM,
   teamDuel: MEDIUM,
+  nextMatch: MEDIUM,
+  standings: MEDIUM,
 };
 
 /** Most images in the rotation of a sponsor block. */
@@ -174,6 +179,25 @@ export const TeamDuelOptionsSchema = z.strictObject({
     .default([]),
 });
 
+/** Rows of «Classifica» when it shows the first N: limits and default. */
+export const STANDINGS_MIN_ROWS = 3;
+export const STANDINGS_MAX_ROWS = 16;
+export const STANDINGS_DEFAULT_ROWS = 5;
+
+/** «Prossima partita»: the QR code of the link of that match can be hidden. */
+export const NextMatchOptionsSchema = z.strictObject({
+  qr: z.boolean().default(true),
+});
+
+/**
+ * «Classifica» of the championship of the club: the first `count` rows (`top`), every row (`all`) or the club ±2
+ * positions (`around`, `count` is not used).
+ */
+export const StandingsOptionsSchema = z.strictObject({
+  scope: z.enum(STANDINGS_SCOPES).default('around'),
+  count: z.int().min(STANDINGS_MIN_ROWS).max(STANDINGS_MAX_ROWS).default(STANDINGS_DEFAULT_ROWS),
+});
+
 /** Options of every type (an empty object for the blocks without options). */
 export const BLOCK_OPTIONS = {
   scoreboard: NoOptionsSchema,
@@ -195,6 +219,8 @@ export const BLOCK_OPTIONS = {
   attack: AttackOptionsSchema,
   roleDuel: RoleDuelOptionsSchema,
   teamDuel: TeamDuelOptionsSchema,
+  nextMatch: NextMatchOptionsSchema,
+  standings: StandingsOptionsSchema,
 } as const satisfies Record<BlockType, z.ZodType>;
 
 /** Stable id of a block inside the list of a device (letters, digits, `-` and `_`). */
@@ -232,6 +258,8 @@ export const LayoutBlockSchema = z.discriminatedUnion('type', [
   blockOf('attack', BLOCK_OPTIONS.attack.prefault({})),
   blockOf('roleDuel', BLOCK_OPTIONS.roleDuel.prefault({})),
   blockOf('teamDuel', BLOCK_OPTIONS.teamDuel.prefault({})),
+  blockOf('nextMatch', BLOCK_OPTIONS.nextMatch.prefault({})),
+  blockOf('standings', BLOCK_OPTIONS.standings.prefault({})),
 ]);
 export type LayoutBlock = z.output<typeof LayoutBlockSchema>;
 export type LayoutBlockInput = z.input<typeof LayoutBlockSchema>;

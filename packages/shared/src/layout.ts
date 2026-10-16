@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { AssetIdSchema } from './assets.js';
 import { TENANT_CONFIG_VERSION } from './configVersion.js';
 import { plainText } from './strings.js';
+import type { TemplateId } from './templates.js';
 
 /**
  * Layout of the public match page chosen by a client (jsonb `tenants.layout`): one ordered list of blocks per device.
@@ -40,10 +41,13 @@ const ANY: readonly number[] = [3, 4, 6, 8, 12];
 const MEDIUM: readonly number[] = [4, 6, 8, 12];
 const WIDE: readonly number[] = [6, 8, 12];
 
-/** Widths (columns of LAYOUT_COLUMNS) allowed for each type: big tables and charts need room. */
+/**
+ * Widths (columns of LAYOUT_COLUMNS) allowed for each type: big tables need room. The momentum chart can take a third
+ * (three cards in a row on a 16:9 screen, template «SIR VOLLEY»).
+ */
 export const BLOCK_WIDTHS: Record<BlockType, readonly number[]> = {
   scoreboard: [12],
-  momentum: WIDE,
+  momentum: MEDIUM,
   comparison: MEDIUM,
   players: WIDE,
   court: MEDIUM,
@@ -200,9 +204,43 @@ const DEFAULT_LAYOUT_INPUT: Record<LayoutDevice, LayoutBlockInput[]> = {
   ],
 };
 
-/** Pure: the default blocks of a device (a new list at every call). */
-export function defaultDeviceBlocks(device: LayoutDevice): LayoutBlock[] {
-  return DeviceBlocksSchema.parse(DEFAULT_LAYOUT_INPUT[device]);
+/**
+ * Default page of the templates that have their own (the others use DEFAULT_LAYOUT_INPUT). «SIR VOLLEY», as the
+ * mockup of the 16:9 screen: the scoreboard, then momentum | comparison | court maps in three columns, then players
+ * statistics | rotations. Phone: one card per row, momentum, comparison, court, rotations, players.
+ */
+const TEMPLATE_LAYOUT_INPUT: Partial<Record<TemplateId, Record<LayoutDevice, LayoutBlockInput[]>>> = {
+  'sir-volley': {
+    tv: [
+      { id: 'scoreboard', type: 'scoreboard', width: 12 },
+      { id: 'momentum', type: 'momentum', width: 4 },
+      { id: 'comparison', type: 'comparison', width: 4 },
+      { id: 'court', type: 'court', width: 4 },
+      { id: 'players', type: 'players', width: 8 },
+      { id: 'rotations', type: 'rotations', width: 4 },
+    ],
+    tablet: [
+      { id: 'scoreboard', type: 'scoreboard', width: 12 },
+      { id: 'momentum', type: 'momentum', width: 4 },
+      { id: 'comparison', type: 'comparison', width: 4 },
+      { id: 'court', type: 'court', width: 4 },
+      { id: 'players', type: 'players', width: 8 },
+      { id: 'rotations', type: 'rotations', width: 4 },
+    ],
+    phone: [
+      { id: 'scoreboard', type: 'scoreboard' },
+      { id: 'momentum', type: 'momentum' },
+      { id: 'comparison', type: 'comparison' },
+      { id: 'court', type: 'court', collapsed: true },
+      { id: 'rotations', type: 'rotations', collapsed: true },
+      { id: 'players', type: 'players', collapsed: true },
+    ],
+  },
+};
+
+/** Pure: the default blocks of a device for a template (a new list at every call). */
+export function defaultDeviceBlocks(device: LayoutDevice, template: TemplateId = 'standard'): LayoutBlock[] {
+  return DeviceBlocksSchema.parse((TEMPLATE_LAYOUT_INPUT[template] ?? DEFAULT_LAYOUT_INPUT)[device]);
 }
 
 /** Pure: a block of `type` with the default options, the first allowed width not over `preferred` (12 if none). */
@@ -225,15 +263,25 @@ export const TenantLayoutSchema = z.strictObject({
 export type TenantLayout = z.output<typeof TenantLayoutSchema>;
 export type TenantLayoutInput = z.input<typeof TenantLayoutSchema>;
 
-/** Pure: the default layout of every device. */
-export function defaultLayout(): TenantLayout {
-  return TenantLayoutSchema.parse({});
+/** Pure: the default layout of every device, for a template (default: the standard one). */
+export function defaultLayout(template: TemplateId = 'standard'): TenantLayout {
+  const layout = TenantLayoutSchema.parse({});
+  if (template === 'standard') return layout;
+  for (const device of LAYOUT_DEVICES) layout[device] = defaultDeviceBlocks(device, template);
+  return layout;
 }
 
-/** Pure: a stored layout with the missing fields filled; an invalid one reads as the defaults. */
-export function resolveLayout(document: unknown): TenantLayout {
+/**
+ * Pure: a stored layout with the missing fields filled; an invalid one reads as the defaults. A device the client has
+ * never saved takes the default page of the template of the client.
+ */
+export function resolveLayout(document: unknown, template: TemplateId = 'standard'): TenantLayout {
   const parsed = TenantLayoutSchema.safeParse(document ?? {});
-  return parsed.success ? parsed.data : defaultLayout();
+  if (!parsed.success) return defaultLayout(template);
+  const stored = document !== null && typeof document === 'object' ? (document as Record<string, unknown>) : {};
+  for (const device of LAYOUT_DEVICES)
+    if (stored[device] === undefined) parsed.data[device] = defaultDeviceBlocks(device, template);
+  return parsed.data;
 }
 
 /** Pure: ids of the images used by the blocks of a layout (each once, in order of appearance). */

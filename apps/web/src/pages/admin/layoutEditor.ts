@@ -1,4 +1,4 @@
-import type { BlockType, LayoutBlock, LayoutDevice, TenantLayout } from '@sir/shared';
+import type { BlockType, LayoutBlock, LayoutDevice, TemplateId, TenantLayout } from '@sir/shared';
 import { defaultDeviceBlocks, LAYOUT_MAX_BLOCKS, newBlock, TenantLayoutSchema } from '@sir/shared';
 
 /** Pure editing of the blocks of one device (editor «Pagina pubblica»): every function returns a new layout. */
@@ -61,9 +61,13 @@ export function addBlock(layout: TenantLayout, device: LayoutDevice, type: Block
   return withBlocks(layout, device, [...blocks, block]);
 }
 
-/** Back to the default blocks of the device (the other devices stay as they are). */
-export function resetDevice(layout: TenantLayout, device: LayoutDevice): TenantLayout {
-  return withBlocks(layout, device, defaultDeviceBlocks(device));
+/** Back to the default blocks of the device for the template of the client (the other devices stay as they are). */
+export function resetDevice(
+  layout: TenantLayout,
+  device: LayoutDevice,
+  template: TemplateId = 'standard',
+): TenantLayout {
+  return withBlocks(layout, device, defaultDeviceBlocks(device, template));
 }
 
 /** Ids of the blocks with a problem (empty text, ...), by device; empty when the layout can be saved. */

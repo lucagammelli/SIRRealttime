@@ -122,7 +122,8 @@ export function brandingPublicRoutes(app: FastifyInstance, ctx: AppContext): voi
         logoMark: branding.logoMark ? publicAssetPath(branding.logoMark) : null,
         sponsorLogo: branding.sponsorLogo ? publicAssetPath(branding.sponsorLogo) : null,
       },
-      layout: resolveLayout(tenant.layout),
+      // A device never saved by the client: the default page of its template.
+      layout: resolveLayout(tenant.layout, branding.template),
       intermissions: resolveIntermissions(tenant.intermissions),
       overlays: resolveOverlays(tenant.overlays),
     };
@@ -205,7 +206,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
   const layoutOf = async (tenantId: string): Promise<LayoutResponse> => {
     const tenant = await findTenant(ctx, { id: tenantId });
     if (!tenant) throw notFound();
-    return { tenantName: tenant.name, layout: resolveLayout(tenant.layout) };
+    return { tenantName: tenant.name, layout: resolveLayout(tenant.layout, resolveBranding(tenant.branding).template) };
   };
 
   app.get('/api/admin/layout', admin, async (request): Promise<LayoutResponse> => layoutOf(adminTenantId(request)));

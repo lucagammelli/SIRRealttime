@@ -6,6 +6,11 @@ import {
   blocksFor,
   defaultLayouts,
   deviceFor,
+  tabletSpan,
+  templateLayouts,
+  tvMinRemFor,
+  TV_BLOCK_MIN_REM,
+  viewportClass,
   packRows,
   rotationIndex,
   rowMinRem,
@@ -23,11 +28,38 @@ const types = (groups: LayoutBlock[][][]): string[][][] => groups.map((g) => g.m
 describe('deviceFor', () => {
   const vp = (width: number, height: number) => ({ width, height });
 
-  it('chooses phone and tablet from the width', () => {
+  it('chooses phone and tablet from the breakpoints of the specifications', () => {
+    expect(deviceFor(vp(320, 568))).toBe('phone');
     expect(deviceFor(vp(360, 780))).toBe('phone');
-    expect(deviceFor(vp(699, 900))).toBe('phone');
-    expect(deviceFor(vp(700, 1000))).toBe('tablet');
+    expect(deviceFor(vp(430, 932))).toBe('phone');
+    expect(deviceFor(vp(767, 1024))).toBe('phone');
+    expect(deviceFor(vp(768, 1024))).toBe('tablet'); // iPad portrait
+    expect(deviceFor(vp(1024, 768))).toBe('tablet'); // iPad landscape
+    expect(deviceFor(vp(1366, 1024))).toBe('tablet'); // iPad Pro landscape
     expect(deviceFor(vp(1599, 900))).toBe('tablet');
+  });
+
+  it('lays a phone held sideways out as a tablet (horizontal scoreboard), the narrowest as a phone', () => {
+    expect(deviceFor(vp(667, 375))).toBe('tablet');
+    expect(deviceFor(vp(844, 390))).toBe('tablet');
+    expect(deviceFor(vp(932, 430))).toBe('tablet');
+    expect(deviceFor(vp(568, 320))).toBe('tablet');
+    expect(deviceFor(vp(540, 320))).toBe('phone');
+    // Never the big screen in full screen, but still with ?tv=1.
+    expect(deviceFor(vp(844, 390), 'auto', true)).toBe('tablet');
+    expect(deviceFor(vp(844, 390), 'on')).toBe('tv');
+  });
+
+  it('classifies the viewport as the specifications', () => {
+    expect(viewportClass(vp(375, 812))).toBe('phone');
+    expect(viewportClass(vp(844, 390))).toBe('phoneLandscape');
+    expect(viewportClass(vp(768, 1024))).toBe('tabletPortrait');
+    expect(viewportClass(vp(899, 1200))).toBe('tabletPortrait');
+    expect(viewportClass(vp(900, 1200))).toBe('tabletLandscape');
+    expect(viewportClass(vp(1199, 800))).toBe('tabletLandscape');
+    expect(viewportClass(vp(1200, 800))).toBe('desktop');
+    // Low but wide (desktop window, TV): not a phone.
+    expect(viewportClass(vp(1920, 480))).toBe('desktop');
   });
 
   it('big screen by itself only from 1600 × 800 and at least 16:10', () => {
@@ -54,6 +86,45 @@ describe('deviceFor', () => {
 
   it('reads ?tv= of the URL', () => {
     expect([tvModeOf('1'), tvModeOf('0'), tvModeOf(null), tvModeOf('si')]).toEqual(['on', 'off', 'auto', 'auto']);
+  });
+});
+
+describe('grid of the tablet and of the desktop', () => {
+  it('one column on a tablet in portrait, half or full in landscape, the chosen width on the desktop', () => {
+    expect(tabletSpan(4)).toBe('col-span-12 @min-[856px]:col-span-6 @min-[1150px]:col-span-4');
+    expect(tabletSpan(6)).toBe('col-span-12 @min-[856px]:col-span-6 @min-[1150px]:col-span-6');
+    expect(tabletSpan(8)).toBe('col-span-12 @min-[856px]:col-span-12 @min-[1150px]:col-span-8');
+    expect(tabletSpan(12)).toBe('col-span-12 @min-[856px]:col-span-12 @min-[1150px]:col-span-12');
+    expect(tabletSpan(99)).toBe('col-span-12 @min-[856px]:col-span-12 @min-[1150px]:col-span-12');
+  });
+});
+
+describe('default page of the template', () => {
+  it('uses the page of the mockup without a layout of the client, the standard one otherwise', () => {
+    const blocks = blocksFor(null, 'tablet', 'sir-volley');
+    expect(blocks.map((b) => `${b.type}:${b.width}`)).toEqual([
+      'scoreboard:12',
+      'momentum:4',
+      'comparison:4',
+      'court:4',
+      'players:8',
+      'rotations:4',
+    ]);
+    expect(blocksFor(null, 'tablet')).toEqual(defaultLayouts.tablet);
+    expect(templateLayouts.standard).toEqual(defaultLayouts);
+  });
+
+  it('fits the page of the mockup in one 16:9 screen of the big screen', () => {
+    // 1920 × 1080 with --sir-tv-font-size of the template: 1 rem = 17.28 px; about 40 rem under the scoreboard.
+    const groups = tvGroups(templateLayouts['sir-volley'].tv, 40, 1, tvMinRemFor('sir-volley'));
+    expect(groups).toHaveLength(1);
+    expect(types(groups)).toEqual([
+      [
+        ['momentum', 'comparison', 'court'],
+        ['players', 'rotations'],
+      ],
+    ]);
+    expect(tvMinRemFor('standard')).toBe(TV_BLOCK_MIN_REM);
   });
 });
 

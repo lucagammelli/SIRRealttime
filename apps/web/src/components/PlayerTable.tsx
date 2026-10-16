@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import type { PlayerRow, PlayerSortKey, SortDirection } from '../charts/players.ts';
 import { playerRows, sortPlayerRows, statSets } from '../charts/players.ts';
 import { formatCount, formatPct, teamName } from '../lib/format.ts';
+import { useDeviceContext } from '../lib/useLayout.ts';
 import { Card, Empty, Segmented } from './ui.tsx';
 
 interface Column {
@@ -30,29 +31,53 @@ const COLUMNS: Column[] = [
   { key: 'errors', label: 'Err', title: 'Errori totali', group: 'Errori' },
 ];
 
-const GROUPS = COLUMNS.reduce<{ name: string; span: number }[]>((acc, c) => {
-  const last = acc.at(-1);
-  if (last && last.name === c.group) last.span++;
-  else acc.push({ name: c.group, span: 1 });
-  return acc;
-}, []);
+/**
+ * Compact table of the phone (graphic specifications): only the essential columns, full names in the headers; the
+ * whole table is one button away («Tutte le colonne»), scrolling sideways inside its card.
+ */
+const ESSENTIAL: Column[] = [
+  { key: 'points', label: 'Punti', title: 'Punti (attacco, muro, ace)', group: '' },
+  { key: 'killPct', label: 'Att. %', title: 'Attacco: % punti', group: '', ratio: true },
+  { key: 'aces', label: 'Ace', title: 'Ace', group: '' },
+  { key: 'blocks', label: 'Muro', title: 'Punti a muro', group: '' },
+  { key: 'errors', label: 'Errori', title: 'Errori totali', group: '' },
+];
+
+const groupsOf = (columns: Column[]) =>
+  columns.reduce<{ name: string; span: number }[]>((acc, c) => {
+    const last = acc.at(-1);
+    if (last && last.name === c.group) last.span++;
+    else acc.push({ name: c.group, span: 1 });
+    return acc;
+  }, []);
+const GROUPS = groupsOf(COLUMNS);
 
 /** First column of each group: header, sub-header and cells share the same left border, so groups line up. */
 const GROUP_START = new Set(COLUMNS.filter((c, i) => i === 0 || COLUMNS[i - 1]?.group !== c.group).map((c) => c.key));
-const groupBorder = (key: PlayerSortKey): string => (GROUP_START.has(key) ? 'border-l border-grid' : '');
+const groupBorder = (key: PlayerSortKey, grouped: boolean): string =>
+  grouped && GROUP_START.has(key) ? 'border-l border-table-border' : '';
 
-const TEXT: Record<Side, string> = { home: 'text-home', away: 'text-away' };
+const TEXT: Record<Side, string> = { home: 'text-home-ink', away: 'text-away-ink' };
 
-/** Sortable table of the players of one team, with team and set filters. */
+/**
+ * Sortable table of the players of one team, with team and set filters. The points column is highlighted; a player
+ * can be selected (row highlighted, indicator on the left: colours of the tokens `--sir-table-*`). On the phone the
+ * compact table with the essential columns, the header fixed while the table scrolls inside the card.
+ */
 export function PlayerTable({ state, className = '' }: { state: MatchState; className?: string }) {
+  const compact = useDeviceContext() === 'phone';
+  const [allColumns, setAllColumns] = useState(false);
+  const [selected, setSelected] = useState<number | null>(null);
+  const essential = compact && !allColumns;
+  const columns = essential ? ESSENTIAL : COLUMNS;
   const [side, setSide] = useState<Side>('home');
   const [set, setSet] = useState<number>(0);
   const [sort, setSort] = useState<{ key: PlayerSortKey; dir: SortDirection }>({ key: 'points', dir: 'desc' });
   const sets = statSets(state);
-  const selected = set === 0 || !sets.includes(set) ? null : set;
+  const setShown = set === 0 || !sets.includes(set) ? null : set;
   const rows = useMemo(
-    () => sortPlayerRows(playerRows(state, side, selected), sort.key, sort.dir),
-    [state, side, selected, sort],
+    () => sortPlayerRows(playerRows(state, side, setShown), sort.key, sort.dir),
+    [state, side, setShown, sort],
   );
 
   const toggleSort = (key: PlayerSortKey): void =>
@@ -73,7 +98,10 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
             label="Squadra"
             size="xs"
             value={side}
-            onChange={setSide}
+            onChange={(v) => {
+              setSide(v);
+              setSelected(null);
+            }}
             options={[
               { value: 'home', label: teamName(state.teams, 'home') },
               { value: 'away', label: teamName(state.teams, 'away') },
@@ -83,10 +111,20 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
             <Segmented
               label="Set"
               size="xs"
-              value={selected ?? 0}
+              value={setShown ?? 0}
               onChange={setSet}
               options={[{ value: 0, label: 'Tutti' }, ...sets.map((n) => ({ value: n, label: `${n}°` }))]}
             />
+          )}
+          {compact && (
+            <button
+              type="button"
+              aria-pressed={allColumns}
+              onClick={() => setAllColumns((a) => !a)}
+              className="inline-flex min-h-11 items-center rounded-button border border-border bg-seg px-3 text-xs font-medium text-seg-text hover:text-text"
+            >
+              Tutte le colonne
+            </button>
           )}
         </>
       }
@@ -95,32 +133,37 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
         <Empty>Nessuna azione registrata.</Empty>
       ) : (
         // Wide table: it scrolls sideways inside the card (focusable, so also with the keyboard), never the page.
+        // Phone: also vertically inside the card, so that the header stays visible (sticky) while scrolling.
         <div
           role="region"
           aria-label="Tabella giocatori, scorrevole in orizzontale"
           tabIndex={0}
-          className="sir-scroll-x -mx-4 max-w-[calc(100%+2rem)] sm:-mx-5 sm:max-w-[calc(100%+2.5rem)]"
+          className={`sir-scroll-x sir-card-bleed -mx-4 max-w-[calc(100%+2rem)] sm:-mx-5 sm:max-w-[calc(100%+2.5rem)] ${
+            compact ? 'max-h-[70dvh] overflow-y-auto' : ''
+          }`}
         >
-          <table className="w-full min-w-[46rem] border-collapse text-sm tabular">
+          <table className={`w-full border-collapse text-sm tabular ${essential ? '' : 'min-w-[46rem]'}`}>
             <caption className="sr-only">
               Statistiche dei giocatori di {teamName(state.teams, side)}
-              {selected ? ` nel ${selected}° set` : ' nella partita'}. Le intestazioni ordinano la tabella.
+              {setShown ? ` nel ${setShown}° set` : ' nella partita'}. Le intestazioni ordinano la tabella.
             </caption>
-            <thead>
-              <tr className="text-xs uppercase tracking-wide text-muted">
-                <th colSpan={2} scope="colgroup" />
-                {GROUPS.map((g, i) => (
-                  <th
-                    key={`${g.name}-${i}`}
-                    colSpan={g.span}
-                    scope="colgroup"
-                    className="border-l border-grid px-1 pt-1.5 text-center font-semibold"
-                  >
-                    {g.name}
-                  </th>
-                ))}
-              </tr>
-              <tr className="border-b border-border text-xs text-muted">
+            <thead className={compact ? 'sticky top-0 z-10 bg-surface' : ''}>
+              {!essential && (
+                <tr className="bg-table-head text-xs uppercase tracking-wide text-muted">
+                  <th colSpan={2} scope="colgroup" />
+                  {GROUPS.map((g, i) => (
+                    <th
+                      key={`${g.name}-${i}`}
+                      colSpan={g.span}
+                      scope="colgroup"
+                      className={`px-1 pt-1.5 text-center font-semibold ${i === 0 ? '' : 'border-l border-table-border'}`}
+                    >
+                      {g.name}
+                    </th>
+                  ))}
+                </tr>
+              )}
+              <tr className="border-b border-border bg-table-head text-xs text-muted">
                 <SortHeader
                   label="N."
                   title="Numero di maglia"
@@ -132,7 +175,7 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
                 <th scope="col" className="px-2 py-1.5 text-left font-medium">
                   Giocatore
                 </th>
-                {COLUMNS.map((c) => (
+                {columns.map((c) => (
                   <SortHeader
                     key={c.key}
                     label={c.label}
@@ -140,33 +183,58 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
                     active={sort.key === c.key}
                     ariaSort={ariaSort(c.key)}
                     onClick={() => toggleSort(c.key)}
-                    className={`text-center ${groupBorder(c.key)}`}
+                    className={`text-center ${groupBorder(c.key, !essential)} ${c.key === 'points' ? 'bg-table-key' : ''}`}
                   />
                 ))}
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.number} className="border-b border-grid last:border-0 hover:bg-surface-2">
-                  <td className={`py-1.5 pl-4 font-bold sm:pl-5 ${TEXT[side]}`}>{r.number}</td>
-                  <td className="whitespace-nowrap px-2 py-1.5 text-text">
-                    {r.name}
-                    {r.libero && (
-                      <span className="ml-1.5 rounded bg-surface-2 px-1 text-[10px] font-semibold uppercase text-muted">
-                        Libero
-                      </span>
-                    )}
-                  </td>
-                  {COLUMNS.map((c) => (
+              {rows.map((r) => {
+                const isSelected = selected === r.number;
+                return (
+                  <tr
+                    key={r.number}
+                    data-selected={isSelected}
+                    className={`border-b border-table-border last:border-0 hover:bg-hover ${
+                      isSelected ? 'bg-table-selected' : 'even:bg-table-alt'
+                    }`}
+                  >
                     <td
-                      key={c.key}
-                      className={`px-1.5 py-1.5 text-center ${groupBorder(c.key)} ${c.key === 'points' ? 'font-bold text-text' : 'text-text'}`}
+                      className={`py-1.5 pl-4 font-bold sm:pl-5 ${TEXT[side]} ${
+                        isSelected ? 'shadow-[inset_3px_0_0_var(--sir-table-indicator)]' : ''
+                      }`}
                     >
-                      {cell(r, c)}
+                      {r.number}
                     </td>
-                  ))}
-                </tr>
-              ))}
+                    <td className="whitespace-nowrap px-2 py-1.5 text-text">
+                      <button
+                        type="button"
+                        aria-pressed={isSelected}
+                        title={isSelected ? 'Togli la selezione' : 'Evidenzia il giocatore'}
+                        onClick={() => setSelected(isSelected ? null : r.number)}
+                        className="text-left hover:underline pointer-coarse:min-h-11"
+                      >
+                        {r.name}
+                      </button>
+                      {r.libero && (
+                        <span className="ml-1.5 rounded bg-surface-2 px-1 text-[10px] font-semibold uppercase text-muted">
+                          Libero
+                        </span>
+                      )}
+                    </td>
+                    {columns.map((c) => (
+                      <td
+                        key={c.key}
+                        className={`px-1.5 py-1.5 text-center text-text ${groupBorder(c.key, !essential)} ${
+                          c.key === 'points' ? 'bg-table-key font-bold' : ''
+                        }`}
+                      >
+                        {cell(r, c)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -5,6 +5,7 @@ import type {
   BrandingResponse,
   LayoutBlock,
   LayoutDevice,
+  TemplateId,
   TenantLayout,
 } from '@sir/shared';
 import {
@@ -480,12 +481,15 @@ function LayoutEditor({
   saved,
   assets,
   look,
+  template,
   onAssetsChanged,
 }: {
   tenantName: string;
   saved: TenantLayout;
   assets: AssetListResponse;
   look: BlockBrand;
+  /** Graphic template of the client: its default page for «Ripristina predefinito». */
+  template: TemplateId;
   onAssetsChanged: () => void;
 }) {
   const errorMessage = useApiError();
@@ -612,7 +616,7 @@ function LayoutEditor({
                 aria-controls={panelId}
                 onClick={() => setDevice(d)}
                 className={`rounded-card px-3 py-1.5 text-sm font-medium ${
-                  device === d ? 'bg-home-soft text-home' : 'text-muted hover:text-text'
+                  device === d ? 'bg-nav-active text-on-nav-active' : 'text-muted hover:text-text'
                 } ${problems[d] ? 'underline decoration-danger' : ''}`}
               >
                 {DEVICE_LABELS[d]}
@@ -730,7 +734,7 @@ function LayoutEditor({
               disabled={busy}
               title={`Torna ai blocchi predefiniti per ${DEVICE_LABELS[device]}`}
               onClick={() => {
-                setDraft((d) => resetDevice(d, device));
+                setDraft((d) => resetDevice(d, device, template));
                 setDone(null);
                 setAnnounce(`Blocchi predefiniti per ${DEVICE_LABELS[device]}.`);
               }}
@@ -810,6 +814,7 @@ export function LayoutPage() {
       saved={layout.data.layout}
       assets={assets.data}
       look={look}
+      template={branding.data?.branding.template ?? 'standard'}
       onAssetsChanged={assets.reload}
     />
   );

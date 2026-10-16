@@ -93,4 +93,26 @@ describe('admin navigation', () => {
     await waitFor(() => expect(where()).toBe('/admin/live'));
     expect(within(nav).queryByRole('link', { name: 'Agenti' })).toBeNull();
   });
+
+  it('has a compact menu for the phone: the «Menu» button (44 px) opens and closes it', async () => {
+    mockServer('admin');
+    renderAt('/admin/live');
+    const nav = await screen.findByRole('navigation', { name: 'Area riservata' });
+    const button = screen.getByRole('button', { name: 'Apri il menu' });
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(button.getAttribute('aria-controls')).toBe(nav.id);
+    expect(button.className).toContain('size-11');
+    // Closed: hidden under 768 px, always on one row from 768 px.
+    expect(nav.className).toMatch(/(^| )hidden( |$)/);
+    expect(nav.className).toContain('md:flex');
+    fireEvent.click(button);
+    expect(screen.getByRole('button', { name: 'Chiudi il menu' }).getAttribute('aria-expanded')).toBe('true');
+    expect(nav.className).not.toMatch(/(^| )hidden( |$)/);
+    // Every item is a touch target of 44 px; choosing one closes the menu.
+    const item = within(nav).getByRole('link', { name: 'Partite' });
+    expect(item.className).toContain('min-h-11');
+    fireEvent.click(item);
+    expect(where()).toBe('/admin/partite');
+    expect(screen.getByRole('button', { name: 'Apri il menu' })).toBeTruthy();
+  });
 });

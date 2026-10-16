@@ -34,14 +34,17 @@ export function Card({
   const shown = !collapsible || open;
   return (
     <section
-      className={`sir-surface flex min-w-0 flex-col rounded-panel border border-border shadow-card ${className}`}
+      className={`sir-surface sir-card flex min-w-0 flex-col rounded-panel border border-border shadow-card ${className}`}
     >
       {(title || actions) && (
-        <header className={`flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 ${shown ? 'pt-4' : 'py-1'}`}>
+        <header
+          data-open={shown}
+          className={`sir-card-head flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 ${shown ? 'pt-4' : 'py-1'}`}
+        >
           <div className="min-w-0 flex-1">
             {title &&
               (collapsible ? (
-                <h2 className="font-display text-lg font-semibold uppercase tracking-wide text-text">
+                <h2 className="sir-card-title font-display text-lg font-semibold uppercase tracking-wide text-text">
                   <button
                     type="button"
                     aria-expanded={open}
@@ -63,7 +66,9 @@ export function Card({
                   </button>
                 </h2>
               ) : (
-                <h2 className="font-display text-lg font-semibold uppercase tracking-wide text-text">{title}</h2>
+                <h2 className="sir-card-title font-display text-lg font-semibold uppercase tracking-wide text-text">
+                  {title}
+                </h2>
               ))}
             {subtitle && shown && <p className="text-sm text-muted">{subtitle}</p>}
           </div>
@@ -71,7 +76,11 @@ export function Card({
         </header>
       )}
       {/* Closed: the body stays as the target of aria-controls, empty (charts are built when it opens). */}
-      <div id={bodyId} hidden={!shown} className={`min-h-0 flex-1 px-4 pb-4 pt-3 sm:px-5 ${bodyClassName}`}>
+      <div
+        id={bodyId}
+        hidden={!shown}
+        className={`sir-card-body min-h-0 flex-1 px-4 pb-4 pt-3 sm:px-5 ${bodyClassName}`}
+      >
         {shown && children}
       </div>
     </section>
@@ -88,7 +97,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
 
 /** Classes of a button, also for a link that looks like one (e.g. a download). */
 export const buttonClass = (variant: ButtonVariant = 'secondary'): string =>
-  `inline-flex min-h-9 items-center justify-center gap-2 rounded-card px-3 py-1.5 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50 ${VARIANTS[variant]}`;
+  `inline-flex min-h-9 items-center justify-center gap-2 rounded-button px-3 py-1.5 pointer-coarse:min-h-11 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50 ${VARIANTS[variant]}`;
 
 export function Button({
   variant = 'secondary',
@@ -104,7 +113,10 @@ export interface SegmentOption<T extends string | number> {
   label: string;
 }
 
-/** Group of mutually exclusive buttons (set, team, skill filters). */
+/**
+ * Group of mutually exclusive buttons (set, team, skill filters): colours of the tokens (`--sir-seg-*`: the active
+ * one in red and the others grey in the template «SIR VOLLEY»); 44 px high on touch screens.
+ */
 export function Segmented<T extends string | number>({
   options,
   value,
@@ -123,7 +135,7 @@ export function Segmented<T extends string | number>({
     <div
       role="radiogroup"
       aria-label={label}
-      className="inline-flex flex-wrap rounded-card border border-border bg-surface-2 p-0.5"
+      className="inline-flex flex-wrap rounded-button border border-border bg-seg p-0.5"
     >
       {options.map((o) => {
         const active = o.value === value;
@@ -134,8 +146,8 @@ export function Segmented<T extends string | number>({
             role="radio"
             aria-checked={active}
             onClick={() => onChange(o.value)}
-            className={`rounded-[calc(var(--sir-radius)-2px)] font-medium transition-colors ${pad} ${
-              active ? 'bg-surface text-text shadow-card' : 'text-muted hover:text-text'
+            className={`rounded-[calc(var(--sir-radius-button)-2px)] font-medium transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11 ${pad} ${
+              active ? 'bg-seg-active text-on-seg-active shadow-card' : 'text-seg-text hover:bg-hover hover:text-text'
             }`}
           >
             {o.label}

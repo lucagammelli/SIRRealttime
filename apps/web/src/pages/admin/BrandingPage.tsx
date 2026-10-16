@@ -5,6 +5,8 @@ import type {
   BrandColorKey,
   BrandingImageSlot,
   ContrastIssue,
+  OurTeam,
+  TemplateId,
   TenantBranding,
 } from '@sir/shared';
 import {
@@ -15,11 +17,15 @@ import {
   BRANDING_IMAGE_SLOTS,
   brandContrastIssues,
   BrandingResponseSchema,
-  DEFAULT_BRAND_COLORS,
   defaultBranding,
   HEX_COLOR_PATTERN,
   MIN_TEXT_CONTRAST,
+  OUR_TEAM_CODE_MAX,
+  OUR_TEAM_NAME_MAX,
   publicAssetPath,
+  TEMPLATE_IDS,
+  TEMPLATES,
+  templateOf,
 } from '@sir/shared';
 import type { ChangeEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -60,17 +66,20 @@ export function contrastText(issue: ContrastIssue): string {
   return `«${COLOR_LABELS[issue.color].label}» ha contrasto ${ratio(issue.ratio)}:1 sullo sfondo (minimo ${min}:1): i testi in questo colore si leggono male.`;
 }
 
-/** Colour picker and hexadecimal field of one colour; empty: the default. */
+/** Colour picker and hexadecimal field of one colour; empty: the colour of the template. */
 function ColorField({
   name,
   value,
+  fallback,
   onChange,
 }: {
   name: BrandColorKey;
   value: string | undefined;
+  /** Colour of the template when none is chosen. */
+  fallback: string;
   onChange: (value: string | undefined) => void;
 }) {
-  const shown = value ?? DEFAULT_BRAND_COLORS[name];
+  const shown = value ?? fallback;
   const [text, setText] = useState(shown);
   useEffect(() => setText(shown), [shown]);
   const { label, hint } = COLOR_LABELS[name];
@@ -110,9 +119,101 @@ function ColorField({
       </div>
       <p className="text-xs text-muted">
         {invalid ? 'Scrivi il colore come #rrggbb (es. #1d4ed8).' : hint}
-        {value === undefined && !invalid && ' Ora: predefinito.'}
+        {value === undefined && !invalid && ' Ora: colore del modello.'}
       </p>
     </div>
+  );
+}
+
+/**
+ * Choice of the graphic template (closed list of @sir/shared): name and description of each one; the preview of the
+ * page follows the choice at once.
+ */
+function TemplatePicker({ value, onChange }: { value: TemplateId; onChange: (value: TemplateId) => void }) {
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium text-text">Modello grafico</legend>
+      <div role="radiogroup" aria-label="Modello grafico" className="grid gap-2 sm:grid-cols-2">
+        {TEMPLATE_IDS.map((id) => {
+          const t = TEMPLATES[id];
+          const active = id === value;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => onChange(id)}
+              className={`flex min-h-11 flex-col items-start gap-1 rounded-card border px-3 py-2 text-left ${
+                active ? 'border-primary bg-surface-2' : 'border-border bg-surface hover:bg-hover'
+              }`}
+            >
+              <span className="flex w-full items-center justify-between gap-2 text-sm font-semibold text-text">
+                {t.label}
+                <span aria-hidden="true" className="flex gap-1">
+                  {[t.colors.background, t.colors.primary, t.colors.home, t.colors.away].map((c, i) => (
+                    <span
+                      // Swatches of the template: colours of the contract, the same as tokens.css (a test checks them).
+                      key={`${c}-${i}`}
+                      className="inline-block size-3.5 rounded-full border border-border"
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </span>
+              </span>
+              <span className="text-xs text-muted">{t.description}</span>
+            </button>
+          );
+        })}
+      </div>
+      {templateOf(value).forcedTheme === 'dark' && (
+        <p className="text-xs text-muted">
+          Questo modello usa sempre il tema scuro: il pulsante chiaro/scuro non compare.
+        </p>
+      )}
+    </fieldset>
+  );
+}
+
+/** Pure: the team of the client with a typed field: trimmed, empty as null. */
+export function withOurTeamField(team: OurTeam, field: keyof OurTeam, text: string): OurTeam {
+  const trimmed = text.trim();
+  return { ...team, [field]: trimmed === '' ? null : text };
+}
+
+/** Code and name of the team of the client in the `.dvw` files («nostra squadra»). */
+function OurTeamFields({ value, onChange }: { value: OurTeam; onChange: (value: OurTeam) => void }) {
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium text-text">Nostra squadra</legend>
+      <p className="text-xs text-muted">
+        Riconosce la squadra del cliente nel file della partita, con il codice della squadra e/o un testo contenuto nel
+        nome (senza distinguere maiuscole e accenti). Quando è in campo prende sempre il colore della nostra squadra e
+        l’avversaria il colore dell’avversario, in casa o in trasferta; se nessuna squadra corrisponde valgono i colori
+        di casa e ospite.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Codice squadra" hint="Facoltativo, es. PER.">
+          <input
+            type="text"
+            value={value.code ?? ''}
+            maxLength={OUR_TEAM_CODE_MAX}
+            spellCheck={false}
+            onChange={(e) => onChange(withOurTeamField(value, 'code', e.target.value))}
+            className={`${inputClass} font-mono uppercase`}
+          />
+        </Field>
+        <Field label="Testo nel nome della squadra" hint="Facoltativo, es. Perugia.">
+          <input
+            type="text"
+            value={value.name ?? ''}
+            maxLength={OUR_TEAM_NAME_MAX}
+            onChange={(e) => onChange(withOurTeamField(value, 'name', e.target.value))}
+            className={inputClass}
+          />
+        </Field>
+      </div>
+    </fieldset>
   );
 }
 
@@ -196,7 +297,8 @@ function BrandingEditor({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
-  const issues = useMemo(() => brandContrastIssues(draft.colors), [draft.colors]);
+  const issues = useMemo(() => brandContrastIssues(draft.colors, draft.template), [draft.colors, draft.template]);
+  const template = templateOf(draft.template);
   const dirty = JSON.stringify(draft) !== JSON.stringify(base);
   const byId = useMemo(() => new Map(assets.assets.map((a) => [a.id, a])), [assets]);
   const usedIds = new Set(SLOTS.map((s) => base[s]).filter((id) => id !== null));
@@ -286,9 +388,23 @@ function BrandingEditor({
                 className={inputClass}
               />
             </Field>
+            <TemplatePicker value={draft.template} onChange={(t) => setDraft((d) => ({ ...d, template: t }))} />
+            <OurTeamFields value={draft.ourTeam} onChange={(t) => setDraft((d) => ({ ...d, ourTeam: t }))} />
+            <p className="text-xs text-muted">
+              I colori scelti qui vanno sopra quelli del modello; vuoti: i colori del modello.{' '}
+              {template.ourColor === 'accent'
+                ? 'Nostra squadra: il colore di risalto; avversaria: il colore della squadra ospite.'
+                : 'Nostra squadra: il colore della squadra di casa; avversaria: il colore della squadra ospite.'}
+            </p>
             <div className="grid gap-4 sm:grid-cols-2">
               {BRAND_COLOR_KEYS.map((key) => (
-                <ColorField key={key} name={key} value={draft.colors[key]} onChange={(v) => setColor(key, v)} />
+                <ColorField
+                  key={key}
+                  name={key}
+                  value={draft.colors[key]}
+                  fallback={template.colors[key]}
+                  onChange={(v) => setColor(key, v)}
+                />
               ))}
             </div>
             {issues.length > 0 && (
@@ -365,6 +481,7 @@ function BrandingEditor({
       </div>
       <Card title="Anteprima" subtitle="Pagina pubblica con dati d’esempio, con le modifiche non ancora salvate.">
         <BrandingPreview
+          template={draft.template}
           colors={draft.colors}
           name={name}
           logoMain={draft.logoMain ? publicAssetPath(draft.logoMain) : null}

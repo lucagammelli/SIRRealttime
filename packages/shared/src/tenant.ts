@@ -4,8 +4,10 @@ import { BRAND_COLOR_KEYS, HexColorSchema } from './colors.js';
 import { TENANT_CONFIG_VERSION } from './configVersion.js';
 import { TenantIntermissionsSchema } from './intermissions.js';
 import { TenantLayoutSchema } from './layout.js';
+import { OurTeamSchema } from './ourTeam.js';
 import { TenantOverlaysSchema } from './overlays.js';
 import { plainText } from './strings.js';
+import { DEFAULT_TEMPLATE, TemplateIdSchema } from './templates.js';
 
 /** Slug of the client always present (created by the migration and by the seed). */
 export const DEFAULT_TENANT_SLUG = 'predefinito';
@@ -52,14 +54,18 @@ export const BrandColorsSchema = z.strictObject(
 );
 
 /**
- * Graphics of a client (jsonb `tenants.branding`): optional display name (otherwise the client name), colours and
- * images (ids of `assets` of the same client, checked by the server). Every field has a default, so the empty
- * document of the database reads as the portal defaults.
+ * Graphics of a client (jsonb `tenants.branding`): graphic template (base look, see templates.ts), optional display
+ * name (otherwise the client name), colours over the template, the team of the client in the `.dvw` files and images
+ * (ids of `assets` of the same client, checked by the server). Every field has a default, so the empty document of
+ * the database reads as the portal defaults.
  */
 export const TenantBrandingSchema = z.strictObject({
   version: z.literal(TENANT_CONFIG_VERSION).default(TENANT_CONFIG_VERSION),
+  template: TemplateIdSchema.default(DEFAULT_TEMPLATE),
   displayName: plainText(100).nullable().default(null),
   colors: BrandColorsSchema.default({}),
+  /** Team of the client («nostra squadra»): our colour when it is on court, whatever its side in the file. */
+  ourTeam: OurTeamSchema.prefault({}),
   /** Horizontal logo (header). */
   logoMain: AssetIdSchema.nullable().default(null),
   /** Square logo (favicon, small spaces). */

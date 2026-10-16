@@ -5,8 +5,18 @@
  * Text colours have a contrast of at least 4.5:1 on --sir-bg, --sir-surface and --sir-surface-2.
  * Each client can change primary, accent, home, away and background (lib/branding.ts writes them on <html>, light or
  * dark variant, from the palette of @sir/shared); the values here are the defaults (DEFAULT_BRAND_COLORS).
+ *
+ * Templates (TEMPLATES of @sir/shared): `data-template` on <html> picks the base look; the blocks
+ * `[data-template='…']` at the end of this file change the tokens of the standard look (the colours of the client still
+ * go over them). `[data-sir-scope]`: an element with its own tokens (preview of «Grafica», with its own `data-theme`
+ * and `data-template`), independent of the page around it.
+ *
+ * Teams: `--sir-home*` and `--sir-away*` are the colours of the two sides. When the team of the client («nostra
+ * squadra») is on court, lib/branding.ts points them to `--sir-our*` and `--sir-opponent*` (see `teamColorVars`), so
+ * every view follows. `-ink`: the team colour as small text (4.5:1 on every panel), `-soft`: a background tint.
  */
-:root {
+:root,
+[data-sir-scope] {
   --sir-font-sans:
     'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Roboto, 'Noto Sans', Arial, sans-serif;
   --sir-font-display: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', var(--sir-font-sans);
@@ -35,9 +45,20 @@
   --sir-home: #1d4ed8;
   --sir-home-soft: #dbe5ff;
   --sir-on-home: #ffffff;
+  --sir-home-ink: var(--sir-home);
   --sir-away: #a21caf;
   --sir-away-soft: #f7dcf9;
   --sir-on-away: #ffffff;
+  --sir-away-ink: var(--sir-away);
+  /* Team of the client and its opponent: in the standard look, the colours of the home and of the away team. */
+  --sir-our: #1d4ed8;
+  --sir-our-soft: #dbe5ff;
+  --sir-on-our: #ffffff;
+  --sir-our-ink: var(--sir-our);
+  --sir-opponent: #a21caf;
+  --sir-opponent-soft: #f7dcf9;
+  --sir-on-opponent: #ffffff;
+  --sir-opponent-ink: var(--sir-opponent);
 
   /* Semantics. */
   --sir-live: #15803d;
@@ -71,10 +92,42 @@
   --sir-glow-soft: color-mix(in oklab, var(--sir-primary) 5%, transparent);
   --sir-home-glow: color-mix(in oklab, var(--sir-home) 14%, transparent);
   --sir-away-glow: color-mix(in oklab, var(--sir-away) 14%, transparent);
+
+  /* Controls: buttons, segmented filters, active item of the menu, «In diretta» badge. */
+  --sir-radius-button: var(--sir-radius);
+  --sir-hover: var(--sir-surface-2);
+  --sir-seg-bg: var(--sir-surface-2);
+  --sir-seg-text: var(--sir-text-muted);
+  --sir-seg-active: var(--sir-surface);
+  --sir-on-seg-active: var(--sir-text);
+  --sir-nav-active: var(--sir-home-soft);
+  --sir-on-nav-active: var(--sir-home-ink);
+  --sir-badge-live: var(--sir-live);
+  --sir-badge-live-border: var(--sir-live);
+  --sir-on-badge-live: var(--sir-on-live);
+  --sir-badge-live-dot: var(--sir-on-live);
+  --sir-badge-final-border: var(--sir-border);
+  --sir-badge-final-dot: var(--sir-axis);
+
+  /* Tables (players): header, alternate rows, key column (points), selected row and its indicator. */
+  --sir-table-head: transparent;
+  --sir-table-alt: transparent;
+  --sir-table-key: transparent;
+  --sir-table-selected: var(--sir-surface-2);
+  --sir-table-indicator: var(--sir-primary);
+  --sir-table-border: var(--sir-grid);
+
+  /* Charts: axis lines and secondary data (points lost). */
+  --sir-chart-axis: var(--sir-border);
+  --sir-chart-secondary: #b9c0cb;
+
+  /* Big screen: 1 rem scales with the screen (readable at 4-5 m). */
+  --sir-tv-font-size: clamp(16px, min(1.25vw, 2.2vh), 48px);
   color-scheme: light;
 }
 
-:root[data-theme='dark'] {
+:root[data-theme='dark'],
+[data-sir-scope][data-theme='dark'] {
   --sir-bg: #070c17;
   --sir-surface: #0f1729;
   --sir-surface-2: #16203a;
@@ -95,6 +148,13 @@
   --sir-away: #ec7cf7;
   --sir-away-soft: #3d1846;
   --sir-on-away: #2a0730;
+  --sir-our: #6ea2ff;
+  --sir-our-soft: #1a2b55;
+  --sir-on-our: #071230;
+  --sir-opponent: #ec7cf7;
+  --sir-opponent-soft: #3d1846;
+  --sir-on-opponent: #2a0730;
+  --sir-chart-secondary: #475267;
   --sir-live: #4ade80;
   --sir-on-live: #052e16;
   --sir-warn: #fbbf24;
@@ -139,6 +199,13 @@
     --sir-away: #ec7cf7;
     --sir-away-soft: #3d1846;
     --sir-on-away: #2a0730;
+    --sir-our: #6ea2ff;
+    --sir-our-soft: #1a2b55;
+    --sir-on-our: #071230;
+    --sir-opponent: #ec7cf7;
+    --sir-opponent-soft: #3d1846;
+    --sir-on-opponent: #2a0730;
+    --sir-chart-secondary: #475267;
     --sir-live: #4ade80;
     --sir-on-live: #052e16;
     --sir-warn: #fbbf24;
@@ -160,4 +227,172 @@
     --sir-glow-soft: color-mix(in oklab, var(--sir-primary) 6%, transparent);
     color-scheme: dark;
   }
+}
+
+/*
+ * Template «SIR VOLLEY» (always dark, see TEMPLATES of @sir/shared): palette, font and sizes of the graphic
+ * specifications (docs/grafica). After the dark blocks: same specificity, so these values win. The tokens it does not
+ * change (evaluations, court, warnings) are the ones of the dark theme, forced on <html> by lib/theme.ts.
+ * Contrast (checked by lib/templates.test.ts): text #ffffff and #a6a6ac at least 6.5:1 on every panel; the red
+ * #e30613 is for fills and big text (3:1), as small text the team colour is `-ink` #eb515a (4.5:1 up to #202024).
+ */
+:root[data-template='sir-volley'],
+[data-sir-scope][data-template='sir-volley'] {
+  --sir-font-sans: 'Google Sans Code', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --sir-font-display: var(--sir-font-sans);
+  --sir-radius: 8px;
+  --sir-radius-lg: 14px;
+  --sir-radius-button: 8px;
+
+  --sir-bg: #0b0b0d;
+  --sir-surface: #151518;
+  --sir-surface-2: #1c1c20;
+  --sir-border: #303036;
+  --sir-grid: #303036;
+  --sir-axis: #55555c;
+  --sir-text: #ffffff;
+  --sir-text-muted: #a6a6ac;
+  --sir-focus: #ffffff;
+  --sir-hover: #252529;
+  --sir-shadow: none;
+
+  --sir-primary: #e30613;
+  --sir-on-primary: #ffffff;
+  --sir-accent: #e30613;
+  --sir-on-accent: #ffffff;
+
+  /* Without a team of the client on court: home in red, away in white. */
+  --sir-home: #e30613;
+  --sir-home-soft: #3a1217;
+  --sir-on-home: #ffffff;
+  --sir-home-ink: #eb515a;
+  --sir-away: #ffffff;
+  --sir-away-soft: #48484b;
+  --sir-on-away: #000000;
+  --sir-away-ink: #ffffff;
+  /* Team of the client: always the accent (red); the opponent: white. */
+  --sir-our: var(--sir-accent);
+  --sir-our-soft: #3a1217;
+  --sir-on-our: var(--sir-on-accent);
+  --sir-our-ink: #eb515a;
+  --sir-opponent: #ffffff;
+  --sir-opponent-soft: #48484b;
+  --sir-on-opponent: #000000;
+  --sir-opponent-ink: #ffffff;
+
+  --sir-court-text: #ffffff;
+
+  /* No gradients on the panels: flat cards with a 1 px border. */
+  --sir-glow: transparent;
+  --sir-glow-soft: transparent;
+  --sir-home-glow: transparent;
+  --sir-away-glow: transparent;
+
+  --sir-seg-bg: #1c1c20;
+  --sir-seg-text: #a6a6ac;
+  --sir-seg-active: #e30613;
+  --sir-on-seg-active: #ffffff;
+  --sir-nav-active: #e30613;
+  --sir-on-nav-active: #ffffff;
+  --sir-badge-live: transparent;
+  --sir-badge-live-border: #e30613;
+  --sir-on-badge-live: #ffffff;
+  --sir-badge-live-dot: #e30613;
+  --sir-badge-final-border: #e30613;
+  --sir-badge-final-dot: #e30613;
+
+  --sir-table-head: #202024;
+  --sir-table-alt: #1c1c20;
+  --sir-table-key: #292024;
+  --sir-table-selected: #292024;
+  --sir-table-indicator: #e30613;
+  --sir-table-border: #303036;
+
+  --sir-chart-axis: #55555c;
+  --sir-chart-secondary: #77777f;
+
+  /* Big screen: smaller text than the standard look, so that the page of the mockup fits one 16:9 screen. */
+  --sir-tv-font-size: clamp(14px, min(0.9vw, 1.6vh), 36px);
+
+  /* Sizes of the specifications, desktop (≥ 1200 px); the media queries below change them on smaller screens. */
+  --sir-page-pad: 24px;
+  --sir-gap: 16px;
+  --sir-card-pad: 16px;
+  --sir-title-size: 18px;
+  --sir-text-size: 14px;
+  --sir-score-size: clamp(64px, 5vw, 96px);
+  --sir-team-size: clamp(24px, 1.9vw, 36px);
+  --sir-navbar-height: 56px;
+  --sir-logo-height: 36px;
+  --sir-footer-logo-height: 20px;
+  --sir-chart-height: 260px;
+}
+
+/* Tablet landscape (900-1199 px, iPad 1024 × 768). */
+@media (max-width: 1199px) {
+  :root[data-template='sir-volley'],
+  [data-sir-scope][data-template='sir-volley'] {
+    --sir-page-pad: 20px;
+    --sir-gap: 16px;
+    --sir-card-pad: 16px;
+    --sir-title-size: 17px;
+    --sir-score-size: clamp(56px, 6vw, 64px);
+    --sir-team-size: 24px;
+    --sir-logo-height: 32px;
+    --sir-footer-logo-height: 18px;
+    --sir-chart-height: 240px;
+  }
+}
+
+/* Tablet portrait (768-899 px, iPad 768 × 1024). */
+@media (max-width: 899px) {
+  :root[data-template='sir-volley'],
+  [data-sir-scope][data-template='sir-volley'] {
+    --sir-page-pad: 16px;
+    --sir-gap: 12px;
+    --sir-card-pad: 14px;
+    --sir-title-size: 16px;
+    --sir-score-size: clamp(48px, 6.5vw, 56px);
+    --sir-team-size: 20px;
+  }
+}
+
+/* Smartphone portrait (≤ 767 px). */
+@media (max-width: 767px) {
+  :root[data-template='sir-volley'],
+  [data-sir-scope][data-template='sir-volley'] {
+    --sir-radius-lg: 12px;
+    --sir-page-pad: 12px;
+    --sir-gap: 12px;
+    --sir-card-pad: 12px;
+    --sir-title-size: 15px;
+    --sir-score-size: clamp(36px, 10vw, 44px);
+    --sir-team-size: 16px;
+    --sir-navbar-height: 52px;
+    --sir-logo-height: 28px;
+    --sir-footer-logo-height: 16px;
+    --sir-chart-height: 220px;
+  }
+}
+
+/* Smartphone landscape (667 × 375, 844 × 390, 932 × 430): low screens. */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root[data-template='sir-volley'],
+  [data-sir-scope][data-template='sir-volley'] {
+    --sir-page-pad: 12px;
+    --sir-gap: 12px;
+    --sir-card-pad: 12px;
+    --sir-score-size: clamp(32px, 5vw, 40px);
+    --sir-team-size: 16px;
+    --sir-navbar-height: 44px;
+    --sir-logo-height: 28px;
+    --sir-footer-logo-height: 16px;
+    --sir-chart-height: 200px;
+  }
+}
+
+/* Big screen with the template: score and team names scale with the height of the screen. */
+:root.sir-tv[data-template='sir-volley'] {
+  --sir-score-size: min(13vh, 8rem);
+  --sir-team-size: min(4.2vh, 2.5rem);
 }

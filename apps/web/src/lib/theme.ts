@@ -16,11 +16,36 @@ function readChoice(): ThemeChoice {
   }
 }
 
-/** Writes the choice on `<html data-theme>`: the tokens of tokens.css follow it. */
+/** Theme imposed by the graphic template of the client (null: the choice of the viewer). */
+let forced: ResolvedTheme | null = null;
+
+/**
+ * Writes the choice on `<html data-theme>`: the tokens of tokens.css follow it. With a theme imposed by the template
+ * that one is written instead (the choice stays remembered for the other templates).
+ */
 export function applyThemeChoice(choice: ThemeChoice): void {
   const root = document.documentElement;
-  if (choice === 'system') root.removeAttribute('data-theme');
-  else root.setAttribute('data-theme', choice);
+  const theme = forced ?? choice;
+  if (theme === 'system') root.removeAttribute('data-theme');
+  else root.setAttribute('data-theme', theme);
+}
+
+/** Imposes a theme (template «SIR VOLLEY»: always dark) or gives the choice back to the viewer (null). */
+export function setForcedTheme(theme: ResolvedTheme | null): void {
+  if (forced === theme) return;
+  forced = theme;
+  applyThemeChoice(readChoice());
+  window.dispatchEvent(new Event('sir-theme'));
+}
+
+/** Theme imposed now (null: the viewer chooses). */
+export function forcedTheme(): ResolvedTheme | null {
+  return forced;
+}
+
+/** Theme imposed by the template, followed (the light/dark switch hides itself when there is one). */
+export function useForcedTheme(): ResolvedTheme | null {
+  return useSyncExternalStore(subscribeThemeEvents, forcedTheme, () => null);
 }
 
 function subscribeMedia(query: string) {
@@ -43,7 +68,8 @@ const getMotion = mediaMatches(MOTION_QUERY);
 export function useTheme(): { choice: ThemeChoice; resolved: ResolvedTheme; toggle: () => void } {
   const [choice, setChoice] = useState<ThemeChoice>(readChoice);
   const systemDark = useSyncExternalStore(subscribeDark, getDark, () => false);
-  const resolved: ResolvedTheme = choice === 'system' ? (systemDark ? 'dark' : 'light') : choice;
+  const imposed = useForcedTheme();
+  const resolved: ResolvedTheme = imposed ?? (choice === 'system' ? (systemDark ? 'dark' : 'light') : choice);
 
   useEffect(() => {
     applyThemeChoice(choice);

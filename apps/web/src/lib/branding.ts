@@ -1,6 +1,9 @@
 import type {
   BrandPalette,
+  OurTeam,
   PublicTenantResponse,
+  TemplateDefinition,
+  TemplateId,
   TenantIntermissions,
   TenantLayout,
   TenantOverlays,
@@ -8,13 +11,19 @@ import type {
 import {
   brandPalette,
   DEFAULT_BRAND_NAME,
+  DEFAULT_TEMPLATE,
   defaultIntermissions,
   defaultOverlays,
+  ourTeamSide,
   PublicTenantResponseSchema,
+  TemplateIdSchema,
+  templateOf,
 } from '@sir/shared';
-import { useSyncExternalStore } from 'react';
+import type { Side, TeamRef } from '@sir/volley-stats';
+import { useEffect, useSyncExternalStore } from 'react';
+import { teamColorVars } from './teamColors.ts';
 import type { ResolvedTheme } from './theme.ts';
-import { currentTheme, subscribeThemeEvents } from './theme.ts';
+import { currentTheme, setForcedTheme, subscribeThemeEvents } from './theme.ts';
 
 /**
  * Graphics of the client of the hostname (`GET /api/public/tenant`), loaded once at start for the public page and the
@@ -23,6 +32,10 @@ import { currentTheme, subscribeThemeEvents } from './theme.ts';
  */
 export interface TenantLook {
   name: string;
+  /** Graphic template (base look: tokens of `[data-template]`, fonts, logos, default page). */
+  template: TemplateId;
+  /** Team of the client in the `.dvw` files: our colour when it is on court. */
+  ourTeam: OurTeam;
   images: PublicTenantResponse['images'];
   palette: BrandPalette;
   /** Blocks of the public page chosen by the client, for every device. */
@@ -46,18 +59,28 @@ let revision = 0;
 const listeners = new Set<() => void>();
 let written: string[] = [];
 let unsubscribeTheme: (() => void) | null = null;
+/** Side of the team of the client in the match on screen (null: none, or no match). */
+let ourSide: Side | null = null;
+
+/** Template applied at start (the one of the last visit), used until the graphics of the client arrive. */
+let startTemplate: TemplateId = DEFAULT_TEMPLATE;
+
+/** Key of localStorage with the template of the last visit: applied before the first render (no flash). */
+const TEMPLATE_STORAGE_KEY = 'sir-template';
 
 /**
  * Writes the variables of `palette` for `theme` on `root` (inline style, set through the CSSOM: allowed by the CSP
- * without 'unsafe-inline') and removes the ones written before that are no longer there.
+ * without 'unsafe-inline'), then `extra` over them (colours of our team), and removes the ones written before that are
+ * no longer there.
  */
 export function writePalette(
   palette: BrandPalette | null,
   theme: ResolvedTheme,
   root: HTMLElement = document.documentElement,
   previous: readonly string[] = [],
+  extra: Record<string, string> = {},
 ): string[] {
-  const vars = palette ? palette[theme] : {};
+  const vars = { ...(palette ? palette[theme] : {}), ...extra };
   for (const name of previous) if (!(name in vars)) root.style.removeProperty(name);
   for (const [name, value] of Object.entries(vars)) root.style.setProperty(name, value);
   return Object.keys(vars);
@@ -79,9 +102,45 @@ function setFavicon(href: string | null): void {
 }
 
 function refresh(): void {
-  written = writePalette(look?.palette ?? null, currentTheme(), document.documentElement, written);
+  written = writePalette(
+    look?.palette ?? null,
+    currentTheme(),
+    document.documentElement,
+    written,
+    teamColorVars(ourSide),
+  );
   revision += 1;
   for (const listener of listeners) listener();
+}
+
+/**
+ * Applies a graphic template on <html>: `data-template` (none for the standard one) and the theme it imposes. It is
+ * remembered for the next visit (applied by `initTemplate` before the graphics arrive).
+ */
+export function applyTemplate(id: TemplateId): void {
+  const root = document.documentElement;
+  if (id === DEFAULT_TEMPLATE) root.removeAttribute('data-template');
+  else root.setAttribute('data-template', id);
+  setForcedTheme(templateOf(id).forcedTheme);
+  try {
+    if (id === DEFAULT_TEMPLATE) window.localStorage.removeItem(TEMPLATE_STORAGE_KEY);
+    else window.localStorage.setItem(TEMPLATE_STORAGE_KEY, id);
+  } catch {
+    // Private mode: nothing remembered.
+  }
+}
+
+/** Applies the template of the last visit before the first render (the graphics of the client confirm it later). */
+export function initTemplate(): void {
+  let stored: string | null;
+  try {
+    stored = window.localStorage.getItem(TEMPLATE_STORAGE_KEY);
+  } catch {
+    stored = null;
+  }
+  const parsed = TemplateIdSchema.safeParse(stored);
+  startTemplate = parsed.success ? parsed.data : DEFAULT_TEMPLATE;
+  if (parsed.success) applyTemplate(parsed.data);
 }
 
 /**
@@ -93,15 +152,59 @@ export function setTenantLook(next: TenantLook | null): void {
   status = next ? 'loaded' : 'loading';
   setFavicon(next?.images.logoMark ?? null);
   unsubscribeTheme ??= subscribeThemeEvents(refresh);
+  applyTemplate(next?.template ?? DEFAULT_TEMPLATE);
   refresh();
+}
+
+/** Sides claimed by the match views on screen (the last one wins: a preview inside a page, ...). */
+const claims: { side: Side | null }[] = [];
+
+function updateOurSide(): void {
+  const side = claims.at(-1)?.side ?? null;
+  if (ourSide === side) return;
+  ourSide = side;
+  refresh();
+}
+
+/**
+ * Side of the team of the client in the match on screen, claimed by the match view until the returned function is
+ * called: the colours of the two sides follow our team and the opponent (null: home and away colours).
+ */
+export function claimOurSide(side: Side | null): () => void {
+  const claim = { side };
+  claims.push(claim);
+  updateOurSide();
+  return () => {
+    const index = claims.indexOf(claim);
+    if (index >= 0) claims.splice(index, 1);
+    updateOurSide();
+  };
+}
+
+/** Side of our team now (null: none on screen). */
+export function currentOurSide(): Side | null {
+  return ourSide;
+}
+
+/**
+ * Side of the team of the client in a match (`ourTeamSide` of @sir/shared with the team chosen in «Grafica»), claimed
+ * while the component is mounted: every view of the page follows the colours of our team.
+ */
+export function useOurTeamColors(teams: Record<Side, TeamRef>): Side | null {
+  const ourTeam = useTenantLook()?.ourTeam ?? null;
+  const side = ourTeamSide(teams, ourTeam);
+  useEffect(() => claimOurSide(side), [side]);
+  return side;
 }
 
 /** Graphics of a client from the public answer. */
 export function tenantLookOf(tenant: PublicTenantResponse): TenantLook {
   return {
     name: tenant.name,
+    template: tenant.branding.template,
+    ourTeam: tenant.branding.ourTeam,
     images: tenant.images,
-    palette: brandPalette(tenant.branding.colors),
+    palette: brandPalette(tenant.branding.colors, tenant.branding.template),
     layout: tenant.layout,
     intermissions: tenant.intermissions,
     overlays: tenant.overlays,
@@ -203,4 +306,9 @@ export function useBrandingRevision(): number {
 /** Name of the client for titles and texts. */
 export function useBrandName(): string {
   return useTenantLook()?.name ?? DEFAULT_BRAND_NAME;
+}
+
+/** Graphic template in use (the standard one until the graphics of the client arrive). */
+export function useTemplate(): TemplateDefinition {
+  return templateOf(useTenantLook()?.template ?? startTemplate);
 }

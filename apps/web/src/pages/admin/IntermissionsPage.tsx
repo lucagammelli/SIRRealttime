@@ -135,7 +135,7 @@ export function TabList<T extends string>({
           aria-controls={panelId}
           onClick={() => onChange(t.value)}
           className={`rounded-card px-3 py-1.5 text-sm font-medium ${
-            value === t.value ? 'bg-home-soft text-home' : 'text-muted hover:text-text'
+            value === t.value ? 'bg-nav-active text-on-nav-active' : 'text-muted hover:text-text'
           } ${problem?.(t.value) ? 'underline decoration-danger' : ''}`}
         >
           {t.label}

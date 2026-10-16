@@ -2,12 +2,17 @@ import type { Side } from '@sir/volley-stats';
 
 /**
  * The only ECharts theme of the portal. Colours are the tokens of styles/tokens.css read at runtime
- * (a canvas cannot use CSS variables), so light and dark follow the same palette as the rest of the page.
+ * (a canvas cannot use CSS variables), so light and dark, the template of the client (grid, labels, axes of the
+ * specifications of «SIR VOLLEY») and the colours of our team follow the same palette as the rest of the page.
  */
 export interface ChartPalette {
   text: string;
   muted: string;
   axis: string;
+  /** Axis lines (`--sir-chart-axis`). */
+  chartAxis: string;
+  /** Secondary data: points lost of the rotations (`--sir-chart-secondary`). */
+  secondary: string;
   grid: string;
   border: string;
   surface: string;
@@ -26,6 +31,8 @@ export const DEFAULT_PALETTE: ChartPalette = {
   text: '#0f172a',
   muted: '#475569',
   axis: '#64748b',
+  chartAxis: '#d5dce6',
+  secondary: '#b9c0cb',
   grid: '#e3e8ef',
   border: '#d5dce6',
   surface: '#ffffff',
@@ -72,6 +79,8 @@ export function readPalette(
     text: v('--sir-text', DEFAULT_PALETTE.text),
     muted: v('--sir-text-muted', DEFAULT_PALETTE.muted),
     axis: v('--sir-axis', DEFAULT_PALETTE.axis),
+    chartAxis: v('--sir-chart-axis', DEFAULT_PALETTE.chartAxis),
+    secondary: v('--sir-chart-secondary', DEFAULT_PALETTE.secondary),
     grid: v('--sir-grid', DEFAULT_PALETTE.grid),
     border: v('--sir-border', DEFAULT_PALETTE.border),
     surface: v('--sir-surface', DEFAULT_PALETTE.surface),
@@ -97,7 +106,7 @@ export const ANIMATION_MS = 450;
  */
 export function buildEchartsTheme(p: ChartPalette): Record<string, unknown> {
   const axis = {
-    axisLine: { show: true, lineStyle: { color: p.border } },
+    axisLine: { show: true, lineStyle: { color: p.chartAxis } },
     axisTick: { show: false },
     axisLabel: { color: p.muted, fontFamily: p.fontSans },
     splitLine: { show: true, lineStyle: { color: p.grid, width: 1 } },

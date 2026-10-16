@@ -1,11 +1,14 @@
 import type { TenantSummary } from '@sir/shared';
 import type { ReactElement } from 'react';
-import { useCallback } from 'react';
+import { useCallback, useId, useState } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router';
 import { BrandMark } from '../../components/BrandMark.tsx';
+import { MenuButton } from '../../components/MenuButton.tsx';
 import { StatusScreen } from '../../components/StatusScreen.tsx';
+import { TemplateFooter } from '../../components/TemplateFooter.tsx';
 import { ThemeToggle } from '../../components/ThemeToggle.tsx';
 import { Button, Spinner } from '../../components/ui.tsx';
+import { useTemplate } from '../../lib/branding.ts';
 import { useAsync } from '../../lib/useAsync.ts';
 import { AgentsPage } from './AgentsPage.tsx';
 import { BrandingPage } from './BrandingPage.tsx';
@@ -74,21 +77,31 @@ function AdminLayout() {
   ];
   const adminOnly = (element: ReactElement) => (isAdmin ? element : <Navigate to="/admin/live" replace />);
   const superadminOnly = (element: ReactElement) => (isSuperadmin ? element : <Navigate to="/admin/live" replace />);
+  const template = useTemplate();
+  // Phone: the menu is behind the «Menu» button (target of 44 px); from 768 px it is always on one row.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuId = useId();
   return (
-    <div className="min-h-dvh">
-      <header className="border-b border-t-4 border-border border-t-accent bg-surface">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2 sm:px-5">
-          <BrandMark />
+    <div className="flex min-h-dvh flex-col">
+      <header
+        className={`sir-navbar border-b border-border bg-surface ${template.id === 'standard' ? 'border-t-4 border-t-accent' : ''}`}
+      >
+        <div className="sir-page mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2 sm:px-5">
+          <BrandMark to="/admin/live" />
           <nav
+            id={menuId}
             aria-label="Area riservata"
-            className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto sm:order-none sm:w-auto"
+            className={`order-3 -mx-1 w-full flex-col gap-1 md:order-none md:flex md:w-auto md:flex-1 md:flex-row md:overflow-x-auto ${
+              menuOpen ? 'flex' : 'hidden'
+            }`}
           >
             {links.map((l) => (
               <NavLink
                 key={l.to}
                 to={l.to}
+                onClick={() => setMenuOpen(false)}
                 className={({ isActive }) =>
-                  `whitespace-nowrap rounded-card px-3 py-1.5 text-sm font-medium ${isActive ? 'bg-home-soft text-home' : 'text-muted hover:text-text'}`
+                  `flex min-h-11 items-center whitespace-nowrap rounded-button px-3 py-1.5 text-sm font-medium md:min-h-9 ${isActive ? 'bg-nav-active text-on-nav-active' : 'text-muted hover:bg-hover hover:text-text'}`
                 }
               >
                 {l.label}
@@ -108,10 +121,16 @@ function AdminLayout() {
               Esci
             </Button>
             <ThemeToggle />
+            <MenuButton
+              open={menuOpen}
+              controls={menuId}
+              onToggle={() => setMenuOpen((o) => !o)}
+              className="md:hidden"
+            />
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-3 py-4 sm:px-5">
+      <main className="sir-page mx-auto w-full max-w-7xl flex-1 px-3 py-4 sm:px-5">
         {/* A new client remounts every page: data and the admin WebSocket follow the choice. */}
         <Routes key={user.tenant?.id ?? 'nessun-cliente'}>
           <Route index element={<Navigate to="/admin/live" replace />} />
@@ -129,6 +148,7 @@ function AdminLayout() {
           <Route path="*" element={<Navigate to="/admin/live" replace />} />
         </Routes>
       </main>
+      <TemplateFooter className="sir-page mx-auto w-full max-w-7xl" />
     </div>
   );
 }

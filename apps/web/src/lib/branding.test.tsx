@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PublicTenantResponse } from '@sir/shared';
-import { brandPalette, DEFAULT_BRAND_COLORS, defaultIntermissions, defaultOverlays, defaultLayout } from '@sir/shared';
+import {
+  brandPalette,
+  DEFAULT_BRAND_COLORS,
+  defaultBranding,
+  defaultIntermissions,
+  defaultLayout,
+  defaultOverlays,
+} from '@sir/shared';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { usePalette } from '../charts/usePalette.ts';
@@ -15,7 +22,7 @@ const MARK = '/api/public/assets/8a2d4e6f-1b3c-4d5e-8f7a-9b0c1d2e3f4a';
 
 const tenant = (colors: PublicTenantResponse['branding']['colors'], logos = false): PublicTenantResponse => ({
   name: 'Sir Safety',
-  branding: { version: 1, displayName: null, colors, logoMain: null, logoMark: null, sponsorLogo: null },
+  branding: { ...defaultBranding(), colors },
   images: { logoMain: logos ? LOGO : null, logoMark: logos ? MARK : null, sponsorLogo: null },
   layout: defaultLayout(),
   intermissions: defaultIntermissions(),

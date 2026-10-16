@@ -3,20 +3,40 @@
  * blocks, their widths on 12 columns and the defaults are the contract of @sir/shared (`TenantLayoutSchema`): the
  * client chooses them in the page «Pagina pubblica» of the reserved area.
  */
-import type { BlockType, LayoutBlock, LayoutDevice, TenantLayout } from '@sir/shared';
-import { defaultDeviceBlocks, LAYOUT_COLUMNS } from '@sir/shared';
+import type { BlockType, LayoutBlock, LayoutDevice, TemplateId, TenantLayout } from '@sir/shared';
+import { defaultDeviceBlocks, LAYOUT_COLUMNS, TEMPLATE_IDS } from '@sir/shared';
 
 export type { BlockType, LayoutBlock };
 
 /** Device class of the screen: big screen 16:9, tablet (2 columns), smartphone (1 column). */
 export type Device = LayoutDevice;
 
-/** Smallest width (CSS px) of a tablet: below it the page is a phone. */
-export const TABLET_MIN_WIDTH = 700;
+/**
+ * Breakpoints of the graphic specifications (CSS px of the viewport): smartphone up to 767, tablet portrait 768-899,
+ * tablet landscape 900-1199, desktop from 1200.
+ */
+export const TABLET_MIN_WIDTH = 768;
+export const TABLET_LANDSCAPE_MIN_WIDTH = 900;
+export const DESKTOP_MIN_WIDTH = 1200;
+/** Smartphone held sideways: landscape and at most this high (667 × 375, 844 × 390, 932 × 430). */
+export const PHONE_LANDSCAPE_MAX_HEIGHT = 500;
+/** Narrowest phone held sideways laid out as a tablet (horizontal scoreboard); narrower stays a phone. */
+export const PHONE_LANDSCAPE_MIN_WIDTH = 560;
 /** Big screen chosen by itself: at least this wide and this high (CSS px), and at least 16:10 (TV, not a monitor). */
 export const TV_MIN_WIDTH = 1600;
 export const TV_MIN_HEIGHT = 800;
 export const TV_MIN_ASPECT = 16 / 10;
+
+/** Class of the viewport, from the breakpoints of the specifications. */
+export type ViewportClass = 'phone' | 'phoneLandscape' | 'tabletPortrait' | 'tabletLandscape' | 'desktop';
+
+export function viewportClass({ width, height }: Viewport): ViewportClass {
+  if (width > height && height <= PHONE_LANDSCAPE_MAX_HEIGHT && width < DESKTOP_MIN_WIDTH) return 'phoneLandscape';
+  if (width < TABLET_MIN_WIDTH) return 'phone';
+  if (width < TABLET_LANDSCAPE_MIN_WIDTH) return 'tabletPortrait';
+  if (width < DESKTOP_MIN_WIDTH) return 'tabletLandscape';
+  return 'desktop';
+}
 
 /** `?tv=` of the URL: `on` (`?tv=1`) forces the big screen, `off` (`?tv=0`) excludes it, `auto` otherwise. */
 export type TvMode = 'auto' | 'on' | 'off';
@@ -33,29 +53,88 @@ export interface Viewport {
 }
 
 /**
- * Device for the viewport. Big screen: forced with `?tv=1`; with `auto` when the viewport is ≥ 1600 × 800 px and at
- * least 16:10, or in full screen from tablet width up (never on a phone); never with `?tv=0`.
+ * Device for the viewport. Phone up to 767 px; a phone held sideways is laid out as a tablet (horizontal scoreboard,
+ * sizes of the low screens in the CSS) when at least 560 px wide; tablet (portrait and landscape) and desktop share the
+ * tablet blocks, the grid adapts its columns to the width. Big screen: forced with `?tv=1`; with `auto` when the
+ * viewport is ≥ 1600 × 800 px and at least 16:10, or in full screen on a tablet or a desktop (never on a phone, also
+ * held sideways); never with `?tv=0`.
  */
-export function deviceFor({ width, height }: Viewport, tv: TvMode = 'auto', fullscreen = false): Device {
-  const base: Device = width >= TABLET_MIN_WIDTH ? 'tablet' : 'phone';
+export function deviceFor(viewport: Viewport, tv: TvMode = 'auto', fullscreen = false): Device {
+  const { width, height } = viewport;
+  const kind = viewportClass(viewport);
+  const phone = kind === 'phone' || (kind === 'phoneLandscape' && width < PHONE_LANDSCAPE_MIN_WIDTH);
+  const base: Device = phone ? 'phone' : 'tablet';
   if (tv === 'on') return 'tv';
   if (tv === 'off') return base;
   const big = width >= TV_MIN_WIDTH && height >= TV_MIN_HEIGHT && width >= height * TV_MIN_ASPECT;
-  if (big || (fullscreen && base === 'tablet')) return 'tv';
+  if (big || (fullscreen && base === 'tablet' && kind !== 'phoneLandscape')) return 'tv';
   return base;
 }
 
-/** Default order of the blocks, from the most important; the scoreboard always first (from the shared contract). */
-export const defaultLayouts: Record<Device, readonly LayoutBlock[]> = {
-  tv: defaultDeviceBlocks('tv'),
-  tablet: defaultDeviceBlocks('tablet'),
-  phone: defaultDeviceBlocks('phone'),
-};
+const layoutsOf = (template: TemplateId): Record<Device, readonly LayoutBlock[]> => ({
+  tv: defaultDeviceBlocks('tv', template),
+  tablet: defaultDeviceBlocks('tablet', template),
+  phone: defaultDeviceBlocks('phone', template),
+});
 
-/** Blocks shown on `device`: the visible ones of the layout of the client, or the defaults without a layout. */
-export function blocksFor(layout: TenantLayout | null | undefined, device: Device): readonly LayoutBlock[] {
-  return (layout ? layout[device] : defaultLayouts[device]).filter((b) => b.visible);
+/** Default order of the blocks, from the most important; the scoreboard always first (from the shared contract). */
+export const defaultLayouts: Record<Device, readonly LayoutBlock[]> = layoutsOf('standard');
+
+/** Default blocks of every template, for every device. */
+export const templateLayouts: Record<TemplateId, Record<Device, readonly LayoutBlock[]>> = Object.fromEntries(
+  TEMPLATE_IDS.map((t) => [t, layoutsOf(t)]),
+) as Record<TemplateId, Record<Device, readonly LayoutBlock[]>>;
+
+/**
+ * Blocks shown on `device`: the visible ones of the layout of the client, or without a layout the default page of
+ * the template.
+ */
+export function blocksFor(
+  layout: TenantLayout | null | undefined,
+  device: Device,
+  template: TemplateId = 'standard',
+): readonly LayoutBlock[] {
+  return (layout ? layout[device] : templateLayouts[template][device]).filter((b) => b.visible);
 }
+
+/**
+ * Widths of the grid (CSS px, container query on the grid: the preview of the editor behaves as the real screen) at
+ * which the tablet landscape (viewport ≥ 900 px) and the desktop (viewport ≥ 1200 px) layouts start: the viewport less
+ * the side padding of the page.
+ */
+export const GRID_LANDSCAPE_MIN_PX = 856;
+export const GRID_DESKTOP_MIN_PX = 1150;
+
+/** Desktop columns of a block, written out for Tailwind (see `tabletSpan`). */
+const DESKTOP_SPAN: readonly string[] = [
+  '@min-[1150px]:col-span-12',
+  '@min-[1150px]:col-span-1',
+  '@min-[1150px]:col-span-2',
+  '@min-[1150px]:col-span-3',
+  '@min-[1150px]:col-span-4',
+  '@min-[1150px]:col-span-5',
+  '@min-[1150px]:col-span-6',
+  '@min-[1150px]:col-span-7',
+  '@min-[1150px]:col-span-8',
+  '@min-[1150px]:col-span-9',
+  '@min-[1150px]:col-span-10',
+  '@min-[1150px]:col-span-11',
+  '@min-[1150px]:col-span-12',
+];
+
+/**
+ * Classes of a block in the grid of the tablet and of the desktop, from the breakpoints of the specifications. Tablet
+ * portrait: one column. Tablet landscape: the wide blocks (8 columns and more) full width, the others half (two cards
+ * side by side, the grid fills the holes). Desktop: the width chosen for the block.
+ */
+export function tabletSpan(width: number): string {
+  const columns = Math.min(LAYOUT_COLUMNS, Math.max(1, width));
+  const landscape = columns >= 8 ? '@min-[856px]:col-span-12' : '@min-[856px]:col-span-6';
+  return `col-span-12 ${landscape} ${DESKTOP_SPAN[columns] ?? '@min-[1150px]:col-span-12'}`;
+}
+
+/** Classes of the grid itself: in the tablet landscape range it fills the holes left by a full width block. */
+export const TABLET_GRID_FLOW = '@min-[856px]:grid-flow-row-dense @min-[1150px]:grid-flow-row';
 
 /**
  * Smallest height of a block on the big screen, in rem (the TV text scales with the screen, so do these). Below it the
@@ -76,6 +155,19 @@ export const TV_BLOCK_MIN_REM: Record<BlockType, number> = {
   setScores: 6,
   topPlayers: 14,
 };
+
+/**
+ * Smallest heights of the templates with their own (smaller text on the big screen, see `--sir-tv-font-size`): with
+ * «SIR VOLLEY» the default page of the mockup (two rows under the scoreboard) fits one 16:9 screen.
+ */
+const TEMPLATE_TV_BLOCK_MIN_REM: Partial<Record<TemplateId, Record<BlockType, number>>> = {
+  'sir-volley': { ...TV_BLOCK_MIN_REM, momentum: 14, comparison: 18, players: 16, court: 18, rotations: 14 },
+};
+
+/** Smallest heights of the blocks on the big screen for a template. */
+export function tvMinRemFor(template: TemplateId): Record<BlockType, number> {
+  return TEMPLATE_TV_BLOCK_MIN_REM[template] ?? TV_BLOCK_MIN_REM;
+}
 
 /** Blocks side by side on the big screen. */
 export type LayoutRow = LayoutBlock[];

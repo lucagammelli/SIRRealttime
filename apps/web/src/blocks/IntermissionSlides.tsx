@@ -43,7 +43,7 @@ export const SLIDE_LABELS: Record<SlideType, { label: string; description: strin
   logo: { label: 'Logo', description: 'Logo del cliente.' },
 };
 
-const TEXT: Record<Side, string> = { home: 'text-home', away: 'text-away' };
+const TEXT: Record<Side, string> = { home: 'text-home-ink', away: 'text-away-ink' };
 const SIDES: readonly Side[] = ['home', 'away'];
 
 /** Rows of the summary of a set: label and value of a team. */

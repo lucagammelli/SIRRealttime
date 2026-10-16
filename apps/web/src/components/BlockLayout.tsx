@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { Fragment, useContext, useMemo, useRef } from 'react';
+import { useTemplate } from '../lib/branding.ts';
 import type { Device, LayoutBlock } from '../lib/layout.ts';
-import { rotationIndex, TV_ROTATION_MS, tvGroups } from '../lib/layout.ts';
+import { rotationIndex, TABLET_GRID_FLOW, tabletSpan, TV_ROTATION_MS, tvGroups, tvMinRemFor } from '../lib/layout.ts';
 import { useReducedMotion } from '../lib/theme.ts';
 import { DeviceContext, LayoutScaleContext, rootFontPx, useElementHeight, useTicker } from '../lib/useLayout.ts';
 import { CardCollapseContext } from './ui.tsx';
@@ -31,7 +32,8 @@ export type RenderBlock = (block: LayoutBlock, device: Device) => ReactNode;
 /**
  * Lays out the blocks of the match page in the given order for one device (the visible ones: see `blocksFor`):
  * - `phone`: one column, every block with a title but the scoreboard a collapsible section;
- * - `tablet`: 12-column grid, each block as wide as its `width`;
+ * - `tablet`: 12-column grid; on the desktop each block as wide as its `width`, on a tablet in landscape the narrow
+ *   blocks half wide and the wide ones full, on a tablet in portrait one column (see `tabletSpan`);
  * - `tv`: one 16:9 screen without scrolling, the scoreboard always on top and the other blocks in groups that fit the
  *   height left; with more than one group they rotate every 12 s (fixed on the first with reduced motion).
  */
@@ -52,7 +54,7 @@ export function BlockLayout({
       {device === 'tv' ? (
         <TvLayout blocks={blocks} renderBlock={renderBlock} paused={rotationPaused} />
       ) : device === 'phone' ? (
-        <div className="flex flex-col gap-3" data-layout="phone">
+        <div className="sir-blocks flex flex-col gap-3" data-layout="phone">
           {blocks.map((block) =>
             block.type === 'scoreboard' ? (
               <Fragment key={block.id}>{renderBlock(block, device)}</Fragment>
@@ -64,12 +66,14 @@ export function BlockLayout({
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-12 gap-4" data-layout="tablet">
-          {blocks.map((block) => (
-            <div key={block.id} className={`flex min-w-0 flex-col ${span(block)}`}>
-              {renderBlock(block, device)}
-            </div>
-          ))}
+        <div className="@container">
+          <div className={`sir-blocks grid grid-cols-12 gap-4 ${TABLET_GRID_FLOW}`} data-layout="tablet">
+            {blocks.map((block) => (
+              <div key={block.id} className={`flex min-w-0 flex-col ${tabletSpan(block.width)}`}>
+                {renderBlock(block, device)}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </DeviceContext.Provider>
@@ -89,7 +93,11 @@ function TvLayout({
   const heightPx = useElementHeight(area) / (useContext(LayoutScaleContext) || 1);
   const reduced = useReducedMotion();
   const scoreboard = blocks.find((b) => b.type === 'scoreboard');
-  const groups = useMemo(() => tvGroups(blocks, heightPx / rootFontPx(), TV_GAP_REM), [blocks, heightPx]);
+  const template = useTemplate().id;
+  const groups = useMemo(
+    () => tvGroups(blocks, heightPx / rootFontPx(), TV_GAP_REM, tvMinRemFor(template)),
+    [blocks, heightPx, template],
+  );
   const tick = useTicker(groups.length > 1 && !reduced && !paused, TV_ROTATION_MS);
   const index = rotationIndex(tick, groups.length, reduced);
   const group = groups[index] ?? [];

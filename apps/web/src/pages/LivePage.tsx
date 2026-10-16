@@ -6,13 +6,20 @@ import { Intermission } from '../components/Intermission.tsx';
 import { LiveMatch } from '../components/LiveMatch.tsx';
 import { Overlay } from '../components/Overlay.tsx';
 import { StatusScreen } from '../components/StatusScreen.tsx';
+import { TemplateFooter } from '../components/TemplateFooter.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import type { ProbeResult } from '../lib/liveConnection.ts';
 import { useIdle, useTvRootClass, useWakeLock } from '../lib/tvScreen.ts';
 import { tvModeOf } from '../lib/layout.ts';
 import { useDevice } from '../lib/useLayout.ts';
 import { socketUrl, useLiveSocket } from '../lib/useLiveSocket.ts';
-import { useBrandName, useTenantIntermissions, useTenantLook, useTenantOverlays } from '../lib/branding.ts';
+import {
+  useBrandName,
+  useTemplate,
+  useTenantIntermissions,
+  useTenantLook,
+  useTenantOverlays,
+} from '../lib/branding.ts';
 import { teamName } from '../lib/format.ts';
 
 /** Wait when a 503/429 has no readable Retry-After. */
@@ -47,7 +54,7 @@ export async function probeShareToken(token: string, fetchImpl: typeof fetch = f
 
 /**
  * Public page `/live/:token`: only the match, no link to the reserved area. Laid out for the device (`deviceFor`):
- * smartphone (< 700 px), tablet, big screen (≥ 1600 × 800 px and 16:10, `?tv=1`, or full screen from tablet up; never
+ * smartphone (< 768 px, held sideways laid out as a tablet), tablet and desktop, big screen (≥ 1600 × 800 px and 16:10, `?tv=1`, or full screen from tablet up; never
  * with `?tv=0`): no scrolling, text scaled with the screen, pointer hidden after 3 s, screen kept on, rotation of the
  * groups that the viewer can stop. The blocks are the ones chosen by the client for the device (page «Pagina pubblica»
  * of the reserved area), the defaults until its graphics are loaded. In the pauses of the match (time-out, end of set,
@@ -81,6 +88,7 @@ export function LivePage() {
   const look = useTenantLook();
   const intermissions = useTenantIntermissions();
   const overlays = useTenantOverlays();
+  const template = useTemplate();
   const [pauseFullscreen, setPauseFullscreen] = useState(false);
   const blockBrand = useMemo(
     () => (look ? { name: look.name, logoMain: look.images.logoMain, logoMark: look.images.logoMark } : null),
@@ -123,7 +131,7 @@ export function LivePage() {
           // Toggle: the name stays the same, aria-pressed says whether it is stopped; the tooltip says what a click does.
           aria-label="Ferma rotazione"
           title={rotationPaused ? 'Riprendi rotazione' : 'Ferma rotazione'}
-          className="inline-flex h-9 items-center gap-2 rounded-card border border-border bg-surface px-2.5 text-sm font-medium text-text hover:bg-surface-2 sm:px-3"
+          className="inline-flex h-9 items-center gap-2 rounded-button border border-border bg-surface px-2.5 text-sm font-medium text-text hover:bg-surface-2 pointer-coarse:h-11 pointer-coarse:min-w-11 sm:px-3"
         >
           <svg
             viewBox="0 0 24 24"
@@ -142,7 +150,7 @@ export function LivePage() {
         onClick={toggleFullscreen}
         aria-label={fullscreen ? 'Esci da schermo intero' : 'Schermo intero'}
         title={fullscreen ? 'Esci da schermo intero' : 'Schermo intero'}
-        className="inline-flex h-9 items-center gap-2 rounded-card border border-border bg-surface px-2.5 text-sm font-medium text-text hover:bg-surface-2 sm:px-3"
+        className="inline-flex h-9 items-center gap-2 rounded-button border border-border bg-surface px-2.5 text-sm font-medium text-text hover:bg-surface-2 pointer-coarse:h-11 pointer-coarse:min-w-11 sm:px-3"
       >
         <svg
           viewBox="0 0 24 24"
@@ -171,20 +179,20 @@ export function LivePage() {
 
   return (
     <div
-      className={`border-t-4 border-accent ${tv ? 'flex h-dvh flex-col overflow-hidden p-3 lg:p-5' : 'min-h-dvh'} ${
-        idle ? 'cursor-none' : ''
-      }`}
+      className={`${template.id === 'standard' ? 'border-t-4 border-accent' : ''} ${
+        tv ? 'flex h-dvh flex-col overflow-hidden p-3 lg:p-5' : 'flex min-h-dvh flex-col'
+      } ${idle ? 'cursor-none' : ''}`}
       data-device={device}
     >
       {!inScoreboard && (
         <header
-          className={`flex items-center justify-between gap-3 ${tv ? 'pb-3' : 'mx-auto max-w-7xl px-3 pt-3 sm:px-5'}`}
+          className={`sir-navbar flex items-center justify-between gap-3 ${tv ? 'pb-3' : 'sir-page mx-auto w-full max-w-7xl px-3 pt-3 sm:px-5'}`}
         >
           <BrandMark />
           {controls}
         </header>
       )}
-      <main className={tv ? 'min-h-0 flex-1' : 'mx-auto max-w-7xl px-3 py-3 sm:px-5'}>
+      <main className={tv ? 'min-h-0 flex-1' : 'sir-page mx-auto w-full max-w-7xl flex-1 px-3 py-3 sm:px-5'}>
         <LiveMatch
           snapshot={snapshot}
           device={device}
@@ -195,6 +203,7 @@ export function LivePage() {
           {...(inScoreboard ? { controls } : {})}
         />
       </main>
+      <TemplateFooter className={tv ? 'mt-2 shrink-0 pb-0' : 'sir-page mx-auto w-full max-w-7xl'} />
       {data?.kind === 'state' && (
         <Overlay
           key={`avvisi-${data.matchId}`}

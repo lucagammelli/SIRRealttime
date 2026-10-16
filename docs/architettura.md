@@ -48,7 +48,7 @@ simulatore (`docs/agente.md`) o con i test del server (`apps/server/test/ingest.
 | `@sir/dvw-simulator` | `tools/dvw-simulator` | dvw-parser | genera e "suona" file DVW sintetici; è anche dev-dependency di volley-stats, shared e server (per i test) |
 
 ### Contratti di `packages/shared`
-Esportati da `packages/shared/src/index.ts` (`admin.ts`, `assets.ts`, `colors.ts`, `ingest.ts`, `intermissions.ts`, `layout.ts`, `messages.ts`, `overlays.ts`, `patch.ts`, `registration.ts`, `tenant.ts`).
+Esportati da `packages/shared/src/index.ts` (`admin.ts`, `assets.ts`, `colors.ts`, `ingest.ts`, `intermissions.ts`, `layout.ts`, `messages.ts`, `ourTeam.ts`, `overlays.ts`, `patch.ts`, `registration.ts`, `templates.ts`, `tenant.ts`).
 
 Ingest (`ingest.ts`):
 
@@ -115,7 +115,8 @@ quattro documenti di configurazione `TenantBrandingSchema`, `TenantLayoutSchema`
 `CreateTenantRequestSchema`, `UpdateTenantRequestSchema`, `SetActiveTenantRequestSchema`. Regole di funzionamento in
 `docs/server.md` («Clienti»), pagine in `docs/portale.md`.
 
-Grafica per cliente (`tenant.ts`, `colors.ts`, `assets.ts`): `TenantBrandingSchema` / `TenantBranding` (`displayName`,
+Grafica per cliente (`tenant.ts`, `colors.ts`, `assets.ts`): `TenantBrandingSchema` / `TenantBranding` (`template`
+predefinito `standard`, `ourTeam` predefinito `{ code: null, name: null }`, `displayName`,
 `colors` con `primary`, `accent`, `home`, `away`, `background` in `#rrggbb` facoltativi, `logoMain`, `logoMark`,
 `sponsorLogo`; `TENANT_CONFIG_VERSION` resta 1 perché ogni campo è facoltativo e `{}` è valido), `BrandColorsSchema`,
 `BRANDING_IMAGE_SLOTS`, `defaultBranding`, `resolveBranding`, `publicAssetPath`, `DEFAULT_BRAND_NAME` («SIRRealtime»),
@@ -124,9 +125,25 @@ Immagini (`assets.ts`): `AssetKindSchema` (`logo` | `sponsor`), `AssetMimeSchema
 `ASSET_MAX_BASE64_LENGTH`, `UploadAssetRequestSchema` (solo `kind` e `data` in base64), `AssetSummarySchema`,
 `AssetListResponseSchema`. Colori (`colors.ts`, funzioni pure): `HEX_COLOR_PATTERN`, `HexColorSchema`,
 `relativeLuminance`, `contrastRatio`, `textColorOn`, `mixColors`, `ensureContrast`, `MIN_TEXT_CONTRAST` (4,5),
-`BRAND_COLOR_KEYS`, `DEFAULT_BRAND_COLORS`, `brandPalette` (variabili CSS chiare e scure), `brandContrastIssues`. Il
+`BRAND_COLOR_KEYS`, `DEFAULT_BRAND_COLORS`, `brandPalette(colori, template)` (variabili CSS chiare e scure; per le squadre
+anche `-soft` e `-ink`, la variante per il testo piccolo con 4,5:1 sul pannello scuro più chiaro del modello, per esempio il
+rosso `#E30613` su `#151518` ha 3,7:1 e il testo piccolo usa `#eb515a`; inoltre `--sir-our*` e `--sir-opponent*`),
+`brandContrastIssues(colori, template)` (nessun avviso per un modello solo scuro). Il
 portale calcola variabili e avvisi di contrasto con queste funzioni, il server non le duplica. Flusso in
 `docs/server.md` («Grafica per cliente») e `docs/portale.md`.
+
+Modelli grafici (`templates.ts`): elenco chiuso `TEMPLATE_IDS` (`standard`, `sir-volley`), `TemplateIdSchema`,
+`DEFAULT_TEMPLATE` (`standard`), `TEMPLATES` (`TemplateDefinition`: etichetta, `forcedTheme` `'dark'` o null, `ourColor`
+`home` | `accent`, colori del modello, superfici scure `darkSurface` / `darkInkSurface` / `darkBackground`, immagini
+`navbarLogo` e `footerLogo`, `footerText`, `courtArrows` `evaluation` | `team`) e `templateOf(id)` (modello standard per un
+id sconosciuto). `standard` è l'aspetto di prima; `sir-volley` è il modello «SIR VOLLEY» (solo scuro, rosso `#e30613`,
+bianco, logo e «Powered by Istante®»). Specifiche e originali grafici di Luca: `docs/grafica/`. I token CSS del modello
+stanno in `apps/web/src/styles/tokens.css` (`docs/portale.md`).
+
+Nostra squadra (`ourTeam.ts`): `OurTeamSchema` / `OurTeam` (`code` e `name`, testi semplici, `OUR_TEAM_CODE_MAX` 10,
+`OUR_TEAM_NAME_MAX` 60, entrambi nullable), `normalizeTeamText` (senza maiuscole e accenti), `ourTeamSide(teams, ourTeam)`
+(funzione pura: prima il codice squadra del file, poi il testo contenuto nel nome; nessuna o due corrispondenze danno `null`,
+cioè restano i colori casa/ospite) e `teamColorRoles(lato)` (`our` | `opponent` | `home` | `away`).
 
 Pagina pubblica a blocchi (`layout.ts`, `configVersion.ts`): `TenantLayoutSchema` / `TenantLayout` = `{ version, tv, tablet,
 phone }`, ogni dispositivo un elenco ordinato (al massimo `LAYOUT_MAX_BLOCKS` = 24) di `LayoutBlockSchema`, unione
@@ -139,8 +156,11 @@ discriminata chiusa su `type`. Ogni blocco ha `id` (`BlockIdSchema`, unico nell'
 (`normal` | `large`); `qr` `caption` (al massimo `QR_CAPTION_MAX_LENGTH` = 80, predefinito `QR_DEFAULT_CAPTION`);
 `topPlayers` `count` (1-`TOP_PLAYERS_MAX` = 10) e `team` (`both` | `home` | `away`). Regole sull'elenco
 (`DeviceBlocksSchema`): id unici, un solo `scoreboard`, larghezze ammesse. `{}` vale il predefinito
-(`defaultLayout`, `defaultDeviceBlocks`: i sei blocchi di prima con larghezze 12/8/6/4), `resolveLayout` legge un layout
-salvato e **un layout non valido o di versione futura vale il predefinito** (quando `TENANT_CONFIG_VERSION` salirà servirà
+(`defaultLayout(template)`, `defaultDeviceBlocks(dispositivo, template)`: per `standard` i sei blocchi di prima con
+larghezze 12/8/6/4; per `sir-volley` la pagina del mockup: tabellone, poi andamento, confronto e mappe di campo a un terzo
+ciascuno, poi giocatori (8) e rotazioni (4); sul telefono una card per riga), `resolveLayout(documento, template)` legge un
+layout salvato, riempie con il predefinito del modello i dispositivi mai salvati e **un layout non valido o di versione
+futura vale il predefinito del modello** (quando `TENANT_CONFIG_VERSION` salirà servirà
 una migrazione). Inoltre `layoutImageIds` (immagini usate, per i controlli del server), `newBlock` (blocco nuovo con le
 opzioni predefinite), `LayoutResponseSchema` (`GET`/`PUT /api/admin/layout`); `PublicTenantResponseSchema` contiene anche
 `layout`. `TENANT_CONFIG_VERSION` ora sta in `configVersion.ts`. Server in `docs/server.md` («Pagina pubblica a blocchi»),
@@ -214,7 +234,7 @@ pnpm --filter @sir/server test      # il flusso completo agente→server→WebSo
 ```
 
 ## Riferimenti
-- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `index.ts`
+- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
 - `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`, `apps/web/src/App.tsx`
 - `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/portale.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,

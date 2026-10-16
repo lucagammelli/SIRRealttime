@@ -102,14 +102,12 @@ describe('layout of the client on the three devices', () => {
     expect(screen.queryByRole('heading', { name: 'Statistiche giocatori' })).toBeNull();
   });
 
-  it('tablet: the order and the widths of the client', () => {
+  it('tablet: the order and the widths of the client (desktop), half or full on a tablet in landscape', () => {
     const { container } = render(<MatchView state={midMatchState()} device="tablet" layout={layout} />);
     const cells = Array.from(container.querySelector('[data-layout="tablet"]')?.children ?? []);
-    expect(cells.map((c) => c.className.match(/col-span-\d+/)?.[0])).toEqual([
-      'col-span-4',
-      'col-span-12',
-      'col-span-8',
-    ]);
+    expect(cells.map((c) => c.className.match(/@min-\[1150px\]:col-span-(\d+)/)?.[1])).toEqual(['4', '12', '8']);
+    expect(cells.map((c) => c.className.match(/@min-\[856px\]:col-span-(\d+)/)?.[1])).toEqual(['6', '12', '12']);
+    expect(cells.every((c) => /(^| )col-span-12( |$)/.test(c.className))).toBe(true);
     expect(within(cells[0] as HTMLElement).getByText('Forza Sir!')).toBeTruthy();
     expect(within(cells[1] as HTMLElement).getByRole('region', { name: 'Tabellone' })).toBeTruthy();
   });

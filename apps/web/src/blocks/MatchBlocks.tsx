@@ -8,7 +8,7 @@ import { setPartials } from '../lib/scoreboard.ts';
 import type { BlockEnv } from './env.ts';
 
 const FILL = 'h-full min-h-0';
-const TEXT: Record<Side, string> = { home: 'text-home', away: 'text-away' };
+const TEXT: Record<Side, string> = { home: 'text-home-ink', away: 'text-away-ink' };
 const BG: Record<Side, string> = { home: 'bg-home', away: 'bg-away' };
 
 /** Last point of the match, big: team, score after it and how it was won. */

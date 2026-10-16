@@ -36,6 +36,13 @@ export function statusLabel(state: MatchState): string {
   return `${state.live.set}° set in corso`;
 }
 
+/** Headline of the whole match (scoreboard of the template «SIR VOLLEY»: «Partita in corso · 1 h 34 min»). */
+export function matchHeadline(state: MatchState): string {
+  if (state.status === 'notStarted') return 'In attesa del primo punto';
+  if (state.status === 'finished') return 'Partita conclusa';
+  return 'Partita in corso';
+}
+
 /** Winner of the match, when finished. */
 export function matchWinner(state: MatchState): Side | null {
   if (state.status !== 'finished') return null;

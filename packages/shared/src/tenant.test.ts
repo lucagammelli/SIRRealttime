@@ -129,8 +129,10 @@ describe('branding', () => {
     const empty = TenantBrandingSchema.parse({});
     expect(empty).toEqual({
       version: TENANT_CONFIG_VERSION,
+      template: 'standard',
       displayName: null,
       colors: {},
+      ourTeam: { code: null, name: null },
       logoMain: null,
       logoMark: null,
       sponsorLogo: null,

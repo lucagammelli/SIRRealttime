@@ -43,7 +43,7 @@ export function MatchesPage() {
                   <td className="py-2 pl-4 sm:pl-5">
                     <Link
                       to={`/admin/partite/${m.id}`}
-                      className="font-medium text-home underline-offset-2 hover:underline"
+                      className="font-medium text-home-ink underline-offset-2 hover:underline"
                     >
                       {matchTitle(m)}
                     </Link>

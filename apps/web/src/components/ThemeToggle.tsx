@@ -1,8 +1,10 @@
-import { useTheme } from '../lib/theme.ts';
+import { useForcedTheme, useTheme } from '../lib/theme.ts';
 
-/** Light/dark switch (the default follows the system). */
+/** Light/dark switch (the default follows the system); none when the template of the client imposes the theme. */
 export function ThemeToggle() {
   const { resolved, toggle } = useTheme();
+  const forced = useForcedTheme();
+  if (forced) return null;
   const next = resolved === 'dark' ? 'chiaro' : 'scuro';
   return (
     <button
@@ -10,7 +12,7 @@ export function ThemeToggle() {
       onClick={toggle}
       aria-label={`Passa al tema ${next}`}
       title={`Tema ${next}`}
-      className="inline-flex size-9 items-center justify-center rounded-card border border-border bg-surface text-text hover:bg-surface-2"
+      className="inline-flex size-9 items-center justify-center rounded-button border border-border bg-surface text-text hover:bg-surface-2 pointer-coarse:size-11"
     >
       <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
         {resolved === 'dark' ? (

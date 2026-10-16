@@ -61,7 +61,17 @@ describe('brand palette', () => {
   it('writes only the variables of the colours given', () => {
     expect(brandPalette({})).toEqual({ light: {}, dark: {} });
     const p = brandPalette({ away: '#a21caf' });
-    expect(Object.keys(p.light).sort()).toEqual(['--sir-away', '--sir-away-soft', '--sir-on-away']);
+    // The away colour is the colour of the opponent too (see brandPalette); `-ink` is the colour as small text.
+    expect(Object.keys(p.light).sort()).toEqual([
+      '--sir-away',
+      '--sir-away-ink',
+      '--sir-away-soft',
+      '--sir-on-away',
+      '--sir-on-opponent',
+      '--sir-opponent',
+      '--sir-opponent-ink',
+      '--sir-opponent-soft',
+    ]);
     expect(Object.keys(p.dark).sort()).toEqual(Object.keys(p.light).sort());
   });
 

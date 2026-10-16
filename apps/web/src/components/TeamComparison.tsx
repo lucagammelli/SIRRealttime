@@ -43,8 +43,8 @@ export function TeamComparison({
       }
     >
       <div className="mb-2 flex justify-between text-xs font-bold uppercase tracking-wide">
-        <span className="text-home">{home}</span>
-        <span className="text-away">{away}</span>
+        <span className="text-home-ink">{home}</span>
+        <span className="text-away-ink">{away}</span>
       </div>
       <table className="w-full table-fixed border-collapse text-sm">
         <caption className="sr-only">
@@ -68,7 +68,7 @@ export function TeamComparison({
               <tr key={row.key} className={showGroup && !compact ? 'border-t border-grid' : ''}>
                 <td className="w-[38%] py-1 pr-2 align-middle">
                   <div className="flex items-center justify-end gap-2">
-                    <span className={`tabular ${best === 'home' ? 'font-bold text-home' : 'text-text'}`}>
+                    <span className={`tabular ${best === 'home' ? 'font-bold text-home-ink' : 'text-text'}`}>
                       {value(row, row.home)}
                     </span>
                     <span className="relative h-2.5 w-full max-w-36 overflow-hidden rounded-full bg-surface-2">
@@ -90,7 +90,7 @@ export function TeamComparison({
                         style={{ width: `${shares.away * 100}%` }}
                       />
                     </span>
-                    <span className={`tabular ${best === 'away' ? 'font-bold text-away' : 'text-text'}`}>
+                    <span className={`tabular ${best === 'away' ? 'font-bold text-away-ink' : 'text-text'}`}>
                       {value(row, row.away)}
                     </span>
                   </div>

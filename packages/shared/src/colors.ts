@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import type { TemplateId } from './templates.js';
+import { templateOf } from './templates.js';
 
 /** Colour as written in a branding document: `#rrggbb`, lower case (upper case input is accepted and lowered). */
 export const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/;
@@ -125,31 +127,41 @@ const SOFT_DARK = 0.22;
 const DARK_BACKGROUND_TINT = 0.06;
 
 /**
- * Pure: CSS variables for the colours given (only those: the others keep the tokens of the portal). Light theme: the
- * colour as chosen, its soft variant and the text on it (white or black). Dark theme: the colour lightened until it
- * has 4.5:1 on the dark surface, its soft variant and its text; the background becomes a dark tint of its hue.
+ * Pure: CSS variables for the colours given (only those: the others keep the tokens of the portal and of the
+ * template). Light theme: the colour as chosen, its soft variant and the text on it (white or black). Dark theme: the
+ * colour lightened until it has 4.5:1 on the dark surface of the template, its soft variant and its text; the team
+ * colours also as small text (`-ink`: 4.5:1 on the lightest dark panel of the template, table rows included); the
+ * background becomes a dark tint of its hue. The colour of our team (`--sir-our*`: the home colour or the accent,
+ * as the template says) and of the opponent (`--sir-opponent*`: the away colour) follow the client too.
  */
-export function brandPalette(colors: BrandColorChoice): BrandPalette {
+export function brandPalette(colors: BrandColorChoice, template: TemplateId = 'standard'): BrandPalette {
+  const { darkSurface, darkInkSurface, darkBackground, ourColor } = templateOf(template);
   const light: Record<string, string> = {};
   const dark: Record<string, string> = {};
-  const solid = (name: string, color: string, soft: boolean): void => {
-    const onDark = ensureContrast(color, DARK_SURFACE);
+  /** `team`: also the soft variant and the text variant (`-ink`, team colour as small text). */
+  const solid = (name: string, color: string, team: boolean): void => {
+    const onDark = ensureContrast(color, darkSurface);
     light[`--sir-${name}`] = color;
     light[`--sir-on-${name}`] = textColorOn(color);
     dark[`--sir-${name}`] = onDark;
     dark[`--sir-on-${name}`] = textColorOn(onDark);
-    if (soft) {
+    if (team) {
       light[`--sir-${name}-soft`] = mixColors(color, LIGHT_SURFACE, SOFT_LIGHT);
-      dark[`--sir-${name}-soft`] = mixColors(onDark, DARK_SURFACE, SOFT_DARK);
+      dark[`--sir-${name}-soft`] = mixColors(onDark, darkSurface, SOFT_DARK);
+      light[`--sir-${name}-ink`] = color;
+      dark[`--sir-${name}-ink`] = ensureContrast(onDark, darkInkSurface);
     }
   };
   if (colors.primary) solid('primary', colors.primary, false);
   if (colors.accent) solid('accent', colors.accent, false);
   if (colors.home) solid('home', colors.home, true);
   if (colors.away) solid('away', colors.away, true);
+  const ours = colors[ourColor];
+  if (ours) solid('our', ours, true);
+  if (colors.away) solid('opponent', colors.away, true);
   if (colors.background) {
     light['--sir-bg'] = colors.background;
-    dark['--sir-bg'] = mixColors(colors.background, DARK_BACKGROUND, DARK_BACKGROUND_TINT);
+    dark['--sir-bg'] = mixColors(colors.background, darkBackground, DARK_BACKGROUND_TINT);
   }
   return { light, dark };
 }
@@ -164,9 +176,11 @@ export interface ContrastIssue {
 
 /**
  * Pure: colours under 4.5:1 on the background of the client (both resolved with the defaults): the team and brand
- * colours are written as text on it, and the page text (dark in the light theme) must stay readable on it.
+ * colours are written as text on it, and the page text (dark in the light theme) must stay readable on it. None for
+ * a template that is always dark: there `brandPalette` corrects every colour itself.
  */
-export function brandContrastIssues(colors: BrandColorChoice): ContrastIssue[] {
+export function brandContrastIssues(colors: BrandColorChoice, template: TemplateId = 'standard'): ContrastIssue[] {
+  if (templateOf(template).forcedTheme === 'dark') return [];
   const all = resolveBrandColors(colors);
   const issues: ContrastIssue[] = [];
   for (const key of ['primary', 'accent', 'home', 'away'] as const) {

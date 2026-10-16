@@ -2,7 +2,9 @@ import type { MatchState, Side } from '@sir/volley-stats';
 import { useId, useMemo, useState } from 'react';
 import type { ZoneArrow, ZoneSkill } from '../charts/zones.ts';
 import { COURT, EVALUATION_NAMES, ZONES, zoneCenter, zonePlayers, zoneRect, zoneView } from '../charts/zones.ts';
+import { useTemplate } from '../lib/branding.ts';
 import { formatPct, playerName, teamName, teamShort } from '../lib/format.ts';
+import { useDeviceContext } from '../lib/useLayout.ts';
 import { Card, Segmented } from './ui.tsx';
 
 const MAX_ARROWS = 14;
@@ -17,12 +19,22 @@ const EVAL_CLASS: Record<string, { stroke: string; fill: string; bg: string }> =
   '~': { stroke: 'stroke-eval-none', fill: 'fill-eval-none', bg: 'bg-eval-none' },
 };
 const SIDE_FILL: Record<Side, string> = { home: 'fill-home', away: 'fill-away' };
+const SIDE_STROKE: Record<Side, string> = { home: 'stroke-home', away: 'stroke-away' };
+/** Arrows of the template «SIR VOLLEY» (`courtArrows: 'team'`): 1.5 px whatever the size of the map, 85% opaque. */
+const TEAM_ARROW_PX = 1.5;
+const TEAM_ARROW_OPACITY = 0.85;
 
 const evalClass = (symbol: string) =>
   EVAL_CLASS[symbol] ?? { stroke: 'stroke-eval-none', fill: 'fill-eval-none', bg: 'bg-eval-none' };
 
-/** Court in SVG: start → arrival of attacks and serves, with filters for team, player and evaluation. */
+/**
+ * Court in SVG: start → arrival of attacks and serves, with filters for team, player and evaluation. Arrows as the
+ * template says: coloured by evaluation and as thick as their share (standard), or thin in the colour of the attacking
+ * team with a small head («SIR VOLLEY»). On the phone the player and evaluation filters are in an expandable menu.
+ */
 export function CourtMap({ state, className = '' }: { state: MatchState; className?: string }) {
+  const teamArrows = useTemplate().courtArrows === 'team';
+  const compact = useDeviceContext() === 'phone';
   const [side, setSide] = useState<Side>('home');
   const [skill, setSkill] = useState<ZoneSkill>('attack');
   const [player, setPlayer] = useState<number | null>(null);
@@ -41,6 +53,35 @@ export function CourtMap({ state, className = '' }: { state: MatchState; classNa
   const names = EVALUATION_NAMES[skill];
   const opponent: Side = side === 'home' ? 'away' : 'home';
   const skillLabel = skill === 'attack' ? 'attacchi' : 'battute';
+  const extraFilters = (
+    <>
+      <label className="inline-flex items-center gap-1.5 text-xs text-muted">
+        Giocatore
+        <select
+          value={activePlayer ?? ''}
+          onChange={(e) => setPlayer(e.target.value === '' ? null : Number(e.target.value))}
+          className="rounded-card border border-border bg-surface-2 px-2 py-1 text-xs text-text"
+        >
+          <option value="">Tutta la squadra</option>
+          {players.map((n) => (
+            <option key={n} value={n}>
+              {n} · {playerName(roster.get(n), n)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <Segmented
+        label="Valutazione"
+        size="xs"
+        value={evaluation}
+        onChange={setEvaluation}
+        options={[
+          { value: 'all', label: 'Tutte' },
+          ...EVAL_ORDER.map((s) => ({ value: s, label: `${s} ${names[s] ?? ''}` })),
+        ]}
+      />
+    </>
+  );
 
   return (
     <Card
@@ -72,34 +113,17 @@ export function CourtMap({ state, className = '' }: { state: MatchState; classNa
             { value: 'serve', label: 'Battuta' },
           ]}
         />
-        <label className="inline-flex items-center gap-1.5 text-xs text-muted">
-          Giocatore
-          <select
-            value={activePlayer ?? ''}
-            onChange={(e) => setPlayer(e.target.value === '' ? null : Number(e.target.value))}
-            className="rounded-card border border-border bg-surface-2 px-2 py-1 text-xs text-text"
-          >
-            <option value="">Tutta la squadra</option>
-            {players.map((n) => (
-              <option key={n} value={n}>
-                {n} · {playerName(roster.get(n), n)}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
-      <div className="mb-3">
-        <Segmented
-          label="Valutazione"
-          size="xs"
-          value={evaluation}
-          onChange={setEvaluation}
-          options={[
-            { value: 'all', label: 'Tutte' },
-            ...EVAL_ORDER.map((s) => ({ value: s, label: `${s} ${names[s] ?? ''}` })),
-          ]}
-        />
-      </div>
+      {compact ? (
+        <details className="mb-3 rounded-card border border-border bg-surface-2 px-3 py-1">
+          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-text">
+            Altri filtri
+          </summary>
+          <div className="flex flex-col items-start gap-2 pb-2">{extraFilters}</div>
+        </details>
+      ) : (
+        <div className="mb-3 flex flex-wrap items-center gap-2">{extraFilters}</div>
+      )}
 
       <svg
         viewBox="0 0 200 110"
@@ -125,6 +149,19 @@ export function CourtMap({ state, className = '' }: { state: MatchState; classNa
               <path d="M0 0 L10 5 L0 10 z" className={evalClass(symbol).fill} />
             </marker>
           ))}
+          {/* Small head of the thin team arrows, in user units (it does not grow with the line). */}
+          <marker
+            id={`${uid}-head-team`}
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="3"
+            markerHeight="3"
+            markerUnits="userSpaceOnUse"
+            orient="auto-start-reverse"
+          >
+            <path d="M0 0 L10 5 L0 10 z" className={SIDE_FILL[side]} />
+          </marker>
         </defs>
         <rect x="0" y="0" width="200" height="110" rx="4" className="fill-court-free" />
         <rect
@@ -227,8 +264,9 @@ export function CourtMap({ state, className = '' }: { state: MatchState; classNa
             key={`${a.from}-${a.to}`}
             arrow={a}
             width={0.8 + 3.2 * (a.share / maxShare)}
-            markerId={`${uid}-head-${symbolId(a.dominant)}`}
+            markerId={teamArrows ? `${uid}-head-team` : `${uid}-head-${symbolId(a.dominant)}`}
             names={names}
+            team={teamArrows ? side : null}
           />
         ))}
         {ZONES.map((z) => {
@@ -257,14 +295,25 @@ export function CourtMap({ state, className = '' }: { state: MatchState; classNa
         )}
       </svg>
 
-      <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted" aria-label="Colori delle valutazioni">
-        {EVAL_ORDER.map((s) => (
-          <li key={s} className="inline-flex items-center gap-1">
-            <span aria-hidden="true" className={`inline-block h-1 w-4 rounded-full ${evalClass(s).bg}`} />
-            {s} {names[s]}
-          </li>
-        ))}
-      </ul>
+      {teamArrows ? (
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted">
+          <span
+            aria-hidden="true"
+            className={`inline-block h-0.5 w-4 rounded-full ${side === 'home' ? 'bg-home' : 'bg-away'}`}
+          />
+          Traiettorie di {teamName(state.teams, side)}: il numero e la percentuale sono le {skillLabel} arrivate in
+          zona.
+        </p>
+      ) : (
+        <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted" aria-label="Colori delle valutazioni">
+          {EVAL_ORDER.map((s) => (
+            <li key={s} className="inline-flex items-center gap-1">
+              <span aria-hidden="true" className={`inline-block h-1 w-4 rounded-full ${evalClass(s).bg}`} />
+              {s} {names[s]}
+            </li>
+          ))}
+        </ul>
+      )}
       {view.arrows.length > MAX_ARROWS && (
         <p className="mt-1 text-xs text-muted">
           Mostrate le {MAX_ARROWS} traiettorie più frequenti su {view.arrows.length}.
@@ -281,11 +330,14 @@ function Arrow({
   width,
   markerId,
   names,
+  team,
 }: {
   arrow: ZoneArrow;
   width: number;
   markerId: string;
   names: Record<string, string>;
+  /** Thin arrow in the colour of this team (template); null: colour of the evaluation, width as given. */
+  team: Side | null;
 }) {
   const start = zoneCenter(arrow.from, 'own');
   const end = zoneCenter(arrow.to, 'opponent');
@@ -301,10 +353,11 @@ function Arrow({
     <path
       d={`M${start.x} ${start.y} Q${mx} ${my} ${end.x} ${end.y}`}
       fill="none"
-      className={evalClass(arrow.dominant).stroke}
-      strokeWidth={width}
+      className={team ? SIDE_STROKE[team] : evalClass(arrow.dominant).stroke}
+      strokeWidth={team ? TEAM_ARROW_PX : width}
+      vectorEffect={team ? 'non-scaling-stroke' : undefined}
       strokeLinecap="round"
-      strokeOpacity="0.9"
+      strokeOpacity={team ? TEAM_ARROW_OPACITY : 0.9}
       markerEnd={`url(#${markerId})`}
     >
       <title>{`Da zona ${arrow.from} a zona ${arrow.to}: ${arrow.count} (${formatPct(arrow.share)}). ${detail}`}</title>

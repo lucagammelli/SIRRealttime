@@ -214,9 +214,12 @@ describe('«Pagina pubblica» page', () => {
       within(width)
         .getAllByRole('option')
         .map((o) => o.getAttribute('value')),
-    ).toEqual(['6', '8', '12']);
+    ).toEqual(['4', '6', '8', '12']);
     fireEvent.change(width, { target: { value: '12' } });
-    const cell = shown.getByRole('heading', { name: 'Andamento del set' }).closest('.col-span-12');
+    // Width chosen for the desktop (container query of the grid, see tabletSpan).
+    const cell = shown
+      .getByRole('heading', { name: 'Andamento del set' })
+      .closest('[class*="@min-[1150px]:col-span-12"]');
     expect(cell).toBeTruthy();
   });
 

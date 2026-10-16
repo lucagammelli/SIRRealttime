@@ -35,13 +35,19 @@ tra tre impaginazioni, con gli stessi blocchi della tabella sopra:
 
 | Dispositivo | Quando | Impaginazione |
 |---|---|---|
-| Telefono | larghezza sotto 700 px | una colonna; tabellone compatto fisso in alto con «Dettagli del set» (`ScoreFacts`); sezioni comprimibili (`Card` con `aria-expanded`), all'inizio aperta solo «Andamento del set»; grafici semplificati (legenda sotto, più bassi); tabella giocatori scorrevole in orizzontale («Tabella giocatori, scorrevole in orizzontale») |
-| Tablet | da 700 px, e sotto le soglie della TV | griglia a 6 colonne, due colonne di blocchi |
-| TV | da sola con almeno 1600 × 800 px e proporzioni ≥ 16:10; sempre con `?tv=1`; mai con `?tv=0`; con «Schermo intero» solo da tablet in su | senza scorrimento, testi scalati, rotazione dei gruppi |
+| Telefono | larghezza fino a 767 px (`viewportClass`: `phone`); in orizzontale (più larga che alta, alta al massimo 500 px, sotto 1200 px) il telefono resta tale sotto 560 px (`PHONE_LANDSCAPE_MIN_WIDTH`) | una colonna; tabellone compatto fisso in alto con «Dettagli del set» (`ScoreFacts`); sezioni comprimibili (`Card` con `aria-expanded`), all'inizio aperta solo «Andamento del set»; grafici semplificati (legenda sotto, più bassi); tabella giocatori con le colonne essenziali (vedi «Regole del telefono») |
+| Tablet | da 768 px e sotto le soglie della TV; telefono orizzontale da 560 px | **verticale** 768-899 px: una colonna; **orizzontale** 900-1199 px: griglia a 12 colonne con card a metà; **desktop** da 1200 px: la griglia a 12 colonne del layout (le soglie sono sulla larghezza della griglia, `GRID_LANDSCAPE_MIN_PX` 856 e `GRID_DESKTOP_MIN_PX` 1150, perciò l'anteprima dell'editor si comporta come la pagina vera) |
+| TV | da sola con almeno 1600 × 800 px e proporzioni ≥ 16:10; sempre con `?tv=1`; mai con `?tv=0`; con «Schermo intero» solo da tablet in su (mai da telefono, anche orizzontale) | senza scorrimento, testi scalati, rotazione dei gruppi |
 
-Un monitor desktop 4:3 o 16:10 basso resta quindi tablet e mantiene lo scorrimento. `defaultLayouts` è l'elenco
-predefinito dei blocchi per dispositivo (da `defaultDeviceBlocks` di `@sir/shared`, larghezze 12/8/6/4 su 12 colonne come
-prima); il cliente può cambiarlo nella pagina «Pagina pubblica» (vedi «Pagina pubblica a blocchi»). Nell'area riservata `MatchView` usa al massimo l'impaginazione tablet.
+I breakpoint sono quelli delle specifiche grafiche (`docs/grafica/`) e valgono per **tutti** i modelli. Un monitor
+desktop 4:3 o 16:10 basso resta quindi tablet/desktop e mantiene lo scorrimento. `defaultLayouts` è l'elenco predefinito dei
+blocchi per dispositivo del modello standard (da `defaultDeviceBlocks` di `@sir/shared`, larghezze 12/8/6/4 su 12
+colonne come prima); `templateLayouts` ha quelli di ogni modello e `blocksFor(layout, dispositivo, modello)` sceglie quello
+giusto quando il cliente non ha un layout. Il cliente può cambiarlo nella pagina «Pagina pubblica» (vedi «Pagina pubblica a blocchi»). Nell'area riservata `MatchView` usa al massimo l'impaginazione tablet.
+
+**Regole del telefono** (valgono per tutti i modelli): `PlayerTable` mostra le colonne essenziali (N., Giocatore, Punti,
+Attacco %, Ace, Muro, Errori) con il pulsante «Tutte le colonne», e il giocatore si può evidenziare; `Rotations` mostra
+una squadra alla volta con un selettore; `CourtMap` raccoglie i filtri sotto «Altri filtri».
 Il tabellone del telefono resta fisso in alto e `scroll-padding-top` segue la sua altezza (`useStickyOffset`, variabile
 `--sir-sticky-offset`), così le sezioni aperte non finiscono sotto di lui.
 
@@ -168,10 +174,64 @@ con test; i componenti ECharts passano da `EChart.tsx`. Le mappe di campo sono S
 traiettorie più frequenti.
 
 ### Tema e stile
-Un solo tema: i token (colori, font, raggi) sono scritti **solo** in `src/styles/tokens.css`. Tailwind li legge con
+I token (colori, font, raggi) sono scritti **solo** in `src/styles/tokens.css`. Tailwind li legge con
 `@theme` in `index.css`; ECharts li legge a runtime (`src/charts/theme.ts`, `usePalette.ts`) e si riadatta al cambio di
 tema. Chiaro di default, scuro con `prefers-color-scheme` o con il cambio tema (`ThemeToggle`; scelta salvata in
-`localStorage` con chiave `sir-theme`). Con `prefers-reduced-motion: reduce` niente animazioni nei grafici.
+`localStorage` con chiave `sir-theme`). Con `prefers-reduced-motion: reduce` niente animazioni nei grafici. Un modello
+grafico (vedi «Modelli grafici») può forzare il tema: con SIR VOLLEY il tema è sempre scuro (`lib/theme.ts`:
+`forcedTheme`, `useForcedTheme`) e il pulsante del tema non compare.
+
+### Modelli grafici (template)
+Il cliente sceglie il **modello grafico** nella pagina «Grafica» («Modello grafico»); l'elenco è chiuso in `@sir/shared`
+(`TEMPLATES`, `docs/architettura.md`): «Standard» (l'aspetto di prima) e «SIR VOLLEY». I colori scelti dal cliente
+valgono sopra quelli del modello. Specifiche e originali dei loghi: `docs/grafica/` (non si modificano).
+
+- **Come si applica** (`lib/branding.ts`): `applyTemplate` scrive `data-template` su `<html>` (nessun attributo per lo
+  standard) e imposta il tema forzato; `initTemplate` lo fa all'avvio leggendo la voce `localStorage` `sir-template`, così
+  la pagina non mostra per un attimo l'aspetto standard; appena arriva `GET /api/public/tenant` il modello vero la
+  riallinea. `useTemplate` dà la definizione del modello ai componenti. I token del modello stanno in `tokens.css` nel
+  blocco `[data-template='sir-volley']` (palette e misure delle specifiche); l'anteprima di «Grafica» lo usa con
+  `data-sir-scope`.
+- **Font**: Google Sans Code self-hosted, `src/styles/fonts.css` (importato da `index.css`) con i file in
+  `src/styles/fonts/google-sans-code/` (woff2 `latin` e `latin-ext`, variabile 400-700, `font-display: swap`, licenza
+  `OFL.txt`). La CSP è invariata (`font-src 'self'`).
+- **Colori**: la palette si calcola con `brandPalette(colori, modello)`. Il rosso `#E30613` su `#151518` ha solo 3,7:1: il
+  testo piccolo usa la variante `-ink` (`#eb515a`), il rosso pieno resta per sfondi, pulsanti e testo grande.
+- **Loghi** (`public/templates/sir-volley/`): `logo-sir-realtime.png` (1200×269, senza la riga «Powered by Istante»,
+  nella testata via `BrandMark`) e `powered-by-istante.png` (800×81, in bianco, nel piè di pagina). `TemplateFooter` mostra
+  «Powered by Istante®» a destra da 768 px in su (classe `md:`) e centrato sul telefono, mai nella barra di navigazione. Si rigenerano
+  dagli originali di `docs/grafica/` con `apps/web/scripts/trim-logo.ts` (solo `node:zlib`, PNG RGBA 8 bit):
+
+  ```bash
+  # --- variabili ---
+  RADICE="/percorso/del/repository"                                  # radice del repository o del worktree del job
+  LOGO_ORIGINALE="docs/grafica/sir real time logo-02.png"            # originale del logo SIR Real Time (relativo a RADICE)
+  POWERED_ORIGINALE="docs/grafica/sir real time logo-04.png"         # originale con la riga «Powered by Istante» (relativo a RADICE)
+  USCITA="apps/web/public/templates/sir-volley"                      # cartella dei loghi del modello (relativa a RADICE)
+
+  # --- comandi ---
+  cd "$RADICE/apps/web"
+  pnpm exec tsx scripts/trim-logo.ts "../../$LOGO_ORIGINALE" "../../$USCITA/logo-sir-realtime.png" 1200 0 top
+  pnpm exec tsx scripts/trim-logo.ts "../../$POWERED_ORIGINALE" "../../$USCITA/powered-by-istante.png" 800 0 bottom
+  ```
+
+  Argomenti: `<input> <output> [larghezza=1200] [margine=0] [all|top|bottom]` (`top`: il logo senza la riga di testo
+  sotto; `bottom`: solo la riga).
+- **Nostra squadra** (`lib/branding.ts` `useOurTeamColors`, `lib/teamColors.ts` `teamColorVars`): con il codice e/o il testo
+  nel nome scelti in «Grafica» (`ourTeamSide`, `docs/architettura.md`) i colori «casa» e «ospite» del portale sono puntati
+  sulla **nostra** squadra (colore di casa nello standard, colore di risalto in SIR VOLLEY) e sull'avversaria (colore ospite)
+  anche quando giochiamo in trasferta; vale per punteggio, grafici, mappe, tabelle, avvisi e pause. Senza corrispondenza
+  (o con due) restano i colori casa/ospite del file.
+- **Mappe di campo** (`CourtMap`): con SIR VOLLEY le frecce hanno il colore della squadra che attacca, spessore 1,5 px e
+  opacità 85%; nello standard restano colorate per valutazione.
+- **Pagina predefinita**: ogni modello ha la sua (`docs/architettura.md`, «Pagina pubblica a blocchi»): SIR VOLLEY segue il
+  mockup di una schermata a 1920×1080 (tabellone, poi andamento, confronto e mappe di campo in tre colonne, poi giocatori e
+  rotazioni); `MomentumChart` è ammesso anche a larghezza 4.
+- **Area riservata e tabellone**: `Scoreboard` ha la variante del mockup; `AdminApp` usa voci a pillola e, sul telefono, un
+  menu compatto ☰ da 44 px (`MenuButton`).
+- **Limiti noti**: nessun logo per squadra (scelta di Luca); il tema forzato non dà avvisi di contrasto (`brandContrastIssues`
+  è vuoto); dopo il primo salvataggio il layout del cliente resta fisso anche se cambia modello (va reimpostato con
+  «Ripristina predefinito» in «Pagina pubblica»); l'anteprima tablet dell'editor è a 1024 px.
 
 ### Grafica per cliente
 Ogni cliente ha i suoi colori e i suoi loghi, scelti nella pagina «Grafica» e mostrati sull'hostname del cliente (API e
@@ -193,7 +253,9 @@ controlli in `docs/server.md`, «Grafica per cliente»).
   visualizzato è mostrato come «SIRRealtime». Il favicon è il logo quadrato. La CSP resta quella di prima
   (`img-src 'self' data:`, le immagini sono servite dalla stessa origine).
 - **Pagina «Grafica»** (`src/pages/admin/BrandingPage.tsx`, solo admin; titolo scheda «Grafica · Area riservata»). Scheda
-  «Grafica del cliente» (sottotitolo «Cliente: …»): «Nome visualizzato» (facoltativo), cinque colori («Colore
+  «Grafica del cliente» (sottotitolo «Cliente: …»): «Modello grafico» (scelta fra i modelli, vedi «Modelli grafici»),
+  «Nostra squadra» («Codice squadra», es. PER, e «Testo nel nome della squadra», es. Perugia, entrambi facoltativi),
+  «Nome visualizzato» (facoltativo), cinque colori («Colore
   principale», «Colore di risalto», «Squadra di casa», «Squadra ospite», «Sfondo della pagina»), ciascuno con selettore e
   campo esadecimale `#rrggbb` e il pulsante «Predefinito»; tre immagini («Logo orizzontale», «Logo quadrato», «Logo dello
   sponsor») con «Carica immagine» (PNG, JPEG, WebP o SVG, al massimo 2 MB) e «Togli». Avvisi di contrasto (`brandContrastIssues`,
@@ -511,6 +573,8 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
   tagliati, ritmo della rotazione, schermo acceso); tablet verticale e orizzontale; telefono 360 px (tabellone fisso,
   sezioni, scorrimento laterale della tabella, contrasto dei gradienti in chiaro e scuro e con i colori del cliente).
   Le altezze `TV_BLOCK_MIN_REM` sono stime.
+- **da provare con il modello SIR VOLLEY**: desktop/TV 1920×1080 (il mockup su una schermata), iPad verticale e orizzontale,
+  telefono verticale e orizzontale (tabellone fisso, menu ☰), resa del font e del rosso del testo piccolo.
 
 ## Riferimenti
 - `apps/web/src/App.tsx` (rotte), `main.tsx` (zod jitless, tema), `pages/LivePage.tsx`, `pages/admin/*`
@@ -539,6 +603,11 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
 - Portale adattivo: `apps/web/src/lib/layout.ts` (`deviceFor`, `tvModeOf`, `defaultLayouts`, `blocksFor`, `packRows`, `tvGroups`, `rotationIndex`),
   `lib/useLayout.ts` (`useStickyOffset`), `lib/tvScreen.ts` (`useWakeLock`, `useIdle`), `components/BlockLayout.tsx`,
   `components/ui.tsx` (`CardCollapseContext`), `styles/index.css`
+- Modelli grafici: `apps/web/src/lib/branding.ts` (`applyTemplate`, `initTemplate`, `useTemplate`, `useOurTeamColors`),
+  `lib/teamColors.ts` (`teamColorVars`), `lib/theme.ts` (`forcedTheme`, `useForcedTheme`), `lib/layout.ts` (`viewportClass`,
+  `templateLayouts`), `components/TemplateFooter.tsx`, `MenuButton.tsx`, `BrandMark.tsx`, `BrandingPreview.tsx`,
+  `styles/tokens.css` (`[data-template='sir-volley']`), `styles/fonts.css`, `scripts/trim-logo.ts`, `public/templates/sir-volley/`;
+  contratti in `packages/shared/src/templates.ts`, `ourTeam.ts` (`docs/architettura.md`); originali in `docs/grafica/`
 - Link breve e QR: `apps/web/src/qr/` (`qrImage.ts`, `qrCanvas.ts`, `ShareQr.tsx`), `pages/admin/ShareLinksPage.tsx`;
   `packages/shared/src/admin.ts` (`SHARE_TOKEN_PATTERN`, `formatShortCode`); server in `docs/server.md`
 - `apps/web/src/components/` (`MatchView`, `LiveMatch`, `Scoreboard`, `MomentumChart`, `TeamComparison`, `PlayerTable`, `CourtMap`, `Rotations`)

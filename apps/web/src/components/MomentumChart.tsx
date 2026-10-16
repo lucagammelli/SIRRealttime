@@ -22,7 +22,7 @@ export function MomentumChart({
   chartClassName?: string;
 }) {
   const compact = useDeviceContext() === 'phone';
-  const chartClass = chartClassName ?? (compact ? 'h-44' : 'min-h-56 flex-1 sm:min-h-64');
+  const chartClass = chartClassName ?? (compact ? 'sir-chart h-44' : 'min-h-56 flex-1 sm:min-h-64');
   const sets = momentumSets(state);
   const [chosen, setChosen] = useState<number | null>(null);
   // Follows the live set until the user picks one.
@@ -44,11 +44,11 @@ export function MomentumChart({
         set === null ? undefined : (
           <>
             Break point:{' '}
-            <span className="font-semibold text-home">
+            <span className="font-semibold text-home-ink">
               {short.home} {bp.home}
             </span>{' '}
             ·{' '}
-            <span className="font-semibold text-away">
+            <span className="font-semibold text-away-ink">
               {short.away} {bp.away}
             </span>
           </>
@@ -79,11 +79,11 @@ export function MomentumChart({
           />
           {compact && (
             <ul aria-label="Legenda" className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold">
-              <li className="flex items-center gap-1.5 text-home">
+              <li className="flex items-center gap-1.5 text-home-ink">
                 <span aria-hidden="true" className="inline-block size-2.5 rounded-sm bg-home" />
                 {short.home} avanti (sopra)
               </li>
-              <li className="flex items-center gap-1.5 text-away">
+              <li className="flex items-center gap-1.5 text-away-ink">
                 <span aria-hidden="true" className="inline-block size-2.5 rounded-sm bg-away" />
                 {short.away} avanti (sotto)
               </li>

@@ -81,7 +81,11 @@ resta 1.
 ### Pagina pubblica a blocchi (`apps/server/src/routes/branding.ts`)
 Ogni cliente sceglie i blocchi della pagina della partita per TV, tablet e telefono (`TenantLayoutSchema`,
 `tenants.layout`; forma e tipi di blocco in `docs/architettura.md`, editor in `docs/portale.md`). `{}` è valido e vale i
-blocchi predefiniti (`resolveLayout`).
+blocchi predefiniti (`resolveLayout`). Il predefinito dipende dal modello grafico del cliente (`branding.template`,
+`docs/architettura.md`): `resolveLayout(documento, template)` dà a ogni dispositivo mai salvato la pagina predefinita del
+modello (per SIR VOLLEY quella del mockup), sia in `GET /api/admin/layout` sia in `GET /api/public/tenant`
+(`apps/server/src/routes/branding.ts`). Dopo il primo salvataggio il layout del cliente resta fisso anche se cambia
+modello.
 
 - **Rotte admin** (ruolo `admin`; il superadmin lavora sul cliente attivo, `adminTenantId`): `GET /api/admin/layout` e
   `PUT /api/admin/layout`; il corpo del `PUT` è il layout e la risposta è `LayoutResponse` (`tenantName`, `layout`). Corpo

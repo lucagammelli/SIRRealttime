@@ -158,9 +158,9 @@ describe('MatchView', () => {
     const grid = container.querySelector('[data-layout="tablet"]');
     expect(grid?.className).toContain('grid-cols-12');
     const cells = Array.from(grid?.children ?? []);
-    expect(cells[0]?.className).toContain('col-span-12');
+    expect(cells[0]?.className).toContain('@min-[1150px]:col-span-12');
     expect(within(cells[0] as HTMLElement).getByRole('region', { name: 'Tabellone' })).toBeTruthy();
-    expect(cells[1]?.className).toContain('col-span-6');
+    expect(cells[1]?.className).toContain('@min-[1150px]:col-span-6');
     expect(screen.queryByRole('button', { name: 'Statistiche giocatori' })).toBeNull();
   });
 });

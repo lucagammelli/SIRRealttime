@@ -163,3 +163,21 @@ Una riga per decisione: data, scelta, motivo.
 - 2026-10-16: `pointMilestone` deterministica (dipende solo dallo stato) e il portale tiene per set la soglia più alta già
   mostrata, perché due spettatori vedano la stessa pausa «ogni N punti» e un salto di più soglie ne mostri una sola,
   senza orologio (`docs/statistiche.md`).
+- 2026-10-16: modelli grafici (template) come elenco chiuso in `@sir/shared` (`TEMPLATES`) con i colori scelti dal cliente
+  sopra, perché il server non accetta modelli sconosciuti e il cliente può comunque personalizzare i colori
+  (`docs/architettura.md`, `docs/portale.md`).
+- 2026-10-16: il modello SIR VOLLEY è solo scuro (tema forzato, niente pulsante del tema), perché le specifiche grafiche di
+  Luca (`docs/grafica/`) prevedono solo il tema scuro.
+- 2026-10-16: «nostra squadra» (codice e/o testo nel nome, senza maiuscole e accenti; nessuna o due corrispondenze: nessuna
+  squadra) con le variabili casa/ospite ripuntate su nostra/avversaria anche in trasferta, perché i colori del cliente
+  seguono la sua squadra qualunque sia il lato nel `.dvw` (`docs/portale.md`).
+- 2026-10-16: rosso del testo piccolo con la variante `-ink` (`#eb515a`), perché `#E30613` su `#151518` ha solo 3,7:1 e
+  sotto il 4,5:1 del WCAG (`docs/portale.md`).
+- 2026-10-16: font Google Sans Code self-hosted (woff2 in `apps/web/src/styles/fonts/`, licenza OFL), perché la CSP resta
+  chiusa su `'self'` e la pagina non chiama servizi esterni (`docs/portale.md`).
+- 2026-10-16: breakpoint delle specifiche (telefono ≤767, tablet 768-1199, desktop ≥1200) per tutti i modelli, perché un
+  solo insieme di soglie evita comportamenti diversi fra clienti (`docs/portale.md`).
+- 2026-10-16: regole del telefono (colonne essenziali, rotazioni una squadra alla volta, filtri raccolti) valide per tutti i
+  modelli, perché migliorano la lettura su schermo piccolo anche nel modello standard (`docs/portale.md`).
+- 2026-10-16: niente loghi di squadra nel modello SIR VOLLEY per ora (scelta di Luca), perché i dati non li hanno
+  (`docs/portale.md`).

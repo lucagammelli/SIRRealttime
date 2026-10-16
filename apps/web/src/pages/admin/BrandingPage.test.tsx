@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setTenantLook } from '../../lib/branding.ts';
 import { AdminApp } from './AdminApp.tsx';
-import { contrastText } from './BrandingPage.tsx';
+import { contrastText, withOurTeamField } from './BrandingPage.tsx';
 
 const USER_ID = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
 const TENANT = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
@@ -202,6 +202,37 @@ describe('«Grafica» page', () => {
     fireEvent.click(within(list).getByRole('button', { name: 'Elimina' }));
     fireEvent.click(within(list).getByRole('button', { name: 'Conferma eliminazione' }));
     expect(await screen.findByText(/Immagine in uso nella grafica/)).toBeTruthy();
+  });
+});
+
+describe('template and team of the client', () => {
+  it('chooses the template, shows it in the preview and saves it with the team of the client', async () => {
+    const { calls } = mockServer();
+    renderAt('/admin/grafica');
+    const picker = await screen.findByRole('radiogroup', { name: 'Modello grafico' });
+    expect(
+      within(picker)
+        .getByRole('radio', { name: /Standard/ })
+        .getAttribute('aria-checked'),
+    ).toBe('true');
+    fireEvent.click(within(picker).getByRole('radio', { name: /SIR VOLLEY/ }));
+    expect(preview().getAttribute('data-template')).toBe('sir-volley');
+    expect(preview().getAttribute('data-theme')).toBe('dark');
+    expect(within(preview()).getByRole('img', { name: 'SIR Real Time' })).toBeTruthy();
+    expect(screen.getByText(/usa sempre il tema scuro/)).toBeTruthy();
+    // Only the colours chosen go over the template (here the home colour of the saved graphics).
+    expect(previewVar('--sir-away')).toBe('');
+    fireEvent.change(screen.getByRole('textbox', { name: /Codice squadra/ }), { target: { value: 'PER' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Testo nel nome/ }), { target: { value: 'Perugia' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salva' }));
+    expect(await screen.findByText(/Grafica salvata/)).toBeTruthy();
+    const put = calls.find((c) => c.url === '/api/admin/branding' && c.method === 'PUT');
+    expect(put?.body).toMatchObject({ template: 'sir-volley', ourTeam: { code: 'PER', name: 'Perugia' } });
+  });
+
+  it('sends an emptied field of the team as null', () => {
+    expect(withOurTeamField({ code: 'PER', name: null }, 'code', '  ')).toEqual({ code: null, name: null });
+    expect(withOurTeamField({ code: null, name: null }, 'name', 'Perugia')).toEqual({ code: null, name: 'Perugia' });
   });
 });
 

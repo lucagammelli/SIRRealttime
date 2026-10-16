@@ -15,12 +15,13 @@ const LABEL: Record<ConnectionStatus, string> = {
 export function ConnectionBadge({ status, finished = false }: { status: ConnectionStatus; finished?: boolean }) {
   const tone = status !== 'live' ? 'warn' : finished ? 'neutral' : 'live';
   // «In diretta» filled with the live colour: the most visible badge of the page.
+  // Colours of the tokens (`--sir-badge-*`): filled green in the standard look, red border and dot in «SIR VOLLEY».
   const box = {
-    live: 'border-live bg-live text-on-live shadow-card',
+    live: 'border-badge-live-border bg-badge-live text-on-badge-live shadow-card',
     warn: 'border-warn text-warn',
-    neutral: 'border-border text-muted',
+    neutral: 'border-badge-final-border text-text',
   }[tone];
-  const dot = { live: 'bg-on-live sir-pulse', warn: 'bg-warn', neutral: 'bg-axis' }[tone];
+  const dot = { live: 'bg-badge-live-dot sir-pulse', warn: 'bg-warn', neutral: 'bg-badge-final-dot' }[tone];
   return (
     <span
       role="status"

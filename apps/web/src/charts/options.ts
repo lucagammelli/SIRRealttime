@@ -145,7 +145,7 @@ export function momentumOption(
 }
 
 /**
- * Points won (team colour) and lost (neutral) for each setter position.
+ * Points won (team colour) and lost (secondary data colour) for each setter position.
  * `compact` (phone): no value labels over the bars, smaller axes (the legend goes under the chart, in the page).
  */
 export function rotationOption(data: RotationDatum[], side: Side, p: ChartPalette, compact = false): EChartsCoreOption {
@@ -187,7 +187,7 @@ export function rotationOption(data: RotationDatum[], side: Side, p: ChartPalett
         type: 'bar',
         name: 'Persi',
         data: data.map((d) => d.lost),
-        itemStyle: { color: p.axis, opacity: 0.45, borderRadius: [4, 4, 0, 0] },
+        itemStyle: { color: p.secondary, borderRadius: [4, 4, 0, 0] },
         label: { show: !compact, position: 'top', color: p.muted, fontSize: 11 },
         barMaxWidth: 26,
       },

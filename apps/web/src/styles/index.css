@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './fonts.css';
 @import './tokens.css';
 
 /* Tailwind utilities mapped on the tokens (bg-surface, text-muted, text-home…): no hand-written colours in components. */
@@ -8,6 +9,7 @@
   --font-mono: var(--sir-font-mono);
   --radius-card: var(--sir-radius);
   --radius-panel: var(--sir-radius-lg);
+  --radius-button: var(--sir-radius-button);
   --shadow-card: var(--sir-shadow);
 
   --color-bg: var(--sir-bg);
@@ -26,9 +28,31 @@
   --color-home: var(--sir-home);
   --color-home-soft: var(--sir-home-soft);
   --color-on-home: var(--sir-on-home);
+  --color-home-ink: var(--sir-home-ink);
   --color-away: var(--sir-away);
   --color-away-soft: var(--sir-away-soft);
   --color-on-away: var(--sir-on-away);
+  --color-away-ink: var(--sir-away-ink);
+  --color-hover: var(--sir-hover);
+  --color-seg: var(--sir-seg-bg);
+  --color-seg-text: var(--sir-seg-text);
+  --color-seg-active: var(--sir-seg-active);
+  --color-on-seg-active: var(--sir-on-seg-active);
+  --color-nav-active: var(--sir-nav-active);
+  --color-on-nav-active: var(--sir-on-nav-active);
+  --color-badge-live: var(--sir-badge-live);
+  --color-badge-live-border: var(--sir-badge-live-border);
+  --color-on-badge-live: var(--sir-on-badge-live);
+  --color-badge-live-dot: var(--sir-badge-live-dot);
+  --color-badge-final-border: var(--sir-badge-final-border);
+  --color-badge-final-dot: var(--sir-badge-final-dot);
+  --color-table-head: var(--sir-table-head);
+  --color-table-alt: var(--sir-table-alt);
+  --color-table-key: var(--sir-table-key);
+  --color-table-selected: var(--sir-table-selected);
+  --color-table-indicator: var(--sir-table-indicator);
+  --color-table-border: var(--sir-table-border);
+  --color-chart-secondary: var(--sir-chart-secondary);
   --color-live: var(--sir-live);
   --color-on-live: var(--sir-on-live);
   --color-warn: var(--sir-warn);
@@ -71,7 +95,10 @@
   }
   /* Big screen (`?tv=1`, full screen, ≥ 1600 px): every rem scales with the screen, readable at 4-5 m. */
   html.sir-tv {
-    font-size: clamp(16px, min(1.25vw, 2.2vh), 48px);
+    font-size: var(--sir-tv-font-size);
+  }
+  img {
+    max-width: 100%;
   }
 }
 
@@ -92,6 +119,81 @@
   overflow-x: auto;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
+}
+
+/*
+ * Phone held sideways (low screen, laid out as a tablet): the big score of the scoreboard shrinks so that the page
+ * under it stays visible.
+ */
+@media (orientation: landscape) and (max-height: 500px) {
+  .sir-score {
+    font-size: 2.5rem;
+  }
+}
+
+/*
+ * Template «SIR VOLLEY» (tokens in tokens.css): sizes of the specifications on the hook classes of the components
+ * (`sir-card`, `sir-page`, ...). Outside of any layer, so they win over the Tailwind utilities of the components;
+ * only variables, never colours written here.
+ */
+[data-template='sir-volley'] {
+  font-variant-numeric: tabular-nums;
+}
+[data-template='sir-volley'] body,
+[data-sir-scope][data-template='sir-volley'] {
+  font-size: var(--sir-text-size);
+}
+[data-template='sir-volley'] .sir-page {
+  padding-left: max(var(--sir-page-pad), env(safe-area-inset-left));
+  padding-right: max(var(--sir-page-pad), env(safe-area-inset-right));
+}
+[data-template='sir-volley'] .sir-blocks {
+  gap: var(--sir-gap);
+}
+[data-template='sir-volley'] .sir-card {
+  border-radius: var(--sir-radius-lg);
+}
+[data-template='sir-volley'] .sir-card-head {
+  padding-left: var(--sir-card-pad);
+  padding-right: var(--sir-card-pad);
+}
+[data-template='sir-volley'] .sir-card-head[data-open='true'] {
+  padding-top: var(--sir-card-pad);
+}
+[data-template='sir-volley'] .sir-card-body {
+  padding: 12px var(--sir-card-pad) var(--sir-card-pad);
+}
+[data-template='sir-volley'] .sir-card-bleed {
+  margin-left: calc(-1 * var(--sir-card-pad));
+  margin-right: calc(-1 * var(--sir-card-pad));
+  max-width: calc(100% + 2 * var(--sir-card-pad));
+}
+[data-template='sir-volley'] .sir-card-title {
+  font-size: var(--sir-title-size);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+[data-template='sir-volley'] .sir-score {
+  font-size: var(--sir-score-size);
+}
+[data-template='sir-volley'] .sir-team-name {
+  font-size: var(--sir-team-size);
+}
+[data-template='sir-volley'] .sir-chart {
+  height: var(--sir-chart-height);
+}
+[data-template='sir-volley'] .sir-navbar {
+  min-height: var(--sir-navbar-height);
+}
+[data-template='sir-volley'] .sir-navbar-logo {
+  height: var(--sir-logo-height);
+}
+[data-template='sir-volley'] .sir-footer {
+  margin-top: 24px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+[data-template='sir-volley'] .sir-footer-logo {
+  height: var(--sir-footer-logo-height);
 }
 
 /* Short animations at every point (≤ 600 ms), off with prefers-reduced-motion. */

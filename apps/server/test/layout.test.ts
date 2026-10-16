@@ -147,4 +147,32 @@ describe('layout of the public page', () => {
       { id: 'q', type: 'qr', width: 12, visible: true, collapsed: false, options: { caption: 'Inquadra il codice' } },
     ]);
   });
+
+  it('without a saved page uses the default page of the template of the client', async () => {
+    const host = 'lc.sir.test';
+    const tenant = await createTenant(server, 'layout-c', [host]);
+    const admin = { email: 'layout-c@sir.test', password: 'password-layout-c' };
+    await createUser(server, admin, 'admin', tenant);
+    const cookie = await login(server.app, admin, host);
+    const put = await call(host, cookie, {
+      method: 'PUT',
+      url: '/api/admin/branding',
+      payload: { template: 'sir-volley', ourTeam: { code: 'PER', name: 'Perugia' } },
+    });
+    expect(put.statusCode).toBe(200);
+    expect((await call(host, cookie, { url: '/api/admin/layout' })).json<LayoutResponse>().layout).toEqual(
+      defaultLayout('sir-volley'),
+    );
+    const pub = (await call(host, null, { url: '/api/public/tenant' })).json<PublicTenantResponse>();
+    expect(pub.layout).toEqual(defaultLayout('sir-volley'));
+    expect(pub.branding.template).toBe('sir-volley');
+    expect(pub.branding.ourTeam).toEqual({ code: 'PER', name: 'Perugia' });
+    // A device saved by the client wins over the template.
+    const saved = await putLayout(host, cookie, {
+      ...defaultLayout('sir-volley'),
+      phone: [{ id: 's', type: 'scoreboard' }],
+    });
+    expect(saved.json<LayoutResponse>().layout.phone.map((b) => b.id)).toEqual(['s']);
+    expect(saved.json<LayoutResponse>().layout.tablet).toEqual(defaultLayout('sir-volley').tablet);
+  });
 });

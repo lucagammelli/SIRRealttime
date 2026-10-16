@@ -1,4 +1,5 @@
 export * from './admin.js';
+export * from './agentDownload.js';
 export * from './assets.js';
 export * from './colors.js';
 export * from './ingest.js';

@@ -145,3 +145,13 @@ Una riga per decisione: data, scelta, motivo.
   (`docs/statistiche.md`).
 - 2026-10-15: avvisi scartati sopra una pausa a tutto schermo (e nessun avviso all'apertura, dopo resync o riconnessione),
   perché non devono coprire il riepilogo né raccontare cose già successe (`docs/portale.md`).
+- 2026-10-16: un solo `sir-agent.exe` per tutti i clienti e zip generato al volo per ognuno (config, grafica, logo), perché
+  l'exe pesa ~95 MB e non si ricostruisce per cliente (`docs/server.md`, «Agente scaricabile»).
+- 2026-10-16: zip «store» (senza compressione) scritto in casa, senza dipendenze, perché l'exe è già un binario poco
+  comprimibile, la dimensione è nota in anticipo (`Content-Length`) e non serve una libreria in più (`apps/server/src/lib/zip.ts`).
+- 2026-10-16: `config.json` dello zip senza token, perché il token arriva con la registrazione automatica e uno zip
+  scaricato e inoltrato non deve contenere credenziali (`docs/agente.md`).
+- 2026-10-16: `proxy_buffering off` in nginx solo per `/api/admin/agent/download`, perché i ~90 MB dello zip passino al
+  browser senza una copia su disco di nginx; per il resto resta il default (`docker/web.nginx.conf`).
+- 2026-10-16: logo dell'agente fino a 1024×1024 px e 2 MB (PNG o JPEG), perché WinForms non legge SVG e WebP e un logo
+  enorme appesantirebbe la finestra; oltre, grafica predefinita (`docs/agente.md`).

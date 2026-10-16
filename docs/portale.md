@@ -81,7 +81,7 @@ Prima si verifica la sessione («Verifica della sessione…»); senza sessione c
 | Partita live | `/admin/live` | admin e viewer | la partita live via `/ws/admin`, con gli stessi componenti della pagina pubblica |
 | Partite | `/admin/partite`, `/admin/partite/:id` | admin e viewer | elenco delle partite ricevute e dettaglio (`MatchDetailSchema`: «Stato», «Righe di scout», «Versione», «Aggiornata») |
 | Link pubblici | `/admin/link` | solo admin | «Nuovo link pubblico» (etichetta, partita o live, «Scadenza (facoltativa)»), «Link creati» (per i link attivi «Link breve», codice e QR, vedi «Link breve e QR»), «Revoca» |
-| Agenti | `/admin/agenti` | solo admin | «Nuovo agente» («Crea token», mostrato una sola volta con «Copia config.json»), «Richieste in attesa» (vedi sotto), «Agenti», «Revoca» |
+| Agenti | `/admin/agenti` | solo admin | «Agente per Windows» (vedi sotto), «Nuovo agente» («Crea token», mostrato una sola volta con «Copia config.json»), «Richieste in attesa» (vedi sotto), «Agenti», «Revoca» |
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, password di almeno 12 caratteri, ruolo), «Utenti» |
 | Grafica | `/admin/grafica` | solo admin (il superadmin lavora sul cliente scelto) | colori, nome e loghi del cliente, vedi «Grafica per cliente» |
 | Pagina pubblica | `/admin/pagina` | solo admin (il superadmin lavora sul cliente scelto) | blocchi della pagina della partita per TV, tablet e telefono, vedi «Pagina pubblica a blocchi» |
@@ -112,6 +112,16 @@ una sola volta), compare anche «Link breve (sempre disponibile nell’elenco, c
 - `ShareQr` (`src/qr/ShareQr.tsx`) è riutilizzabile: con `actions={false}` mostra solo il QR (pensato per pause e
   maxischermo); `logoSrc` sceglie un altro logo o `null` per nessuno.
 - Dipendenze: `qrcode`, `@types/qrcode` e `jsqr` (solo dev, decodifica il QR nei test).
+
+**Agente per Windows** (`AgentDownload` in `apps/web/src/pages/admin/AgentsPage.tsx`, sottotitolo «Già configurato per
+questo portale, con i colori e il logo del cliente.»): legge `GET /api/admin/agent/info` (`docs/server.md`, «Agente
+scaricabile»). Se l'agente è pubblicato mostra versione, data, dimensione in MB e il pulsante «Scarica l’agente per
+Windows», un normale link a `/api/admin/agent/download` (`AGENT_DOWNLOAD_PATH`: il browser scarica lo zip del cliente con
+il cookie di sessione, senza passare dal codice della pagina), poi i passi: scompatta lo zip in `C:\SIRAgent` (non sulla
+pennina); doppio clic su `sir-agent.exe` (non è firmato: «Ulteriori informazioni» e «Esegui comunque»); scrivi il nome
+dell'agente e premi «Registra»; abilitalo in «Richieste in attesa» controllando il codice mostrato sul PC. Se l'exe non è
+pubblicato: «L’agente non è ancora stato pubblicato sul server.» con il comando `scripts/costruisci-agente.sh`
+(`docs/infrastruttura.md`). Il resto della finestra dell'agente è in `docs/agente.md`.
 
 **Richieste in attesa** (`PendingRegistrations` in `apps/web/src/pages/admin/AgentsPage.tsx`): i PC che si sono
 auto-registrati come agenti (`docs/server.md`). Ogni richiesta mostra nome, «Codice di abbinamento» (6 caratteri, in
@@ -405,6 +415,8 @@ usa `COOKIE_SECURE=false`, `CORS_ORIGIN` e `PUBLIC_BASE_URL` = `http://localhost
   `Host $host`, da cui il server ricava il cliente (`docs/server.md`). Oggi ha `server_name _`; con più clienti in
   produzione vanno elencati i `server_name` espliciti, chiudendo il resto con un `default_server`, e ogni hostname
   ha il suo certificato https (a cura del deploy).
+  Solo per `location = /api/admin/agent/download` (zip dell'agente, ~90 MB generato al volo) c'è `proxy_buffering off`: nginx
+  lo passa al browser senza scriverlo su disco; le altre rotte non cambiano.
 - `docker/web.security-headers.conf`: le intestazioni di sicurezza (sezione «CSP rigida»).
 - Servizio `web` in `docker-compose.yml`: parte quando il server è sano, pubblica `${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:8080`.
   Dietro compose, `CORS_ORIGIN` e `PUBLIC_BASE_URL` di default **seguono `WEB_PORT`** (`http://localhost:<WEB_PORT>`):
@@ -522,6 +534,8 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
   `lib/liveConnection.ts` (`live`), `pages/admin/OverlaysPage.tsx`, `styles/index.css` (`.sir-overlay`); contratto in
   `packages/shared/src/overlays.ts` (`docs/architettura.md`), eventi in `packages/volley-stats/src/events.ts`
   (`docs/statistiche.md`), API in `docs/server.md`; test `Overlay.test.tsx`, `OverlaysPage.test.tsx`
+- Agente scaricabile: `apps/web/src/pages/admin/AgentsPage.tsx` (`AgentDownload`, `AGENT_DOWNLOAD_PATH`), test
+  `AgentsPage.test.tsx`; `AgentDownloadInfoSchema` in `packages/shared/src/agentDownload.ts`; server in `docs/server.md`
 - Portale adattivo: `apps/web/src/lib/layout.ts` (`deviceFor`, `tvModeOf`, `defaultLayouts`, `blocksFor`, `packRows`, `tvGroups`, `rotationIndex`),
   `lib/useLayout.ts` (`useStickyOffset`), `lib/tvScreen.ts` (`useWakeLock`, `useIdle`), `components/BlockLayout.tsx`,
   `components/ui.tsx` (`CardCollapseContext`), `styles/index.css`

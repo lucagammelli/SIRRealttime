@@ -51,6 +51,15 @@ export const GuiOutMessageSchema = z.discriminatedUnion('type', [
     serverUrl: z.string(),
     token: z.object({ present: z.boolean(), last4: z.string().nullable() }),
     configError: z.string().optional(),
+    /** Graphics of the client (`branding.json` next to the executable); absent: the default graphics. */
+    branding: z
+      .object({
+        name: z.string(),
+        primary: z.string().regex(/^#[0-9a-f]{6}$/),
+        onPrimary: z.string().regex(/^#[0-9a-f]{6}$/),
+        logoPath: z.string().nullable(),
+      })
+      .optional(),
   }),
   z.object({ type: z.literal('state'), phase: z.enum(GUI_PHASES), status: AgentStatusSchema.nullable() }),
   z.object({

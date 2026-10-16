@@ -53,7 +53,9 @@ const EnvSchema = z
     DEFAULT_TENANT_SLUG: TenantSlugSchema.default(DEFAULT_TENANT_SLUG),
     ASSETS_DIR: z.string().min(1).default('data/assets'),
     ASSETS_QUOTA_MB: z.coerce.number().int().positive().max(1000).default(50),
+    AGENT_DOWNLOAD_DIR: z.string().min(1).default('data/downloads'),
     RATE_LIMIT_SHORT_CODE_INVALID: perMinute(DEFAULT_RATE_LIMITS.shortCodeInvalidTotal),
+    RATE_LIMIT_AGENT_DOWNLOAD: perMinute(DEFAULT_RATE_LIMITS.agentDownload),
     SHARE_CODE_SECRET: z.string().min(SHARE_CODE_SECRET_MIN_LENGTH).max(1024).optional(),
     NODE_ENV: z.string().optional(),
   })
@@ -89,6 +91,8 @@ export interface Config {
   assetsDir: string;
   /** Most bytes of images per client. */
   assetsQuotaBytes: number;
+  /** Absolute folder with `sir-agent.exe` and `sir-agent.json` (scripts/costruisci-agente.sh), offered in the portal. */
+  agentDownloadDir: string;
   /**
    * Key of the HMAC that derives the short code of each public link from its id: changing it changes every short
    * code (the printed QR codes stop working; the long links do not change).
@@ -135,11 +139,13 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       admin: e.RATE_LIMIT_ADMIN,
       register: e.RATE_LIMIT_REGISTER,
       shortCodeInvalidTotal: e.RATE_LIMIT_SHORT_CODE_INVALID,
+      agentDownload: e.RATE_LIMIT_AGENT_DOWNLOAD,
     },
     socketLimits: { perIp: e.WS_MAX_PER_IP, total: e.WS_MAX_TOTAL },
     defaultTenantSlug: noDefaultTenant ? null : e.DEFAULT_TENANT_SLUG,
     assetsDir: resolve(e.ASSETS_DIR),
     assetsQuotaBytes: e.ASSETS_QUOTA_MB * 1024 * 1024,
+    agentDownloadDir: resolve(e.AGENT_DOWNLOAD_DIR),
     shareCodeSecret: e.SHARE_CODE_SECRET ?? DEV_SHARE_CODE_SECRET,
     shareCodeSecretIsDefault: e.SHARE_CODE_SECRET === undefined,
   };

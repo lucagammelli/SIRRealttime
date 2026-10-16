@@ -1,5 +1,6 @@
 import type { AgentRegistrationSummary, CreateAgentResponse } from '@sir/shared';
 import {
+  AgentDownloadInfoSchema,
   AgentRegistrationSummarySchema,
   AgentSummarySchema,
   CreateAgentRequestSchema,
@@ -8,9 +9,9 @@ import {
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
-import { Button, Card, CopyButton, Empty, ErrorBox, SecretBox, Spinner } from '../../components/ui.tsx';
+import { Button, buttonClass, Card, CopyButton, Empty, ErrorBox, SecretBox, Spinner } from '../../components/ui.tsx';
 import { apiCommand, apiRequest } from '../../lib/api.ts';
-import { formatDateTime } from '../../lib/format.ts';
+import { formatDateTime, megabytes } from '../../lib/format.ts';
 import type { AsyncState } from '../../lib/useAsync.ts';
 import { useAsync } from '../../lib/useAsync.ts';
 import { useApiError } from './auth.tsx';
@@ -39,6 +40,60 @@ function useRefresh(tick: () => void, ms: number): void {
 /** `config.json` of the agent for a new token (docs/agente.md); the server URL is the address of this portal. */
 export function agentConfigJson(token: string, serverUrl: string): string {
   return JSON.stringify({ watchPath: 'E:\\', serverUrl, agentToken: token }, null, 2);
+}
+
+/** Zip of the agent for Windows for the client of the session (the session cookie is enough: same origin). */
+export const AGENT_DOWNLOAD_PATH = '/api/admin/agent/download';
+
+/**
+ * Agent for Windows published on the server: version, date and size, the link to the zip of this client (executable,
+ * config.json of this portal, colours and logo of the client) and the installation steps.
+ */
+function AgentDownload() {
+  const errorMessage = useApiError();
+  const load = useCallback(
+    (signal: AbortSignal) => apiRequest('/api/admin/agent/info', AgentDownloadInfoSchema, { signal }),
+    [],
+  );
+  const info = useAsync(load);
+  const data = info.data;
+  return (
+    <Card title="Agente per Windows" subtitle="Già configurato per questo portale, con i colori e il logo del cliente.">
+      {info.loading && !data && <Spinner label="Caricamento dell’agente…" />}
+      {info.error !== null && <ErrorBox onRetry={info.reload}>{errorMessage(info.error)}</ErrorBox>}
+      {data && !data.available && (
+        <div className="space-y-1 text-sm">
+          <p className="font-medium text-text">L’agente non è ancora stato pubblicato sul server.</p>
+          <p className="text-muted">
+            Chi gestisce il server lo pubblica con{' '}
+            <code className="font-mono text-text">scripts/costruisci-agente.sh</code>.
+          </p>
+        </div>
+      )}
+      {data?.available && (
+        <div className="space-y-3 text-sm">
+          <p className="text-muted" data-testid="agent-release">
+            Versione <span className="font-mono text-text">{data.version}</span> · {formatDateTime(data.builtAt)} ·{' '}
+            {megabytes(data.bytes)} MB
+          </p>
+          <a href={AGENT_DOWNLOAD_PATH} download={data.fileName} className={buttonClass('primary')}>
+            Scarica l’agente per Windows
+          </a>
+          <ol className="list-decimal space-y-1 pl-5 text-muted">
+            <li>
+              Scompatta lo zip in <code className="font-mono text-text">C:\SIRAgent</code> (non sulla pennina).
+            </li>
+            <li>
+              Fai doppio clic su <code className="font-mono text-text">sir-agent.exe</code>. Non è firmato: se Windows
+              lo blocca premi «Ulteriori informazioni» e poi «Esegui comunque».
+            </li>
+            <li>Scrivi il nome dell’agente e premi «Registra».</li>
+            <li>Abilitalo qui sotto in «Richieste in attesa», controllando il codice mostrato sul PC.</li>
+          </ol>
+        </div>
+      )}
+    </Card>
+  );
 }
 
 /**
@@ -184,51 +239,54 @@ export function AgentsPage() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
-      <Card title="Nuovo agente" subtitle="Un token per ogni PC con DataVolley">
-        <form onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
-          <Field label="Nome" hint="Es. «PC scout palestra».">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={100}
-              required
-              className={inputClass}
-            />
-          </Field>
-          {formError && <ErrorBox>{formError}</ErrorBox>}
-          <Button type="submit" variant="primary" disabled={busy}>
-            {busy ? 'Creazione…' : 'Crea token'}
-          </Button>
-        </form>
-        {created && (
-          <div className="mt-4 space-y-3">
-            <SecretBox
-              title={`Token di «${created.name}»: copialo ora, non sarà più mostrato.`}
-              value={created.token}
-            />
-            <div className="space-y-2 rounded-card border border-border bg-surface-2 p-3 text-sm text-text">
-              <p className="font-semibold">Configurazione dell’agente</p>
-              <ol className="list-decimal space-y-1 pl-5 text-muted">
-                <li>
-                  Accanto a <code className="font-mono text-text">sir-agent.exe</code> crea il file{' '}
-                  <code className="font-mono text-text">config.json</code> con questo contenuto.
-                </li>
-                <li>
-                  In <code className="font-mono text-text">watchPath</code> metti la cartella (o il file .dvw) di
-                  DataVolley, es. la pennina <code className="font-mono text-text">E:\</code>.
-                </li>
-                <li>
-                  Controlla <code className="font-mono text-text">serverUrl</code>: deve essere l’indirizzo https del
-                  server.
-                </li>
-                <li>Avvia l’agente e verifica qui sotto «ultimo contatto».</li>
-              </ol>
-              <pre className="overflow-x-auto rounded-card bg-surface p-3 font-mono text-xs text-text">{config}</pre>
-              <CopyButton text={config} label="Copia config.json" />
+      <div className="flex min-w-0 flex-col gap-4">
+        <AgentDownload />
+        <Card title="Nuovo agente" subtitle="Un token per ogni PC con DataVolley">
+          <form onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
+            <Field label="Nome" hint="Es. «PC scout palestra».">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={100}
+                required
+                className={inputClass}
+              />
+            </Field>
+            {formError && <ErrorBox>{formError}</ErrorBox>}
+            <Button type="submit" variant="primary" disabled={busy}>
+              {busy ? 'Creazione…' : 'Crea token'}
+            </Button>
+          </form>
+          {created && (
+            <div className="mt-4 space-y-3">
+              <SecretBox
+                title={`Token di «${created.name}»: copialo ora, non sarà più mostrato.`}
+                value={created.token}
+              />
+              <div className="space-y-2 rounded-card border border-border bg-surface-2 p-3 text-sm text-text">
+                <p className="font-semibold">Configurazione dell’agente</p>
+                <ol className="list-decimal space-y-1 pl-5 text-muted">
+                  <li>
+                    Accanto a <code className="font-mono text-text">sir-agent.exe</code> crea il file{' '}
+                    <code className="font-mono text-text">config.json</code> con questo contenuto.
+                  </li>
+                  <li>
+                    In <code className="font-mono text-text">watchPath</code> metti la cartella (o il file .dvw) di
+                    DataVolley, es. la pennina <code className="font-mono text-text">E:\</code>.
+                  </li>
+                  <li>
+                    Controlla <code className="font-mono text-text">serverUrl</code>: deve essere l’indirizzo https del
+                    server.
+                  </li>
+                  <li>Avvia l’agente e verifica qui sotto «ultimo contatto».</li>
+                </ol>
+                <pre className="overflow-x-auto rounded-card bg-surface p-3 font-mono text-xs text-text">{config}</pre>
+                <CopyButton text={config} label="Copia config.json" />
+              </div>
             </div>
-          </div>
-        )}
-      </Card>
+          )}
+        </Card>
+      </div>
 
       <div className="flex min-w-0 flex-col gap-4">
         <PendingRegistrations registrations={registrations} onChanged={refresh} />

@@ -71,6 +71,7 @@ export async function startServer(
       admin: 10_000,
       register: 10_000,
       shortCodeInvalidTotal: 10_000,
+      agentDownload: 10_000,
       ...rateLimits,
     },
     now: () => now ?? new Date(),

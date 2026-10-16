@@ -28,6 +28,7 @@ import { Button, Card, Empty, ErrorBox, Spinner } from '../../components/ui.tsx'
 import { apiCommand, apiRequest } from '../../lib/api.ts';
 import { fileToBase64 } from '../../lib/base64.ts';
 import { initBranding } from '../../lib/branding.ts';
+import { megabytes } from '../../lib/format.ts';
 import { useAsync } from '../../lib/useAsync.ts';
 import { useApiError } from './auth.tsx';
 import { ConfirmButton, Field, inputClass } from './forms.tsx';
@@ -50,8 +51,6 @@ const SLOTS = Object.keys(BRANDING_IMAGE_SLOTS) as BrandingImageSlot[];
 const ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml';
 
 const ratio = (r: number): string => r.toLocaleString('it-IT', { maximumFractionDigits: 1 });
-const megabytes = (bytes: number): string =>
-  (bytes / (1024 * 1024)).toLocaleString('it-IT', { maximumFractionDigits: 1 });
 
 /** Pure: Italian text of a contrast warning. */
 export function contrastText(issue: ContrastIssue): string {

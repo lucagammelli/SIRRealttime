@@ -133,7 +133,12 @@ dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in q
    point, match point, pareggio, sorpasso, time-out, cambio, fine set, fine partita), con testo a segnaposto, durata,
    dispositivi e priorità per cliente; eventi calcolati in `volley-stats`, pagina «Avvisi», `GET`/`PUT
    /api/admin/overlays` (`docs/statistiche.md`, `docs/architettura.md`, `docs/server.md`, `docs/portale.md`).
-9. `agente-scaricabile`: exe scaricabile dal portale con la grafica del cliente.
+9. `agente-scaricabile` (**fatto**): `sir-agent.exe` costruito da Linux (`scripts/costruisci-agente.sh`) e scaricabile
+   dalla pagina «Agenti» come zip per cliente, con `config.json` del cliente (senza token), `branding.json` e logo che la
+   finestra dell'agente mostra (`docs/server.md`, «Agente scaricabile»; `docs/agente.md`, `docs/portale.md`,
+   `docs/infrastruttura.md`, `docs/architettura.md`); da provare su Windows.
+
+**Fase Multi-cliente completata** (2026-10-16): tutti e nove i lavori sono fatti.
 
 Piano completo e scelte di Luca nel piano approvato della fase.
 

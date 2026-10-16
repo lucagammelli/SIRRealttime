@@ -1,5 +1,5 @@
-import type { TenantRef } from '@sir/shared';
-import { isValidHostname } from '@sir/shared';
+import type { TenantBranding, TenantRef } from '@sir/shared';
+import { DEFAULT_BRAND_NAME, DEFAULT_TENANT_SLUG, isValidHostname } from '@sir/shared';
 import type { SQL } from 'drizzle-orm';
 import { and, arrayContains, eq, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
@@ -137,4 +137,9 @@ export function publicBaseUrlFor(publicBaseUrl: string, hostnames: readonly stri
   if (first === undefined || hostnames.includes(base.hostname.toLowerCase())) return publicBaseUrl;
   base.hostname = first;
   return base.toString().replace(/\/+$/, '');
+}
+
+/** Pure: name shown for a client: display name of its branding, otherwise its name (the portal name for the default client). */
+export function tenantDisplayName(tenant: Pick<Tenant, 'slug' | 'name'>, branding: TenantBranding): string {
+  return branding.displayName ?? (tenant.slug === DEFAULT_TENANT_SLUG ? DEFAULT_BRAND_NAME : tenant.name);
 }

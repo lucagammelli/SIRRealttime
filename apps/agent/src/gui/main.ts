@@ -3,6 +3,7 @@ import type { AgentConfig } from '../config.js';
 import type { Lock } from '../lock.js';
 import type { Logger } from '../logger.js';
 import { createLogger } from '../logger.js';
+import { readWindowBranding } from './branding.js';
 import { guiWritablePaths, readConfigFile } from './config-file.js';
 import type { RunnableAgent } from './controller.js';
 import { GuiController } from './controller.js';
@@ -43,6 +44,11 @@ export async function runGui(options: GuiOptions): Promise<number> {
   try {
     logger.info({ configPath: options.configPath }, 'finestra avviata');
     if (paths.problem) logger.error({ err: paths.problem }, 'cartelle dell’agente sulla pennina');
+    const graphics = await readWindowBranding(options.baseDir);
+    for (const problem of graphics.problems) logger.warn({ err: problem }, 'grafica del cliente');
+    if (graphics.branding) {
+      logger.info({ logo: graphics.branding.logoPath !== null }, 'grafica del cliente caricata');
+    }
     const scriptPath = join(paths.dataDir, 'gui', 'window.ps1');
     const code = await runGuiHost({
       script: options.script ?? WINDOW_SCRIPT,
@@ -63,6 +69,7 @@ export async function runGui(options: GuiOptions): Promise<number> {
           ...(options.statusIntervalMs ? { statusIntervalMs: options.statusIntervalMs } : {}),
           ...(options.registrationPollMs ? { registrationPollMs: options.registrationPollMs } : {}),
           ...(paths.problem ? { startupError: paths.problem } : {}),
+          ...(graphics.branding ? { branding: graphics.branding } : {}),
         }),
     });
     logger.info('finestra chiusa');

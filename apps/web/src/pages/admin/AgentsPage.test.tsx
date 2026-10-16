@@ -1,9 +1,9 @@
-import type { AgentRegistrationSummary } from '@sir/shared';
+import type { AgentDownloadInfo, AgentRegistrationSummary } from '@sir/shared';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { AdminApp } from './AdminApp.tsx';
-import { AGENTS_REFRESH_MS } from './AgentsPage.tsx';
+import { AGENT_DOWNLOAD_PATH, AGENTS_REFRESH_MS } from './AgentsPage.tsx';
 
 const USER_ID = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
 const REG_ID = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
@@ -25,7 +25,10 @@ interface Call {
 }
 
 /** Fake server: `registrations` is the current list of pending requests (changed by approve/reject). */
-function mockServer(initial: AgentRegistrationSummary[]): {
+function mockServer(
+  initial: AgentRegistrationSummary[],
+  agentInfo: AgentDownloadInfo = { available: false },
+): {
   calls: Call[];
   setRegistrations(r: AgentRegistrationSummary[]): void;
 } {
@@ -39,6 +42,7 @@ function mockServer(initial: AgentRegistrationSummary[]): {
       calls.push({ url, method });
       if (url === '/api/auth/me') return json({ id: USER_ID, email: 'a@b.it', role: 'admin', tenant: null });
       if (url === '/api/admin/agent-registrations') return json(registrations);
+      if (url === '/api/admin/agent/info') return json(agentInfo);
       const decided = /^\/api\/admin\/agent-registrations\/([^/]+)\/(approve|reject)$/.exec(url);
       if (decided && method === 'POST') {
         const row = registrations.find((r) => r.id === decided[1]);
@@ -142,5 +146,44 @@ describe('pending agent registrations', () => {
     const polls = server.calls.filter((c) => c.url === '/api/admin/agent-registrations').length;
     expect(polls).toBeGreaterThanOrEqual(2);
     expect(server.calls.filter((c) => c.url === '/api/admin/agents').length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('agent for Windows', () => {
+  const card = async (): Promise<HTMLElement> => {
+    const heading = await screen.findByRole('heading', { name: 'Agente per Windows' });
+    const section = heading.closest('section');
+    if (!section) throw new Error('no section');
+    return section;
+  };
+
+  it('published: version, size and the link to the zip of the client, with the steps', async () => {
+    mockServer([], {
+      available: true,
+      version: '1.2.3-abc1234',
+      builtAt: '2026-10-16T08:30:00.000Z',
+      bytes: 94_659_584,
+      sha256: 'a'.repeat(64),
+      fileName: 'SIRRealtime-agente-club-a-1.2.3-abc1234.zip',
+    });
+    renderAgents();
+    const section = await card();
+    const link = await within(section).findByRole('link', { name: 'Scarica l’agente per Windows' });
+    expect(link.getAttribute('href')).toBe(AGENT_DOWNLOAD_PATH);
+    expect(link.getAttribute('download')).toBe('SIRRealtime-agente-club-a-1.2.3-abc1234.zip');
+    expect(within(section).getByTestId('agent-release').textContent).toMatch(/1\.2\.3-abc1234 · .+ · 90,3 MB/);
+    expect(within(section).getByText(/C:\\SIRAgent/)).toBeTruthy();
+    expect(within(section).getByText(/«Registra»/)).toBeTruthy();
+    expect(within(section).getByText(/Richieste in attesa/)).toBeTruthy();
+    expect(within(section).getByText(/Esegui comunque/)).toBeTruthy();
+  });
+
+  it('not published: the message and the command that publishes it, no link', async () => {
+    mockServer([]);
+    renderAgents();
+    const section = await card();
+    expect(await within(section).findByText('L’agente non è ancora stato pubblicato sul server.')).toBeTruthy();
+    expect(within(section).getByText('scripts/costruisci-agente.sh')).toBeTruthy();
+    expect(within(section).queryByRole('link')).toBeNull();
   });
 });

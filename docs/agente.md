@@ -135,6 +135,14 @@ visti come la **stessa partita**. L'agente si riallinea con uno snapshot (il ser
     una registrazione già in corso («Registrazione già in corso: premi «Annulla» per ricominciare»).
   - **`config.json` minimo**: basta `serverUrl` (con `http` verso IP privato solo se `allowHttpPrivateNetwork` è
     `true`, come per START); il resto della configurazione è completato al primo START.
+- **Grafica del cliente** (`src/gui/branding.ts`, `readWindowBranding`): accanto all'exe lo zip scaricato dal portale
+  (`docs/server.md`, «Agente scaricabile») contiene `branding.json` (`AgentBrandingSchema`, versione 1: nome e sei colori
+  `#rrggbb`, schema `.strict()`, al massimo 16 KB) e un logo `logo.png` o `logo.jpg` (al massimo 2 MB e 1024×1024 px,
+  controllati sui byte, non sull'estensione). L'agente li legge a ogni avvio della finestra e manda colori, nome e percorso
+  del logo nel messaggio `init`; `window.ps1` (`Set-Branding`) mostra una testata col colore primario, il logo, il nome del
+  cliente e il titolo «<Cliente> – Agente SIRRealtime», con START colorato. Senza `branding.json`, o se non è valido, la
+  finestra ha la grafica predefinita; se è il logo a mancare o non essere valido (troppo grande, rotto, non PNG/JPEG) si
+  vedono i colori senza logo. Un file scartato è scritto nel log con il motivo e non ferma mai la finestra.
 - **Pennina intatta** (`assertNotOnStick`, `src/config.ts`): START, «Registra» e la ripresa dell'attesa sono rifiutati
   se `dataDir` o `logDir` stanno dentro `watchPath`. In modalità finestra, in quel caso, lo script e i log vanno in
   `%TEMP%\SIRAgent` (`data`, `logs`) e la finestra mostra l'errore. **Avvertenza**: non avviare l'agente dalla pennina:
@@ -194,7 +202,9 @@ visti come la **stessa partita**. L'agente si riallinea con uno snapshot (il ser
 L'agente invia a `ingestUrl(serverUrl)` (`apps/agent/src/sender.ts`): aggiunge `api/ingest` a `serverUrl`, con o senza `/`
 finale, e mantiene un eventuale prefisso di percorso (`apiUrl`, usata anche dalla registrazione). Quindi `https://<host>/` dà `https://<host>/api/ingest`, che nginx
 del portale inoltra al server; la porta 8090 del server non si espone in rete (`docs/portale.md`, `docs/server.md`).
-L'area admin (pagina «Agenti») propone un `config.json` già compilato con l'indirizzo del portale come `serverUrl`.
+L'area admin (pagina «Agenti») propone un `config.json` già compilato con l'indirizzo del portale come `serverUrl`; lo zip
+«Scarica l'agente per Windows» ne contiene uno senza token: `watchPath` `E:\`, `serverUrl` del cliente, `dataDir`
+`C:\SIRAgent\data`, `logDir` `C:\SIRAgent\logs` (il token arriva con la registrazione).
 
 I percorsi relativi sono risolti rispetto alla cartella dell'eseguibile (in sviluppo, la cartella corrente). Un BOM
 iniziale nel JSON è tollerato. Configurazione non valida: messaggio chiaro e codice di uscita 1.
@@ -264,8 +274,11 @@ configurazione non valida o errore. Senza `--once` il processo gira finché rice
    ```
 
 4. **Uso con il doppio clic** (senza servizio), passo per passo:
-   1. Metti `sir-agent.exe` in `C:\SIRAgent` e, accanto, il `config.json` scaricato dall'area admin (pagina «Agenti»)
-      con `serverUrl` già compilato.
+   1. Dal portale (area admin, pagina «Agenti», riquadro «Agente per Windows») premi «Scarica l'agente per Windows» e
+      scompatta lo zip `SIRRealtime-agente-<cliente>-<versione>.zip` in `C:\SIRAgent` (non sulla pennina): dentro ci sono
+      `sir-agent.exe`, `config.json` con `serverUrl` già compilato, `branding.json`, il logo e `LEGGIMI.txt`. L'exe non è
+      firmato: se Windows mostra SmartScreen, «Ulteriori informazioni» e poi «Esegui comunque». In alternativa, `sir-agent.exe`
+      costruito a mano e il `config.json` della pagina «Agenti».
    2. Doppio clic su `sir-agent.exe`: si apre la finestra (la console nera sparisce).
    3. Controlla «Server». Poi o **registra l'agente**: controlla «Nome agente», premi «Registra», comunica il codice di
       abbinamento a chi gestisce il portale (area admin, pagina «Agenti», «Richieste in attesa») e aspetta
@@ -368,7 +381,10 @@ Mai provati fuori da Linux; da verificare:
 - chiudere la finestra durante l'attesa e riaprirla → il codice di abbinamento torna visibile;
 - «Annulla» e poi una nuova registrazione;
 - server spento durante l'attesa → riga arancione con «nuovo tentativo tra 5 s», poi l'attesa riprende da sola;
-- agente avviato dalla pennina: errore mostrato nella finestra, script e log in `%TEMP%\SIRAgent`.
+- agente avviato dalla pennina: errore mostrato nella finestra, script e log in `%TEMP%\SIRAgent`;
+- agente scaricato dal portale: scompattare lo zip, doppio clic, avviso SmartScreen e «Esegui comunque»; testata, colori,
+  nome e titolo del cliente; logo PNG e logo JPEG; logo troppo grande o rotto → colori senza logo; `branding.json` rotto o
+  assente → grafica predefinita; «Registra» → «Abilita» nel portale → START.
 
 ## Riferimenti
 - `apps/agent/src/`: `main.ts` (ingresso), `cli.ts` (`runCli`), `config.ts` (`parseConfig`, `loadConfig`),
@@ -380,7 +396,11 @@ Mai provati fuori da Linux; da verificare:
   (`acquireLock`, `waitForLock`, `LockError`)
 - finestra, `apps/agent/src/gui/`: `main.ts` (`runGui`), `host.ts` (`runGuiHost`, `powershellArgs`), `controller.ts`
   (`GuiController`), `protocol.ts` (`GuiInMessageSchema`, `GuiOutMessageSchema`, `MAX_GUI_LINE`), `config-file.ts`
-  (`saveTokenToFile`, `saveWatchPath`, `registrationServerUrl`, `registrationDataDir`, `guiWritablePaths`), `log-sink.ts` (`LogSink`), `window.ps1`, `window-script.ts`
+  (`saveTokenToFile`, `saveWatchPath`, `registrationServerUrl`, `registrationDataDir`, `guiWritablePaths`), `log-sink.ts` (`LogSink`), `window.ps1`, `window-script.ts`,
+  `branding.ts` (`readWindowBranding`, `imageSize`); test `apps/agent/test/gui-branding.test.ts`
+- agente scaricabile: costruzione dell'exe in `docs/infrastruttura.md` (`scripts/costruisci-agente.sh`), zip in
+  `docs/server.md`, pulsante in `docs/portale.md`; contratti `packages/shared/src/agentDownload.ts` (`AgentBrandingSchema`,
+  `isPrivateIPv4`, spostata qui dall'agente)
 - `apps/agent/config.example.json`, `apps/agent/scripts/build-exe.ps1`, `apps/agent/scripts/installa-servizio.ps1`
 - test: `apps/agent/test/` (`truncation.test.ts`, `resilience.test.ts`, `e2e.test.ts`, `store.test.ts`, `sync.test.ts`)
 - contratti: `packages/shared/src/ingest.ts`; server e token: `docs/server.md`; file DVW: `docs/dvw-parser.md`;

@@ -86,19 +86,17 @@ const VARIANTS: Record<ButtonVariant, string> = {
   ghost: 'text-muted hover:bg-surface-2 hover:text-text',
 };
 
+/** Classes of a button, also for a link that looks like one (e.g. a download). */
+export const buttonClass = (variant: ButtonVariant = 'secondary'): string =>
+  `inline-flex min-h-9 items-center justify-center gap-2 rounded-card px-3 py-1.5 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50 ${VARIANTS[variant]}`;
+
 export function Button({
   variant = 'secondary',
   className = '',
   type = 'button',
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
-  return (
-    <button
-      type={type}
-      className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-card px-3 py-1.5 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50 ${VARIANTS[variant]} ${className}`}
-      {...rest}
-    />
-  );
+  return <button type={type} className={`${buttonClass(variant)} ${className}`} {...rest} />;
 }
 
 export interface SegmentOption<T extends string | number> {

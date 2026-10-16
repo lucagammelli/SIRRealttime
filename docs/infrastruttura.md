@@ -102,6 +102,9 @@ binario della piattaforma come dipendenza opzionale.
   `pnpm install --frozen-lockfile`, `pnpm --filter "@sir/server..." build` e `pnpm --filter @sir/server deploy --prod /out`;
   lo stadio `runtime` copia `/out`, crea `/data/assets` di proprietà di `node` (il volume nuovo la eredita), gira come utente `node` ed esegue `node dist/main.js` con un healthcheck su
   `/api/health`.
+- Volume `downloads` (o cartella dell'host `AGENT_DOWNLOAD_HOST_DIR`): montato **in sola lettura** su `/data/downloads` nel
+  servizio `server`, con `AGENT_DOWNLOAD_DIR=/data/downloads`. Lo riempie solo `scripts/costruisci-agente.sh` (sotto);
+  vuoto, il portale dice che l'agente non è pubblicato. Il server non lo scrive mai.
 - `.dockerignore`: esclude dal contesto `node_modules`, `dist`, `coverage`, log, `.git`, `.env` e `.env.*` (tranne
   `.env.example`), `.claude`, `docs` e `samples`.
 - Provato il 2026-10-14: `docker compose -p sirrealtime up -d --build` con `.env` da `.env.example`: `postgres`, `server`
@@ -118,8 +121,9 @@ rilascio e l'altro. Il bundle principale è di circa 132 KB gzip. Le altre dipen
 - `.env.example` elenca le variabili del server (`DATABASE_URL`, `PORT`, `HOST`, `CORS_ORIGIN`, `COOKIE_SECURE`,
   `SESSION_TTL_HOURS`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `PUBLIC_BASE_URL`, `LOG_LEVEL`, `TRUST_PROXY`,
   `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_PUBLIC_WS`, `RATE_LIMIT_PUBLIC_INVALID`, `RATE_LIMIT_SHORT_CODE_INVALID`, `RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`, `SHARE_CODE_SECRET`,
-  `WS_MAX_PER_IP`, `WS_MAX_TOTAL`, `MATCH_MAX_LINES`, `DEFAULT_TENANT_SLUG`, `ASSETS_DIR`, `ASSETS_QUOTA_MB`) e quelle di
-  Docker Compose (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `SERVER_BIND`, `WEB_BIND`, `WEB_PORT`).
+  `RATE_LIMIT_AGENT_DOWNLOAD`, `WS_MAX_PER_IP`, `WS_MAX_TOTAL`, `MATCH_MAX_LINES`, `DEFAULT_TENANT_SLUG`, `ASSETS_DIR`,
+  `ASSETS_QUOTA_MB`, `AGENT_DOWNLOAD_DIR`) e quelle di Docker Compose (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
+  `SERVER_BIND`, `WEB_BIND`, `WEB_PORT`, `AGENT_DOWNLOAD_HOST_DIR`).
   Descrizione e default in `docs/server.md`. Il file `.env` vero non va mai nel repository.
 - `DEFAULT_TENANT_SLUG` (cliente degli hostname sconosciuti, default `predefinito`) è commentata in `.env.example` e
   passata dal servizio `server` di `docker-compose.yml` con `${DEFAULT_TENANT_SLUG-predefinito}`: se in `.env` è
@@ -146,6 +150,36 @@ pnpm install                          # dipendenze di tutti i pacchetti
 pnpm --filter "@sir/$PACCHETTO" test  # test di un solo pacchetto
 scripts/ci_locale.sh                  # i 5 passi della CI, da lanciare prima di ogni PR
 ```
+
+### Agente scaricabile (`scripts/costruisci-agente.sh`)
+Costruisce da Linux `sir-agent.exe` (Node SEA per Windows x64) e lo pubblica dove il server lo offre dal portale
+(`docs/server.md`, «Agente scaricabile»). Passi: bundle esbuild dell'agente → download di `node.exe` per Windows e di
+`SHASUMS256.txt` da nodejs.org in una cartella temporanea (rimossa alla fine) con verifica dello sha256 → blob SEA →
+iniezione con `postject` in una copia di `node.exe` → `sir-agent.exe` e `sir-agent.json` in `USCITA`, pubblicati con
+`mv` (rename) così il server non vede mai un exe a metà. Sono gli stessi passi di `apps/agent/scripts/build-exe.ps1`.
+
+- **Versione** = versione di `apps/agent/package.json` + commit corto (`<versione>-<commit>`, «locale» senza git).
+- **Il `node` locale deve avere la stessa versione di `node.exe`** (`NODE_VERSIONE`, di default quella di `node --version`),
+  perché il blob SEA dipende dalla versione: altrimenti lo script si ferma.
+- **Rifiuta un'`USCITA` dentro il repository** (percorso risolto con `realpath -m`).
+- `postject` stampa l'avviso «signature corrupted»: è atteso, l'exe non è firmato (la firma è nel piano, «Agente: da
+  rifare in seguito»). Provato: circa 24 s, exe di circa 94,7 MB.
+- Serve: Node 24, pnpm (`corepack enable`), `pnpm install` già fatto, `curl`, `sha256sum`, `npx`; scarica circa 30 MB.
+
+```bash
+# --- variabili ---
+RADICE="/percorso/del/repository"       # radice del repository o del worktree del job
+USCITA="/srv/sir/downloads"             # cartella d'uscita: AGENT_DOWNLOAD_HOST_DIR del .env (fuori dal repository)
+NODE_VERSIONE="$(node --version | sed 's/^v//')"   # versione di node.exe: deve essere quella del node locale (è già il default dello script)
+
+# --- comandi ---
+cd "$RADICE"
+USCITA="$USCITA" NODE_VERSIONE="$NODE_VERSIONE" scripts/costruisci-agente.sh
+# il server legge i file ad ogni richiesta: non serve riavviarlo
+```
+
+`USCITA` e `NODE_VERSIONE` possono anche restare vuote: i default sono `$HOME/sir-agent-download` e la versione del node
+locale.
 
 ### Prova di carico (`tools/carico`, `@sir/carico`)
 Apre N WebSocket pubblici contro un server, riproduce una partita `.dvw` tramite `POST /api/ingest` (un ingest ogni
@@ -209,7 +243,7 @@ Postgres LISTEN/NOTIFY).
 - `tsconfig.base.json`, `packages/*/tsconfig.json`, `packages/*/tsconfig.build.json`
 - `vitest.shared.ts`, `packages/*/vitest.config.ts`
 - `eslint.config.js`, `.prettierrc`, `.editorconfig`
-- `scripts/ci_locale.sh`, `.env.example`
+- `scripts/ci_locale.sh`, `scripts/costruisci-agente.sh`, `.env.example`
 - `docker-compose.yml`, `docker/server.Dockerfile`, `docker/web.Dockerfile`, `docker/web.nginx.conf`,
   `docker/web.nginx.main.conf`, `docker/web.security-headers.conf`, `.dockerignore`, `apps/server/vitest.config.ts`
 - `tools/carico/src/cli.ts` (comandi `prova` e `dimensioni`), `spectators.ts` (processi degli spettatori), `metrics.ts`

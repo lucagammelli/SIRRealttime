@@ -26,6 +26,7 @@ import {
   tokenInfo,
   windowFields,
 } from './config-file.js';
+import type { WindowBranding } from './branding.js';
 import type { LogSink } from './log-sink.js';
 import type { GuiInMessage, GuiOutMessage, GuiPhase, GuiRegistrationMessage } from './protocol.js';
 import { parseGuiLine } from './protocol.js';
@@ -53,6 +54,8 @@ export interface GuiControllerOptions {
   registrationPollMs?: number;
   /** Problem found before the window opened (e.g. folders on the USB stick), shown after the first state. */
   startupError?: string;
+  /** Graphics of the client, sent with every `init` (absent: the default graphics). */
+  branding?: WindowBranding;
 }
 
 /** Registration message without `type` (what the window shows). */
@@ -510,6 +513,7 @@ export class GuiController {
       ...windowFields(raw),
       token: info,
       ...(read.kind === 'ok' ? {} : { configError: read.message }),
+      ...(this.options.branding ? { branding: this.options.branding } : {}),
     });
   }
 

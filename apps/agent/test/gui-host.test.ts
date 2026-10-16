@@ -5,12 +5,14 @@ import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { generateMatch, renderDvw } from '@sir/dvw-simulator';
+import { agentBranding, agentDownloadConfig } from '@sir/shared';
 import { afterEach, describe, expect, it } from 'vitest';
 import { runGui } from '../src/gui/main.js';
 import type { GuiOutMessage } from '../src/gui/protocol.js';
 import { GuiOutMessageSchema } from '../src/gui/protocol.js';
 import { WINDOW_SCRIPT } from '../src/gui/window-script.js';
 import { ADMIN, login } from '../../server/test/helpers.js';
+import { png } from '../../server/test/imageFixtures.js';
 import { registrationFile } from '../src/register.js';
 import { serverMatches, startLiveServer, tempDirs, waitFor } from './support.js';
 
@@ -68,6 +70,34 @@ describe('finestra (host + controller) con un finto powershell', () => {
   it('lo script incluso è quello della finestra', () => {
     expect(WINDOW_SCRIPT).toContain('System.Windows.Forms');
     expect(WINDOW_SCRIPT).not.toMatch(/^\s*else\b/m);
+  });
+
+  it('con branding.json e logo accanto all’eseguibile la finestra riceve la grafica del cliente', async () => {
+    const dirs = tempDirs();
+    cleanups.push(dirs.cleanup);
+    await mkdir(dirs.home, { recursive: true });
+    await writeFile(join(dirs.home, 'branding.json'), JSON.stringify(agentBranding('Club A', { primary: '#ffeb3b' })));
+    await writeFile(join(dirs.home, 'logo.png'), png(120, 40));
+    const configPath = join(dirs.home, 'config.json');
+    await writeFile(configPath, JSON.stringify(agentDownloadConfig('https://club-a.sir.it')));
+    const ws = await windowServer();
+    cleanups.push(ws.close);
+    const exit = runGui({
+      baseDir: dirs.home,
+      configPath,
+      command: process.execPath,
+      args: () => [FAKE_WINDOW, String(ws.port)],
+    });
+    const w = await ws.connected;
+    await waitFor(() => lastPhase(w) === 'idle', 5000, 'init');
+    expect(w.messages[0]).toMatchObject({
+      type: 'init',
+      serverUrl: 'https://club-a.sir.it',
+      token: { present: false },
+      branding: { name: 'Club A', primary: '#ffeb3b', onPrimary: '#000000', logoPath: join(dirs.home, 'logo.png') },
+    });
+    w.send({ type: 'quit' });
+    expect(await exit).toBe(0);
   });
 
   it('START → righe sul server; STOP → nessun invio; START → riprende; quit → uscita 0', async () => {

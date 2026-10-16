@@ -3,7 +3,8 @@
 # L'agente riscrive questo file a ogni avvio (dal testo incluso nell'eseguibile): le modifiche fatte qui si perdono.
 #
 # Protocollo: una riga JSON per messaggio.
-#   da stdin  (agente -> finestra): init, state, log, error, registration
+#   da stdin  (agente -> finestra): init (con branding: colori del cliente già validati e logo), state, log, error,
+#             registration
 #   su stdout (finestra -> agente): start {watchPath, token?}, stop, quit, register {name}, cancelRegistration
 # Su stdout non deve finire nient'altro: ogni valore non usato va scartato con [void].
 
@@ -16,6 +17,10 @@ $ColonnaCampi  = 170
 $LarghezzaForm = 640
 $AltezzaRiga   = 32
 $FineInput     = '::fine-input::'
+$AltezzaTestata = 64          # testata colorata del cliente (solo con branding.json accanto all'exe)
+$LarghezzaLogo = 140          # spazio del logo nella testata (l'immagine è ridotta per starci)
+$LogoMaxByte   = 2MB          # logo più grande: ignorato (lo controlla anche l'agente)
+$LogoMaxLato   = 1024         # pixel per lato del logo, oltre: ignorato
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -77,6 +82,7 @@ $script:agentGone = $false
 $script:quitSent = $false
 $script:regState = 'none'      # stato della registrazione: none, pending, approved, rejected, expired, consumed, error
 $script:regBusy = $false       # «Registra» premuto, risposta dell'agente non ancora arrivata
+$script:brandingApplied = $false
 
 # --- finestra ---
 $form = New-Object System.Windows.Forms.Form
@@ -335,6 +341,80 @@ function Show-State($phase, $status) {
     Update-Controls
 }
 
+function Test-HexColor($value) {
+    return ([string]$value) -cmatch '^#[0-9a-f]{6}$'
+}
+
+# Logo del cliente: letto da un FileStream chiuso subito (il file non resta bloccato), copiato in una Bitmap.
+function Read-Logo($path) {
+    if ($null -eq $path -or [string]$path -eq '') { return $null }
+    $stream = $null
+    $image = $null
+    try {
+        $file = New-Object System.IO.FileInfo([string]$path)
+        if (-not $file.Exists -or $file.Length -gt $LogoMaxByte) { return $null }
+        $stream = New-Object System.IO.FileStream([string]$path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
+        $image = [System.Drawing.Image]::FromStream($stream, $false, $true)
+        if ($image.Width -gt $LogoMaxLato -or $image.Height -gt $LogoMaxLato) { return $null }
+        return (New-Object System.Drawing.Bitmap($image))
+    } catch {
+        return $null
+    } finally {
+        if ($null -ne $image) { $image.Dispose() }
+        if ($null -ne $stream) { $stream.Dispose() }
+    }
+}
+
+# Grafica del cliente (una volta sola): testata col colore primario, logo e nome, titolo e START colorati.
+# Colori non validi: resta la grafica predefinita.
+function Set-Branding($branding) {
+    if ($script:brandingApplied -or $null -eq $branding) { return }
+    if (-not (Test-HexColor $branding.primary) -or -not (Test-HexColor $branding.onPrimary)) { return }
+    $script:brandingApplied = $true
+    $primary = [System.Drawing.ColorTranslator]::FromHtml([string]$branding.primary)
+    $onPrimary = [System.Drawing.ColorTranslator]::FromHtml([string]$branding.onPrimary)
+    $name = ([string]$branding.name -replace '[\x00-\x1F\x7F]', ' ').Trim()
+    if ($name.Length -gt 100) { $name = $name.Substring(0, 100) }
+    if ($name -ne '') {
+        $script:Titolo = $name + ' – Agente SIRRealtime'
+        $form.Text = $script:Titolo
+    }
+    $form.SuspendLayout()
+    foreach ($control in @($form.Controls)) { $control.Top += $AltezzaTestata }
+    $header = New-Object System.Windows.Forms.Panel
+    $header.Location = New-Object System.Drawing.Point(0, 0)
+    $header.Size = New-Object System.Drawing.Size($LarghezzaForm, $AltezzaTestata)
+    $header.BackColor = $primary
+    $x = $Margine
+    $logo = Read-Logo $branding.logoPath
+    if ($null -ne $logo) {
+        $picture = New-Object System.Windows.Forms.PictureBox
+        $picture.SizeMode = [System.Windows.Forms.PictureBoxSizeMode]::Zoom
+        $picture.Location = New-Object System.Drawing.Point($Margine, 8)
+        $picture.Size = New-Object System.Drawing.Size($LarghezzaLogo, ($AltezzaTestata - 16))
+        $picture.Image = $logo
+        $header.Controls.Add($picture)
+        $x = $Margine + $LarghezzaLogo + $Margine
+    }
+    $lblHeader = New-Object System.Windows.Forms.Label
+    if ($name -ne '') { $lblHeader.Text = $name } else { $lblHeader.Text = 'Agente SIRRealtime' }
+    $lblHeader.ForeColor = $onPrimary
+    $lblHeader.BackColor = $primary
+    $lblHeader.Font = New-Object System.Drawing.Font('Segoe UI', 13, [System.Drawing.FontStyle]::Bold)
+    $lblHeader.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+    $lblHeader.AutoEllipsis = $true
+    $lblHeader.Location = New-Object System.Drawing.Point($x, 0)
+    $lblHeader.Size = New-Object System.Drawing.Size(($LarghezzaForm - $x - $Margine), $AltezzaTestata)
+    $header.Controls.Add($lblHeader)
+    $form.Controls.Add($header)
+    $form.ClientSize = New-Object System.Drawing.Size($LarghezzaForm, ($form.ClientSize.Height + $AltezzaTestata))
+    $btnStart.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $btnStart.FlatAppearance.BorderColor = $primary
+    $btnStart.BackColor = $primary
+    $btnStart.ForeColor = $onPrimary
+    $form.ResumeLayout()
+}
+
 function Receive-AgentMessage($message) {
     switch ([string]$message.type) {
         'init' {
@@ -348,6 +428,7 @@ function Receive-AgentMessage($message) {
             }
             $txtToken.Text = ''
             if ($message.configError) { Show-Error $message.configError }
+            if ($message.branding) { Set-Branding $message.branding }
             Update-Controls
         }
         'state' { Show-State $message.phase $message.status }

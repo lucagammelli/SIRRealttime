@@ -23,6 +23,7 @@ describe('loadConfig', () => {
         admin: 300,
         register: 10,
         shortCodeInvalidTotal: 1000,
+        agentDownload: 10,
       },
       socketLimits: { perIp: 2000, total: 6000 },
     });
@@ -55,6 +56,7 @@ describe('loadConfig', () => {
       RATE_LIMIT_PUBLIC_WS: '3000',
       RATE_LIMIT_PUBLIC_INVALID: '30',
       RATE_LIMIT_SHORT_CODE_INVALID: '500',
+      RATE_LIMIT_AGENT_DOWNLOAD: '3',
     });
     expect(c.rateLimits).toEqual({
       login: 5,
@@ -65,6 +67,7 @@ describe('loadConfig', () => {
       admin: 100,
       register: 20,
       shortCodeInvalidTotal: 500,
+      agentDownload: 3,
     });
     for (const value of ['0', '-1', '1.5', 'abc', '100001']) {
       expect(() => loadConfig({ DATABASE_URL: 'x', RATE_LIMIT_LOGIN: value })).toThrow(/RATE_LIMIT_LOGIN/);

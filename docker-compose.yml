@@ -1,5 +1,6 @@
 # SIRRealtime: database, server e portale (nginx su http://localhost:8080). Variabili in `.env` (vedi `.env.example`).
 # Avvio: docker compose up -d --build    Arresto: docker compose down (i dati restano nei volumi `pgdata` e `assets`).
+# Agente scaricabile: scripts/costruisci-agente.sh con USCITA = AGENT_DOWNLOAD_HOST_DIR del .env (sola lettura nel server).
 name: sir-realtime
 
 services:
@@ -51,6 +52,7 @@ services:
       RATE_LIMIT_PUBLIC_WS: ${RATE_LIMIT_PUBLIC_WS:-6000}
       RATE_LIMIT_PUBLIC_INVALID: ${RATE_LIMIT_PUBLIC_INVALID:-120}
       RATE_LIMIT_SHORT_CODE_INVALID: ${RATE_LIMIT_SHORT_CODE_INVALID:-1000}
+      RATE_LIMIT_AGENT_DOWNLOAD: ${RATE_LIMIT_AGENT_DOWNLOAD:-10}
       RATE_LIMIT_ADMIN: ${RATE_LIMIT_ADMIN:-300}
       RATE_LIMIT_REGISTER: ${RATE_LIMIT_REGISTER:-10}
       WS_MAX_PER_IP: ${WS_MAX_PER_IP:-2000}
@@ -58,8 +60,12 @@ services:
       # Immagini caricate dai clienti (loghi, sponsor): nel volume `assets`, quota per cliente in MB.
       ASSETS_DIR: /data/assets
       ASSETS_QUOTA_MB: ${ASSETS_QUOTA_MB:-50}
+      # Agente per Windows offerto dal portale (sir-agent.exe e sir-agent.json di scripts/costruisci-agente.sh).
+      AGENT_DOWNLOAD_DIR: /data/downloads
     volumes:
       - assets:/data/assets
+      # Sola lettura: la scrive solo scripts/costruisci-agente.sh sull'host (USCITA = AGENT_DOWNLOAD_HOST_DIR).
+      - ${AGENT_DOWNLOAD_HOST_DIR:-downloads}:/data/downloads:ro
     # Browser e agente passano da nginx (servizio web, anche per /api/ingest). La porta 8090 resta pubblicata solo su
     # 127.0.0.1 per prove locali e scansioni (docs/server.md): mai su 0.0.0.0, perché con TRUST_PROXY=true un client
     # che arriva diretto potrebbe falsificare X-Forwarded-For ed eludere il rate limit.
@@ -103,3 +109,4 @@ services:
 volumes:
   pgdata:
   assets:
+  downloads:

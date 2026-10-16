@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { isPrivateIPv4 } from '@sir/shared';
 import { z } from 'zod';
 
 /** Error of the agent configuration: the process cannot start. */
@@ -17,16 +18,6 @@ export const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', '
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
-
-const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-
-/** True for literal IPv4 addresses in 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 (never for host names). */
-export function isPrivateIPv4(hostname: string): boolean {
-  const m = IPV4.exec(hostname);
-  if (!m) return false;
-  const [a, b] = [Number(m[1]), Number(m[2])];
-  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
-}
 
 /** Syntax only; whether plain http is allowed depends on `allowHttpPrivateNetwork` (see the file schema). */
 export const ServerUrlSchema = z.url().refine(

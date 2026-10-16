@@ -155,6 +155,21 @@ paths:
       responses:
         '204': { description: revocato }
         '404': { description: non trovato }
+  /api/admin/agent/info:
+    get:
+      responses:
+        '200': { description: 'agente per Windows pubblicato (versione, data, dimensione) o available: false' }
+        '403': { description: ruolo insufficiente (serve admin) }
+  /api/admin/agent/download:
+    get:
+      responses:
+        '200':
+          description: zip dell'agente per il cliente (sir-agent.exe, config.json senza token, branding.json, logo, LEGGIMI.txt)
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        '403': { description: ruolo insufficiente (serve admin) }
+        '404': { description: agente non ancora pubblicato sul server }
   /api/admin/agent-registrations:
     get:
       responses:

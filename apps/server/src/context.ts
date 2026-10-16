@@ -26,6 +26,8 @@ export interface RateLimits {
    * that is not already known valid (cached) gets 429, whatever the IP.
    */
   shortCodeInvalidTotal: number;
+  /** Downloads of the agent zip (`GET /api/admin/agent/download`, about 90 MB each). */
+  agentDownload: number;
 }
 
 export const DEFAULT_RATE_LIMITS: RateLimits = {
@@ -37,6 +39,7 @@ export const DEFAULT_RATE_LIMITS: RateLimits = {
   admin: 300,
   register: 10,
   shortCodeInvalidTotal: 1000,
+  agentDownload: 10,
 };
 
 /** Most public WebSockets open at the same time, per client IP and in total. */

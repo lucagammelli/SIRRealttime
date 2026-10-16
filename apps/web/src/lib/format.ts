@@ -64,6 +64,10 @@ export function playerName(player: PlayerRef | undefined, number: number): strin
   return `#${number}`;
 }
 
+/** Bytes in MB with at most one decimal, Italian style (`1,5`). */
+export const megabytes = (bytes: number): string =>
+  (bytes / (1024 * 1024)).toLocaleString('it-IT', { maximumFractionDigits: 1 });
+
 /** ISO 8601 UTC → local date and time for display. */
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return DASH;

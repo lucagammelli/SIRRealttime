@@ -129,6 +129,40 @@ da `@sir/volley-stats` (`docs/statistiche.md`) e viaggiano nello stato come ogni
 - **Rotta pubblica**: `overlays` è anche in `GET /api/public/tenant` (`PublicTenantResponseSchema`), con i predefiniti se il
   cliente non ha configurato nulla (`apps/server/src/tenancy.ts` legge la colonna).
 
+### Agente scaricabile (`apps/server/src/routes/agentDownload.ts`)
+Il portale offre l'agente per Windows come zip già pronto per il cliente (portale: `docs/portale.md`, pagina «Agenti»;
+finestra e grafica: `docs/agente.md`; costruzione dell'exe: `docs/infrastruttura.md`). L'exe è **uno solo per tutti i
+clienti**, costruito da `scripts/costruisci-agente.sh` in `AGENT_DOWNLOAD_DIR` insieme a `sir-agent.json`
+(`AgentReleaseSchema`: `version`, `builtAt`, `sha256`, `nodeVersion` facoltativa); lo zip è generato **a ogni richiesta**.
+
+- **Rotte** (ruolo `admin`; il superadmin lavora sul cliente attivo, `adminTenantId`; un viewer riceve 403):
+  - `GET /api/admin/agent/info` → `AgentDownloadInfo`: `{ available: false }` oppure `available`, `version`, `builtAt`,
+    `bytes`, `sha256`, `fileName`. Risposta `no-store`.
+  - `GET /api/admin/agent/download` → lo zip `SIRRealtime-agente-<slug>-<versione>.zip` (`agentDownloadFileName`),
+    `Content-Type: application/zip`, `Content-Disposition: attachment`, `Content-Length` noto, `no-store`. Se l'exe non è
+    pubblicato: 404 «L’agente non è ancora stato pubblicato sul server» (apostrofo tipografico). Ha un limite proprio
+    (`RATE_LIMIT_AGENT_DOWNLOAD`, 10 al minuto per IP), separato da quello delle altre rotte admin.
+- **Contenuto dello zip**, tutto nella cartella `SIRRealtime-agente/` (`AGENT_ZIP_FOLDER`):
+  - `sir-agent.exe`;
+  - `config.json`: `watchPath` `E:\`, `serverUrl`, `dataDir` `C:\SIRAgent\data`, `logDir` `C:\SIRAgent\logs`
+    (`agentDownloadConfig`). **Mai un token**: arriva con la registrazione automatica. `serverUrl` è l'URL pubblico del
+    cliente (`publicBaseUrlFor`), **mai ricavato dall'header `Host`**; `allowHttpPrivateNetwork: true` c'è solo per `http`
+    verso un IPv4 privato (prove in LAN);
+  - `branding.json` (`AgentBrandingSchema`, versione 1): nome visualizzato del cliente e sei colori `#rrggbb` già risolti
+    (`agentBranding`);
+  - `logo.png` o `logo.jpg`: il logo orizzontale (`logoMain`), altrimenti quello quadrato (`logoMark`), solo se PNG o JPEG,
+    fino a 2 MB e 1024×1024 px; SVG e WebP sono esclusi (WinForms non li legge). Senza un logo adatto non c'è;
+  - `LEGGIMI.txt` (UTF-8 con BOM, fine riga CRLF): installazione in `C:\SIRAgent`, SmartScreen («Ulteriori informazioni» →
+    «Esegui comunque»), registrazione e sha256 dell'exe (`readmeText`).
+- **Controllo dell'exe** (`AgentReleaseStore`, `apps/server/src/agentRelease.ts`): l'exe è offerto solo se lo sha256 del
+  file coincide con `sir-agent.json`; sha256 e CRC-32 si calcolano **una volta per versione** del file (inode, dimensione,
+  data di modifica). Il file è aperto una volta per richiesta: se viene sostituito durante un download, quel download
+  continua a leggere il vecchio file e non si rompe. Manca o non coincide: «non disponibile» (con un messaggio nel log).
+- **Zip scritto in casa** (`apps/server/src/lib/zip.ts`, `zipStream`): formato «store» (senza compressione), CRC con
+  `zlib.crc32`, file letto a pezzi (mai tutto in memoria), il file è chiuso anche se il download si interrompe.
+  Scelta in `docs/decisioni.md`.
+- Nginx (`docker/web.nginx.conf`) ha `proxy_buffering off` solo per questa rotta (`docs/portale.md`).
+
 ### Ingest (`POST /api/ingest`, protocollo 1)
 L'agente invia una richiesta `IngestRequest` (`packages/shared/src/ingest.ts`):
 
@@ -263,6 +297,8 @@ rifiutata dallo schema.
 | GET | `/api/admin/assets` | sessione | admin |
 | POST | `/api/admin/assets` | sessione (corpo fino a ~2,7 MB) | admin |
 | DELETE | `/api/admin/assets/:id` | sessione | admin |
+| GET | `/api/admin/agent/info` | sessione | admin |
+| GET | `/api/admin/agent/download` | sessione, limite proprio `RATE_LIMIT_AGENT_DOWNLOAD` | admin |
 | GET | `/api/admin/matches` | sessione | viewer |
 | GET | `/api/admin/matches/:id` | sessione | viewer |
 | POST | `/api/admin/agents` | sessione | admin |
@@ -327,7 +363,7 @@ ping, disconnette chi non ha risposto al precedente e chiude i client con creden
 ### Rate limit
 Per indirizzo IP e per minuto. Default (`DEFAULT_RATE_LIMITS`, `apps/server/src/context.ts`), modificabili con le variabili
 `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_PUBLIC_WS`, `RATE_LIMIT_PUBLIC_INVALID`,
-`RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`: login 10, ingest 600, `GET /api/public/:token/state` 6000, apertura di
+`RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`, `RATE_LIMIT_AGENT_DOWNLOAD` (download dell'agente, 10): login 10, ingest 600, `GET /api/public/:token/state` 6000, apertura di
 `/ws/public/:token` 6000, rotte admin 300 (incluse `/api/auth/logout`, `/api/auth/me`, `/ws/admin`), creazione di una
 registrazione agente 10 (la rotta `/status` usa il limite dell'ingest, perché l'agente interroga ogni 5 s). Oltre il
 limite: 429.
@@ -395,8 +431,10 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `MATCH_MAX_LINES` | `20000` | righe scout massime per partita (massimo 1.000.000); oltre, 413 |
 | `ASSETS_DIR` | `data/assets` (container: `/data/assets`) | cartella delle immagini dei clienti, una sottocartella per cliente; nel compose è il volume `assets` |
 | `ASSETS_QUOTA_MB` | `50` | spazio massimo delle immagini di ogni cliente, in MB (intero da 1 a 1000); oltre, 409 |
+| `RATE_LIMIT_AGENT_DOWNLOAD` | `10` | richieste al minuto per IP su `GET /api/admin/agent/download` (intero da 1 a 100000) |
+| `AGENT_DOWNLOAD_DIR` | `data/downloads` (container: `/data/downloads`) | cartella con `sir-agent.exe` e `sir-agent.json` (da `scripts/costruisci-agente.sh`); relativa alla cartella di avvio; vuota: il portale dice che l'agente non è pubblicato |
 
-Le otto `RATE_LIMIT_*`, le due `WS_MAX_*` e `SHARE_CODE_SECRET` sono anche in `.env.example` e `docker-compose.yml`
+Le nove `RATE_LIMIT_*`, le due `WS_MAX_*` e `SHARE_CODE_SECRET` sono anche in `.env.example` e `docker-compose.yml`
 (nel compose `SHARE_CODE_SECRET` è `${SHARE_CODE_SECRET:?…}`: senza la variabile nel `.env` ogni comando `docker compose`
 fallisce).
 
@@ -407,7 +445,9 @@ compose up -d` per ricreare il servizio `server`.
 
 Variabili solo per Docker Compose: `POSTGRES_DB` (`sir`), `POSTGRES_USER` (`sir`), `POSTGRES_PASSWORD` (obbligatoria),
 `SERVER_BIND` (`127.0.0.1`, indirizzo su cui è pubblicata la 8090), `WEB_BIND` (`127.0.0.1`) e `WEB_PORT` (`8080`) per il
-portale (`docs/portale.md`).
+portale (`docs/portale.md`) e `AGENT_DOWNLOAD_HOST_DIR` (cartella dell'host montata in sola lettura su `/data/downloads`
+del server, cioè `AGENT_DOWNLOAD_DIR`; senza, il volume Docker `downloads`, vuoto finché non lo si riempie). Va impostata
+come `USCITA` di `scripts/costruisci-agente.sh` (`docs/infrastruttura.md`).
 
 ### Database
 Schema in `apps/server/src/db/schema.ts` (Drizzle):
@@ -638,6 +678,9 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
 - Avvisi sugli eventi: `src/routes/branding.ts` (`GET`/`PUT /api/admin/overlays`, `GET /api/public/tenant`),
   `src/tenancy.ts`, `packages/shared/src/overlays.ts` (`TenantOverlaysSchema`, `resolveOverlays`, `OverlaysResponseSchema`),
   test `apps/server/test/overlays.test.ts`; eventi in `docs/statistiche.md`, schermate in `docs/portale.md`
+- Agente scaricabile: `src/routes/agentDownload.ts` (`agentDownloadRoutes`, `readmeText`), `src/agentRelease.ts`
+  (`AgentReleaseStore`), `src/lib/zip.ts` (`zipStream`, `fileCrc32`), `packages/shared/src/agentDownload.ts`, test
+  `apps/server/test/agentDownload.test.ts`; script `scripts/costruisci-agente.sh`; pagina in `docs/portale.md`
 - Link brevi: `src/lib/shortCode.ts` (`deriveShortCode`, `shortCodeLookupHash`), `src/shareCodes.ts` (`insertShareToken`,
   `ensureShortCode`, `syncShortCodes`, `currentShortCode`), `src/lib/failureLimiter.ts` (`hasRecent`),
   `packages/shared/src/admin.ts` (`ShortCodeSchema`, `normalizeShortCode`, `formatShortCode`, `ShareTokenParamSchema`),

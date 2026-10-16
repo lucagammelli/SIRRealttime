@@ -15,8 +15,6 @@ import {
   ASSET_MAX_BYTES,
   AssetMimeSchema,
   BRANDING_IMAGE_SLOTS,
-  DEFAULT_BRAND_NAME,
-  DEFAULT_TENANT_SLUG,
   IdParamSchema,
   intermissionImageIds,
   layoutImageIds,
@@ -42,7 +40,7 @@ import { badRequest, conflict, HttpError, notFound } from '../lib/errors.js';
 import { ImageRejected, inspectImage } from '../lib/images.js';
 import { validate } from '../lib/validate.js';
 import { requireRole } from '../security.js';
-import { adminTenantId, findTenant, forgetTenants, hostTenant, tenantScope } from '../tenancy.js';
+import { adminTenantId, findTenant, forgetTenants, hostTenant, tenantDisplayName, tenantScope } from '../tenancy.js';
 
 type AssetRow = typeof assets.$inferSelect;
 type Tx = Parameters<Parameters<AppContext['db']['transaction']>[0]>[0];
@@ -117,7 +115,7 @@ export function brandingPublicRoutes(app: FastifyInstance, ctx: AppContext): voi
     const branding = resolveBranding(tenant.branding);
     void reply.header('cache-control', TENANT_CACHE);
     return {
-      name: branding.displayName ?? (tenant.slug === DEFAULT_TENANT_SLUG ? DEFAULT_BRAND_NAME : tenant.name),
+      name: tenantDisplayName(tenant, branding),
       branding,
       images: {
         logoMain: branding.logoMain ? publicAssetPath(branding.logoMain) : null,

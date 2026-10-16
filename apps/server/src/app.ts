@@ -16,6 +16,7 @@ import { FailureLimiter } from './lib/failureLimiter.js';
 import { ResyncScheduler } from './lib/resync.js';
 import { TtlCache } from './lib/ttlCache.js';
 import { adminRoutes } from './routes/admin.js';
+import { agentDownloadRoutes } from './routes/agentDownload.js';
 import { authRoutes } from './routes/auth.js';
 import { brandingAdminRoutes, brandingPublicRoutes } from './routes/branding.js';
 import { healthRoutes } from './routes/health.js';
@@ -158,6 +159,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     adminRoutes(scope, ctx);
     tenantRoutes(scope, ctx);
     brandingAdminRoutes(scope, ctx);
+    agentDownloadRoutes(scope, ctx);
     done();
   });
 

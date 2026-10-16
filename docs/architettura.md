@@ -181,6 +181,14 @@ Time-out spento (la pausa lo mostra già); cambio e scambio lungo non sul telefo
 (`GET`/`PUT /api/admin/overlays`); `PublicTenantResponseSchema` contiene anche `overlays`. `TENANT_CONFIG_VERSION` resta 1.
 Server in `docs/server.md` («Avvisi sugli eventi»), portale ed editor in `docs/portale.md`.
 
+Agente scaricabile (`agentDownload.ts`): `AgentReleaseSchema` (`sir-agent.json`: `version`, `builtAt`, `sha256`,
+`nodeVersion` facoltativa), `AgentDownloadInfoSchema` (`GET /api/admin/agent/info`: `available` e, se vero, `version`,
+`builtAt`, `bytes`, `sha256`, `fileName`), `AgentBrandingSchema` (`branding.json` versione `AGENT_BRANDING_VERSION` 1: nome e
+sei colori `#rrggbb`, strict) con `agentBranding(nome, colori)`, `agentDownloadConfig(serverUrl)` (`config.json` dello zip:
+mai un token; `allowHttpPrivateNetwork` solo per `http` verso IPv4 privato), `agentDownloadFileName`, `AGENT_ZIP_FOLDER`,
+`AGENT_LOGO_FILES`, `AGENT_LOGO_MAX_BYTES` (2 MB), `AGENT_LOGO_MAX_SIDE` (1024). `isPrivateIPv4` è qui (era nell'agente), perché la
+usano sia l'agente sia lo zip. Server in `docs/server.md`, finestra in `docs/agente.md`, pagina in `docs/portale.md`.
+
 Ogni schema ha il tipo omonimo senza `Schema` (`z.infer`). Dettagli d'uso: `docs/server.md`.
 
 ### Regole
@@ -206,7 +214,7 @@ pnpm --filter @sir/server test      # il flusso completo agente→server→WebSo
 ```
 
 ## Riferimenti
-- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `configVersion.ts`, `index.ts`
+- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
 - `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`, `apps/web/src/App.tsx`
 - `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/portale.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,

@@ -124,6 +124,34 @@ scout), `set`, `team`, `player`, `playerOut`, `homeScore`, `awayScore` (dopo l'e
   casa, poi il numero di maglia più basso. Ogni `Mvp` estende la voce di `topPlayers` con `attackTotal` e
   `attackEfficiency`. Null se nessuno ha punti.
 
+### Periodi, sintesi e duelli (`period.ts`)
+Funzioni pure sullo stato già calcolato (non rileggono il `.dvw`), per i blocchi del portale che confrontano squadre e
+giocatori su una partita o su un set.
+- **Periodo** (`Period`): `{ kind: 'match' }` (costante `MATCH_PERIOD`) oppure `{ kind: 'set', set }` (`setPeriod(set)`). Il
+  set in corso vale fino all'ultima azione ricevuta.
+- **Punti dei giocatori**: sono attacco `#`, muro `#` e ace, non gli errori avversari; la somma dei giocatori può quindi essere
+  minore del parziale ufficiale.
+- `periodSummary(state, period)`: parziale (`score`: per un set il punteggio delle righe `point` e `finished` del set; per la
+  partita i set vinti e `finished` con `status` `finished`) e, per squadra: punti, punti di attacco, di muro, ace, realizzatori
+  di ace e muri (per quantità, a parità maglia più bassa), errori, attacchi, attacco % ed efficienza, ricezione positiva %,
+  riga completa e giocatori con azioni nel periodo, ordinati per punti (poi attacchi vincenti, meno errori, maglia più
+  bassa). `null` se il set non esiste.
+- `scorers(state, period, team, limit)`: i primi `limit` giocatori con almeno un punto; `limit` non valido (non finito o < 1)
+  dà lista vuota.
+- `roleDuels(state, period)`: duelli casa contro ospite nell'ordine di `DUEL_ROLES` (opposto, schiacciatore, centrale,
+  palleggiatore, libero). In ogni ruolo si ordina per punti e si abbina 1°-1°, 2°-2°, fino al numero di giocatori della squadra
+  che ne ha meno (nessun duello contro il vuoto). Restano fuori chi non ha azioni nel periodo e chi non ha ruolo nel `.dvw`
+  (salvo `specialRole` `L`, contato libero). Il libero si ordina per ricezioni + difese (`reception`, `digs`).
+- `teamDuel(state, period)`: righe del «Confronto squadre» del portale (`TeamDuelRow`: gruppo, etichetta, `count`/`ratio`,
+  valori casa e ospite, `better` `high`/`low`). Side-out e break point (`momentum`) solo per la partita intera, perché non
+  sono divisi per set. Set inesistente: le righe restano, con i valori `home` e `away` a `null` (come `teamComparison` del portale). Il portale passerà a usarla nel prossimo job.
+- `pointMilestone(state, every)`: soglia «ogni `every` punti» del set in corso, cioè il multiplo più grande di `every` nella
+  somma dei punti del set; chiave `set-N-soglia` (es. `set-2-16`), con set e punteggio. `null` se il set è chiuso (c'è la
+  pausa di fine set), la partita non è in corso o `every` non è un intero >= 1. Dipende solo dallo stato: il portale tiene
+  per set la soglia più alta già mostrata e ignora il primo calcolo dopo caricamento o riconnessione.
+- Esempio reale (Perugia-Suntory, set 1, 25-21): Perugia Kollator 4 punti, Plotnytskyi 4, Semeniuk 3; muri Solè 2, Giannelli 1;
+  attacco 68,2%. Duello opposti: Kollator 4 punti in attacco, 80%, contro Ben Tara 7 punti, 2 ace, 1 muro, 57,1%.
+
 ## Configurazione
 Nessuna: nessuna variabile né file di config.
 
@@ -161,5 +189,7 @@ Verifiche fatte:
 - `packages/volley-stats/src/events.ts`: `detectEvents`, `recentEvents`, `matchEvents`, `setPointTeam`, `MATCH_EVENT_KINDS`,
   `MATCH_EVENT_PRIORITY` (test in `events.test.ts`); tipi `MatchEvent`, `MatchEventKind`, `EventPlayer` in `types.ts`,
   `playerRefs` in `players.ts`; avvisi in `docs/portale.md`, configurazione in `docs/architettura.md`.
+- `packages/volley-stats/src/period.ts`: `MATCH_PERIOD`, `setPeriod`, `periodSummary`, `scorers`, `roleDuels`, `DUEL_ROLES`,
+  `teamDuel`, `pointMilestone`; tipi `Period`, `PeriodSummary`, `PlayerPeriodLine`, `RoleDuel`, `TeamDuelRow`, `PointMilestone`.
 - `packages/volley-stats/src/util.ts`: `ratio`, `timeToSeconds`.
 - Parser e tipi di ingresso: `docs/dvw-parser.md`; piano: `docs/piano.md` §2.

@@ -155,3 +155,11 @@ Una riga per decisione: data, scelta, motivo.
   browser senza una copia su disco di nginx; per il resto resta il default (`docker/web.nginx.conf`).
 - 2026-10-16: logo dell'agente fino a 1024×1024 px e 2 MB (PNG o JPEG), perché WinForms non legge SVG e WebP e un logo
   enorme appesantirebbe la finestra; oltre, grafica predefinita (`docs/agente.md`).
+- 2026-10-16: duelli per ruolo abbinati per graduatoria interna (1° con 1°, 2° con 2°, solo fino al numero minore),
+  perché nel `.dvw` non c'è chi marca chi e un abbinamento per posizione in campo cambierebbe a ogni rotazione
+  (`docs/statistiche.md`, «Periodi, sintesi e duelli»).
+- 2026-10-16: i «punti» dei giocatori contano solo le azioni (attacco, muro, ace), non gli errori avversari, perché un
+  errore non è di un giocatore; la somma può quindi essere minore del parziale ufficiale (`docs/statistiche.md`).
+- 2026-10-16: `pointMilestone` deterministica (dipende solo dallo stato) e il portale tiene per set la soglia più alta già
+  mostrata, perché due spettatori vedano la stessa pausa «ogni N punti» e un salto di più soglie ne mostri una sola,
+  senza orologio (`docs/statistiche.md`).

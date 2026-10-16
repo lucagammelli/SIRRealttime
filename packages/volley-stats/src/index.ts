@@ -26,6 +26,27 @@ export {
   setPointTeam,
 } from './events.js';
 export type { Mvp, SetRecap } from './recap.js';
+export {
+  DUEL_ROLES,
+  MATCH_PERIOD,
+  periodSummary,
+  pointMilestone,
+  roleDuels,
+  scorers,
+  setPeriod,
+  teamDuel,
+} from './period.js';
+export type {
+  Period,
+  PlayerPeriodLine,
+  PeriodSummary,
+  PointMilestone,
+  RoleDuel,
+  Scorer,
+  TeamDuelGroup,
+  TeamDuelRow,
+  TeamPeriodSummary,
+} from './period.js';
 
 const teamRef = (t: ParsedMatch['home']): TeamRef => ({ name: t?.name ?? null, code: t?.code ?? null });
 

@@ -114,6 +114,13 @@ describe('page «Club»', () => {
     expect(await screen.findByText(/Aggiornamento avviato/)).toBeTruthy();
   });
 
+  it('links «Colori e loghi» of the Studio grafico', async () => {
+    mockServer('admin', club());
+    renderClub();
+    const link = await screen.findByRole('link', { name: 'Apri «Colori e loghi»' });
+    expect(link.getAttribute('href')).toBe('/admin/studio/colori');
+  });
+
   it('sends the superadmin to «Campionati» to add a championship of the Lega', async () => {
     mockServer('superadmin', club({ available: [] }));
     renderClub();

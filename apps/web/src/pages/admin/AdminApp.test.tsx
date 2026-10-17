@@ -93,12 +93,23 @@ describe('admin navigation', () => {
     expect(await screen.findByRole('heading', { name: 'Connessione alla partita' })).toBeTruthy();
   });
 
-  it('sends a viewer away from the admin-only pages', async () => {
+  it('sends a viewer away from the admin-only pages (Studio, users, clients, championships)', async () => {
+    for (const path of ['/admin/studio/colori', '/admin/utenti', '/admin/clienti', '/admin/campionati']) {
+      mockServer('viewer');
+      renderAt(path);
+      const nav = await screen.findByRole('navigation', { name: 'Area riservata' });
+      await waitFor(() => expect(where()).toBe('/admin/live'));
+      expect(within(nav).queryByRole('link', { name: 'Studio grafico' })).toBeNull();
+      cleanup();
+    }
+  });
+
+  it('opens calendar, links, club and agents to a viewer (read-only pages)', async () => {
     mockServer('viewer');
     renderAt('/admin/agenti');
-    const nav = await screen.findByRole('navigation', { name: 'Area riservata' });
-    await waitFor(() => expect(where()).toBe('/admin/live'));
-    expect(within(nav).queryByRole('link', { name: 'Agenti' })).toBeNull();
+    await screen.findByRole('navigation', { name: 'Area riservata' });
+    expect(await screen.findByText(/Sola lettura/)).toBeTruthy();
+    expect(where()).toBe('/admin/agenti');
   });
 
   it('groups the side menu: matches, club, public page, devices, administration (admin, no clients)', async () => {
@@ -140,12 +151,13 @@ describe('admin navigation', () => {
       within(admin)
         .getAllByRole('link')
         .map((l) => l.textContent),
-    ).toEqual(['Utenti', 'Clienti']);
+    ).toEqual(['Utenti', 'Clienti', 'Campionati']);
     expect(within(nav).getByRole('link', { name: 'Clienti' }).getAttribute('aria-current')).toBe('page');
+    expect(within(nav).getByRole('link', { name: 'Campionati' }).getAttribute('href')).toBe('/admin/campionati');
     expect(screen.getByLabelText('Cliente').tagName).toBe('SELECT');
   });
 
-  it('gives a viewer only the matches', async () => {
+  it('gives a viewer the pages to read, without Studio, users, clients and championships', async () => {
     mockServer('viewer');
     renderAt('/admin/live');
     const nav = await screen.findByRole('navigation', { name: 'Area riservata' });
@@ -153,12 +165,25 @@ describe('admin navigation', () => {
       within(nav)
         .getAllByRole('region')
         .map((g) => g.getAttribute('aria-label')),
-    ).toEqual(['Partite']);
+    ).toEqual(['Partite', 'Club', 'Dispositivi']);
     expect(
       within(nav)
         .getAllByRole('link')
         .map((l) => l.textContent),
-    ).toEqual(['Partita live', 'Partite']);
+    ).toEqual(['Partita live', 'Partite', 'Calendario', 'Link pubblici', 'Club', 'Agenti']);
+  });
+
+  it('opens «Campionati» for the superadmin only', async () => {
+    mockServer('superadmin');
+    renderAt('/admin/campionati');
+    expect(await screen.findByRole('heading', { name: 'Nuovo campionato della Lega' })).toBeTruthy();
+    expect(where()).toBe('/admin/campionati');
+    cleanup();
+    mockServer('admin');
+    renderAt('/admin/campionati');
+    const nav = await screen.findByRole('navigation', { name: 'Area riservata' });
+    await waitFor(() => expect(where()).toBe('/admin/live'));
+    expect(within(nav).queryByRole('link', { name: 'Campionati' })).toBeNull();
   });
 
   it('has the account and «Esci» at the bottom of the menu, and no «Powered by» credit', async () => {

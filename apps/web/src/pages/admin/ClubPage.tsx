@@ -29,6 +29,7 @@ import { READ_ONLY_TEXT, useCanEdit } from '../../lib/useCanEdit.ts';
 import { useApiError, useAuth } from './auth.tsx';
 import { Field, inputClass } from './forms.tsx';
 import { LogoPicker } from './LogoPicker.tsx';
+import { studioPath } from './studio/model.ts';
 
 export const COVERAGE_TEXT: Record<ClubCoverage, string> = {
   homeAndAway: 'Casa e trasferta',
@@ -404,6 +405,7 @@ function ProfileForm({ club, onSaved }: { club: ClubResponse; onSaved: (c: ClubR
 export function ClubPage() {
   const errorMessage = useApiError();
   const { isSuperadmin } = useAuth();
+  const canEdit = useCanEdit();
   const load = useCallback((signal: AbortSignal) => apiRequest('/api/admin/club', ClubResponseSchema, { signal }), []);
   const club = useAsync(load);
   const [current, setCurrent] = useState<ClubResponse | null>(null);
@@ -457,11 +459,19 @@ export function ClubPage() {
                 : 'non impostata: si imposta da sola quando scegli la squadra del club'}
             </dd>
           </dl>
-          {isSuperadmin && (
-            <Link to="/admin/campionati" className={`${buttonClass()} mt-4`}>
-              Apri «Campionati»
-            </Link>
-          )}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {/* Colours, horizontal logo and the rest of the graphics are in the Studio (admins only). */}
+            {canEdit && (
+              <Link to={studioPath('colori')} className={buttonClass()}>
+                Apri «Colori e loghi»
+              </Link>
+            )}
+            {isSuperadmin && (
+              <Link to="/admin/campionati" className={buttonClass()}>
+                Apri «Campionati»
+              </Link>
+            )}
+          </div>
         </Card>
         <ProfileForm key={`${version}-${profileVersion}`} club={current} onSaved={setCurrent} />
       </div>

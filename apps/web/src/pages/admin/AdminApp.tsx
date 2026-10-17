@@ -15,6 +15,7 @@ import { AgentsPage } from './AgentsPage.tsx';
 import { CalendarPage } from './CalendarPage.tsx';
 import { ClubPage } from './ClubPage.tsx';
 import { useAuth, useSession } from './auth.tsx';
+import { LeaguesPage } from './LeaguesPage.tsx';
 import { LiveAdminPage } from './LiveAdminPage.tsx';
 import { LoginPage } from './LoginPage.tsx';
 import { MatchDetailPage } from './MatchDetailPage.tsx';
@@ -36,7 +37,7 @@ const STUDIO_WIDE_MENU_MIN = 1600;
 const ROLE_TEXT = { superadmin: 'superadmin', admin: 'amministratore', viewer: 'sola lettura' } as const;
 
 /**
- * Reserved area `/admin/*`: login, then pages by role (a viewer sees only the matches). All of it, login included, in
+ * Reserved area `/admin/*`: login, then pages by role (a viewer reads matches, calendar, links, club and agents). All of it, login included, in
  * Inter (`sir-admin-font`), whatever the template of the client.
  */
 export function AdminApp() {
@@ -161,10 +162,11 @@ function AdminLayout() {
             <Route path="live" element={<LiveAdminPage />} />
             <Route path="partite" element={<MatchesPage />} />
             <Route path="partite/:id" element={<MatchDetailPage />} />
-            <Route path="calendario" element={adminOnly(<CalendarPage />)} />
-            <Route path="club" element={adminOnly(<ClubPage />)} />
-            <Route path="link" element={adminOnly(<ShareLinksPage />)} />
-            <Route path="agenti" element={adminOnly(<AgentsPage />)} />
+            {/* Read-only for a viewer: the pages hide or disable their commands (useCanEdit), the server refuses them. */}
+            <Route path="calendario" element={<CalendarPage />} />
+            <Route path="club" element={<ClubPage />} />
+            <Route path="link" element={<ShareLinksPage />} />
+            <Route path="agenti" element={<AgentsPage />} />
             <Route path="utenti" element={adminOnly(<UsersPage />)} />
             <Route
               path="studio/:section?"
@@ -179,6 +181,7 @@ function AdminLayout() {
               <Route key={path} path={path} element={<Navigate to={studioPath(section)} replace />} />
             ))}
             <Route path="clienti" element={superadminOnly(<TenantsPage tenants={tenants} />)} />
+            <Route path="campionati" element={superadminOnly(<LeaguesPage />)} />
             <Route path="*" element={<Navigate to="/admin/live" replace />} />
           </Routes>
         </div>

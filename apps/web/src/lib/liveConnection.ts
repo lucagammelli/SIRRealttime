@@ -80,6 +80,11 @@ export interface LiveConnectionOptions {
    * most every 5 s per socket).
    */
   resyncRetryMs?: number;
+  /**
+   * Message sent once at every open of the socket (public page: the `hello` of the statistics of the visits, see
+   * `lib/visit.ts`); missing or null: nothing is sent.
+   */
+  hello?: () => string | null;
 }
 
 /** Close codes of a server that stopped, restarted or crashed: every client reconnects, so they spread out. */
@@ -286,6 +291,8 @@ export class LiveConnection {
     };
     socket.onopen = () => {
       opened = true;
+      const hello = this.options.hello?.();
+      if (hello) socket.send(hello);
       this.update({ status: 'live', attempts: 0, serverFull: false });
     };
     socket.onmessage = (ev) => {

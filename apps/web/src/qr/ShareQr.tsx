@@ -1,4 +1,4 @@
-import { formatShortCode } from '@sir/shared';
+import { formatShortCode, QR_QUERY_PARAM } from '@sir/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, CopyButton } from '../components/ui.tsx';
 import { useTenantLook } from '../lib/branding.ts';
@@ -16,6 +16,17 @@ export interface ShareQrProps {
   actions?: boolean;
   /** Classes of the preview image (size). */
   imageClassName?: string;
+}
+
+/** Address encoded in the QR: the link plus `?q=1`, so the statistics tell the visits from the QR from the others. */
+export function qrAddress(url: string): string {
+  try {
+    const u = new URL(url);
+    u.searchParams.set(QR_QUERY_PARAM, '1');
+    return u.toString();
+  } catch {
+    return url;
+  }
 }
 
 function download(href: string, filename: string): void {
@@ -36,6 +47,7 @@ export function ShareQr({ url, code, logoSrc, actions = true, imageClassName = '
   const look = useTenantLook();
   const logo = logoSrc === undefined ? (look?.images.logoMark ?? null) : logoSrc;
   const caption = code ? formatShortCode(code) : '';
+  const encoded = useMemo(() => qrAddress(url), [url]);
   const fileName = `qr-${code ?? 'link'}`;
   const [loaded, setLoaded] = useState<{ src: string; dataUrl: string | null } | null>(null);
   const [pngBusy, setPngBusy] = useState(false);
@@ -55,15 +67,15 @@ export function ShareQr({ url, code, logoSrc, actions = true, imageClassName = '
   // undefined: the logo is still loading (the QR waits for it, so it is not drawn twice).
   const logoDataUrl = !logo ? null : loaded?.src === logo ? loaded.dataUrl : undefined;
   const svg = useMemo(
-    () => (logoDataUrl === undefined ? null : svgDataUrl(qrSvg(url, { caption, logoDataUrl }))),
-    [url, caption, logoDataUrl],
+    () => (logoDataUrl === undefined ? null : svgDataUrl(qrSvg(encoded, { caption, logoDataUrl }))),
+    [encoded, caption, logoDataUrl],
   );
 
   const savePng = async (): Promise<void> => {
     setPngBusy(true);
     setPngError(false);
     try {
-      download(await qrPngDataUrl(url, { caption, logoDataUrl: logoDataUrl ?? null }), `${fileName}.png`);
+      download(await qrPngDataUrl(encoded, { caption, logoDataUrl: logoDataUrl ?? null }), `${fileName}.png`);
     } catch {
       setPngError(true);
     } finally {

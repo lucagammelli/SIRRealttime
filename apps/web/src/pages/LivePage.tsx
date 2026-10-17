@@ -1,5 +1,5 @@
-import { SHARE_TOKEN_PATTERN } from '@sir/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { QR_QUERY_PARAM, SHARE_TOKEN_PATTERN } from '@sir/shared';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { BrandMark } from '../components/BrandMark.tsx';
 import { FullscreenHint, InstallButton } from '../components/AppInstall.tsx';
@@ -15,6 +15,7 @@ import { tvModeOf } from '../lib/layout.ts';
 import { useDevice } from '../lib/useLayout.ts';
 import { socketUrl, useLiveSocket } from '../lib/useLiveSocket.ts';
 import { usePointSequence } from '../lib/pointSequence.ts';
+import { makeHello, newVisitId } from '../lib/visit.ts';
 import {
   useBrandName,
   useTemplate,
@@ -83,7 +84,18 @@ export function LivePage() {
     void registerServiceWorker();
   }, []);
   const probe = useCallback(() => probeShareToken(token), [token]);
-  const received = useLiveSocket(valid ? socketUrl(`/ws/public/${encodeURIComponent(token)}`) : null, { probe });
+  // Statistics of the visits: the page says how it was opened (QR or link, device, app); the id lives in memory only.
+  const [visitId] = useState(newVisitId);
+  const deviceNow = useRef(device);
+  useEffect(() => {
+    deviceNow.current = device;
+  }, [device]);
+  const sourceSearch = search.get(QR_QUERY_PARAM) === '1' ? `?${QR_QUERY_PARAM}=1` : '';
+  const hello = useMemo(() => makeHello(visitId, () => deviceNow.current, sourceSearch), [visitId, sourceSearch]);
+  const received = useLiveSocket(valid ? socketUrl(`/ws/public/${encodeURIComponent(token)}`) : null, {
+    probe,
+    hello,
+  });
   // Several new points in one update are shown one at a time (scoreboard, momentum, last point, overlays and pauses
   // all read the same state): only presentation, it always ends on the state of the server.
   const receivedData = received.data;

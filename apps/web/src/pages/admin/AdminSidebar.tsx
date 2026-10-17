@@ -17,6 +17,7 @@ const ICONS = {
   tenants: 'M4 20V7l8-4 8 4v13M9 20v-5h6v5M8.5 9.5h.01M12 9.5h.01M15.5 9.5h.01',
   leagues: 'M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8',
   mail: 'M4 6h16v12H4zM4 7l8 6 8-6',
+  stats: 'M4 20V10M10 20V4M16 20v-8M22 20H2',
   logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
   collapse: 'M15 6l-6 6 6 6',
   close: 'M6 6l12 12M18 6L6 18',
@@ -91,6 +92,7 @@ export function menuGroups({
         { to: '/admin/calendario', label: 'Calendario', icon: 'calendar' },
       ],
     },
+    { label: 'Statistiche', items: [{ to: '/admin/statistiche', label: 'Visualizzazioni', icon: 'stats' }] },
     { label: 'Club', items: [{ to: '/admin/club', label: 'Club', icon: 'club' }] },
     {
       label: 'Pagina pubblica',

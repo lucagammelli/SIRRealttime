@@ -92,6 +92,38 @@ function setup(probe?: () => Promise<ProbeResult>, extra: { gzip?: boolean; rest
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
+describe('hello of the statistics', () => {
+  it('is sent once at every open of the socket, also after a reconnection; nothing without it', () => {
+    const sockets: FakeSocket[] = [];
+    const conn = new LiveConnection({
+      url: 'ws://test/ws/public/abc',
+      onChange: vi.fn(),
+      createSocket: (url) => {
+        const s = new FakeSocket(url);
+        sockets.push(s);
+        return s;
+      },
+      baseDelayMs: 1000,
+      random: () => 0.5,
+      gzip: false,
+      hello: () => JSON.stringify({ type: 'hello', visit: 'v'.repeat(32) }),
+    });
+    conn.start();
+    sockets[0]?.open();
+    expect(sockets[0]?.outgoing).toEqual([{ type: 'hello', visit: 'v'.repeat(32) }]);
+    sockets[0]?.serverClose(1006);
+    vi.advanceTimersByTime(60_000);
+    sockets[1]?.open();
+    expect(sockets[1]?.outgoing).toEqual([{ type: 'hello', visit: 'v'.repeat(32) }]);
+    conn.stop();
+    const plain = setup();
+    plain.conn.start();
+    plain.last().open();
+    expect(plain.last().outgoing).toEqual([]);
+    plain.conn.stop();
+  });
+});
+
 describe('applyMessage', () => {
   it('ignores versions not newer than the one shown for the same match', () => {
     const v5 = applyMessage(null, stateMsg(MATCH_A, 5));

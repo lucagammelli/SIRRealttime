@@ -8,6 +8,7 @@ import type { LeagueService } from './leagues/sync.js';
 import type { FailureLimiter } from './lib/failureLimiter.js';
 import type { MailService } from './mail/service.js';
 import type { ResyncScheduler } from './lib/resync.js';
+import type { StatsService } from './stats/service.js';
 import type { TtlCache } from './lib/ttlCache.js';
 import type { Tenant } from './tenancy.js';
 
@@ -103,6 +104,8 @@ export interface AppContext {
   mail: MailService;
   /** Pacing of the full states sent because of `resync` (per socket and per IP). */
   resync: ResyncScheduler;
+  /** Visits of the public pages: counted in memory, written in batches (`src/stats/`). */
+  stats: StatsService;
   /** Downloads and updates of the championships (common to every client). */
   leagues: LeagueService;
   /** Championships of the season in course on the official site (series chosen by the clubs). */

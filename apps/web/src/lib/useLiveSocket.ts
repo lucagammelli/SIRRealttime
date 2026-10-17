@@ -17,7 +17,7 @@ export function socketUrl(path: string, location: Pick<Location, 'protocol' | 'h
  */
 export function useLiveSocket(url: string | null, options: UseLiveSocketOptions = {}): LiveSnapshot {
   const [snapshot, setSnapshot] = useState<LiveSnapshot>(INITIAL);
-  const { createSocket, probe, baseDelayMs, maxDelayMs, restartSpreadMs, random, gzip, resyncRetryMs } = options;
+  const { createSocket, probe, baseDelayMs, maxDelayMs, restartSpreadMs, random, gzip, resyncRetryMs, hello } = options;
 
   useEffect(() => {
     if (url === null) return;
@@ -33,6 +33,7 @@ export function useLiveSocket(url: string | null, options: UseLiveSocketOptions 
       ...(random ? { random } : {}),
       ...(gzip === undefined ? {} : { gzip }),
       ...(resyncRetryMs === undefined ? {} : { resyncRetryMs }),
+      ...(hello ? { hello } : {}),
     });
     connection.start();
     const online = (): void => connection.retryNow();
@@ -41,7 +42,7 @@ export function useLiveSocket(url: string | null, options: UseLiveSocketOptions 
       window.removeEventListener('online', online);
       connection.stop();
     };
-  }, [url, createSocket, probe, baseDelayMs, maxDelayMs, restartSpreadMs, random, gzip, resyncRetryMs]);
+  }, [url, createSocket, probe, baseDelayMs, maxDelayMs, restartSpreadMs, random, gzip, resyncRetryMs, hello]);
 
   return snapshot;
 }

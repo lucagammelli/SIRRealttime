@@ -126,6 +126,7 @@ describe('admin navigation', () => {
     const groups = within(nav).getAllByRole('region');
     expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual([
       'Partite',
+      'Statistiche',
       'Club',
       'Pagina pubblica',
       'Dispositivi',
@@ -180,7 +181,7 @@ describe('admin navigation', () => {
       within(nav)
         .getAllByRole('region')
         .map((g) => g.getAttribute('aria-label')),
-    ).toEqual(['Partite', 'Club', 'Pagina pubblica', 'Dispositivi', 'Amministrazione']);
+    ).toEqual(['Partite', 'Statistiche', 'Club', 'Pagina pubblica', 'Dispositivi', 'Amministrazione']);
     expect(
       within(within(nav).getByRole('region', { name: 'Amministrazione' }))
         .getAllByRole('link')
@@ -203,12 +204,12 @@ describe('admin navigation', () => {
       within(nav)
         .getAllByRole('region')
         .map((g) => g.getAttribute('aria-label')),
-    ).toEqual(['Partite', 'Club', 'Pagina pubblica', 'Dispositivi']);
+    ).toEqual(['Partite', 'Statistiche', 'Club', 'Pagina pubblica', 'Dispositivi']);
     expect(
       within(nav)
         .getAllByRole('link')
         .map((l) => l.textContent),
-    ).toEqual(['Partita live', 'Partite', 'Calendario', 'Club', 'Link pubblici', 'Agenti']);
+    ).toEqual(['Partita live', 'Partite', 'Calendario', 'Visualizzazioni', 'Club', 'Link pubblici', 'Agenti']);
   });
 
   it('opens «Campionati» for the superadmin only', async () => {

@@ -6,6 +6,7 @@ import {
   bigint,
   boolean,
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -563,6 +564,81 @@ export const clientFixtures = pgTable(
   ],
 );
 
+/**
+ * One visit to a public page (statistics): kept 90 days, then only the totals of `view_daily` stay. No IP, no user
+ * agent, no id of the spectator: the id of the visit lives only in the memory of the server until the visit ends.
+ * Simulated matches are never recorded.
+ */
+export const pageViews = pgTable(
+  'page_views',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: tenantId(),
+    /** Link opened; null when the link was deleted since. */
+    shareTokenId: uuid('share_token_id').references(() => shareTokens.id, { onDelete: 'set null' }),
+    clientFixtureId: uuid('client_fixture_id').references((): AnyPgColumn => clientFixtures.id, {
+      onDelete: 'set null',
+    }),
+    /** Match followed when the visit ended; null: none yet («Prossima partita»). */
+    matchId: uuid('match_id').references(() => matches.id, { onDelete: 'set null' }),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    endedAt: timestamp('ended_at', { withTimezone: true }).notNull(),
+    seconds: integer('seconds').notNull(),
+    device: text('device').notNull(),
+    source: text('source').notNull(),
+    app: boolean('app').notNull(),
+    /** Day of `started_at` in Rome (`YYYY-MM-DD`): the unit of the daily totals. */
+    day: date('day', { mode: 'string' }).notNull(),
+  },
+  (t) => [
+    index('page_views_tenant_day_idx').on(t.tenantId, t.day),
+    check('page_views_device_check', sql`${t.device} in ('tv', 'tablet', 'phone')`),
+    check('page_views_source_check', sql`${t.source} in ('qr', 'link')`),
+    check('page_views_seconds_check', sql`${t.seconds} >= 0`),
+  ],
+);
+
+/** Spectators connected to a match, sampled every minute (only minutes with at least one). */
+export const viewerPeaks = pgTable(
+  'viewer_peaks',
+  {
+    tenantId: tenantId(),
+    matchId: uuid('match_id')
+      .notNull()
+      .references(() => matches.id, { onDelete: 'cascade' }),
+    /** Start of the minute. */
+    minute: timestamp('minute', { withTimezone: true }).notNull(),
+    viewers: integer('viewers').notNull(),
+    day: date('day', { mode: 'string' }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.matchId, t.minute] }),
+    index('viewer_peaks_tenant_day_idx').on(t.tenantId, t.day),
+    check('viewer_peaks_viewers_check', sql`${t.viewers} > 0`),
+  ],
+);
+
+/** Totals of a day (Rome) per link and match, written when the detail of `page_views` is older than 90 days. */
+export const viewDaily = pgTable(
+  'view_daily',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: tenantId(),
+    day: date('day', { mode: 'string' }).notNull(),
+    shareTokenId: uuid('share_token_id').references(() => shareTokens.id, { onDelete: 'set null' }),
+    matchId: uuid('match_id').references(() => matches.id, { onDelete: 'set null' }),
+    visits: integer('visits').notNull(),
+    qrVisits: integer('qr_visits').notNull(),
+    appVisits: integer('app_visits').notNull(),
+    tvVisits: integer('tv_visits').notNull(),
+    tabletVisits: integer('tablet_visits').notNull(),
+    phoneVisits: integer('phone_visits').notNull(),
+    seconds: bigint('seconds', { mode: 'number' }).notNull(),
+    peak: integer('peak').notNull(),
+  },
+  (t) => [index('view_daily_tenant_day_idx').on(t.tenantId, t.day)],
+);
+
 export const schema = {
   tenants,
   userRole,
@@ -594,4 +670,7 @@ export const schema = {
   manualFixtureKind,
   fixtureBroadcast,
   clientFixtures,
+  pageViews,
+  viewerPeaks,
+  viewDaily,
 };

@@ -82,6 +82,21 @@ const big = (version: number, home: number): StateMessage =>
 const share = { kind: 'share', shareTokenId: 's1' } as const;
 
 describe('LiveHub', () => {
+  it('tells the statistics which match a socket was shown and whether it is a simulation, when it leaves', () => {
+    const watcher = add(share, null, { kind: 'match', tenantId: TENANT, matchId: 'm1' });
+    const asSocket = watcher as unknown as WebSocket;
+    expect(hub.viewOf(asSocket)).toEqual({ matchId: null, simulated: false });
+    const left: unknown[] = [];
+    hub.onLeave(asSocket, (view) => left.push(view));
+    hub.publish(TENANT, { ...state(1), simulated: true }, { clientFixtureId: null, becameLive: false, isolated: true });
+    expect(hub.viewOf(asSocket)).toEqual({ matchId: 'm1', simulated: true });
+    watcher.emit('close');
+    expect(left).toEqual([{ matchId: 'm1', simulated: true }]);
+    expect(hub.viewOf(asSocket)).toBeNull();
+    watcher.emit('close');
+    expect(left).toHaveLength(1);
+  });
+
   it('sends a simulated match (isolated) only to the clients of its own link', () => {
     const live = add(share);
     const channel = add(share, null, { kind: 'channel', tenantId: TENANT });

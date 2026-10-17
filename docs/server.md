@@ -642,6 +642,65 @@ come l'agente), così il comportamento è quello vero; la partita però è **iso
   agente che invia su una `matchKey` di una simulazione, o la simulazione su una `matchKey` di un agente, riceve **409**
   «Partita già usata da un'altra sorgente».
 
+### Statistiche delle visite (`src/stats/`, `src/routes/stats.ts`, migrazione `0013_statistiche_visite`)
+Conta chi guarda la pagina pubblica, senza dati personali. Pagina: `docs/portale.md`, «Statistiche»; contratti
+(`packages/shared/src/stats.ts`): `docs/architettura.md`.
+
+**Regole di visita** (`VisitTracker`, `tracker.ts`):
+- Il primo messaggio `hello` di un WebSocket pubblico apre una visita (`StatsService.connect`, chiamato da `state.ts`);
+  gli `hello` successivi dello stesso socket sono ignorati: **una visita per socket**. I socket dell'area riservata
+  (`/ws/admin`) non contano.
+- La visita è identificata da link + id di visita (`hello.visit`). Una **riconnessione entro 30 s**
+  (`RECONNECT_GRACE_MS`) con lo stesso id è la stessa visita; passati i 30 s dalla chiusura dell'ultimo socket la visita finisce.
+- Una visita sotto i **3 s** (`MIN_VISIT_MS`) è scartata. Le visite su partite **simulate** non sono mai registrate né
+  contate in «Adesso» e nei picchi.
+- La partita della visita è l'ultima seguita dal socket (letta dall'hub con `viewOf`, `null` prima dell'inizio).
+- Buffer in memoria: al massimo 100.000 visite (`BUFFER_LIMIT`) e 50.000 campioni di picco (`PEAK_BUFFER_LIMIT`); oltre, i
+  più vecchi cadono (contatore `dropped`). Le visite tenute in memoria insieme sono al massimo 20.000 (`MAX_VISITS`): oltre,
+  le nuove non si contano e salgono in `dropped`.
+- L'`hello` apre una visita solo su un socket ancora aperto e ancora tenuto dall'hub (`state.ts`: `readyState` aperto e
+  `hub.viewOf` non nullo), perché per gli altri la chiusura non arriverebbe mai.
+
+**Scrittura** (`StatsService`, `service.ts`; avviata da `app.ts` con `ctx.stats.start()`):
+- a lotti ogni **15 s** (`FLUSH_MS`), mai una scrittura per messaggio; `writeBatch` (`store.ts`) scrive il lotto in
+  **una sola transazione**; l'id di ogni visita lo genera il server (`randomUUID`, `tracker.ts`) e l'inserimento ignora i
+  doppioni (`onConflictDoNothing`), così un nuovo tentativo non duplica; se il database rifiuta il lotto, viene rimesso in
+  coda e riprovato al giro dopo (errore nel log, mai verso gli spettatori);
+- **picchi** una volta al minuto (`SAMPLE_MS`): spettatori collegati per partita, nel minuto vale il campione più alto;
+- **pulizia** (`housekeeping`): un timer orario proprio (`HOUSEKEEPING_MS`, più una chiamata all'avvio), **indipendente da
+  `LEAGUE_SYNC`**, una volta al giorno (giorno di Roma) trasforma il dettaglio più vecchio di **90 giorni**
+  (`DETAIL_DAYS`, `purgeOld` in `store.ts`) in totali giornalieri in `view_daily` (per link e partita; i picchi di una
+  partita in righe senza link) e cancella `page_views` e `viewer_peaks` di quei giorni, in una transazione;
+- **chiusura** (`close`, `app.ts`): ferma i timer, le visite aperte finiscono adesso e tutto è scritto.
+
+**Tabelle** (`src/db/schema.ts`, migrazione `apps/server/drizzle/0013_statistiche_visite.sql`):
+
+| Tabella | Contenuto |
+|---|---|
+| `page_views` | una riga per visita: cliente, link (`share_token_id`), partita del calendario e partita, inizio, fine, `seconds`, `device` (`tv`, `tablet`, `phone`), `source` (`qr`, `link`), `app`, `day` (giorno di Roma) |
+| `viewer_peaks` | spettatori collegati a una partita in un minuto (chiave `match_id` + `minute`, `viewers` > 0) |
+| `view_daily` | totali del giorno per link e partita (visite, da QR, da app, per dispositivo, secondi, picco) dopo i 90 giorni |
+
+Link e partite eliminati lasciano `null` nelle righe (`on delete set null`); i picchi seguono la partita (`cascade`).
+
+**Privacy: cosa si salva e cosa no.** Si salvano solo orari, durata, link, partita, tipo di dispositivo (`tv`,
+`tablet`, `phone`), provenienza (QR o link) e se la pagina è un'app installata. **Non** si salvano IP, user agent,
+cookie né alcun identificativo persistente: l'id di visita nasce nella pagina, vive solo in memoria (un ricaricamento è
+una nuova visita), resta nel server solo finché la visita è aperta e non è mai scritto nel database. Per questo non
+esistono «spettatori unici».
+
+**Rotte** (sessione, ruolo `viewer`, limite `RATE_LIMIT_ADMIN`, risposta `cache-control: no-store`; sempre sul cliente
+della sessione, il superadmin su quello scelto):
+- `GET /api/admin/stats?from=YYYY-MM-DD&to=YYYY-MM-DD`: `StatsOverview` (totali, dispositivi, partite, link, giornate). Il
+  periodo (`StatsPeriodQuerySchema`) è in giorni di Roma, estremi inclusi; senza parametri sono gli ultimi 30 giorni
+  (`to` = oggi); `from` non dopo `to`, al massimo 366 giorni (`STATS_MAX_DAYS`), altrimenti 400. Prima di leggere scrive i
+  lotti in attesa (`flush`), così una visita appena chiusa è già contata. I picchi di partite eliminate nel frattempo non
+  entrano nei totali (`buildOverview`, `store.ts`).
+- `GET /api/admin/stats/now`: `StatsNow`, spettatori collegati adesso (dalla memoria), partita live e ripartizione per
+  partita e per link.
+- `GET /api/admin/stats/matches/:matchId/curve`: `StatsCurve`, spettatori minuto per minuto; 404 se la partita non esiste
+  per il cliente o è simulata; senza campioni `points` è vuoto (al massimo 2000 punti).
+
 ### Accessi
 - **Token agente**: segreto casuale da 256 bit (base64url) creato da un admin; si salva solo l'hash sha256. L'agente lo
   invia come `Authorization: Bearer <token>`; un token revocato è rifiutato (401). Aggiorna `lastSeenAt`. Se l'agente ha
@@ -804,6 +863,9 @@ come l'agente), così il comportamento è quello vero; la partita però è **iso
 | GET | `/api/admin/mail-settings` | sessione | superadmin |
 | PUT | `/api/admin/mail-settings` | sessione | superadmin |
 | POST | `/api/admin/mail-settings/test` | sessione | superadmin |
+| GET | `/api/admin/stats` | sessione, filtro `from`/`to` | viewer |
+| GET | `/api/admin/stats/now` | sessione | viewer |
+| GET | `/api/admin/stats/matches/:matchId/curve` | sessione | viewer |
 | GET (WebSocket) | `/ws/public/:token` | link pubblico (token lungo o codice breve) | - |
 | GET (WebSocket) | `/ws/admin` | sessione + controllo `Origin` | viewer |
 
@@ -828,8 +890,10 @@ Messaggi server→client (`ServerMessage`):
   arriva il client riceve `state`.
 - `error`: `{ type, message }`, ad esempio se lo stato iniziale non è leggibile.
 
-Messaggio client→server (`ClientMessage`): solo `resync` (`{ "type": "resync" }`): il client ha perso il filo delle
-versioni e chiede lo stato intero. Il messaggio è validato con lo schema condiviso, qualsiasi altra cosa (testo non JSON,
+Messaggi client→server (`ClientMessage`): `resync` (`{ "type": "resync" }`): il client ha perso il filo delle
+versioni e chiede lo stato intero; `hello` (`{ type, visit, device, source, app }`, `HelloMessageSchema`): la pagina
+pubblica lo manda una volta per socket appena aperto e apre la visita delle statistiche (sopra, «Statistiche delle
+visite»); sui socket dell'area riservata è ignorato. Il messaggio è validato con lo schema condiviso, qualsiasi altra cosa (testo non JSON,
 frame binari) è ignorata. Ogni `resync` ha risposta, ma `ResyncScheduler` (`src/lib/resync.ts`) la distanzia: al massimo
 una ogni 5 s per socket (una sola in attesa per socket) e 100 al secondo per IP; le altre slittano ai secondi seguenti.
 Payload massimo 4 KB.

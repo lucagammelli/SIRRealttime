@@ -369,3 +369,14 @@ Una riga per decisione: data, scelta, motivo.
   né al superadmin, perché solo l'admin può salvare le scelte; gli altri vedono al più l'avviso o il link.
 - 2026-10-17: il cambio di stagione è automatico nell'aggiornamento notturno (squadra ritrovata per id esterno o nome,
   altrimenti avviso «Nuova stagione: scegli di nuovo la squadra»), perché ogni estate i campionati ripartono con id nuovi.
+- 2026-10-17: nessuno «spettatore unico» nelle statistiche, solo visite, perché contarli richiederebbe un identificativo
+  persistente (cookie, IP o impronta), che non vogliamo salvare.
+- 2026-10-17: il desktop è contato come tablet nei dispositivi (`tv`, `tablet`, `phone`), perché la pagina pubblica ha
+  solo questi tre impianti.
+- 2026-10-17: la pagina iniziale dell'area riservata resta «Partita live»; «Statistiche» è un gruppo di menu a parte.
+- 2026-10-17: nessun banner dei cookie, perché la pagina pubblica non usa cookie né salva nulla sul dispositivo (l'id di
+  visita è solo in memoria).
+- 2026-10-17: la pulizia a 90 giorni delle statistiche ha un timer orario proprio (`StatsService.housekeeping`), perché
+  non deve dipendere da `LEAGUE_SYNC`, che può essere spento.
+- 2026-10-17: le visite sotto i 3 s sono scartate e una riconnessione entro 30 s è la stessa visita, perché una pagina
+  aperta e chiusa subito o un telefono che perde un attimo la rete falserebbero i conteggi.

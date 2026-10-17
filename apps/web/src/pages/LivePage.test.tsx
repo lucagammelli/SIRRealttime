@@ -23,9 +23,14 @@ const snapshot: LiveSnapshot = {
 };
 /** What the mocked socket gives (a test may change it and render again). */
 let socketSnapshot: LiveSnapshot = snapshot;
+/** Options the page gave to the socket (the `hello` of the statistics). */
+let socketOptions: { hello?: () => string | null } | undefined;
 vi.mock('../lib/useLiveSocket.ts', () => ({
   socketUrl: (path: string) => `ws://test${path}`,
-  useLiveSocket: () => socketSnapshot,
+  useLiveSocket: (_url: string | null, options?: { hello?: () => string | null }) => {
+    socketOptions = options;
+    return socketSnapshot;
+  },
 }));
 
 const TOKEN = 'abcdefghijklmnopqrstuv12';
@@ -417,5 +422,21 @@ describe('LivePage of a simulated match', () => {
     // Over the pause (z-50) and the avvisi (z-45).
     expect(label.className).toContain('z-[60]');
     expect(dialog.className).toContain('z-50');
+  });
+
+  it('tells the server how the page was opened (statistics): QR, device, one id per page, nothing stored', () => {
+    setWidth(390, 800);
+    const { unmount } = renderAt('?q=1');
+    const first = JSON.parse(socketOptions?.hello?.() ?? 'null') as Record<string, unknown>;
+    expect(first).toMatchObject({ type: 'hello', device: 'phone', source: 'qr', app: false });
+    expect(String(first.visit)).toMatch(/^[0-9a-f]{32}$/);
+    // The same page keeps its id (a reconnection joins the visit); a new page has another one.
+    expect(JSON.parse(socketOptions?.hello?.() ?? 'null')).toEqual(first);
+    unmount();
+    renderAt('');
+    const second = JSON.parse(socketOptions?.hello?.() ?? 'null') as Record<string, unknown>;
+    expect(second.source).toBe('link');
+    expect(second.visit).not.toBe(first.visit);
+    expect(document.cookie).toBe('');
   });
 });

@@ -17,6 +17,7 @@ export * from './overlays.js';
 export * from './patch.js';
 export * from './registration.js';
 export * from './simulation.js';
+export * from './stats.js';
 export * from './strings.js';
 export * from './templates.js';
 export * from './tenant.js';

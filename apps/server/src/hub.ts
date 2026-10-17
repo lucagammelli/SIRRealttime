@@ -2,6 +2,7 @@ import { gzipSync } from 'node:zlib';
 import type { JsonValue, PatchMessage, ScheduledMessage, ServerMessage, StateMessage } from '@sir/shared';
 import { diffJson } from '@sir/shared';
 import type { WebSocket } from 'ws';
+import type { SocketView } from './stats/tracker.js';
 
 /**
  * What a client follows, always within one client (tenant): a fixed match, the live match of the client (the one
@@ -29,14 +30,18 @@ export interface Subscriber {
   encoding?: FrameEncoding;
   /** Client IP of a public socket (counted against the per-IP limit); null for admin sockets. */
   ip?: string | null;
+  /** Public link of the socket (statistics of the visits); missing for admin sockets. */
+  link?: { shareTokenId: string; clientFixtureId: string | null };
 }
 
 interface Entry extends Subscriber {
   alive: boolean;
   /** Last state version sent to the client: a patch is sent only to a client that has its `baseVersion`. */
-  last: { matchId: string; version: number } | null;
+  last: { matchId: string; version: number; simulated: boolean } | null;
   /** Channel: what `showChannel` sent last (a match or the next match), to send it only when it changes. */
   channelKey?: string;
+  /** Called when the socket leaves the hub (closed, dropped or too slow), with what it was following. */
+  onLeave?: (view: SocketView) => void;
 }
 
 /**
@@ -272,6 +277,18 @@ export class LiveHub implements StatePublisher {
     this.deliver(entry, message, new Frame(JSON.stringify(message)), null);
   }
 
+  /** Match a socket is shown (null: the socket is not here, or no state was sent to it yet). */
+  viewOf(socket: WebSocket): SocketView | null {
+    const entry = this.entries.get(socket);
+    return entry ? { matchId: entry.last?.matchId ?? null, simulated: entry.last?.simulated ?? false } : null;
+  }
+
+  /** `onLeave` is called once when the socket leaves the hub. */
+  onLeave(socket: WebSocket, onLeave: (view: SocketView) => void): void {
+    const entry = this.entries.get(socket);
+    if (entry) entry.onLeave = onLeave;
+  }
+
   /** The client lost track of the versions (`resync`): the next state is sent in full. */
   forget(socket: WebSocket): void {
     const entry = this.entries.get(socket);
@@ -407,7 +424,7 @@ export class LiveHub implements StatePublisher {
       const last = entry.last;
       if (last && last.matchId === message.matchId && last.version >= message.version) return;
       if (patch && last && last.matchId === message.matchId && last.version === patch.baseVersion) frame = patch.frame;
-      entry.last = { matchId: message.matchId, version: message.version };
+      entry.last = { matchId: message.matchId, version: message.version, simulated: message.simulated === true };
     }
     if (entry.socket.readyState !== entry.socket.OPEN) return;
     if (entry.socket.bufferedAmount > MAX_BUFFERED_BYTES) {
@@ -421,6 +438,7 @@ export class LiveHub implements StatePublisher {
   private remove(entry: Entry): void {
     if (this.entries.get(entry.socket) !== entry) return;
     this.entries.delete(entry.socket);
+    entry.onLeave?.({ matchId: entry.last?.matchId ?? null, simulated: entry.last?.simulated ?? false });
     if (entry.ip !== undefined && entry.ip !== null) {
       this.publicCount--;
       const left = (this.perIp.get(entry.ip) ?? 1) - 1;

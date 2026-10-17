@@ -339,6 +339,13 @@ Validità e quota degli agenti, canale, manifest: `admin.ts` ha `AgentSummary.ex
 `AGENT_EXPIRED_ERROR` («Registrazione scaduta: registrati di nuovo», il testo del 401 `AGENT_EXPIRED`); `manifest.ts` ha
 `webManifest` e `DEFAULT_MANIFEST_ICONS` (manifest dell'app del cliente).
 
+Statistiche delle visite (`stats.ts`): `HelloMessageSchema` (`{ type: 'hello', visit, device, source, app }`; `VISIT_ID_PATTERN`,
+`VisitDeviceSchema` = `tv`/`tablet`/`phone`, `VisitSourceSchema` = `qr`/`link`, `QR_QUERY_PARAM` = `q`), inserito in
+`ClientMessageSchema` di `messages.ts` accanto a `resync`; `StatsPeriodQuerySchema` (`from`, `to`, al massimo
+`STATS_MAX_DAYS` = 366), `StatsOverviewSchema` (con `StatsTotalsSchema`, `StatsMatchRowSchema`, `StatsLinkRowSchema`,
+`StatsDayRowSchema`), `StatsNowSchema`, `StatsCurveSchema`, `STATS_DETAIL_DAYS` = 90. Nessun campo identifica lo
+spettatore (`docs/server.md`, «Statistiche delle visite»; `docs/portale.md`, «Statistiche»).
+
 Ogni schema ha il tipo omonimo senza `Schema` (`z.infer`). Dettagli d'uso: `docs/server.md`.
 
 **Schemi per l'agente C#**: l'agente in C# (`apps/agent-dotnet`, `docs/agente.md`) non può importare gli schemi zod, quindi

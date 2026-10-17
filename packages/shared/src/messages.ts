@@ -2,6 +2,7 @@ import type { MatchState } from '@sir/volley-stats';
 import { z } from 'zod';
 import { TeamLogoPairSchema, UpcomingFixtureSchema } from './club.js';
 import { PatchOpsSchema } from './patch.js';
+import { HelloMessageSchema } from './stats.js';
 
 /** Match state computed by `@sir/volley-stats`: only checked to be an object (it comes from the server). */
 export const MatchStateSchema = z.custom<MatchState>((v) => typeof v === 'object' && v !== null && !Array.isArray(v), {
@@ -71,7 +72,7 @@ export type ServerMessage = z.infer<typeof ServerMessageSchema>;
 
 /** Client→server on the live WebSockets: send the full current state again (a patch did not fit). */
 export const ResyncMessageSchema = z.strictObject({ type: z.literal('resync') });
-export const ClientMessageSchema = z.discriminatedUnion('type', [ResyncMessageSchema]);
+export const ClientMessageSchema = z.discriminatedUnion('type', [ResyncMessageSchema, HelloMessageSchema]);
 export type ClientMessage = z.infer<typeof ClientMessageSchema>;
 
 /**

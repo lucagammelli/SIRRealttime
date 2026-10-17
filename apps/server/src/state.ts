@@ -203,7 +203,16 @@ export function attachLiveSocket(ctx: AppContext, sub: Subscriber, log: FastifyB
     } catch {
       return;
     }
-    if (ClientMessageSchema.safeParse(value).success) resync.request();
+    const message = ClientMessageSchema.safeParse(value);
+    if (!message.success) return;
+    if (message.data.type === 'resync') resync.request();
+    else if (sub.link && socket.readyState === socket.OPEN && ctx.hub.viewOf(socket) !== null) {
+      // Only a socket the hub still holds (not revoked, expired or closing) opens a visit: its close would never come.
+      // Statistics of the visits: the first `hello` of a public socket opens its visit (nothing else is read).
+      const link = { tenantId: target.tenantId, ...sub.link };
+      ctx.stats.connect(socket, link, message.data, () => ctx.hub.viewOf(socket));
+      ctx.hub.onLeave(socket, (view) => ctx.stats.disconnect(socket, view));
+    }
   });
   sendCurrent();
 }

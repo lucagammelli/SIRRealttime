@@ -223,6 +223,10 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
    due gironi), cambio di stagione notturno, procedura guidata di 5 passi al primo accesso dell'admin
    (`tenants.onboarded_at`, migrazione `0012`) al posto dell'apertura automatica dello Studio (`docs/server.md`,
    `docs/portale.md`, `docs/architettura.md`).
+11. `statistiche-visite` (**fatto**, 2026-10-17): statistiche delle visite alla pagina pubblica senza dati personali
+   (messaggio `hello`, tabelle `page_views`, `viewer_peaks`, `view_daily`, migrazione `0013`), pagina «Statistiche» con
+   «Adesso», periodo, partite con curva, link e QR, dispositivi ed esportazione CSV (`docs/server.md`, `docs/portale.md`,
+   `docs/architettura.md`).
 **Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
 PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo
 mostra con «autore sconosciuto».

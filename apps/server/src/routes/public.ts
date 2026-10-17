@@ -99,6 +99,7 @@ export function publicRoutes(app: FastifyInstance, ctx: AppContext): void {
           expiresAt: share.expiresAt,
           encoding: encodingOf(request.query),
           ip: ipOf(request),
+          link: { shareTokenId: share.id, clientFixtureId: share.clientFixtureId },
         },
         request.log,
       );

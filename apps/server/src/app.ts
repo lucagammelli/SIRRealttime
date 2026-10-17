@@ -46,7 +46,9 @@ import { browserWriteGuard, rejectNulBody } from './security.js';
 import { tenantsOfLeague } from './club.js';
 import type { SimulationTimers } from './simulation/service.js';
 import { SimulationService } from './simulation/service.js';
+import { StatsService } from './stats/service.js';
 import { ChannelWatcher, refreshClub } from './state.js';
+import { statsRoutes } from './routes/stats.js';
 
 export interface AppOptions {
   config: Config;
@@ -70,6 +72,8 @@ declare module 'fastify' {
   interface FastifyInstance {
     /** Simulations of a match (`src/simulation/`), one per client. */
     simulations: SimulationService;
+    /** Statistics of the visits (tests call `stats.tick()` and `stats.flush()`). */
+    stats: StatsService;
     /** Mail of the invitations and password resets (tests wait for `mail.idle()`). */
     mail: MailService;
     /** New season of the series of the clubs (run by the nightly update; tests call it). */
@@ -197,6 +201,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
       ...(options.mailTransport ? { factory: options.mailTransport } : {}),
     }),
     resync: new ResyncScheduler(now),
+    stats: new StatsService(db, now, app.log),
     leagues,
     catalog,
     now,
@@ -205,6 +210,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const simulations = new SimulationService(ctx, app.log, options.simulationTimers);
   app.decorate('simulations', simulations);
   app.decorate('mail', ctx.mail);
+  app.decorate('stats', ctx.stats);
   app.decorate('advanceSeasons', () => advanceSeasons(ctx, app.log));
 
   const onRoute = options.onRoute;
@@ -270,12 +276,20 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     onboardingRoutes(scope, ctx);
     manualFixtureRoutes(scope, ctx);
     simulationRoutes(scope, ctx, simulations);
+    statsRoutes(scope, ctx);
     done();
   });
 
   // Automatic updates of the championships only when the server is ready (LEAGUE_SYNC=off: never).
   const scheduler = config.leagueSync
-    ? new LeagueScheduler({ db, leagues, catalog, onCatalog: () => app.advanceSeasons(), now, log: app.log })
+    ? new LeagueScheduler({
+        db,
+        leagues,
+        catalog,
+        onCatalog: () => app.advanceSeasons(),
+        now,
+        log: app.log,
+      })
     : null;
   // The channels of the clubs move to the next match after the end of the last one, without a reload.
   const channels = new ChannelWatcher(ctx, app.log);
@@ -283,6 +297,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     scheduler?.start();
     channels.start();
     simulations.open();
+    ctx.stats.start();
+    void ctx.stats.housekeeping();
     done();
   });
   app.addHook('onClose', async () => {
@@ -291,6 +307,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     await simulations.close();
     channels.stop();
     ctx.hub.closeAll();
+    await ctx.stats.close();
     leagues.close();
     await scheduler?.stop();
     await leagues.idle();

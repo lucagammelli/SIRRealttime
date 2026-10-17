@@ -343,6 +343,9 @@ una sola volta), compare anche «Link breve (sempre disponibile nell’elenco, c
 «Partita del calendario (creato dal «Calendario»)»; il link di tutte le partite compare con «Canale del club: tutte le
 partite del calendario» (`docs/server.md`, «Profilo del club, partite del cliente e canale»). Per un viewer la pagina è in sola lettura.
 
+**QR e statistiche** (`qr/ShareQr.tsx`). L'indirizzo codificato nel QR è il link con `?q=1` (`QR_QUERY_PARAM`), così le
+«Statistiche» distinguono le visite da QR; «Copia link» copia il link **senza** `?q=1`.
+
 **Creazione** (`ShareLinksPage.tsx`, `fixedChoices`). «Una partita fissa» propone un menu «Partita» con, prima, ciò che è in
 diretta («In diretta: …», una partita del calendario o un `.dvw` live fuori calendario) e poi le **prossime partite
 trasmesse del calendario** (non nascoste né finite, per data; nessuna partita passata); una partita aperta da «Partite»
@@ -352,6 +355,35 @@ pulsante «Crea link» è sostituito da **«Questa partita ha già il suo link»
 è revocato: «Il link di questa partita è stato revocato: non se ne crea un altro (vedi «Calendario»).»). I link **revocati**
 sono nascosti: il pulsante «Mostra revocati (N)» (poi «Nascondi revocati (N)») li mostra, con N il loro numero. Il link
 della simulazione non è mai in questo elenco.
+
+### Statistiche (`pages/admin/StatsPage.tsx`, `statsText.ts`, rotta `/admin/statistiche`, admin e viewer)
+Mostra quante persone guardano la pagina pubblica del cliente. Menu: gruppo **«Statistiche»** con la voce
+**«Visualizzazioni»** (`AdminSidebar.tsx`), visibile anche al viewer; la pagina iniziale resta «Partita live». Titolo
+della scheda: «Statistiche · Area riservata». Dati: `docs/server.md`, «Statistiche delle visite».
+
+Schede, dall'alto:
+- **«Adesso»** («Spettatori collegati in questo momento (le simulazioni non sono contate)»): numero di «spettatori
+  collegati», «Partita live: …» o «Nessuna partita live in questo momento.», elenco per link; riletta ogni 10 s.
+- **«Periodo»**: pulsanti «7 giorni», «30 giorni» (predefinito), «90 giorni», «1 anno» e date «Dal» / «Al» a mano
+  (giorni italiani; il dettaglio resta 90 giorni, poi solo i totali); date incoerenti: «Scegli un periodo valido: la
+  data iniziale non può seguire la finale.»
+- **«In sintesi»**: Visite, Da QR, Picco spettatori (con l'ora), Durata media, Tempo totale; pulsante **«Esporta CSV»**.
+- **«Andamento per giornata»**: grafico di visite e picco per giorno.
+- **«Partite»**: per partita visite, da QR, picco, ora del picco, durata media, tempo totale; il pulsante **«Curva
+  spettatori»** (poi «Nascondi curva») apre il grafico minuto per minuto (`/api/admin/stats/matches/:matchId/curve`; vuoto:
+  «Nessuna curva: nessuno spettatore campionato.»). Senza visite: «Nessuna visita nel periodo.»
+- **«Link e QR»**: per link tipo («Canale del club», «Partita del calendario», «Partita fissa», «Link eliminato»), visite,
+  da QR, durata media.
+- **«Dispositivi e app»**: «Maxischermo», «Tablet», «Smartphone» e «App installata», con la percentuale.
+
+**CSV** (`statsCsv`): separatore `;`, a capo `\r\n`, BOM iniziale (Excel legge gli accenti), file
+`statistiche-<dal>-<al>.csv`; sezioni Totali, Dispositivi, Partite, Link, Giornate. Una cella di testo che inizia con `=`,
+`+`, `-`, `@`, tabulazione o ritorno a capo riceve un `'` davanti (`csvCell`), così il foglio non esegue formule.
+
+**Lato pagina pubblica** (`lib/visit.ts`, `LivePage.tsx`, `liveConnection.ts`): a ogni apertura del WebSocket la pagina
+manda `hello` con id di visita (16 byte casuali, `newVisitId`), dispositivo (`tv`, `tablet`, `phone`: il desktop conta come
+tablet), provenienza (`?q=1` = `qr`, altrimenti `link`) e se è un'app installata. L'id vive **solo in memoria** (un
+ricaricamento è una nuova visita). **Nessun banner dei cookie**: la pagina non usa cookie né salva nulla sul dispositivo.
 
 ### Simulazione (`pages/admin/SimulationPage.tsx`, rotta `/admin/simulazione`, solo admin; il superadmin dentro un cliente)
 Serve a provare il portale (TV, tablet, telefono) senza una partita vera né l'agente: il server gioca una partita riga

@@ -3,7 +3,8 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AdminApp } from '../pages/admin/AdminApp.tsx';
-import { ShareQr } from './ShareQr.tsx';
+import { qrSvg } from './qrImage.ts';
+import { qrAddress, ShareQr } from './ShareQr.tsx';
 
 const URL = 'https://portale.example.org/l/K7M2QX9P';
 const PNG_1X1 = Uint8Array.from(
@@ -19,6 +20,16 @@ afterEach(() => {
 const svgOf = (img: HTMLElement): string => decodeURIComponent(img.getAttribute('src')?.split(',')[1] ?? '');
 
 describe('ShareQr', () => {
+  it('encodes the link with ?q=1 (statistics: visits from the QR), the copied link stays plain', () => {
+    expect(qrAddress(URL)).toBe(`${URL}?q=1`);
+    expect(qrAddress(`${URL}?tv=1`)).toBe(`${URL}?tv=1&q=1`);
+    expect(qrAddress('non un indirizzo')).toBe('non un indirizzo');
+    render(<ShareQr url={URL} code="K7M2QX9P" logoSrc={null} />);
+    const img = screen.getByRole('img', { name: 'Codice QR del link K7M2-QX9P' });
+    expect(svgOf(img)).toBe(qrSvg(`${URL}?q=1`, { caption: 'K7M2-QX9P', logoDataUrl: null }));
+    expect(svgOf(img)).not.toBe(qrSvg(URL, { caption: 'K7M2-QX9P', logoDataUrl: null }));
+  });
+
   it('shows the QR preview with the code and the copy and download buttons', () => {
     render(<ShareQr url={URL} code="K7M2QX9P" logoSrc={null} />);
     const img = screen.getByRole('img', { name: 'Codice QR del link K7M2-QX9P' });

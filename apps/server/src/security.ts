@@ -27,7 +27,7 @@ export interface Session {
 }
 
 /**
- * Session of the cookie, if it exists and has not expired. The session of a user of a client is valid only on the
+ * Session of the cookie, if it exists, has not expired and its user is not disabled. The session of a user of a client is valid only on the
  * hostnames of that client (its cookie is not accepted on another client's portal); a superadmin works on the active
  * client of the session, otherwise on the client of the hostname.
  */
@@ -45,7 +45,7 @@ export async function sessionUser(ctx: AppContext, request: FastifyRequest): Pro
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
-    .where(and(eq(sessions.tokenHash, hashToken(token)), gt(sessions.expiresAt, ctx.now())))
+    .where(and(eq(sessions.tokenHash, hashToken(token)), gt(sessions.expiresAt, ctx.now()), eq(users.disabled, false)))
     .limit(1);
   if (!row) return null;
   const { expiresAt, activeTenantId, ...user } = row;

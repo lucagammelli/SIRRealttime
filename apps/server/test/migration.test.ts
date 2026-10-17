@@ -2,7 +2,7 @@ import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promi
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
-import { DEFAULT_TENANT_SLUG } from '@sir/shared';
+import { AGENT_QUOTA_MAX, AgentQuotaSchema, DEFAULT_AGENT_QUOTA, DEFAULT_TENANT_SLUG } from '@sir/shared';
 import { eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
@@ -133,6 +133,54 @@ describe('migration to the quota of agents and the calendar of the client', () =
     expect(live).toEqual([expect.objectContaining({ matchId: null, clientFixtureId: null, label: 'Live' })]);
     const all = await db.select({ expiresAt: agents.expiresAt }).from(agents);
     expect(all.every((a) => a.expiresAt === null)).toBe(true);
+  });
+});
+
+describe('migration 0008: quota of agents within the limits and users that can be disabled', () => {
+  it('brings a quota of 378 (agents of the DAST scans) back to the maximum and then refuses it', async () => {
+    const client = new PGlite();
+    cleanup.push(() => client.close());
+    const db = drizzle({ client, schema });
+    await migrate(db, { migrationsFolder: await migrationsUpTo('0006_club') });
+    const [tenant] = await db.select({ id: tenants.id }).from(tenants);
+    if (!tenant) throw new Error('no tenant');
+    // 378 active agents: the migration 0007 gives the client a quota of 378, out of AgentQuotaSchema.
+    const values = Array.from({ length: 378 }, (_, i) => `('${tenant.id}', 'dast-${i}', 'h${i}', false)`).join(', ');
+    await client.exec(`
+      insert into agents (tenant_id, name, token_hash, revoked) values ${values};
+      insert into tenants (slug, name) values ('piccolo', 'Piccolo');
+      insert into users (tenant_id, email, password_hash, role) values ('${tenant.id}', 'a@sir.test', 'x', 'admin');
+    `);
+    await migrate(db, { migrationsFolder: await migrationsUpTo('0007_ruoli_calendario') });
+    const [before] = await db.select({ quota: tenants.agentQuota }).from(tenants).where(eq(tenants.id, tenant.id));
+    expect(before?.quota).toBe(378);
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    const rows = await db.select({ slug: tenants.slug, quota: tenants.agentQuota }).from(tenants);
+    expect(rows.sort((a, b) => a.slug.localeCompare(b.slug))).toEqual([
+      { slug: 'piccolo', quota: 1 },
+      { slug: DEFAULT_TENANT_SLUG, quota: AGENT_QUOTA_MAX },
+    ]);
+    expect(AgentQuotaSchema.safeParse(rows.find((r) => r.slug === DEFAULT_TENANT_SLUG)?.quota).success).toBe(true);
+    await expect(
+      db
+        .update(tenants)
+        .set({ agentQuota: AGENT_QUOTA_MAX + 1 })
+        .where(eq(tenants.id, tenant.id)),
+    ).rejects.toThrow();
+    await expect(db.update(tenants).set({ agentQuota: -1 }).where(eq(tenants.id, tenant.id))).rejects.toThrow();
+    await db.update(tenants).set({ agentQuota: 0 }).where(eq(tenants.id, tenant.id));
+    // The existing users stay active.
+    const [user] = await db.select({ disabled: users.disabled }).from(users);
+    expect(user?.disabled).toBe(false);
+  });
+
+  it('leaves a new installation with the default quota', async () => {
+    const client = new PGlite();
+    cleanup.push(() => client.close());
+    const db = drizzle({ client, schema });
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    const rows = await db.select({ slug: tenants.slug, quota: tenants.agentQuota }).from(tenants);
+    expect(rows).toEqual([{ slug: DEFAULT_TENANT_SLUG, quota: DEFAULT_AGENT_QUOTA }]);
   });
 });
 

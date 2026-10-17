@@ -1,23 +1,53 @@
-import type { TenantUserRole, UserRole } from '@sir/shared';
-import { CreateUserRequestSchema, PASSWORD_MIN_LENGTH, UserSummarySchema } from '@sir/shared';
+import type { TenantUserRole, UpdateUserRequest, UserRole, UserSummary } from '@sir/shared';
+import { CreateUserRequestSchema, PASSWORD_MIN_LENGTH, UpdateUserRequestSchema, UserSummarySchema } from '@sir/shared';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { z } from 'zod';
 import { Button, Card, Empty, ErrorBox, Spinner } from '../../components/ui.tsx';
-import { apiRequest } from '../../lib/api.ts';
+import { apiCommand, apiRequest } from '../../lib/api.ts';
 import { formatDateTime } from '../../lib/format.ts';
 import { useAsync } from '../../lib/useAsync.ts';
 import { useApiError, useAuth } from './auth.tsx';
-import { Field, inputClass } from './forms.tsx';
+import { ConfirmButton, Field, inputClass } from './forms.tsx';
 
 const UserListSchema = z.array(UserSummarySchema);
-const ROLE_LABEL: Record<UserRole, string> = {
+
+/** Names of the roles shown to people (`admin` and `viewer` are the names of the API). */
+export const ROLE_LABEL: Record<UserRole, string> = {
   superadmin: 'Superadmin',
-  admin: 'Amministratore',
+  admin: 'Lettura e scrittura',
   viewer: 'Sola lettura',
 };
 
-/** Users of the client of the session (admin only; a superadmin manages the client chosen in the bar). */
+/** What each role of a client can do. */
+export const ROLE_HELP: Record<TenantUserRole, string> = {
+  admin: 'Gestisce tutto il cliente: partite, calendario, link pubblici, club, agenti, Studio grafico e utenti.',
+  viewer: 'Vede partita live, partite, calendario, link pubblici, club e agenti, senza poter cambiare nulla.',
+};
+
+const PASSWORD_HINT = `Almeno ${PASSWORD_MIN_LENGTH} caratteri; comunicala all’utente di persona.`;
+const PASSWORD_PROBLEM = `La password deve avere almeno ${PASSWORD_MIN_LENGTH} caratteri.`;
+
+const usersPath = (id: string): string => `/api/admin/users/${encodeURIComponent(id)}`;
+
+function RoleSelect({ value, onChange }: { value: TenantUserRole; onChange: (r: TenantUserRole) => void }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value === 'admin' ? 'admin' : 'viewer')}
+      className={inputClass}
+    >
+      <option value="viewer">{ROLE_LABEL.viewer}</option>
+      <option value="admin">{ROLE_LABEL.admin}</option>
+    </select>
+  );
+}
+
+/**
+ * Users of the client of the session (admin only; a superadmin manages the client chosen in the menu or with «Utenti»
+ * of the «Clienti» page): creation, change of role, new password, disabling and deletion. The server refuses the
+ * changes to oneself and the ones leaving the client without an active «Lettura e scrittura» user.
+ */
 export function UsersPage() {
   const errorMessage = useApiError();
   const { user: me } = useAuth();
@@ -29,6 +59,7 @@ export function UsersPage() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = 'Utenti · Area riservata';
@@ -41,9 +72,7 @@ export function UsersPage() {
     const body = CreateUserRequestSchema.safeParse({ email: email.trim(), password, role });
     if (!body.success) {
       const field = body.error.issues[0]?.path[0];
-      setFormError(
-        field === 'password' ? `La password deve avere almeno ${PASSWORD_MIN_LENGTH} caratteri.` : 'Email non valida.',
-      );
+      setFormError(field === 'password' ? PASSWORD_PROBLEM : 'Email non valida.');
       return;
     }
     setBusy(true);
@@ -62,64 +91,236 @@ export function UsersPage() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-      <Card title="Nuovo utente" subtitle={me.tenant ? `Cliente: ${me.tenant.name}` : undefined}>
-        <form onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
-          <Field label="Email">
-            <input
-              type="email"
-              autoComplete="off"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={inputClass}
-            />
-          </Field>
-          <Field label="Password" hint={`Almeno ${PASSWORD_MIN_LENGTH} caratteri; comunicala all’utente di persona.`}>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={inputClass}
-            />
-          </Field>
-          <Field label="Ruolo" hint="Sola lettura: vede solo la partita live e le partite.">
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value === 'admin' ? 'admin' : 'viewer')}
-              className={inputClass}
-            >
-              <option value="viewer">{ROLE_LABEL.viewer}</option>
-              <option value="admin">{ROLE_LABEL.admin}</option>
-            </select>
-          </Field>
-          {formError && <ErrorBox>{formError}</ErrorBox>}
-          {done && (
-            <p role="status" className="rounded-card bg-success-soft px-3 py-2 text-sm text-text">
-              {done}
-            </p>
-          )}
-          <Button type="submit" variant="primary" disabled={busy}>
-            {busy ? 'Creazione…' : 'Crea utente'}
-          </Button>
-        </form>
-      </Card>
+      <div className="space-y-4">
+        <Card title="Nuovo utente" subtitle={me.tenant ? `Cliente: ${me.tenant.name}` : undefined}>
+          <form onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
+            <Field label="Email">
+              <input
+                type="email"
+                autoComplete="off"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Password" hint={PASSWORD_HINT}>
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Ruolo" hint={ROLE_HELP[role]}>
+              <RoleSelect value={role} onChange={setRole} />
+            </Field>
+            {formError && <ErrorBox>{formError}</ErrorBox>}
+            {done && (
+              <p role="status" className="rounded-card bg-success-soft px-3 py-2 text-sm text-text">
+                {done}
+              </p>
+            )}
+            <Button type="submit" variant="primary" disabled={busy}>
+              {busy ? 'Creazione…' : 'Crea utente'}
+            </Button>
+          </form>
+        </Card>
+        <Card title="Ruoli">
+          <dl className="space-y-3 text-sm">
+            {(['admin', 'viewer'] as const).map((r) => (
+              <div key={r}>
+                <dt className="font-medium text-text">{ROLE_LABEL[r]}</dt>
+                <dd className="text-muted">{ROLE_HELP[r]}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-3 text-xs text-muted">
+            Il cliente deve avere sempre almeno un utente attivo «{ROLE_LABEL.admin}». Un utente disattivato non può
+            accedere; dopo un cambio di ruolo o una nuova password l’utente deve accedere di nuovo (chi cambia la propria
+            password resta collegato).
+          </p>
+        </Card>
+      </div>
       <Card title="Utenti">
         {users.loading && !users.data && <Spinner label="Caricamento degli utenti…" />}
         {users.error !== null && <ErrorBox onRetry={users.reload}>{errorMessage(users.error)}</ErrorBox>}
+        {notice && (
+          <p role="status" className="mb-2 rounded-card bg-success-soft px-3 py-2 text-sm text-text">
+            {notice}
+          </p>
+        )}
         {users.data && users.data.length === 0 && <Empty>Nessun utente.</Empty>}
         {users.data && users.data.length > 0 && (
           <ul className="divide-y divide-grid">
             {users.data.map((u) => (
-              <li key={u.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                <span className="min-w-0 break-all font-medium text-text">{u.email}</span>
-                <span className="text-xs text-muted">
-                  {ROLE_LABEL[u.role]} · creato {formatDateTime(u.createdAt)}
-                </span>
-              </li>
+              <UserRow
+                key={u.id}
+                user={u}
+                self={u.id === me.id}
+                onChanged={(message) => {
+                  setNotice(message);
+                  users.reload();
+                }}
+              />
             ))}
           </ul>
         )}
       </Card>
     </div>
+  );
+}
+
+type Panel = 'role' | 'password' | null;
+
+/** One user of the list with its commands (for oneself only the new password). */
+function UserRow({
+  user,
+  self,
+  onChanged,
+}: {
+  user: UserSummary;
+  self: boolean;
+  /** After a change, with the message to show over the list. */
+  onChanged: (message: string) => void;
+}) {
+  const errorMessage = useApiError();
+  const [panel, setPanel] = useState<Panel>(null);
+  const [role, setRole] = useState<TenantUserRole>(user.role === 'admin' ? 'admin' : 'viewer');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const toggle = (p: Exclude<Panel, null>) => {
+    setPanel((current) => (current === p ? null : p));
+    setError(null);
+  };
+
+  const run = async (action: () => Promise<void>, message: string): Promise<void> => {
+    setError(null);
+    setBusy(true);
+    try {
+      await action();
+      setPanel(null);
+      setPassword('');
+      onChanged(message);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const update = (body: UpdateUserRequest, message: string): Promise<void> =>
+    run(async () => {
+      await apiRequest(usersPath(user.id), UserSummarySchema, { method: 'PATCH', body });
+    }, message);
+
+  const savePassword = async (e: FormEvent): Promise<void> => {
+    e.preventDefault();
+    const body = UpdateUserRequestSchema.safeParse({ password });
+    if (!body.success) {
+      setError(PASSWORD_PROBLEM);
+      return;
+    }
+    await update(body.data, self ? 'Password cambiata.' : `Password di ${user.email} reimpostata.`);
+  };
+
+  return (
+    <li className="space-y-2 py-3" data-testid="user">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="break-all font-medium text-text">
+            {user.email}
+            {self && <span className="ml-1 text-xs font-normal text-muted">(tu)</span>}
+            <span className={`ml-2 text-xs font-semibold uppercase ${user.disabled ? 'text-danger' : 'text-live'}`}>
+              {user.disabled ? 'Disattivato' : 'Attivo'}
+            </span>
+          </p>
+          <p className="text-xs text-muted">
+            {ROLE_LABEL[user.role]} · creato {formatDateTime(user.createdAt)}
+          </p>
+        </div>
+        <span className="inline-flex flex-wrap gap-2">
+          {!self && (
+            <Button variant="ghost" aria-expanded={panel === 'role'} onClick={() => toggle('role')}>
+              Cambia ruolo
+            </Button>
+          )}
+          <Button variant="ghost" aria-expanded={panel === 'password'} onClick={() => toggle('password')}>
+            {self ? 'Cambia password' : 'Reimposta password'}
+          </Button>
+          {!self &&
+            (user.disabled ? (
+              <Button
+                variant="ghost"
+                disabled={busy}
+                onClick={() => void update({ disabled: false }, `${user.email} riattivato.`)}
+              >
+                Riattiva
+              </Button>
+            ) : (
+              <ConfirmButton
+                label="Disattiva"
+                confirmLabel="Conferma disattivazione"
+                busy={busy}
+                onConfirm={() => void update({ disabled: true }, `${user.email} disattivato.`)}
+              />
+            ))}
+          {!self && (
+            <ConfirmButton
+              label="Elimina"
+              confirmLabel="Conferma eliminazione"
+              busy={busy}
+              onConfirm={() =>
+                void run(() => apiCommand(usersPath(user.id), { method: 'DELETE' }), `${user.email} eliminato.`)
+              }
+            />
+          )}
+        </span>
+      </div>
+      {panel === 'role' && (
+        <div className="flex flex-wrap items-end gap-3 rounded-card border border-border p-3">
+          <div className="min-w-48 flex-1">
+            <Field label={`Ruolo di ${user.email}`} hint={ROLE_HELP[role]}>
+              <RoleSelect value={role} onChange={setRole} />
+            </Field>
+          </div>
+          <Button
+            variant="primary"
+            disabled={busy || role === user.role}
+            onClick={() => void update({ role }, `Ruolo di ${user.email}: ${ROLE_LABEL[role]}.`)}
+          >
+            Salva ruolo
+          </Button>
+        </div>
+      )}
+      {panel === 'password' && (
+        <form
+          onSubmit={(e) => void savePassword(e)}
+          noValidate
+          className="flex flex-wrap items-end gap-3 rounded-card border border-border p-3"
+        >
+          <div className="min-w-48 flex-1">
+            <Field
+              label={`Nuova password di ${user.email}`}
+              hint={self ? `Almeno ${PASSWORD_MIN_LENGTH} caratteri.` : PASSWORD_HINT}
+            >
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inputClass}
+              />
+            </Field>
+          </div>
+          <Button type="submit" variant="primary" disabled={busy}>
+            {busy ? 'Salvataggio…' : 'Salva password'}
+          </Button>
+        </form>
+      )}
+      {error && <ErrorBox>{error}</ErrorBox>}
+    </li>
   );
 }

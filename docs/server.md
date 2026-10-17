@@ -28,7 +28,21 @@ appartiene a un cliente e nessuna query legge o cambia righe di un altro (filtro
   `/ws/admin`. Senza cliente le rotte admin rispondono 400 «Seleziona un cliente». Un admin su queste rotte: 403.
 - **Gestione clienti** (solo superadmin): `GET`/`POST /api/admin/tenants`, `PATCH /api/admin/tenants/:id` (nome e
   hostname; lo slug non cambia). L'unicità degli hostname fra tutti i clienti è controllata dal server sotto lock
-  (`pg_advisory_xact_lock`), non da un vincolo del database (conflitto: 409).
+  (`pg_advisory_xact_lock`), non da un vincolo del database (conflitto: 409). L'elenco riporta `userCount` (utenti del
+  cliente, disattivati compresi). `POST` accetta `firstUser` (`email`, `password`): il primo utente è creato come `admin`
+  nella stessa transazione del cliente; se l'email è già usata la risposta è 409 e non nasce nessun cliente. La quota
+  agenti è letta con `clampAgentQuota` (valore fuori da 0-`AGENT_QUOTA_MAX` riportato al limite più vicino).
+- **Utenti del cliente** (`src/routes/users.ts`, ruolo `admin`; il superadmin lavora sul cliente scelto): `GET` e `POST
+  /api/admin/users`, `PATCH /api/admin/users/:id` (`UpdateUserRequestSchema`: `role`, `password`, `disabled`, almeno un
+  campo), `DELETE /api/admin/users/:id` (204). Un superadmin non è mai elencato né modificabile (404). Vincoli (409):
+  nessuno cambia il proprio ruolo né disattiva o elimina se stesso (`SELF_CHANGE_MESSAGE`); il cliente deve avere
+  almeno un `admin` attivo (`LAST_ADMIN_MESSAGE`), tranne per le modifiche del superadmin; email già usata
+  (`USER_EXISTS_MESSAGE`). Il controllo avviene sotto un lock di transazione per cliente (`lockTenantUsers`,
+  `src/users.ts`), così due modifiche contemporanee non tolgono entrambe l'ultimo admin. Al cambio di ruolo, di
+  password o alla disattivazione le sessioni dell'utente sono cancellate (`deleteUserSessions`) e i suoi WebSocket
+  `/ws/admin` chiusi (`closeSessionSockets`); chi cambia la propria password tiene aperta solo la sessione in uso.
+  Un utente disattivato (`users.disabled`) non entra: il login risponde 401 «Credenziali non valide», lo stesso della
+  password sbagliata (con un avviso nel log), e `security.ts` scarta le sue sessioni.
 - **Ingest e WebSocket**: l'ingest usa il cliente dell'agente; la partita live è una per partita del calendario del club
   più una tra quelle non abbinate (indici `matches_one_live_per_fixture_idx` e `matches_one_live_unlinked_idx`, vedi «Club,
   calendario e abbinamento») e `hub.publish(tenantId, …)` spinge lo stato solo ai WebSocket di quel cliente. La
@@ -624,6 +638,8 @@ rifiutata dallo schema.
 | DELETE | `/api/admin/share-tokens/:id` | sessione | admin |
 | POST | `/api/admin/users` | sessione | admin |
 | GET | `/api/admin/users` | sessione | admin |
+| PATCH | `/api/admin/users/:id` | sessione | admin |
+| DELETE | `/api/admin/users/:id` | sessione | admin |
 | GET (WebSocket) | `/ws/public/:token` | link pubblico (token lungo o codice breve) | - |
 | GET (WebSocket) | `/ws/admin` | sessione + controllo `Origin` | viewer |
 
@@ -777,7 +793,7 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | Tabella | Contenuto |
 |---|---|
 | `tenants` | `slug` (unico), `name`, `hostnames` (`text[]` con indice GIN, unici fra clienti per controllo del server), `branding`, `layout`, `intermissions`, `overlays` (jsonb, default `{}`), `created_at` (migrazione `0002_tenants.sql`) |
-| `users` | `tenant_id` (null solo per il superadmin; CHECK `superadmin` ⇔ `tenant_id` nullo), `email` (minuscola, unica su tutti i clienti), `password_hash` (argon2id), `role` (`superadmin`/`admin`/`viewer`) |
+| `users` | `tenant_id` (null solo per il superadmin; CHECK `superadmin` ⇔ `tenant_id` nullo), `email` (minuscola, unica su tutti i clienti), `password_hash` (argon2id), `role` (`superadmin`/`admin`/`viewer`), `disabled` (booleano, predefinito falso; migrazione `0008_utenti_clienti.sql`) |
 | `sessions` | `token_hash` (sha256 del cookie), `user_id`, `expires_at`, `active_tenant_id` (cliente scelto dal superadmin, `ON DELETE SET NULL`) |
 | `agents` | `tenant_id`, `name`, `token_hash`, `revoked`, `last_seen_at` |
 | `matches` | `tenant_id`, `match_key` (unica per `tenant_id` + `match_key`), `header`, `line_count`, `content_hash`, `last_seq`, `agent_id`, `live` (una per partita del calendario più una tra le non abbinate: indici parziali `matches_one_live_per_fixture_idx` e `matches_one_live_unlinked_idx`), `live_since`, `state` (jsonb), `version`, `client_fixture_id` (→ `client_fixtures`, `ON DELETE SET NULL`), `fixture_link` (enum `fixture_link`: `auto`/`manual`/`pending`/`none`; nullo = non ancora valutato), `fixture_candidates` (jsonb: candidati con somiglianza; migrazione `0006_club.sql`) |
@@ -794,6 +810,9 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `assets` | `tenant_id`, `kind` (enum `asset_kind`: `logo`/`sponsor`), `sha256`, `mime`, `width`, `height`, `bytes`, `created_at`; indice univoco `assets_tenant_sha256_kind_idx` su cliente + `sha256` + `kind` (migrazione `0003_assets.sql`) |
 | `agent_registrations` | `tenant_id`, `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at`, `agent_expires_at` (validità scelta all'approvazione; migrazioni `0001_agent_registrations.sql`, `0007_ruoli_calendario.sql`) |
 | `agents`, `tenants` (colonne di `0007_ruoli_calendario.sql`) | `agents.expires_at` (nulla = senza scadenza); `tenants.club_profile` (jsonb, predefinito `{}`) e `tenants.agent_quota` (intero, predefinito 1; la migrazione la porta a max(1, agenti non revocati) per i clienti esistenti) |
+
+La migrazione `0008_utenti_clienti.sql` aggiunge `users.disabled`, riporta `tenants.agent_quota` in [0, 100] e aggiunge il
+CHECK `tenants_agent_quota_check`.
 
 La migrazione `0002_tenants.sql` crea il cliente «Predefinito» (slug `predefinito`), gli assegna tutti i dati esistenti e
 solo dopo rende `tenant_id` NOT NULL.
@@ -1000,6 +1019,10 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
   l'ingest), `lib/tokens.ts` (`generatePairingCode`), `state.ts`, `seed.ts`
 - Clienti: `src/tenancy.ts` (`hostTenant`, `hostnameFromHeader`, `tenantScope`, `adminTenantId`, `publicBaseUrlFor`),
   `src/routes/tenants.ts`, `packages/shared/src/tenant.ts`, `src/seed.ts`
+- Utenti: `src/routes/users.ts` (`userRoutes`, `userSummary`), `src/users.ts` (`lockTenantUsers`, `activeAdminsBesides`,
+  `insertTenantUser`, `deleteUserSessions`, `closeSessionSockets`), `src/routes/auth.ts` (login), `src/security.ts`,
+  `packages/shared/src/admin.ts` (`UpdateUserRequestSchema`, `UserSummarySchema`), `credentials.ts`;
+  pagina «Utenti» in `docs/portale.md`
 - Grafica: `src/routes/branding.ts` (`brandingPublicRoutes`, `brandingAdminRoutes`), `src/lib/images.ts` (`inspectImage`,
   `checkSvg`, `IMAGE_MAX_SIDE`), `src/assetStore.ts` (`writeAssetFile`, `readAssetFile`, `removeAssetFile`),
   `packages/shared/src/assets.ts`, `colors.ts`, `tenant.ts`; sezione «Colori e loghi» dello «Studio grafico» in `docs/portale.md`

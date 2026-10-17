@@ -34,7 +34,8 @@ const WIDE_MENU_MIN = 1200;
 /** The «Studio grafico» uses the whole width: below this one the menu is reduced to the icons when it opens. */
 const STUDIO_WIDE_MENU_MIN = 1600;
 
-const ROLE_TEXT = { superadmin: 'superadmin', admin: 'amministratore', viewer: 'sola lettura' } as const;
+/** Role under the email of the account (the names of the «Utenti» page, in lower case). */
+const ROLE_TEXT = { superadmin: 'superadmin', admin: 'lettura e scrittura', viewer: 'sola lettura' } as const;
 
 /**
  * Reserved area `/admin/*`: login, then pages by role (a viewer reads matches, calendar, links, club and agents). All of it, login included, in

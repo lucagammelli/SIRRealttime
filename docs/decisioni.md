@@ -295,3 +295,11 @@ Una riga per decisione: data, scelta, motivo.
   `seq` e `matchKey` devono coincidere byte per byte e un confronto automatico evita di rifare i calcoli a mano.
 - 2026-10-17: librerie del C#: JsonSchema.Net (solo test), xunit.v3 (test), System.ServiceProcess.ServiceController
   (servizio); `tsx` come devDependency di `@sir/shared` per generare gli schemi.
+- 2026-10-17: quota agenti limitata solo alla lettura (`clampAgentQuota`) e schema di risposta stretto (0-100, più CHECK
+  nel database), perché la migrazione 0007 aveva lasciato valori fuori limite (378) che rendevano illeggibile l'elenco dei clienti.
+- 2026-10-17: un utente disattivato riceve lo stesso 401 «Credenziali non valide» della password sbagliata, perché la
+  risposta non deve rivelare che l'account esiste né che è sospeso.
+- 2026-10-17: ogni cliente ha sempre almeno un admin attivo (409 altrimenti, superadmin escluso, controllo sotto lock per
+  cliente), perché un cliente senza admin non potrebbe più gestire i propri utenti.
+- 2026-10-17: il primo utente si crea con il cliente, nella stessa transazione (email già usata: nessun cliente), perché
+  il superadmin non deve lasciare un cliente nel quale nessuno può accedere.

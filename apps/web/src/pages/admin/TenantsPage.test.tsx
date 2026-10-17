@@ -17,6 +17,7 @@ const tenant = (id: string, slug: string, name: string, hostnames: string[]): Te
   hostnames,
   createdAt: AT,
   agentQuota: 1,
+  userCount: 0,
 });
 
 interface Call {
@@ -109,7 +110,7 @@ describe('«Clienti» page', () => {
   it('lists the clients and creates a new one', async () => {
     const { calls } = mockServer('superadmin');
     renderAt('/admin/clienti');
-    expect(await screen.findByText('a.sir.it · un agente · creato', { exact: false })).toBeTruthy();
+    expect(await screen.findByText('a.sir.it · un agente · nessun utente · creato', { exact: false })).toBeTruthy();
     const form = (await screen.findByRole('heading', { name: 'Nuovo cliente' })).closest('section');
     if (!form) throw new Error('no form');
     fireEvent.change(within(form).getByLabelText('Nome'), { target: { value: 'Club C' } });
@@ -154,12 +155,53 @@ describe('«Clienti» page', () => {
     fireEvent.change(within(editor).getByLabelText('Nome'), { target: { value: 'Club B nuovo' } });
     fireEvent.change(within(editor).getByLabelText('Hostname', { exact: false }), { target: { value: 'b.sir.it' } });
     fireEvent.click(within(editor).getByRole('button', { name: 'Salva' }));
-    expect(await screen.findByText('b.sir.it · un agente · creato', { exact: false })).toBeTruthy();
+    expect(await screen.findByText('b.sir.it · un agente · nessun utente · creato', { exact: false })).toBeTruthy();
     const patch = calls.find((c) => c.method === 'PATCH');
     expect(patch).toMatchObject({
       url: `/api/admin/tenants/${B}`,
       body: { name: 'Club B nuovo', hostnames: ['b.sir.it'] },
     });
+  });
+
+  it('creates a client with its first user «Lettura e scrittura»', async () => {
+    const { calls } = mockServer('superadmin');
+    renderAt('/admin/clienti');
+    const form = (await screen.findByRole('heading', { name: 'Nuovo cliente' })).closest('section');
+    if (!form) throw new Error('no form');
+    fireEvent.change(within(form).getByLabelText('Nome'), { target: { value: 'Club E' } });
+    fireEvent.change(within(form).getByLabelText('Identificativo', { exact: false }), { target: { value: 'club-e' } });
+    fireEvent.change(within(form).getByLabelText('Email del primo utente'), { target: { value: 'capo@club-e.it' } });
+    fireEvent.change(within(form).getByLabelText('Password del primo utente', { exact: false }), {
+      target: { value: 'corta' },
+    });
+    fireEvent.click(within(form).getByRole('button', { name: 'Crea cliente' }));
+    expect(await screen.findByText(/Primo utente: la password deve avere almeno 12 caratteri/)).toBeTruthy();
+    expect(calls.some((c) => c.method === 'POST' && c.url === '/api/admin/tenants')).toBe(false);
+    fireEvent.change(within(form).getByLabelText('Password del primo utente', { exact: false }), {
+      target: { value: 'password-del-capo' },
+    });
+    fireEvent.click(within(form).getByRole('button', { name: 'Crea cliente' }));
+    expect(await screen.findByText('Cliente «Club E» creato con l’utente capo@club-e.it.')).toBeTruthy();
+    expect(calls.find((c) => c.url === '/api/admin/tenants' && c.method === 'POST')?.body).toMatchObject({
+      slug: 'club-e',
+      firstUser: { email: 'capo@club-e.it', password: 'password-del-capo' },
+    });
+  });
+
+  it('shows the users of each client and opens them with «Utenti»', async () => {
+    const { calls } = mockServer('superadmin');
+    renderAt('/admin/clienti');
+    expect(await screen.findAllByText(/nessun utente/)).toHaveLength(2);
+    fireEvent.click(await screen.findByRole('button', { name: 'Utenti di Club B' }));
+    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/admin/utenti'));
+    expect(calls.find((c) => c.url === '/api/admin/active-tenant')).toMatchObject({
+      method: 'POST',
+      body: { tenantId: B },
+    });
+    // The users page of Club B, also in the selector.
+    expect(await screen.findByText('Cliente: Club B')).toBeTruthy();
+    expect(screen.getByLabelText<HTMLSelectElement>('Cliente').value).toBe(B);
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/admin/users')).toBe(true));
   });
 
   it('is not reachable by a normal admin', async () => {

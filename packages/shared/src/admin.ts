@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { MatchKeySchema } from './ingest.js';
 import { MatchStateSchema } from './messages.js';
 import { PairingCodeSchema } from './registration.js';
-import { hasNoControlChars, plainText, safeString } from './strings.js';
+import { PASSWORD_MIN_LENGTH, PasswordSchema, UserCredentialsSchema } from './credentials.js';
+import { plainText } from './strings.js';
 import { AgentQuotaSchema, TenantRefSchema } from './tenant.js';
 
 /** Long public share token: random ≥ 128 bit, base64url (`/live/<token>`). */
@@ -65,15 +66,6 @@ export type UserRole = z.infer<typeof UserRoleSchema>;
 export const TenantUserRoleSchema = z.enum(['admin', 'viewer']);
 export type TenantUserRole = z.infer<typeof TenantUserRoleSchema>;
 
-const EmailSchema = z
-  .email()
-  .max(254)
-  .refine(hasNoControlChars, { message: 'caratteri di controllo non ammessi' })
-  .transform((e) => e.toLowerCase());
-const PasswordSchema = (min: number) => safeString().min(min).max(1024);
-/** Minimum length of a new password. */
-export const PASSWORD_MIN_LENGTH = 12;
-
 export const LoginRequestSchema = z.object({
   email: plainText(254),
   password: PasswordSchema(1),
@@ -92,18 +84,32 @@ export const MeResponseSchema = z.object({
 });
 export type MeResponse = z.infer<typeof MeResponseSchema>;
 
-export const CreateUserRequestSchema = z.object({
-  email: EmailSchema,
-  password: PasswordSchema(PASSWORD_MIN_LENGTH),
-  role: TenantUserRoleSchema,
-});
+export const CreateUserRequestSchema = UserCredentialsSchema.extend({ role: TenantUserRoleSchema });
 export type CreateUserRequest = z.infer<typeof CreateUserRequestSchema>;
 
+/**
+ * `PATCH /api/admin/users/:id`: new role, new password (set by the admin) and/or disabled; at least one field. Every
+ * change closes the sessions of the user (except the session making a change to its own password).
+ */
+export const UpdateUserRequestSchema = z
+  .strictObject({
+    role: TenantUserRoleSchema.optional(),
+    password: PasswordSchema(PASSWORD_MIN_LENGTH).optional(),
+    disabled: z.boolean().optional(),
+  })
+  .refine((r) => r.role !== undefined || r.password !== undefined || r.disabled !== undefined, {
+    message: 'nessun campo da modificare',
+  });
+export type UpdateUserRequest = z.infer<typeof UpdateUserRequestSchema>;
+
+/** Never the password nor its hash. */
 export const UserSummarySchema = z.object({
   id: z.uuid(),
   email: z.string(),
   role: UserRoleSchema,
   createdAt: z.iso.datetime(),
+  /** A disabled user cannot log in (missing in an older answer: active). */
+  disabled: z.boolean().default(false),
 });
 export type UserSummary = z.infer<typeof UserSummarySchema>;
 

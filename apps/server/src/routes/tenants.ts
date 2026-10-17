@@ -1,20 +1,23 @@
 import type { MeResponse, TenantSummary } from '@sir/shared';
 import {
+  clampAgentQuota,
   CreateTenantRequestSchema,
   IdParamSchema,
   SetActiveTenantRequestSchema,
   UpdateTenantRequestSchema,
 } from '@sir/shared';
-import { and, arrayOverlaps, asc, eq, ne, sql } from 'drizzle-orm';
+import { and, arrayOverlaps, asc, count, eq, isNotNull, ne, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../context.js';
 import { perMinute, SESSION_COOKIE } from '../context.js';
-import { sessions, tenants } from '../db/index.js';
+import { sessions, tenants, users } from '../db/index.js';
 import { conflict, notFound, unauthorized } from '../lib/errors.js';
+import { hashPassword } from '../lib/passwords.js';
 import { hashToken } from '../lib/tokens.js';
 import { validate } from '../lib/validate.js';
 import { requireRole } from '../security.js';
 import { findTenant, forgetTenants, hostTenant, tenantRef } from '../tenancy.js';
+import { insertTenantUser } from '../users.js';
 
 type TenantRow = typeof tenants.$inferSelect;
 type Tx = Parameters<Parameters<AppContext['db']['transaction']>[0]>[0];
@@ -22,14 +25,29 @@ type Tx = Parameters<Parameters<AppContext['db']['transaction']>[0]>[0];
 /** Key of the transaction lock that serializes the writes of the clients (hostnames unique among all of them). */
 const TENANT_LOCK_KEY = 0x53495254;
 
-const tenantSummary = (t: TenantRow): TenantSummary => ({
+/**
+ * The quota is brought within the limits of the schema: one value out of range (the database refuses it since the
+ * migration 0008) must not make the whole list of clients unreadable for the portal.
+ */
+const tenantSummary = (t: TenantRow, userCount: number): TenantSummary => ({
   id: t.id,
   slug: t.slug,
   name: t.name,
   hostnames: t.hostnames,
   createdAt: t.createdAt.toISOString(),
-  agentQuota: t.agentQuota,
+  agentQuota: clampAgentQuota(t.agentQuota),
+  userCount,
 });
+
+/** Users of every client (disabled ones included), by client id. */
+async function userCounts(db: AppContext['db'] | Tx, tenantId?: string): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ tenantId: users.tenantId, n: count() })
+    .from(users)
+    .where(tenantId ? eq(users.tenantId, tenantId) : isNotNull(users.tenantId))
+    .groupBy(users.tenantId);
+  return new Map(rows.flatMap((r) => (r.tenantId ? [[r.tenantId, r.n] as const] : [])));
+}
 
 const hostnameTaken = () => conflict('Hostname già usato da un altro cliente');
 
@@ -51,12 +69,15 @@ export function tenantRoutes(app: FastifyInstance, ctx: AppContext): void {
 
   app.get('/api/admin/tenants', superadmin, async (): Promise<TenantSummary[]> => {
     const rows = await ctx.db.select().from(tenants).orderBy(asc(tenants.name));
-    return rows.map(tenantSummary);
+    const counts = await userCounts(ctx.db);
+    return rows.map((t) => tenantSummary(t, counts.get(t.id) ?? 0));
   });
 
   app.post('/api/admin/tenants', superadmin, async (request, reply): Promise<TenantSummary> => {
     const body = validate(CreateTenantRequestSchema, request.body);
-    const row = await ctx.db.transaction(async (tx) => {
+    const firstUser = body.firstUser;
+    const passwordHash = firstUser ? await hashPassword(firstUser.password) : null;
+    const { row, firstUserId } = await ctx.db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(${TENANT_LOCK_KEY})`);
       if (await hostnamesTaken(tx, body.hostnames, null)) throw hostnameTaken();
       const [inserted] = await tx
@@ -65,12 +86,17 @@ export function tenantRoutes(app: FastifyInstance, ctx: AppContext): void {
         .onConflictDoNothing({ target: tenants.slug })
         .returning();
       if (!inserted) throw conflict('Esiste già un cliente con questo identificativo');
-      return inserted;
+      // The first user (role admin) in the same transaction: an email already taken leaves no client behind.
+      const user =
+        firstUser && passwordHash
+          ? await insertTenantUser(tx, { tenantId: inserted.id, email: firstUser.email, passwordHash, role: 'admin' })
+          : null;
+      return { row: inserted, firstUserId: user?.id ?? null };
     });
     forgetTenants(ctx);
-    request.log.info({ tenantId: row.id, userId: request.user?.id }, 'cliente creato');
+    request.log.info({ tenantId: row.id, userId: request.user?.id, firstUserId }, 'cliente creato');
     void reply.code(201);
-    return tenantSummary(row);
+    return tenantSummary(row, firstUserId ? 1 : 0);
   });
 
   app.patch('/api/admin/tenants/:id', superadmin, async (request): Promise<TenantSummary> => {
@@ -94,7 +120,7 @@ export function tenantRoutes(app: FastifyInstance, ctx: AppContext): void {
     });
     forgetTenants(ctx);
     request.log.info({ tenantId: row.id, userId: request.user?.id }, 'cliente modificato');
-    return tenantSummary(row);
+    return tenantSummary(row, (await userCounts(ctx.db, row.id)).get(row.id) ?? 0);
   });
 
   /**

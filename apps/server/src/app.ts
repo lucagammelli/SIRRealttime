@@ -33,6 +33,7 @@ import { leaguePublicRoutes, leagueRoutes } from './routes/leagues.js';
 import { publicRoutes } from './routes/public.js';
 import { registrationRoutes } from './routes/registration.js';
 import { tenantRoutes } from './routes/tenants.js';
+import { userRoutes } from './routes/users.js';
 import { browserWriteGuard, rejectNulBody } from './security.js';
 import { tenantsOfLeague } from './club.js';
 import { ChannelWatcher, refreshClub } from './state.js';
@@ -212,6 +213,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     scope.addHook('preParsing', browserWriteGuard(ctx));
     authRoutes(scope, ctx);
     adminRoutes(scope, ctx);
+    userRoutes(scope, ctx);
     tenantRoutes(scope, ctx);
     brandingAdminRoutes(scope, ctx);
     agentDownloadRoutes(scope, ctx);

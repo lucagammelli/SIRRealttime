@@ -7,13 +7,11 @@ import type {
   MatchDetail,
   MatchSummary,
   ShareTokenSummary,
-  UserSummary,
 } from '@sir/shared';
 import {
   AgentValidityRequestSchema,
   CreateAgentRequestSchema,
   CreateShareTokenRequestSchema,
-  CreateUserRequestSchema,
   IdParamSchema,
 } from '@sir/shared';
 import { desc, eq, gt } from 'drizzle-orm';
@@ -21,9 +19,8 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { agentQuotaOf, agentsInUse, lockTenantAgents, requireAgentSlot } from '../agentQuota.js';
 import type { AppContext } from '../context.js';
 import { perMinute, SESSION_COOKIE } from '../context.js';
-import { agentRegistrations, agents, matches, shareTokens, users } from '../db/index.js';
-import { badRequest, conflict, notFound } from '../lib/errors.js';
-import { hashPassword } from '../lib/passwords.js';
+import { agentRegistrations, agents, matches, shareTokens } from '../db/index.js';
+import { badRequest, notFound } from '../lib/errors.js';
 import { generateToken, hashToken } from '../lib/tokens.js';
 import { validate } from '../lib/validate.js';
 import { requireRole, sameOriginGuard } from '../security.js';
@@ -89,7 +86,8 @@ const shareSummary = (s: ShareRow, code: string | null, base: string): ShareToke
 
 /**
  * Reserved area: reading for every logged-in user (`viewer` included: matches, agents, public links), every change and
- * the lists with personal data (users, addresses of the registrations) only for `admin` (and `superadmin`). Every
+ * the lists with personal data (addresses of the registrations; the users are in `users.ts`) only for `admin` (and
+ * `superadmin`). Every
  * query is limited to the client of the session (`adminTenantId`) with `tenantScope`: an id of another client is a 404.
  */
 export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
@@ -326,31 +324,6 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
     ctx.hub.closeShareToken(id);
     request.log.info({ shareTokenId: id }, 'link pubblico revocato');
     return reply.code(204).send();
-  });
-
-  /** Users of the client of the session (a superadmin creates them in the client it works on). */
-  app.post('/api/admin/users', admin, async (request, reply): Promise<UserSummary> => {
-    const tenantId = adminTenantId(request);
-    const body = validate(CreateUserRequestSchema, request.body);
-    // Emails are unique among all the clients (a login finds the user by email alone).
-    const [existing] = await ctx.db.select({ id: users.id }).from(users).where(eq(users.email, body.email)).limit(1);
-    if (existing) throw conflict('Utente già esistente');
-    const passwordHash = await hashPassword(body.password);
-    const [row] = await ctx.db
-      .insert(users)
-      .values({ tenantId, email: body.email, passwordHash, role: body.role })
-      .onConflictDoNothing({ target: users.email })
-      .returning();
-    if (!row) throw conflict('Utente già esistente');
-    request.log.info({ userId: row.id, role: row.role }, 'utente creato');
-    void reply.code(201);
-    return { id: row.id, email: row.email, role: row.role, createdAt: iso(row.createdAt) };
-  });
-
-  app.get('/api/admin/users', admin, async (request): Promise<UserSummary[]> => {
-    const tenantId = adminTenantId(request);
-    const rows = await ctx.db.select().from(users).where(tenantScope(users, tenantId)).orderBy(users.createdAt);
-    return rows.map((u) => ({ id: u.id, email: u.email, role: u.role, createdAt: iso(u.createdAt) }));
   });
 
   // The browser does not apply CORS to WebSocket: a foreign Origin is refused here (CSWSH).

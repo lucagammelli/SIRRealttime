@@ -33,7 +33,11 @@ export async function seedAdmin(db: Db, config: Config, log: FastifyBaseLogger):
   const email = config.admin.email;
   const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
   if (existing) {
-    await db.update(users).set({ role: 'superadmin', tenantId: null }).where(eq(users.id, existing.id));
+    // A superadmin is never disabled (its row is out of reach of the user pages).
+    await db
+      .update(users)
+      .set({ role: 'superadmin', tenantId: null, disabled: false })
+      .where(eq(users.id, existing.id));
     log.info({ email }, 'utente esistente promosso a superadmin');
     return true;
   }

@@ -97,7 +97,13 @@ Amministrazione (`admin.ts`):
   breve e codice»);
 - utenti e sessioni: `UserRoleSchema` / `UserRole` (`superadmin` | `admin` | `viewer`), `TenantUserRoleSchema` (`admin` |
   `viewer`: i ruoli assegnabili dall'area riservata), `LoginRequestSchema`, `MeResponseSchema` (con `tenant`, il cliente
-  corrente o `null`), `CreateUserRequestSchema`, `UserSummarySchema`;
+  corrente o `null`), `CreateUserRequestSchema`, `UpdateUserRequestSchema` (`role`, `password`, `disabled`; almeno un
+  campo), `UserSummarySchema` (con `disabled`, predefinito falso);
+- credenziali (`packages/shared/src/credentials.ts`): `EmailSchema`, `PasswordSchema`, `PASSWORD_MIN_LENGTH` (12),
+  `UserCredentialsSchema` (email e password di un nuovo utente, anche del primo utente di un cliente);
+- clienti (`packages/shared/src/tenant.ts`): `TenantSummarySchema` con `userCount` (utenti del cliente, 0 se manca),
+  `CreateTenantRequestSchema` con `firstUser` facoltativo (creato `admin` nella stessa transazione), `clampAgentQuota`
+  (quota letta riportata in 0-`AGENT_QUOTA_MAX`);
 - agenti: `CreateAgentRequestSchema`, `AgentSummarySchema`, `CreateAgentResponseSchema`;
 - richieste di registrazione degli agenti (lato admin): `AgentRegistrationStateSchema` (`pending` | `approved` |
   `rejected` | `consumed`), `AgentRegistrationSummarySchema`;

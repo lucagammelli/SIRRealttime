@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { AssetIdSchema } from './assets.js';
 import { BRAND_COLOR_KEYS, HexColorSchema } from './colors.js';
+import { UserCredentialsSchema } from './credentials.js';
 import { TENANT_CONFIG_VERSION } from './configVersion.js';
 import { TenantIntermissionsSchema } from './intermissions.js';
 import { TenantLayoutSchema } from './layout.js';
@@ -14,6 +15,15 @@ export const DEFAULT_AGENT_QUOTA = 1;
 /** Most agents a superadmin can give to one client. */
 export const AGENT_QUOTA_MAX = 100;
 export const AgentQuotaSchema = z.number().int().min(0).max(AGENT_QUOTA_MAX);
+
+/**
+ * Pure: a stored quota brought within [0, AGENT_QUOTA_MAX] (a value out of range, as the 378 left by the migration
+ * 0007, reads as the nearest bound, so the list of the clients stays readable); not a number: DEFAULT_AGENT_QUOTA.
+ */
+export function clampAgentQuota(n: number): number {
+  if (!Number.isFinite(n)) return DEFAULT_AGENT_QUOTA;
+  return Math.min(AGENT_QUOTA_MAX, Math.max(0, Math.trunc(n)));
+}
 
 /** Slug of the client always present (created by the migration and by the seed). */
 export const DEFAULT_TENANT_SLUG = 'predefinito';
@@ -135,6 +145,8 @@ export const TenantSummarySchema = TenantRefSchema.extend({
   createdAt: z.iso.datetime(),
   /** Most agents of the client (missing in an older answer: the default). */
   agentQuota: AgentQuotaSchema.default(DEFAULT_AGENT_QUOTA),
+  /** Users of the client, disabled ones included (missing in an older answer: 0). */
+  userCount: z.number().int().min(0).default(0),
 });
 export type TenantSummary = z.infer<typeof TenantSummarySchema>;
 
@@ -143,6 +155,8 @@ export const CreateTenantRequestSchema = z.object({
   name: plainText(100),
   hostnames: HostnamesSchema,
   agentQuota: AgentQuotaSchema.default(DEFAULT_AGENT_QUOTA),
+  /** First user of the client, created with the role `admin` in the same transaction (optional). */
+  firstUser: UserCredentialsSchema.optional(),
 });
 export type CreateTenantRequest = z.infer<typeof CreateTenantRequestSchema>;
 

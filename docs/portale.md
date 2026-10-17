@@ -130,9 +130,9 @@ Le voci:
 | Campionati | `/admin/campionati` | solo superadmin | elenco dei campionati della Lega, «Nuovo campionato della Lega», «Aggiorna ora», vedi «Club e Calendario» |
 | Link pubblici | `/admin/link` | admin e viewer (il viewer in sola lettura) | «Nuovo link pubblico» (etichetta, «Cosa mostra»: «Tutte le partite del calendario (canale del club)» oppure «Una partita fissa», «Scadenza (facoltativa)»), «Link creati» (per i link attivi «Link breve», codice e QR, vedi «Link breve e QR»), «Revoca» |
 | Agenti | `/admin/agenti` | admin e viewer (il viewer in sola lettura) | «Agente per Windows» (vedi sotto), «Nuovo agente» («Crea token», mostrato una sola volta con «Copia config.json»), «Richieste in attesa» (vedi sotto), «Agenti» (stato «Attivo»/«Scaduto»/«Revocato», «Prolunga» con «Salva validità», «Revoca»), con la riga «N di M agenti in uso (limite dato dal superadmin)» |
-| Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, password di almeno 12 caratteri, ruolo), «Utenti» |
+| Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, password di almeno 12 caratteri, «Ruolo»: «Lettura e scrittura» o «Sola lettura»; «Crea utente»), scheda «Ruoli» (cosa può fare ciascun ruolo), «Utenti» (per ognuno stato «Attivo»/«Disattivato», ruolo, data di creazione e i comandi descritti sotto), vedi «Utenti del cliente» |
 | Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`) | solo admin (il superadmin lavora sul cliente scelto) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
-| Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname, «Agenti» = limite di agenti, predefinito 1; «Crea cliente»), «Clienti» con «Modifica» (nome, hostname e limite di agenti, «Salva»; il limite è mostrato come «un agente» / «fino a N agenti») |
+| Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname, «Agenti» = limite di agenti, predefinito 1; «Crea cliente»), «Clienti» con «Modifica» (nome, hostname e limite di agenti, «Salva»; il limite è mostrato come «un agente» / «fino a N agenti») e «Utenti» (sceglie quel cliente e apre `/admin/utenti`); riquadro «Primo utente (facoltativo)» nel modulo (email e password; creato con il ruolo «Lettura e scrittura»); ogni cliente mostra «nessun utente», «1 utente» o «N utenti» |
 | Esci | - | tutti | chiude la sessione |
 
 **Anteprima sempre visibile**: nello «Studio grafico» (vedi sotto) l'anteprima è la colonna destra della pagina, sempre in
@@ -388,8 +388,20 @@ Un **viewer** (ruolo «sola lettura») nel menu vede «Partita live», «Partite
 non permessi lo riportano a `/admin/live`: `menuGroups` e `adminOnly`/`superadminOnly` in `AdminSidebar.tsx` e
 `AdminApp.tsx`). Il server fa leggere club, calendario, agenti e link al viewer (`docs/server.md`, «Ruoli»); `useCanEdit`
 (`lib/useCanEdit.ts`: vero per admin e superadmin) nasconde o disabilita i comandi che scrivono e mostra `READ_ONLY_TEXT`
-(«Sola lettura: chiedi a un amministratore del cliente per le modifiche.»). Il ruolo è mostrato accanto all'email («superadmin», «amministratore» o «sola lettura», `ROLE_TEXT` in `AdminApp.tsx`); la vera
+(«Sola lettura: chiedi a un amministratore del cliente per le modifiche.»). Il ruolo è mostrato accanto all'email («superadmin», «lettura e scrittura» o «sola lettura», `ROLE_TEXT` in `AdminApp.tsx`); la vera
 protezione è sempre nel server (`docs/server.md`).
+
+### Utenti del cliente
+Pagina `UsersPage.tsx` (solo admin; il superadmin lavora sul cliente scelto nel menu o con «Utenti» della pagina
+«Clienti»). Scheda «Ruoli»: «Lettura e scrittura» (`admin`: gestisce tutto il cliente) e «Sola lettura» (`viewer`: vede
+senza cambiare nulla); il cliente deve avere sempre almeno un utente attivo «Lettura e scrittura». Ogni utente mostra
+«Attivo» o «Disattivato» e ha i comandi «Cambia ruolo» (con «Salva ruolo»), «Reimposta password» (per sé «Cambia
+password»; con «Salva password»), «Disattiva» (conferma «Conferma disattivazione») o «Riattiva», «Elimina» (conferma
+«Conferma eliminazione»). Per il proprio utente (segnato «(tu)») resta solo «Cambia password». Messaggi dopo l'azione
+come «Utente … creato.», «… disattivato.», «… riattivato.», «… eliminato.». Il server rifiuta (409) che un utente si tolga
+il ruolo, si disattivi o si elimini, e le modifiche che lasciano il cliente senza un admin attivo; cambio di ruolo,
+nuova password e disattivazione chiudono le sessioni dell'utente (chi cambia la propria password resta collegato). Regole e rotte: `docs/server.md`, «Utenti del cliente». Pagina «Clienti»: `TenantsPage.tsx`
+(`userCountText`, `useChooseTenant`).
 
 ### App installabile e schermo intero (`lib/pwa.ts`, `components/AppInstall.tsx`)
 La pagina pubblica si può installare come app (PWA) e chiede lo schermo intero al primo tocco. Tutto è facoltativo: dove

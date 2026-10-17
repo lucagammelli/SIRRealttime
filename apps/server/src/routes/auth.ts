@@ -32,8 +32,10 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       const host = await hostTenant(ctx, request);
       const sameClient =
         user?.role === 'superadmin' || (user !== undefined && user.tenantId !== null && user.tenantId === host?.id);
-      if (!user || !ok || !sameClient) {
-        request.log.warn('login fallito');
+      // A disabled user gets the same answer of a wrong password (nothing tells whether the account exists).
+      if (!user || !ok || !sameClient || user.disabled) {
+        if (user?.disabled && ok) request.log.warn({ userId: user.id }, 'login di un utente disattivato');
+        else request.log.warn('login fallito');
         throw new HttpError(401, 'INVALID_CREDENTIALS', 'Credenziali non valide');
       }
       const now = ctx.now();

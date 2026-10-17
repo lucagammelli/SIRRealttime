@@ -199,6 +199,10 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
 5. `agente-csharp` (**fatto** nel codice, 2026-10-17, **da provare su Windows da Luca**): agente riscritto in C# .NET 10 (`apps/agent-dotnet`,
    exe unico, servizio senza NSSM, `scripts/costruisci-agente-dotnet.sh`); il portale scarica ancora l'agente Node finché
    il C# non è provato; firma del codice ancora da fare (`docs/agente.md`, `docs/infrastruttura.md`, `docs/architettura.md`).
+6. `utenti-clienti` (**fatto**, 2026-10-17): pagina «Utenti» completa (cambio ruolo, reimposta password, disattiva e
+   riattiva, elimina) con ruoli «Lettura e scrittura» e «Sola lettura», almeno un admin attivo per cliente, sessioni
+   chiuse ai cambi; pagina «Clienti» con numero di utenti, «Utenti» e primo utente alla creazione (`docs/server.md`,
+   `docs/portale.md`, `docs/architettura.md`).
 **Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
 PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo
 mostra con «autore sconosciuto».

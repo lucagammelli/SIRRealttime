@@ -57,6 +57,13 @@
       "when": 1792229320658,
       "tag": "0007_ruoli_calendario",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792243222596,
+      "tag": "0008_utenti_clienti",
+      "breakpoints": true
     }
   ]
 }

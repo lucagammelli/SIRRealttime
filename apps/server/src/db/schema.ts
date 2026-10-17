@@ -50,7 +50,11 @@ export const tenants = pgTable(
     agentQuota: integer('agent_quota').notNull().default(1),
     createdAt: createdAt(),
   },
-  (t) => [index('tenants_hostnames_idx').using('gin', t.hostnames)],
+  (t) => [
+    index('tenants_hostnames_idx').using('gin', t.hostnames),
+    // Same limits of AgentQuotaSchema (0-AGENT_QUOTA_MAX): an answer out of the schema would hide the list of clients.
+    check('tenants_agent_quota_check', sql`${t.agentQuota} between 0 and 100`),
+  ],
 );
 
 /** Order of the values: as added by the migrations (`superadmin` came last). */
@@ -72,6 +76,8 @@ export const users = pgTable(
     /** argon2id. */
     passwordHash: text('password_hash').notNull(),
     role: userRole('role').notNull(),
+    /** A disabled user cannot log in and has no sessions (set by an admin of the client or by the superadmin). */
+    disabled: boolean('disabled').notNull().default(false),
     createdAt: createdAt(),
   },
   (t) => [

@@ -16,6 +16,7 @@ const ICONS = {
   users: 'M16 20a4 4 0 0 0-8 0M12 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z',
   tenants: 'M4 20V7l8-4 8 4v13M9 20v-5h6v5M8.5 9.5h.01M12 9.5h.01M15.5 9.5h.01',
   leagues: 'M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8',
+  mail: 'M4 6h16v12H4zM4 7l8 6 8-6',
   logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
   collapse: 'M15 6l-6 6 6 6',
   close: 'M6 6l12 12M18 6L6 18',
@@ -57,6 +58,7 @@ export const SUPERADMIN_MENU: readonly MenuGroup[] = [
     items: [
       { to: '/admin/clienti', label: 'Clienti', icon: 'tenants' },
       { to: '/admin/campionati', label: 'Campionati', icon: 'leagues' },
+      { to: '/admin/posta', label: 'Posta', icon: 'mail' },
     ],
   },
 ];
@@ -64,8 +66,8 @@ export const SUPERADMIN_MENU: readonly MenuGroup[] = [
 /**
  * Pure: the groups of the side menu for a role. A viewer (sola lettura) sees the matches, the calendar, the club,
  * the public links («Pagina pubblica») and the devices; an administrator also Studio grafico and Simulazione (in
- * «Pagina pubblica», with the links) and the users. The superadmin with no client entered sees only its own pages (`SUPERADMIN_MENU`: clients and
- * championships); inside a client (`inTenant`), the pages of an administrator of that client. «Club» is a group of
+ * «Pagina pubblica», with the links) and the users. The superadmin with no client entered sees only its own pages (`SUPERADMIN_MENU`: clients,
+ * championships and mail); inside a client (`inTenant`), the pages of an administrator of that client. «Club» is a group of
  * its own: championships and team of the club are not graphics, they decide the calendar and the links of the
  * matches. Groups without items are left out.
  */

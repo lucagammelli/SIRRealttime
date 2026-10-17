@@ -8,6 +8,7 @@ export * from './ingest.js';
 export * from './intermissions.js';
 export * from './layout.js';
 export * from './leagues.js';
+export * from './mail.js';
 export * from './manifest.js';
 export * from './messages.js';
 export * from './ourTeam.js';

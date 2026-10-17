@@ -1,6 +1,6 @@
-import { and, count, eq, ne, sql } from 'drizzle-orm';
+import { and, count, eq, exists, ne, not, sql } from 'drizzle-orm';
 import type { AppContext } from './context.js';
-import { sessions, users } from './db/index.js';
+import { sessions, userTokens, users } from './db/index.js';
 import { conflict } from './lib/errors.js';
 import type { Tx } from './matchLock.js';
 import { tenantScope } from './tenancy.js';
@@ -23,13 +23,37 @@ export async function lockTenantUsers(tx: Tx, tenantId: string): Promise<void> {
   await tx.execute(sql`select pg_advisory_xact_lock(${USER_LOCK_KEY}, hashtext(${tenantId}))`);
 }
 
-/** Active users with the role `admin` of the client, without `exceptUserId`. */
+/** True when the user has an invitation not used yet (it has not chosen a password: not an active admin). */
+export async function hasOpenInviteTx(tx: Tx, userId: string): Promise<boolean> {
+  const [row] = await tx
+    .select({ id: userTokens.id })
+    .from(userTokens)
+    .where(and(eq(userTokens.userId, userId), eq(userTokens.kind, 'invite')))
+    .limit(1);
+  return row !== undefined;
+}
+
+/** Active users with the role `admin` of the client, without `exceptUserId`; invited ones do not count. */
 export async function activeAdminsBesides(tx: Tx, tenantId: string, exceptUserId: string): Promise<number> {
   const [row] = await tx
     .select({ n: count() })
     .from(users)
     .where(
-      tenantScope(users, tenantId, eq(users.role, 'admin'), eq(users.disabled, false), ne(users.id, exceptUserId)),
+      tenantScope(
+        users,
+        tenantId,
+        eq(users.role, 'admin'),
+        eq(users.disabled, false),
+        ne(users.id, exceptUserId),
+        not(
+          exists(
+            tx
+              .select({ one: sql`1` })
+              .from(userTokens)
+              .where(and(eq(userTokens.userId, users.id), eq(userTokens.kind, 'invite'))),
+          ),
+        ),
+      ),
     );
   return row?.n ?? 0;
 }

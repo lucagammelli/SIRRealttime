@@ -163,7 +163,7 @@ describe('admin navigation', () => {
       within(nav)
         .getAllByRole('link')
         .map((l) => l.textContent),
-    ).toEqual(['Clienti', 'Campionati']);
+    ).toEqual(['Clienti', 'Campionati', 'Posta']);
     expect(within(nav).getByRole('link', { name: 'Clienti' }).getAttribute('aria-current')).toBe('page');
     expect(within(nav).getByRole('link', { name: 'Campionati' }).getAttribute('href')).toBe('/admin/campionati');
     expect(screen.queryByTestId('barra-cliente')).toBeNull();

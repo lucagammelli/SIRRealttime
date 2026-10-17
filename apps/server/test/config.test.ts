@@ -25,6 +25,7 @@ describe('loadConfig', () => {
         shortCodeInvalidTotal: 1000,
         agentDownload: 10,
         leagueSync: 6,
+        passwordReset: 10,
       },
       socketLimits: { perIp: 2000, total: 6000 },
       leagueSync: true,
@@ -80,6 +81,7 @@ describe('loadConfig', () => {
       shortCodeInvalidTotal: 500,
       agentDownload: 3,
       leagueSync: 2,
+      passwordReset: 10,
     });
     for (const value of ['0', '-1', '1.5', 'abc', '100001']) {
       expect(() => loadConfig({ DATABASE_URL: 'x', RATE_LIMIT_LOGIN: value })).toThrow(/RATE_LIMIT_LOGIN/);
@@ -158,6 +160,12 @@ describe('redactUrl', () => {
     expect(redactUrl('/api/public/abcDEF_123-xyz/state')).toBe('/api/public/[token]/state');
     expect(redactUrl('/ws/public/abcDEF_123-xyz')).toBe('/ws/public/[token]');
     expect(redactUrl('/api/admin/matches')).toBe('/api/admin/matches');
+  });
+
+  it('masks the tokens of invitation and reset links', () => {
+    expect(redactUrl('/api/auth/links/abcDEF_123-xyz')).toBe('/api/auth/links/[token]');
+    expect(redactUrl('/admin/invito/abcDEF_123-xyz')).toBe('/admin/invito/[token]');
+    expect(redactUrl('/admin/reimposta-password/abcDEF_123-xyz?x=1')).toBe('/admin/reimposta-password/[token]?x=1');
   });
 
   it('keeps the graphics routes of the client readable', () => {

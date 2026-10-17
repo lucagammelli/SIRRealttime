@@ -72,6 +72,7 @@ describe('users of a client', () => {
       role: 'admin',
       createdAt: expect.any(String) as string,
       disabled: false,
+      invite: null,
     });
     expect(res.body).not.toContain('password');
     expect(res.body).not.toContain('$argon2');

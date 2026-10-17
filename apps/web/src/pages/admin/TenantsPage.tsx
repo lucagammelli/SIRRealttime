@@ -1,7 +1,8 @@
-import type { MeResponse, TenantSummary } from '@sir/shared';
+import type { InviteDelivery, MeResponse, TenantSummary } from '@sir/shared';
 import {
   AGENT_QUOTA_MAX,
   CreateTenantRequestSchema,
+  CreateTenantResponseSchema,
   DEFAULT_AGENT_QUOTA,
   MeResponseSchema,
   PASSWORD_MIN_LENGTH,
@@ -18,6 +19,7 @@ import { formatDateTime } from '../../lib/format.ts';
 import type { AsyncState } from '../../lib/useAsync.ts';
 import { useApiError, useAuth } from './auth.tsx';
 import { Field, inputClass } from './forms.tsx';
+import { InviteDeliveryBox } from './InviteDelivery.tsx';
 
 export const TenantListSchema = z.array(TenantSummarySchema);
 
@@ -127,6 +129,7 @@ export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> 
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [invited, setInvited] = useState<{ email: string; delivery: InviteDelivery } | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
 
   /** Enters the client and opens its live match (the pages are mounted again on it). */
@@ -147,12 +150,15 @@ export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> 
     setDone(null);
     // The first user only when one of its fields is filled.
     const withFirstUser = firstEmail.trim() !== '' || firstPassword !== '';
+    setInvited(null);
     const body = CreateTenantRequestSchema.safeParse({
       slug: slug.trim(),
       name,
       hostnames: parseHostnames(hostnames),
       agentQuota: Number(quota),
-      ...(withFirstUser ? { firstUser: { email: firstEmail.trim(), password: firstPassword } } : {}),
+      ...(withFirstUser
+        ? { firstUser: { email: firstEmail.trim(), ...(firstPassword === '' ? {} : { password: firstPassword }) } }
+        : {}),
     });
     if (!body.success) {
       setFormError(formProblem(body.error.issues));
@@ -160,11 +166,18 @@ export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> 
     }
     setBusy(true);
     try {
-      const created = await apiRequest('/api/admin/tenants', TenantSummarySchema, { method: 'POST', body: body.data });
+      const created = await apiRequest('/api/admin/tenants', CreateTenantResponseSchema, {
+        method: 'POST',
+        body: body.data,
+      });
+      if (created.firstUserInvite && body.data.firstUser)
+        setInvited({ email: body.data.firstUser.email, delivery: created.firstUserInvite });
       setDone(
-        body.data.firstUser
-          ? `Cliente «${created.name}» creato con l’utente ${body.data.firstUser.email}.`
-          : `Cliente «${created.name}» creato.`,
+        created.firstUserInvite
+          ? `Cliente «${created.name}» creato.`
+          : body.data.firstUser
+            ? `Cliente «${created.name}» creato con l’utente ${body.data.firstUser.email}.`
+            : `Cliente «${created.name}» creato.`,
       );
       setSlug('');
       setName('');
@@ -221,8 +234,8 @@ export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> 
               />
             </Field>
             <Field
-              label="Password del primo utente"
-              hint={`Almeno ${PASSWORD_MIN_LENGTH} caratteri; comunicala all’utente di persona.`}
+              label="Password del primo utente (facoltativa)"
+              hint={`Lasciala vuota per invitarlo: riceve una mail con il link per scegliere la password. Altrimenti almeno ${PASSWORD_MIN_LENGTH} caratteri, da comunicare di persona.`}
             >
               <input
                 type="password"
@@ -239,6 +252,7 @@ export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> 
               {done}
             </p>
           )}
+          {invited && <InviteDeliveryBox email={invited.email} delivery={invited.delivery} />}
           <Button type="submit" variant="primary" disabled={busy}>
             {busy ? 'Creazione…' : 'Crea cliente'}
           </Button>

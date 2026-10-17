@@ -34,8 +34,10 @@ appartiene a un cliente e nessuna query legge o cambia righe di un altro (filtro
 - **Gestione clienti** (solo superadmin): `GET`/`POST /api/admin/tenants`, `PATCH /api/admin/tenants/:id` (nome e
   hostname; lo slug non cambia). L'unicità degli hostname fra tutti i clienti è controllata dal server sotto lock
   (`pg_advisory_xact_lock`), non da un vincolo del database (conflitto: 409). L'elenco riporta `userCount` (utenti del
-  cliente, disattivati compresi). `POST` accetta `firstUser` (`email`, `password`): il primo utente è creato come `admin`
-  nella stessa transazione del cliente; se l'email è già usata la risposta è 409 e non nasce nessun cliente. La quota
+  cliente, disattivati compresi). `POST` accetta `firstUser` (`email`, `password` facoltativa): il primo utente è creato come `admin`
+  nella stessa transazione del cliente; se l'email è già usata la risposta è 409 e non nasce nessun cliente. Senza
+  `password` il primo utente è invitato e la risposta (`CreateTenantResponse`) ha `firstUserInvite` (esito della mail o
+  link da copiare; vedi «Posta, inviti e recupero password»). La quota
   agenti è letta con `clampAgentQuota` (valore fuori da 0-`AGENT_QUOTA_MAX` riportato al limite più vicino).
 - **Utenti del cliente** (`src/routes/users.ts`, ruolo `admin`; il superadmin lavora dentro il cliente in cui è entrato): `GET` e `POST
   /api/admin/users`, `PATCH /api/admin/users/:id` (`UpdateUserRequestSchema`: `role`, `password`, `disabled`, almeno un
@@ -48,6 +50,43 @@ appartiene a un cliente e nessuna query legge o cambia righe di un altro (filtro
   `/ws/admin` chiusi (`closeSessionSockets`); chi cambia la propria password tiene aperta solo la sessione in uso.
   Un utente disattivato (`users.disabled`) non entra: il login risponde 401 «Credenziali non valide», lo stesso della
   password sbagliata (con un avviso nel log), e `security.ts` scarta le sue sessioni.
+- **Posta, inviti e recupero password** (`src/mail/`, `src/userLinks.ts`, `src/routes/mailSettings.ts`, `src/routes/auth.ts`,
+  `src/routes/users.ts`). Il server di posta (SMTP) non è nel `.env`: lo imposta il superadmin nella pagina «Posta» del
+  portale (per volere di Luca) ed è **uno solo per tutti i clienti**, nella tabella `mail_settings`. La password SMTP è
+  cifrata (AES-256-GCM) con `SETTINGS_ENCRYPTION_KEY` e non torna mai al portale (`MailSettings.passwordSet`); senza la
+  chiave `PUT` con una password risponde 409 (`NO_KEY_MESSAGE`); se la chiave cambia la password salvata non si legge più
+  (errore `PASSWORD_UNREADABLE`) e va inserita di nuovo. L'invio usa `nodemailer`, con timeout di connessione 5 s, socket
+  8 s e invio completo 10 s (`SEND_TIMEOUT_MS`); `MailService.send` non lancia mai, risponde `sent`, `not_configured` o
+  `failed` e nel log scrive solo il codice dell'errore (mai indirizzi o password). La mail di prova (`POST
+  /api/admin/mail-settings/test`) va all'email del superadmin e risponde sempre 200 con `ok` e un `message` già leggibile.
+  - **Inviti**: `POST /api/admin/users` (e `firstUser` di `POST /api/admin/tenants`) senza `password` crea l'utente con una
+    password inutilizzabile e un link di invito (72 ore, `INVITE_TTL_HOURS`; `user_tokens`, `kind` `invite`). Il link
+    va per mail; senza posta configurata, o se il server di posta rifiuta, la risposta contiene `delivery.link` da
+    copiare a mano (`InviteDelivery.mail`: `sent`/`not_configured`/`failed`; se la mail è partita il link non è
+    restituito). Finché l'invito è aperto (valido o scaduto) il login risponde 401 «Credenziali non valide»
+    (`hasOpenInvite`). `POST /api/admin/users/:id/invite` rinnova l'invito (il precedente smette di funzionare; 409 se
+    l'utente ha già scelto la password o è disattivato); `DELETE /api/admin/users/:id/invite` lo annulla **eliminando
+    l'utente** (204; 409 se non c'è più un invito aperto; gli admin invitati non contano per la regola «almeno un admin attivo»). Una password impostata da un admin con
+    `PATCH` cancella l'invito. `GET /api/admin/users` riporta `invite` (`pending`/`expired`/`null`).
+  - **Recupero password**: `POST /api/auth/password-reset/request` (corpo `{ email }`) risponde sempre e subito
+    `{ ok: true }`, che l'email esista o no, sia disattivata, sia oltre il limite o la posta manchi: il lavoro vero
+    (ricerca, link, mail) avviene dopo la risposta (`MailService.background`), perché tempi e risposta non rivelino
+    nulla. Al massimo **3 richieste all'ora per email** (`resetRequests`, `FailureLimiter` in memoria: si azzera al
+    riavvio del server); le altre ricevono la stessa risposta ma non spediscono nulla. Il link vale **1 ora**
+    (`RESET_TTL_HOURS`, `kind` `reset`). `POST /api/admin/users/:id/reset-link` (admin del cliente) dà lo stesso link da
+    copiare e consegnare a mano (409 se l'utente è disattivato).
+  - **Uso dei link**: `GET /api/auth/links/:token` dice a cosa serve il link (`LinkInfo`: `kind`, `email`, `tenantName`,
+    `expiresAt`); `POST /api/auth/invite/accept` (primo accesso: la password è scelta e l'utente entra già collegato,
+    risposta `MeResponse` con il cookie di sessione) e `POST /api/auth/password-reset/confirm` (nuova password, poi si
+    accede dal login). Un link sbagliato, scaduto, già usato o di un utente disattivato risponde **410** («Il link non è
+    valido o è scaduto»). Ogni link è **monouso**: `consumeLink` lo cancella con una sola istruzione, quindi due richieste
+    insieme non riescono entrambe. Dopo il reset **tutte le sessioni dell'utente sono chiuse** (WebSocket compresi); ogni
+    altro link dell'utente è cancellato. Del token è salvato solo l'sha256.
+  - **Indirizzo dei link**: costruito solo da `PUBLIC_BASE_URL` (`linkUrl`: `/admin/invito/<token>` e
+    `/admin/reimposta-password/<token>`), mai dall'intestazione `Host`. Le mail portano nome e logo del cliente
+    (`mailBrand`; senza cliente, il nome del portale).
+  - Le quattro rotte `/api/auth/links/:token`, `invite/accept`, `password-reset/request` e `password-reset/confirm` sono
+    pubbliche e usano `RATE_LIMIT_PASSWORD_RESET` per IP; le rotte `/api/admin/mail-settings*` sono solo del superadmin.
 - **Ingest e WebSocket**: l'ingest usa il cliente dell'agente; la partita live è una per partita del calendario del club
   più una tra quelle non abbinate (indici `matches_one_live_per_fixture_idx` e `matches_one_live_unlinked_idx`, vedi «Club,
   calendario e abbinamento») e `hub.publish(tenantId, …)` spinge lo stato solo ai WebSocket di quel cliente. La
@@ -611,7 +650,7 @@ come l'agente), così il comportamento è quello vero; la partita però è **iso
   partita fissa; con un `client_fixture_id` (link creati dal «Calendario», uno per partita, `ShareTokenSummary.clientFixtureId`)
   mostra «Prossima partita» e poi la partita abbinata (vedi «Club, calendario e abbinamento»). `expiresAt`
   facoltativa. Un token non valido, revocato o scaduto dà sempre 404; la revoca chiude subito i WebSocket già aperti (codice
-  4404). Nei log il token è mascherato (`/api/public/[token]`). I link validi sono in una cache di 30 s
+  4404). Nei log il token è mascherato (`/api/public/[token]`, come i link di invito e recupero: `/api/auth/links/[token]`, `/admin/invito/[token]`, `/admin/reimposta-password/[token]`). I link validi sono in una cache di 30 s
   (`ctx.caches.shares`, chiave `<cliente>:<hash del token>`), svuotata alla revoca (`forgetShareToken`), così le migliaia
   di aperture non leggono il database.
 - **Link breve e codice** (`docs/portale.md`, «Link breve e QR»): ogni link attivo ha anche un codice di 8 lettere
@@ -655,6 +694,10 @@ come l'agente), così il comportamento è quello vero; la partita però è **iso
 | POST | `/api/agents/registrations` | rate limit registrazione, `Origin` | - (pubblica) |
 | POST | `/api/agents/registrations/status` | rate limit ingest, `Origin`, segreto di registrazione | agente in registrazione |
 | POST | `/api/auth/login` | rate limit login | - |
+| GET | `/api/auth/links/:token` | limite `RATE_LIMIT_PASSWORD_RESET`; 410 se il link non è valido, scaduto o usato | - (pubblica) |
+| POST | `/api/auth/invite/accept` | limite `RATE_LIMIT_PASSWORD_RESET`; 410 come sopra; apre la sessione | - (pubblica) |
+| POST | `/api/auth/password-reset/request` | limite `RATE_LIMIT_PASSWORD_RESET` + 3 all'ora per email; risposta sempre `{ ok: true }` | - (pubblica) |
+| POST | `/api/auth/password-reset/confirm` | limite `RATE_LIMIT_PASSWORD_RESET`; 410 come sopra; chiude le sessioni dell'utente | - (pubblica) |
 | POST | `/api/auth/logout` | rate limit admin | - (chiude i WebSocket della sessione) |
 | GET | `/api/auth/me` | sessione (risposta con `tenant`, il cliente corrente) | viewer |
 | GET | `/api/admin/tenants` | sessione | superadmin |
@@ -716,13 +759,19 @@ come l'agente), così il comportamento è quello vero; la partita però è **iso
 | GET | `/api/admin/users` | sessione | admin |
 | PATCH | `/api/admin/users/:id` | sessione | admin |
 | DELETE | `/api/admin/users/:id` | sessione | admin |
+| POST | `/api/admin/users/:id/invite` | sessione («Invia di nuovo») | admin |
+| DELETE | `/api/admin/users/:id/invite` | sessione («Annulla invito»: elimina l'utente, 204) | admin |
+| POST | `/api/admin/users/:id/reset-link` | sessione («Link per nuova password») | admin |
+| GET | `/api/admin/mail-settings` | sessione | superadmin |
+| PUT | `/api/admin/mail-settings` | sessione | superadmin |
+| POST | `/api/admin/mail-settings/test` | sessione | superadmin |
 | GET (WebSocket) | `/ws/public/:token` | link pubblico (token lungo o codice breve) | - |
 | GET (WebSocket) | `/ws/admin` | sessione + controllo `Origin` | viewer |
 
 La creazione di agenti e link restituisce 201 con il token in chiaro **una sola volta** (`CreateAgentResponse`,
 `CreateShareTokenResponse` con `url`, `shortCode` e `shortUrl`). `DELETE` revoca (204), non cancella. `expiresAt` deve essere nel futuro e
 `matchId`, se dato, deve esistere (altrimenti 400). La lista partite ha al massimo 200 elementi, ordinati per
-aggiornamento. Una email già presente dà 409; la password ha almeno 12 caratteri.
+aggiornamento. Una email già presente dà 409; la password, se data, ha almeno 12 caratteri (senza password l'utente è invitato).
 
 ### WebSocket
 Messaggi server→client (`ServerMessage`):
@@ -777,7 +826,9 @@ Per indirizzo IP e per minuto. Default (`DEFAULT_RATE_LIMITS`, `apps/server/src/
 `RATE_LIMIT_LEAGUE_SYNC` («Aggiorna ora» di un campionato, 6): login 10, ingest 600, `GET /api/public/:token/state` 6000, apertura di
 `/ws/public/:token` 6000, rotte admin 300 (incluse `/api/auth/logout`, `/api/auth/me`, `/ws/admin`), creazione di una
 registrazione agente 10 (la rotta `/status` usa il limite dell'ingest, perché l'agente interroga ogni 5 s). Oltre il
-limite: 429.
+limite: 429. Le quattro rotte pubbliche dei link (`/api/auth/links/:token`, `invite/accept`, `password-reset/request`,
+`password-reset/confirm`) hanno il limite `RATE_LIMIT_PASSWORD_RESET` (10); in più il recupero password accetta 3 richieste
+all'ora per email (in memoria, vedi «Posta, inviti e recupero password»).
 
 **Rotte pubbliche e pubblico in palestra** (`src/routes/public.ts`): molti telefoni escono con lo stesso IP (Wi-Fi della
 palestra, NAT mobile), quindi i limiti delle rotte pubbliche sono larghi e **per le richieste riuscite non c'è altro
@@ -845,10 +896,12 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `RATE_LIMIT_AGENT_DOWNLOAD` | `10` | richieste al minuto per IP su `GET /api/admin/agent/download` (intero da 1 a 100000) |
 | `AGENT_DOWNLOAD_DIR` | `data/downloads` (container: `/data/downloads`) | cartella con `sir-agent.exe` e `sir-agent.json` (da `scripts/costruisci-agente.sh`); relativa alla cartella di avvio; vuota: il portale dice che l'agente non è pubblicato |
 | `RATE_LIMIT_LEAGUE_SYNC` | `6` | «Aggiorna ora» dei campionati al minuto per IP su `POST /api/admin/leagues/:id/sync` (intero da 1 a 100000) |
+| `RATE_LIMIT_PASSWORD_RESET` | `10` | richieste al minuto per IP su `/api/auth/links/:token`, `/api/auth/invite/accept`, `/api/auth/password-reset/request` e `/confirm` (intero da 1 a 100000) |
+| `SETTINGS_ENCRYPTION_KEY` | assente | chiave di 32 byte in base64 che cifra la password del server di posta in `mail_settings`. Senza, la pagina «Posta» funziona ma non salva la password (409). Se non è di 32 byte l'avvio fallisce. Se cambia, la password salvata non si legge più: va reinserita in «Posta» |
 | `LEAGUE_SYNC` | `on` | `on`/`off`: aggiornamento automatico dei campionati (notte e giorni di partita). `off` in sviluppo, nei test e nelle scansioni DAST: resta il pulsante «Aggiorna ora» |
 | `LEAGUE_CONTACT` | `PUBLIC_BASE_URL` | contatto scritto nello `User-Agent` delle richieste a legavolley.it (ASCII stampabile, al massimo 200 caratteri) |
 
-Le dieci `RATE_LIMIT_*`, le due `WS_MAX_*` e `SHARE_CODE_SECRET` sono anche in `.env.example` e `docker-compose.yml`
+Le undici `RATE_LIMIT_*`, le due `WS_MAX_*`, `SHARE_CODE_SECRET` e `SETTINGS_ENCRYPTION_KEY` sono anche in `.env.example` e `docker-compose.yml`
 (nel compose `SHARE_CODE_SECRET` è `${SHARE_CODE_SECRET:?…}`: senza la variabile nel `.env` ogni comando `docker compose`
 fallisce).
 
@@ -886,6 +939,10 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `assets` | `tenant_id`, `kind` (enum `asset_kind`: `logo`/`sponsor`), `sha256`, `mime`, `width`, `height`, `bytes`, `created_at`; indice univoco `assets_tenant_sha256_kind_idx` su cliente + `sha256` + `kind` (migrazione `0003_assets.sql`) |
 | `agent_registrations` | `tenant_id`, `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at`, `agent_expires_at` (validità scelta all'approvazione; migrazioni `0001_agent_registrations.sql`, `0007_ruoli_calendario.sql`) |
 | `agents`, `tenants` (colonne di `0007_ruoli_calendario.sql`) | `agents.expires_at` (nulla = senza scadenza); `tenants.club_profile` (jsonb, predefinito `{}`) e `tenants.agent_quota` (intero, predefinito 1; la migrazione la porta a max(1, agenti non revocati) per i clienti esistenti) |
+| `user_tokens` | link monouso degli utenti (migrazione `0011_posta_inviti.sql`): `user_id` (→ `users`, `ON DELETE CASCADE`), `kind` (`invite`/`reset`, CHECK), `token_hash` (sha256, unico), `expires_at`, `created_at`; indice unico su (`user_id`, `kind`): un solo link per utente e tipo, quello nuovo sostituisce il vecchio. Un link usato, sostituito o annullato è cancellato; un utente con una riga `invite` non ha ancora scelto la password |
+| `mail_settings` | server di posta, **una sola riga** per tutto il sistema (`singleton` sempre vero, CHECK): `host`, `port` (1-65535), `security` (`none`/`starttls`/`tls`), `username`, `password_enc` (password cifrata AES-256-GCM con `SETTINGS_ENCRYPTION_KEY`, forma `v1.<iv>.<tag>.<testo>`, nulla se manca), `from_name`, `from_email`, `updated_at` (migrazione `0011_posta_inviti.sql`) |
+
+La migrazione `0011_posta_inviti.sql` crea `user_tokens` e `mail_settings`.
 
 La migrazione `0008_utenti_clienti.sql` aggiunge `users.disabled`, riporta `tenants.agent_quota` in [0, 100] e aggiunge il
 CHECK `tenants_agent_quota_check`.
@@ -1009,6 +1066,19 @@ del portale** come `serverUrl` (es. `https://<host>/`, vedi `docs/agente.md`). L
 prove locali e scansioni: non va mai pubblicata su `0.0.0.0`, perché con `TRUST_PROXY=true` chi arriva direttamente al server
 potrebbe falsificare `X-Forwarded-For` ed eludere il rate limit.
 
+Generare `SETTINGS_ENCRYPTION_KEY` (una volta; poi copiare il valore stampato in `.env` e riavviare il server; se la
+chiave cambia, la password del server di posta va reinserita nella pagina «Posta»):
+
+```bash
+# --- variabili ---
+BYTE_CHIAVE="32"   # la chiave deve essere di esattamente 32 byte (44 caratteri in base64)
+
+# --- comando ---
+openssl rand -base64 "$BYTE_CHIAVE"
+# alternativa senza openssl:
+# node -e "console.log(require('node:crypto').randomBytes(Number(process.argv[1])).toString('base64'))" "$BYTE_CHIAVE"
+```
+
 Generare `SHARE_CODE_SECRET` (una volta; poi copiare il valore stampato in `.env`):
 
 ```bash
@@ -1096,7 +1166,9 @@ AGENT_AUTH_HEADER="Bearer $TOKEN_AGENTE"
 # 3. HawkScan fa il login da solo con SCAN_USERNAME e SCAN_PASSWORD
 docker run --rm --network host -v "$PWD:/hawk:rw" -e API_KEY="$API_KEY" -e AGENT_AUTH_HEADER="$AGENT_AUTH_HEADER" \
   -e SCAN_USERNAME="$SCAN_EMAIL" -e SCAN_PASSWORD="$SCAN_PASSWORD" \
-  stackhawk/hawkscan:latest scan --json-output stackhawk.yml
+  stackhawk/hawkscan:latest --json-output stackhawk.yml
+# nota: l'immagine ha già `hawk` come entrypoint e `scan` verrebbe letto come file di configurazione
+# («/hawk/scan: No such file or directory»), quindi il comando non va ripetuto
 ```
 
 Esito del 2026-10-14: 3 scansioni, soglia PASS. Due risultati di gravità Low sono segnati come falsi positivi:
@@ -1123,6 +1195,12 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
   `insertTenantUser`, `deleteUserSessions`, `closeSessionSockets`), `src/routes/auth.ts` (login), `src/security.ts`,
   `packages/shared/src/admin.ts` (`UpdateUserRequestSchema`, `UserSummarySchema`), `credentials.ts`;
   pagina «Utenti» in `docs/portale.md`
+- Posta, inviti e recupero password: `src/mail/service.ts` (`MailService`, `smtpFailureMessage`), `src/mail/crypto.ts`
+  (`encryptSecret`, `decryptSecret`, `decodeEncryptionKey`), `src/mail/templates.ts` (`inviteMail`, `resetMail`,
+  `testMail`), `src/userLinks.ts` (`issueLink`, `findLink`, `consumeLink`, `inviteStates`, `hasOpenInvite`,
+  `deliverInvite`, `linkUrl`), `src/routes/mailSettings.ts`, `src/routes/auth.ts`, `src/routes/users.ts`,
+  `src/lib/failureLimiter.ts`; schemi in `packages/shared/src/mail.ts` e `credentials.ts` (`docs/architettura.md`);
+  pagine in `docs/portale.md` («Posta», «Utenti del cliente», «Recupero password e inviti»)
 - Grafica: `src/routes/branding.ts` (`brandingPublicRoutes`, `brandingAdminRoutes`), `src/lib/images.ts` (`inspectImage`,
   `checkSvg`, `IMAGE_MAX_SIDE`), `src/assetStore.ts` (`writeAssetFile`, `readAssetFile`, `removeAssetFile`),
   `packages/shared/src/assets.ts`, `colors.ts`, `tenant.ts`; sezione «Colori e loghi» dello «Studio grafico» in `docs/portale.md`

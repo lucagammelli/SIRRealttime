@@ -18,12 +18,13 @@ const STATUS_MESSAGES: Record<number, string> = {
   403: 'Non hai i permessi per questa operazione.',
   404: 'Elemento non trovato.',
   409: 'Esiste già un elemento con questi dati.',
+  410: 'Il link non è valido o è scaduto.',
   413: 'Richiesta troppo grande.',
   429: 'Troppe richieste: riprova tra un minuto.',
 };
 
 /** Statuses whose message from the server is shown as it is (it explains what to change). */
-const EXPLAINED_STATUSES = new Set([409, 413, 422]);
+const EXPLAINED_STATUSES = new Set([409, 410, 413, 422]);
 
 /** Message shown for any error thrown by `apiRequest` (or by anything else). */
 export function errorText(err: unknown): string {

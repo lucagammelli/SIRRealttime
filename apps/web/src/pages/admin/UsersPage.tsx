@@ -1,6 +1,13 @@
-import type { TenantUserRole, UpdateUserRequest, UserRole, UserSummary } from '@sir/shared';
-import { CreateUserRequestSchema, PASSWORD_MIN_LENGTH, UpdateUserRequestSchema, UserSummarySchema } from '@sir/shared';
-import type { FormEvent } from 'react';
+import type { InviteDelivery, TenantUserRole, UpdateUserRequest, UserRole, UserSummary } from '@sir/shared';
+import {
+  CreateUserRequestSchema,
+  PASSWORD_MIN_LENGTH,
+  ResetLinkResponseSchema,
+  UpdateUserRequestSchema,
+  UserInviteResponseSchema,
+  UserSummarySchema,
+} from '@sir/shared';
+import type { FormEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { z } from 'zod';
 import { Button, Card, Empty, ErrorBox, Spinner } from '../../components/ui.tsx';
@@ -9,6 +16,7 @@ import { formatDateTime } from '../../lib/format.ts';
 import { useAsync } from '../../lib/useAsync.ts';
 import { useApiError, useAuth } from './auth.tsx';
 import { ConfirmButton, Field, inputClass } from './forms.tsx';
+import { InviteDeliveryBox, LinkToCopy } from './InviteDelivery.tsx';
 
 const UserListSchema = z.array(UserSummarySchema);
 
@@ -26,6 +34,7 @@ export const ROLE_HELP: Record<TenantUserRole, string> = {
 };
 
 const PASSWORD_HINT = `Almeno ${PASSWORD_MIN_LENGTH} caratteri; comunicala all’utente di persona.`;
+const NEW_PASSWORD_HINT = `Facoltativa. Lasciala vuota per invitare l’utente: riceve una mail con il link per scegliere la password (almeno ${PASSWORD_MIN_LENGTH} caratteri). Altrimenti comunicala di persona.`;
 const PASSWORD_PROBLEM = `La password deve avere almeno ${PASSWORD_MIN_LENGTH} caratteri.`;
 
 const usersPath = (id: string): string => `/api/admin/users/${encodeURIComponent(id)}`;
@@ -59,6 +68,7 @@ export function UsersPage() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [invited, setInvited] = useState<{ email: string; delivery: InviteDelivery } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -69,7 +79,12 @@ export function UsersPage() {
     e.preventDefault();
     setFormError(null);
     setDone(null);
-    const body = CreateUserRequestSchema.safeParse({ email: email.trim(), password, role });
+    setInvited(null);
+    const body = CreateUserRequestSchema.safeParse({
+      email: email.trim(),
+      ...(password === '' ? {} : { password }),
+      role,
+    });
     if (!body.success) {
       const field = body.error.issues[0]?.path[0];
       setFormError(field === 'password' ? PASSWORD_PROBLEM : 'Email non valida.');
@@ -77,8 +92,9 @@ export function UsersPage() {
     }
     setBusy(true);
     try {
-      const user = await apiRequest('/api/admin/users', UserSummarySchema, { method: 'POST', body: body.data });
-      setDone(`Utente ${user.email} creato.`);
+      const user = await apiRequest('/api/admin/users', UserInviteResponseSchema, { method: 'POST', body: body.data });
+      if (user.delivery) setInvited({ email: user.email, delivery: user.delivery });
+      else setDone(`Utente ${user.email} creato.`);
       setEmail('');
       setPassword('');
       users.reload();
@@ -103,7 +119,7 @@ export function UsersPage() {
                 className={inputClass}
               />
             </Field>
-            <Field label="Password" hint={PASSWORD_HINT}>
+            <Field label="Password (facoltativa)" hint={NEW_PASSWORD_HINT}>
               <input
                 type="password"
                 autoComplete="new-password"
@@ -121,8 +137,9 @@ export function UsersPage() {
                 {done}
               </p>
             )}
+            {invited && <InviteDeliveryBox email={invited.email} delivery={invited.delivery} />}
             <Button type="submit" variant="primary" disabled={busy}>
-              {busy ? 'Creazione…' : 'Crea utente'}
+              {busy ? 'Creazione…' : password === '' ? 'Crea e invita' : 'Crea utente'}
             </Button>
           </form>
         </Card>
@@ -137,8 +154,8 @@ export function UsersPage() {
           </dl>
           <p className="mt-3 text-xs text-muted">
             Il cliente deve avere sempre almeno un utente attivo «{ROLE_LABEL.admin}». Un utente disattivato non può
-            accedere; dopo un cambio di ruolo o una nuova password l’utente deve accedere di nuovo (chi cambia la propria
-            password resta collegato).
+            accedere; dopo un cambio di ruolo o una nuova password l’utente deve accedere di nuovo (chi cambia la
+            propria password resta collegato).
           </p>
         </Card>
       </div>
@@ -171,6 +188,17 @@ export function UsersPage() {
   );
 }
 
+/** Pure: the state shown next to a user. */
+export function statusText(u: Pick<UserSummary, 'disabled' | 'invite'>): string {
+  if (u.disabled) return 'Disattivato';
+  if (u.invite === 'pending') return 'Invito in attesa';
+  if (u.invite === 'expired') return 'Invito scaduto';
+  return 'Attivo';
+}
+
+const statusClass = (u: Pick<UserSummary, 'disabled' | 'invite'>): string =>
+  u.disabled ? 'text-danger' : u.invite ? 'text-warn' : 'text-live';
+
 type Panel = 'role' | 'password' | null;
 
 /** One user of the list with its commands (for oneself only the new password). */
@@ -190,6 +218,8 @@ function UserRow({
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Link to copy just made for this user (new invitation or reset link). */
+  const [link, setLink] = useState<ReactNode>(null);
 
   const toggle = (p: Exclude<Panel, null>) => {
     setPanel((current) => (current === p ? null : p));
@@ -198,6 +228,7 @@ function UserRow({
 
   const run = async (action: () => Promise<void>, message: string): Promise<void> => {
     setError(null);
+    setLink(null);
     setBusy(true);
     try {
       await action();
@@ -216,6 +247,23 @@ function UserRow({
       await apiRequest(usersPath(user.id), UserSummarySchema, { method: 'PATCH', body });
     }, message);
 
+  const resendInvite = (): Promise<void> =>
+    run(async () => {
+      const res = await apiRequest(`${usersPath(user.id)}/invite`, UserInviteResponseSchema, { method: 'POST' });
+      if (res.delivery) setLink(<InviteDeliveryBox email={user.email} delivery={res.delivery} />);
+    }, `Invito di ${user.email} inviato di nuovo.`);
+
+  const resetLink = (): Promise<void> =>
+    run(async () => {
+      const res = await apiRequest(`${usersPath(user.id)}/reset-link`, ResetLinkResponseSchema, { method: 'POST' });
+      setLink(
+        <div role="status" className="space-y-2 rounded-card border border-live bg-success-soft p-3 text-sm text-text">
+          <p>Link per la nuova password di {user.email}: mandaglielo a mano, vale un’ora e si usa una volta sola.</p>
+          <LinkToCopy link={res.link} label="Copia link" />
+        </div>,
+      );
+    }, `Link per la nuova password di ${user.email} creato.`);
+
   const savePassword = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
     const body = UpdateUserRequestSchema.safeParse({ password });
@@ -233,15 +281,36 @@ function UserRow({
           <p className="break-all font-medium text-text">
             {user.email}
             {self && <span className="ml-1 text-xs font-normal text-muted">(tu)</span>}
-            <span className={`ml-2 text-xs font-semibold uppercase ${user.disabled ? 'text-danger' : 'text-live'}`}>
-              {user.disabled ? 'Disattivato' : 'Attivo'}
-            </span>
+            <span className={`ml-2 text-xs font-semibold uppercase ${statusClass(user)}`}>{statusText(user)}</span>
           </p>
           <p className="text-xs text-muted">
             {ROLE_LABEL[user.role]} · creato {formatDateTime(user.createdAt)}
           </p>
         </div>
         <span className="inline-flex flex-wrap gap-2">
+          {user.invite && !user.disabled && (
+            <Button variant="ghost" disabled={busy} onClick={() => void resendInvite()}>
+              Invia di nuovo
+            </Button>
+          )}
+          {user.invite && (
+            <ConfirmButton
+              label="Annulla invito"
+              confirmLabel="Conferma annullamento"
+              busy={busy}
+              onConfirm={() =>
+                void run(
+                  () => apiCommand(`${usersPath(user.id)}/invite`, { method: 'DELETE' }),
+                  `Invito a ${user.email} annullato.`,
+                )
+              }
+            />
+          )}
+          {!self && !user.invite && !user.disabled && (
+            <Button variant="ghost" disabled={busy} onClick={() => void resetLink()}>
+              Link per nuova password
+            </Button>
+          )}
           {!self && (
             <Button variant="ghost" aria-expanded={panel === 'role'} onClick={() => toggle('role')}>
               Cambia ruolo
@@ -320,6 +389,7 @@ function UserRow({
           </Button>
         </form>
       )}
+      {link}
       {error && <ErrorBox>{error}</ErrorBox>}
     </li>
   );

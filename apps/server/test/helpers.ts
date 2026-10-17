@@ -46,7 +46,7 @@ export interface TestServer {
 export async function startServer(
   rateLimits: Partial<RateLimits> = {},
   env: Record<string, string> = {},
-  appOptions: Pick<AppOptions, 'leagueFetcher' | 'onRoute' | 'simulationTimers'> = {},
+  appOptions: Pick<AppOptions, 'leagueFetcher' | 'onRoute' | 'simulationTimers' | 'mailTransport'> = {},
 ): Promise<TestServer> {
   const database = createPgliteDatabase();
   await database.migrate();
@@ -78,6 +78,7 @@ export async function startServer(
       shortCodeInvalidTotal: 10_000,
       agentDownload: 10_000,
       leagueSync: 10_000,
+      passwordReset: 10_000,
       ...rateLimits,
     },
     now: () => now ?? new Date(),
@@ -88,6 +89,7 @@ export async function startServer(
       ...appOptions.leagueFetcher,
     },
     ...(appOptions.onRoute ? { onRoute: appOptions.onRoute } : {}),
+    ...(appOptions.mailTransport ? { mailTransport: appOptions.mailTransport } : {}),
     ...(appOptions.simulationTimers ? { simulationTimers: appOptions.simulationTimers } : {}),
   });
   const [tenant] = await database.db

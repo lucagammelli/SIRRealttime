@@ -15,6 +15,7 @@ export const unauthorized = (): HttpError => new HttpError(401, 'UNAUTHORIZED', 
 export const forbidden = (): HttpError => new HttpError(403, 'FORBIDDEN', 'Accesso negato');
 export const notFound = (): HttpError => new HttpError(404, 'NOT_FOUND', 'Non trovato');
 export const conflict = (message: string): HttpError => new HttpError(409, 'CONFLICT', message);
+export const gone = (): HttpError => new HttpError(410, 'GONE', 'Il link non è valido o è scaduto');
 export const payloadTooLarge = (): HttpError =>
   new HttpError(413, 'FST_ERR_CTP_BODY_TOO_LARGE', 'Richiesta troppo grande');
 export const unsupportedMediaType = (): HttpError =>

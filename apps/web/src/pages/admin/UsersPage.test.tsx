@@ -10,12 +10,19 @@ const ME = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
 const OTHER = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
 const AT = '2026-10-15T10:00:00.000Z';
 
-const user = (id: string, email: string, role: 'admin' | 'viewer', disabled = false): UserSummary => ({
+const user = (
+  id: string,
+  email: string,
+  role: 'admin' | 'viewer',
+  disabled = false,
+  invite: UserSummary['invite'] = null,
+): UserSummary => ({
   id,
   email,
   role,
   createdAt: AT,
   disabled,
+  invite,
 });
 
 /** Fake server with the users `start`; PATCH and DELETE change them (`refuse`: answer of a PATCH instead). */
@@ -33,6 +40,34 @@ function serve(start: UserSummary[], refuse?: { status: number; error: string })
     if (one && call.method === 'DELETE') {
       list = list.filter((u) => u.id !== one[1]);
       return null;
+    }
+    const invite = /^\/api\/admin\/users\/([^/]+)\/invite$/.exec(call.url);
+    if (invite && call.method === 'POST') {
+      const delivery = { mail: 'not_configured', link: 'http://portale.test/admin/invito/nuovo', expiresAt: AT };
+      return { body: { ...list.find((u) => u.id === invite[1]), delivery } };
+    }
+    if (invite && call.method === 'DELETE') {
+      list = list.filter((u) => u.id !== invite[1]);
+      return null;
+    }
+    if (/^\/api\/admin\/users\/[^/]+\/reset-link$/.test(call.url))
+      return { body: { link: 'http://portale.test/admin/reimposta-password/xyz', expiresAt: AT } };
+    if (call.url === '/api/admin/users' && call.method === 'POST') {
+      const b = call.body as { email: string; role: 'admin' | 'viewer'; password?: string };
+      const created = user(
+        '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d',
+        b.email,
+        b.role,
+        false,
+        b.password ? null : 'pending',
+      );
+      list = [...list, created];
+      const delivery = b.password
+        ? null
+        : b.email.startsWith('posta')
+          ? { mail: 'sent', link: null, expiresAt: AT }
+          : { mail: 'not_configured', link: 'http://portale.test/admin/invito/abc', expiresAt: AT };
+      return { body: { ...created, delivery }, status: 201 };
     }
     if (call.url === '/api/admin/users') return { body: list };
     return { body: [] };
@@ -142,5 +177,77 @@ describe('«Utenti» page', () => {
     fireEvent.click(within(row).getByRole('button', { name: 'Disattiva' }));
     fireEvent.click(within(row).getByRole('button', { name: 'Conferma disattivazione' }));
     expect(await within(row).findByText(`${error}.`)).toBeTruthy();
+  });
+
+  it('creates a user without a password: an invitation by mail', async () => {
+    const calls = serve([user(ME, 'u@sir.test', 'admin')]);
+    renderAs('admin', <UsersPage />);
+    fireEvent.change(await screen.findByLabelText('Email'), { target: { value: 'posta@sir.test' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crea e invita' }));
+    expect(await screen.findByText('Invito inviato a posta@sir.test.')).toBeTruthy();
+    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ email: 'posta@sir.test', role: 'viewer' });
+    await waitFor(async () => expect(within(await rowOf('posta@sir.test')).getByText('Invito in attesa')).toBeTruthy());
+    expect(screen.queryByRole('button', { name: 'Copia link' })).toBeNull();
+  });
+
+  it('without a mail server shows the link to copy and says that the mail is not configured', async () => {
+    serve([user(ME, 'u@sir.test', 'admin')]);
+    renderAs('admin', <UsersPage />);
+    fireEvent.change(await screen.findByLabelText('Email'), { target: { value: 'manuale@sir.test' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crea e invita' }));
+    expect(await screen.findByText(/La posta non è configurata/)).toBeTruthy();
+    expect(screen.getByText('http://portale.test/admin/invito/abc')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copia link' })).toBeTruthy();
+  });
+
+  it('keeps the password path: with a password the user is created at once', async () => {
+    const calls = serve([user(ME, 'u@sir.test', 'admin')]);
+    renderAs('admin', <UsersPage />);
+    fireEvent.change(await screen.findByLabelText('Email'), { target: { value: 'diretto@sir.test' } });
+    fireEvent.change(screen.getByLabelText('Password (facoltativa)', { exact: false }), {
+      target: { value: 'una-password-lunga' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Crea utente' }));
+    expect(await screen.findByText('Utente diretto@sir.test creato.')).toBeTruthy();
+    expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({ password: 'una-password-lunga' });
+  });
+
+  it('shows pending and expired invitations with «Invia di nuovo» and «Annulla invito»', async () => {
+    const calls = serve([
+      user(ME, 'u@sir.test', 'admin'),
+      user(OTHER, 'invitato@sir.test', 'viewer', false, 'pending'),
+      user('11111111-2222-4333-8444-555555555555', 'scaduto@sir.test', 'viewer', false, 'expired'),
+    ]);
+    renderAs('admin', <UsersPage />);
+    const pending = await rowOf('invitato@sir.test');
+    expect(within(pending).getByText('Invito in attesa')).toBeTruthy();
+    expect(within(await rowOf('scaduto@sir.test')).getByText('Invito scaduto')).toBeTruthy();
+    expect(within(pending).queryByRole('button', { name: 'Link per nuova password' })).toBeNull();
+
+    fireEvent.click(within(pending).getByRole('button', { name: 'Invia di nuovo' }));
+    expect(await screen.findByText('Invito di invitato@sir.test inviato di nuovo.')).toBeTruthy();
+    expect(calls.some((c) => c.method === 'POST' && c.url === `/api/admin/users/${OTHER}/invite`)).toBe(true);
+    const again = await rowOf('invitato@sir.test');
+    expect(await within(again).findByText('http://portale.test/admin/invito/nuovo')).toBeTruthy();
+    expect(within(again).getByText(/La posta non è configurata/)).toBeTruthy();
+
+    fireEvent.click(within(again).getByRole('button', { name: 'Annulla invito' }));
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
+    fireEvent.click(within(again).getByRole('button', { name: 'Conferma annullamento' }));
+    expect(await screen.findByText('Invito a invitato@sir.test annullato.')).toBeTruthy();
+    expect(calls.some((c) => c.method === 'DELETE' && c.url === `/api/admin/users/${OTHER}/invite`)).toBe(true);
+    await waitFor(() => expect(screen.queryByText('invitato@sir.test')).toBeNull());
+  });
+
+  it('makes a link for a new password to copy', async () => {
+    const calls = serve([user(ME, 'u@sir.test', 'admin'), user(OTHER, 'lettore@sir.test', 'viewer')]);
+    renderAs('admin', <UsersPage />);
+    const row = await rowOf('lettore@sir.test');
+    fireEvent.click(within(row).getByRole('button', { name: 'Link per nuova password' }));
+    expect(await within(row).findByText('http://portale.test/admin/reimposta-password/xyz')).toBeTruthy();
+    expect(within(row).getByRole('button', { name: 'Copia link' })).toBeTruthy();
+    expect(calls.some((c) => c.method === 'POST' && c.url === `/api/admin/users/${OTHER}/reset-link`)).toBe(true);
+    // Not for oneself.
+    expect(within(await rowOf('u@sir.test')).queryByRole('button', { name: 'Link per nuova password' })).toBeNull();
   });
 });

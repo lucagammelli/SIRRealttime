@@ -11,6 +11,8 @@ import type { AppContext, RateLimits, SocketLimits } from './context.js';
 import { LOOKUP_CACHE_TTL_MS, SCHEDULE_CACHE_TTL_MS } from './context.js';
 import type { Db } from './db/index.js';
 import { LiveHub } from './hub.js';
+import type { TransportFactory } from './mail/service.js';
+import { MailService } from './mail/service.js';
 import { IngestService } from './ingest.js';
 import { HttpError } from './lib/errors.js';
 import { FailureLimiter } from './lib/failureLimiter.js';
@@ -26,6 +28,7 @@ import { authRoutes } from './routes/auth.js';
 import { brandingAdminRoutes, brandingPublicRoutes } from './routes/branding.js';
 import { clubPublicRoutes, clubRoutes } from './routes/club.js';
 import { manualFixtureRoutes } from './routes/calendar.js';
+import { mailSettingsRoutes } from './routes/mailSettings.js';
 import { manifestRoutes } from './routes/manifest.js';
 import { healthRoutes } from './routes/health.js';
 import { ingestRoutes } from './routes/ingest.js';
@@ -55,12 +58,16 @@ export interface AppOptions {
   onRoute?: (route: { method: string; url: string }) => void;
   /** Timers of the simulations (tests: a fake clock). */
   simulationTimers?: SimulationTimers;
+  /** Mail transport (tests: a fake that records the messages instead of connecting to a server). */
+  mailTransport?: TransportFactory;
 }
 
 declare module 'fastify' {
   interface FastifyInstance {
     /** Simulations of a match (`src/simulation/`), one per client. */
     simulations: SimulationService;
+    /** Mail of the invitations and password resets (tests wait for `mail.idle()`). */
+    mail: MailService;
   }
 }
 
@@ -69,6 +76,8 @@ type LoggerOption = Exclude<FastifyServerOptions['logger'], undefined>;
 /** Body limit of every route except the ingest (which has its own). */
 const DEFAULT_BODY_LIMIT = 64 * 1024;
 const WS_MAX_PAYLOAD = 4 * 1024;
+/** Password reset mails per email and hour; the over-limit requests get the usual answer and send nothing. */
+const RESET_REQUESTS_PER_EMAIL = 3;
 /** Hostnames and share tokens kept in the lookup caches (the oldest go first). */
 const LOOKUP_CACHE_ENTRIES = 10_000;
 
@@ -88,7 +97,10 @@ function serverVersion(): string {
 export function redactUrl(url: string): string {
   if (/^\/api\/public\/(?:tenant(?:[?#]|$)|manifest\.webmanifest(?:[?#]|$)|assets\/|team-logos\/)/.test(url))
     return url;
-  return url.replace(/^\/(api|ws)\/public\/[^/?#]+/, '/$1/public/[token]');
+  return url
+    .replace(/^\/(api|ws)\/public\/[^/?#]+/, '/$1/public/[token]')
+    .replace(/^\/api\/auth\/links\/[^/?#]+/, '/api/auth/links/[token]')
+    .replace(/^\/admin\/(invito|reimposta-password)\/[^/?#]+/, '/admin/$1/[token]');
 }
 
 export function loggerOptions(level: string): LoggerOption {
@@ -168,6 +180,14 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     },
     publicFailures: new FailureLimiter(rateLimits.publicInvalid, 60_000, now),
     shortCodeFailures: new FailureLimiter(rateLimits.shortCodeInvalidTotal, 60_000, now),
+    resetRequests: new FailureLimiter(RESET_REQUESTS_PER_EMAIL, 3_600_000, now),
+    mail: new MailService({
+      db,
+      key: config.settingsEncryptionKey,
+      log: app.log,
+      now,
+      ...(options.mailTransport ? { factory: options.mailTransport } : {}),
+    }),
     resync: new ResyncScheduler(now),
     leagues,
     now,
@@ -175,6 +195,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
 
   const simulations = new SimulationService(ctx, app.log, options.simulationTimers);
   app.decorate('simulations', simulations);
+  app.decorate('mail', ctx.mail);
 
   const onRoute = options.onRoute;
   if (onRoute) {
@@ -229,6 +250,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     authRoutes(scope, ctx);
     adminRoutes(scope, ctx);
     userRoutes(scope, ctx);
+    mailSettingsRoutes(scope, ctx);
     tenantRoutes(scope, ctx);
     brandingAdminRoutes(scope, ctx);
     agentDownloadRoutes(scope, ctx);
@@ -250,6 +272,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     done();
   });
   app.addHook('onClose', async () => {
+    await ctx.mail.idle();
     // First the simulations: no send to the ingest after this point (lost after a restart).
     await simulations.close();
     channels.stop();

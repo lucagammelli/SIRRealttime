@@ -2,6 +2,7 @@ import type { MeResponse } from '@sir/shared';
 import { LoginRequestSchema, MeResponseSchema } from '@sir/shared';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { BrandMark } from '../../components/BrandMark.tsx';
 import { ThemeToggle } from '../../components/ThemeToggle.tsx';
 import { Button, ErrorBox } from '../../components/ui.tsx';
@@ -71,6 +72,11 @@ export function LoginPage({ onLogin, notice }: { onLogin: (user: MeResponse) => 
         <Button type="submit" variant="primary" disabled={busy} className="w-full">
           {busy ? 'Accesso in corso…' : 'Accedi'}
         </Button>
+        <p className="text-center text-sm">
+          <Link to="/admin/password-dimenticata" className="text-muted underline hover:text-text">
+            Password dimenticata?
+          </Link>
+        </p>
       </form>
     </main>
   );

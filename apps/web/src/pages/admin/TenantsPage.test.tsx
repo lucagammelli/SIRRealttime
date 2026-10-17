@@ -62,7 +62,10 @@ function mockServer(role: MeResponse['role'], start: string | null = null): { ca
           return json({ error: 'Esiste già un cliente con questo identificativo' }, 409);
         const created = tenant('5d4c3b2a-1f0e-4d9c-8b7a-6f5e4d3c2b1a', b.slug, b.name, b.hostnames);
         tenants = [...tenants, created];
-        return json(created, 201);
+        // A first user without a password is invited: no mail server in this fake, so the link comes back.
+        const first = (body as { firstUser?: { password?: string } }).firstUser;
+        const invite = { mail: 'not_configured', link: 'http://portale.test/admin/invito/abc', expiresAt: AT };
+        return json(first && first.password === undefined ? { ...created, firstUserInvite: invite } : created, 201);
       }
       const patch = /^\/api\/admin\/tenants\/([^/]+)$/.exec(url);
       if (patch && method === 'PATCH') {
@@ -190,6 +193,27 @@ describe('«Clienti» page', () => {
     });
   });
 
+  it('invites the first user when no password is given and shows the link to copy', async () => {
+    const { calls } = mockServer('superadmin');
+    renderAt('/admin/clienti');
+    const form = (await screen.findByRole('heading', { name: 'Nuovo cliente' })).closest('section');
+    if (!form) throw new Error('no form');
+    fireEvent.change(within(form).getByLabelText('Nome'), { target: { value: 'Club F' } });
+    fireEvent.change(within(form).getByLabelText('Identificativo', { exact: false }), { target: { value: 'club-f' } });
+    fireEvent.change(within(form).getByLabelText('Email del primo utente'), { target: { value: 'capo@club-f.it' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Crea cliente' }));
+    expect(await within(form).findByText(/La posta non è configurata/)).toBeTruthy();
+    expect(within(form).getByText('http://portale.test/admin/invito/abc')).toBeTruthy();
+    expect(within(form).getByRole('button', { name: 'Copia link' })).toBeTruthy();
+    expect(calls.find((c) => c.url === '/api/admin/tenants' && c.method === 'POST')?.body).toEqual({
+      slug: 'club-f',
+      name: 'Club F',
+      hostnames: [],
+      agentQuota: 1,
+      firstUser: { email: 'capo@club-f.it' },
+    });
+  });
+
   it('enters a client with «Entra nel cliente»: its pages, the warning bar and the client in the tab title', async () => {
     const { calls } = mockServer('superadmin');
     renderAt('/admin/clienti');
@@ -233,7 +257,7 @@ describe('«Clienti» page', () => {
       within(nav)
         .getAllByRole('link')
         .map((l) => l.textContent),
-    ).toEqual(['Clienti', 'Campionati']);
+    ).toEqual(['Clienti', 'Campionati', 'Posta']);
   });
 
   it('sends a superadmin outside any client from the pages of a client to «Clienti»', async () => {

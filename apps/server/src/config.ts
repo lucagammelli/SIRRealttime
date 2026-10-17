@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import { DEFAULT_TENANT_SLUG, PASSWORD_MIN_LENGTH, TenantSlugSchema } from '@sir/shared';
 import { z } from 'zod';
+import { decodeEncryptionKey } from './mail/crypto.js';
 import type { RateLimits, SocketLimits } from './context.js';
 import { DEFAULT_RATE_LIMITS, DEFAULT_SOCKET_LIMITS } from './context.js';
 
@@ -57,6 +58,11 @@ const EnvSchema = z
     RATE_LIMIT_SHORT_CODE_INVALID: perMinute(DEFAULT_RATE_LIMITS.shortCodeInvalidTotal),
     RATE_LIMIT_AGENT_DOWNLOAD: perMinute(DEFAULT_RATE_LIMITS.agentDownload),
     RATE_LIMIT_LEAGUE_SYNC: perMinute(DEFAULT_RATE_LIMITS.leagueSync),
+    RATE_LIMIT_PASSWORD_RESET: perMinute(DEFAULT_RATE_LIMITS.passwordReset),
+    SETTINGS_ENCRYPTION_KEY: z
+      .string()
+      .refine((k) => decodeEncryptionKey(k) !== null)
+      .optional(),
     LEAGUE_SYNC: z.enum(['on', 'off']).default('on'),
     LEAGUE_CONTACT: z
       .string()
@@ -114,6 +120,8 @@ export interface Config {
   leagueSync: boolean;
   /** Contact in the User-Agent of the downloads from the league sites (default: PUBLIC_BASE_URL). */
   leagueContact: string;
+  /** AES-256 key of the secrets saved in the database (the mail password); null: not set, they cannot be saved. */
+  settingsEncryptionKey: Buffer | null;
 }
 
 export class ConfigError extends Error {
@@ -155,6 +163,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       shortCodeInvalidTotal: e.RATE_LIMIT_SHORT_CODE_INVALID,
       agentDownload: e.RATE_LIMIT_AGENT_DOWNLOAD,
       leagueSync: e.RATE_LIMIT_LEAGUE_SYNC,
+      passwordReset: e.RATE_LIMIT_PASSWORD_RESET,
     },
     socketLimits: { perIp: e.WS_MAX_PER_IP, total: e.WS_MAX_TOTAL },
     defaultTenantSlug: noDefaultTenant ? null : e.DEFAULT_TENANT_SLUG,
@@ -165,5 +174,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     shareCodeSecretIsDefault: e.SHARE_CODE_SECRET === undefined,
     leagueSync: e.LEAGUE_SYNC === 'on',
     leagueContact: e.LEAGUE_CONTACT?.trim() || e.PUBLIC_BASE_URL,
+    settingsEncryptionKey: e.SETTINGS_ENCRYPTION_KEY ? decodeEncryptionKey(e.SETTINGS_ENCRYPTION_KEY) : null,
   };
 }

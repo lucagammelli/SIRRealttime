@@ -343,3 +343,18 @@ Una riga per decisione: data, scelta, motivo.
   e la partita resta allineata agli spostamenti della Lega.
 - 2026-10-17: nel calendario date e ore sono sempre in ora di Roma, anche nei moduli, indipendentemente dal fuso del
   browser, perché le partite si giocano in Italia.
+- 2026-10-17: il server di posta si imposta nella pagina «Posta» del superadmin e non nel `.env`, per volere di Luca, perché
+  si cambia senza toccare il server; è uno solo per tutti i clienti (tabella `mail_settings`, una riga).
+- 2026-10-17: la password SMTP è cifrata in database (AES-256-GCM, chiave `SETTINGS_ENCRYPTION_KEY` nel `.env`) e non
+  torna mai al portale, perché un database copiato non riveli la password della posta; se la chiave cambia si reinserisce.
+- 2026-10-17: dipendenza nuova `nodemailer` (solo nel server) per l'invio SMTP, con timeout brevi (5/8/10 s), perché la
+  posta lenta non blocchi il portale.
+- 2026-10-17: «Annulla invito» elimina l'utente, perché chi non ha mai scelto la password non ha dati da conservare e un
+  utente a metà resterebbe in elenco senza poter accedere.
+- 2026-10-17: il recupero password risponde sempre e subito allo stesso modo (il lavoro va in background), perché la
+  risposta e i tempi non rivelino se un'email è registrata.
+- 2026-10-17: il limite di 3 richieste di recupero all'ora per email sta in memoria (`FailureLimiter`) e si azzera al
+  riavvio, perché basta a fermare l'invio di mail a catena senza una tabella in più; il limite per IP resta in più.
+- 2026-10-17: link di invito (72 h) e di recupero (1 h) monouso, con solo l'sha256 nel database, costruiti da
+  `PUBLIC_BASE_URL` e mai dall'intestazione `Host`; dopo il reset le sessioni dell'utente sono chiuse e, con un invito
+  aperto, il login è rifiutato.

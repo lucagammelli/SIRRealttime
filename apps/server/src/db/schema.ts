@@ -87,6 +87,57 @@ export const users = pgTable(
   ],
 );
 
+/**
+ * One-time links sent to a user: `invite` (first password, 72 h) and `reset` (new password, 1 h). Only the sha256 of
+ * the token is stored. A used, replaced or cancelled link is deleted; a user with an `invite` row has not chosen its
+ * password yet.
+ */
+export const userTokens = pgTable(
+  'user_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    /** sha256 hex of the token in the link. */
+    tokenHash: text('token_hash').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    // One link per user and kind: a new one replaces the old one.
+    uniqueIndex('user_tokens_user_kind_idx').on(t.userId, t.kind),
+    check('user_tokens_kind_check', sql`${t.kind} in ('invite', 'reset')`),
+  ],
+);
+
+/**
+ * Mail server for invitations and password resets: one row for the whole system (set by the superadmin). The password
+ * is encrypted (AES-256-GCM, key SETTINGS_ENCRYPTION_KEY) and never sent back to the portal.
+ */
+export const mailSettings = pgTable(
+  'mail_settings',
+  {
+    singleton: boolean('singleton').primaryKey().default(true),
+    host: text('host').notNull(),
+    port: integer('port').notNull(),
+    /** `none`, `starttls` or `tls`. */
+    security: text('security').$type<'none' | 'starttls' | 'tls'>().notNull(),
+    username: text('username').notNull().default(''),
+    /** `v1.<iv>.<tag>.<ciphertext>` (base64url); null: no password. */
+    passwordEnc: text('password_enc'),
+    fromName: text('from_name').notNull(),
+    fromEmail: text('from_email').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check('mail_settings_singleton_check', sql`${t.singleton}`),
+    check('mail_settings_security_check', sql`${t.security} in ('none', 'starttls', 'tls')`),
+    check('mail_settings_port_check', sql`${t.port} between 1 and 65535`),
+  ],
+);
+
 export const sessions = pgTable(
   'sessions',
   {
@@ -514,6 +565,8 @@ export const schema = {
   tenants,
   userRole,
   users,
+  userTokens,
+  mailSettings,
   sessions,
   agents,
   agentRegistrationStatus,

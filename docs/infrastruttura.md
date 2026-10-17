@@ -89,7 +89,7 @@ binario della piattaforma come dipendenza opzionale.
   Il servizio `web` di `docker-compose.yml` ha `ulimits.nofile` a 65536 (soft e hard), altrimenti nginx non può aprire
   tanti descrittori. Sintassi verificata con nginx 1.28; **da ricontrollare al primo build** con la 1.29 unprivileged
   (`docker compose up -d --build`, poi `docker compose logs web`). Dettagli in `docs/portale.md`. Il suo `log_format
-  main` maschera token e codici brevi nel percorso (`/l/[codice]`, `/live/[token]`, `/api|ws/public/[token]`) e il
+  main` maschera token e codici brevi nel percorso (`/l/[codice]`, `/live/[token]`, `/api|ws/public/[token]`, e dei link di invito e recupero password `/admin/invito|reimposta-password/[token]`, `/api/auth/links/[token]`) e il
   Referer (`[omesso]`).
 - `SHARE_CODE_SECRET` in `docker-compose.yml` (servizio `server`) è `${SHARE_CODE_SECRET:?…}`: **senza la variabile nel
   `.env` falliscono tutti i comandi `docker compose`**, anche `down`, `logs` e `config`. Cambiarla cambia tutti i
@@ -127,9 +127,15 @@ rilascio e l'altro. Il bundle principale è di circa 132 KB gzip. Le altre dipen
   `SESSION_TTL_HOURS`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `PUBLIC_BASE_URL`, `LOG_LEVEL`, `TRUST_PROXY`,
   `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_PUBLIC_WS`, `RATE_LIMIT_PUBLIC_INVALID`, `RATE_LIMIT_SHORT_CODE_INVALID`, `RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`, `SHARE_CODE_SECRET`,
   `RATE_LIMIT_AGENT_DOWNLOAD`, `WS_MAX_PER_IP`, `WS_MAX_TOTAL`, `MATCH_MAX_LINES`, `DEFAULT_TENANT_SLUG`, `ASSETS_DIR`,
-  `ASSETS_QUOTA_MB`, `AGENT_DOWNLOAD_DIR`, `RATE_LIMIT_LEAGUE_SYNC`, `LEAGUE_SYNC`, `LEAGUE_CONTACT`) e quelle di Docker Compose (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
+  `ASSETS_QUOTA_MB`, `AGENT_DOWNLOAD_DIR`, `RATE_LIMIT_LEAGUE_SYNC`, `LEAGUE_SYNC`, `LEAGUE_CONTACT`, `RATE_LIMIT_PASSWORD_RESET`, `SETTINGS_ENCRYPTION_KEY`) e quelle di Docker Compose (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
   `SERVER_BIND`, `WEB_BIND`, `WEB_PORT`, `AGENT_DOWNLOAD_HOST_DIR`).
   Descrizione e default in `docs/server.md`. Il file `.env` vero non va mai nel repository.
+- Posta: il servizio `server` di `docker-compose.yml` passa `RATE_LIMIT_PASSWORD_RESET` (default 10, richieste al minuto
+  per IP sulle rotte dei link di invito e recupero password) e `SETTINGS_ENCRYPTION_KEY` (vuota di default: senza, la
+  pagina «Posta» non salva la password SMTP). La chiave è di 32 byte in base64 (`openssl rand -base64 32`, script in
+  `docs/server.md`); se cambia, la password del server di posta va reinserita. Il server di posta non si configura nel
+  `.env` ma nel portale (`docs/server.md`, «Posta, inviti e recupero password»); il server esce verso l'SMTP scelto, che
+  in una rete con uscita filtrata va consentito.
 - `DEFAULT_TENANT_SLUG` (cliente degli hostname sconosciuti, default `predefinito`) è commentata in `.env.example` e
   passata dal servizio `server` di `docker-compose.yml` con `${DEFAULT_TENANT_SLUG-predefinito}`: se in `.env` è
   definita ma vuota resta vuota (hostname sconosciuto = 404, `docs/server.md`).

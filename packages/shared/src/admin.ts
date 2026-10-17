@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { MatchKeySchema } from './ingest.js';
 import { MatchStateSchema } from './messages.js';
 import { PairingCodeSchema } from './registration.js';
-import { PASSWORD_MIN_LENGTH, PasswordSchema, UserCredentialsSchema } from './credentials.js';
+import { InvitableUserSchema, InviteDeliverySchema, PASSWORD_MIN_LENGTH, PasswordSchema } from './credentials.js';
 import { plainText } from './strings.js';
 import { AgentQuotaSchema, TenantRefSchema } from './tenant.js';
 
@@ -84,7 +84,8 @@ export const MeResponseSchema = z.object({
 });
 export type MeResponse = z.infer<typeof MeResponseSchema>;
 
-export const CreateUserRequestSchema = UserCredentialsSchema.extend({ role: TenantUserRoleSchema });
+/** Without `password` the user is invited by email (or by a link to copy). */
+export const CreateUserRequestSchema = InvitableUserSchema.extend({ role: TenantUserRoleSchema });
 export type CreateUserRequest = z.infer<typeof CreateUserRequestSchema>;
 
 /**
@@ -110,8 +111,16 @@ export const UserSummarySchema = z.object({
   createdAt: z.iso.datetime(),
   /** A disabled user cannot log in (missing in an older answer: active). */
   disabled: z.boolean().default(false),
+  /** Invitation not used yet: `pending` (valid) or `expired`; null: the user has chosen its password. */
+  invite: z.enum(['pending', 'expired']).nullable().default(null),
 });
 export type UserSummary = z.infer<typeof UserSummarySchema>;
+
+/** Answer of the creation of a user and of «Invia di nuovo»: the user and, for an invitation, the delivery. */
+export const UserInviteResponseSchema = UserSummarySchema.extend({
+  delivery: InviteDeliverySchema.nullable().default(null),
+});
+export type UserInviteResponse = z.infer<typeof UserInviteResponseSchema>;
 
 export const CreateAgentRequestSchema = z.object({ name: plainText(100) });
 export type CreateAgentRequest = z.infer<typeof CreateAgentRequestSchema>;

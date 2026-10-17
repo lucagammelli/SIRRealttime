@@ -1,4 +1,4 @@
-import type { MeResponse, TenantSummary } from '@sir/shared';
+import type { CreateTenantResponse, MeResponse, TenantSummary } from '@sir/shared';
 import {
   clampAgentQuota,
   CreateTenantRequestSchema,
@@ -12,11 +12,12 @@ import type { AppContext } from '../context.js';
 import { perMinute, SESSION_COOKIE } from '../context.js';
 import { sessions, tenants, users } from '../db/index.js';
 import { conflict, notFound, unauthorized } from '../lib/errors.js';
-import { hashPassword } from '../lib/passwords.js';
+import { hashPassword, unusablePasswordHash } from '../lib/passwords.js';
 import { hashToken } from '../lib/tokens.js';
 import { validate } from '../lib/validate.js';
 import { requireRole } from '../security.js';
 import { findTenant, forgetTenants, tenantRef } from '../tenancy.js';
+import { deliverInvite, issueLink } from '../userLinks.js';
 import { insertTenantUser } from '../users.js';
 
 type TenantRow = typeof tenants.$inferSelect;
@@ -73,11 +74,16 @@ export function tenantRoutes(app: FastifyInstance, ctx: AppContext): void {
     return rows.map((t) => tenantSummary(t, counts.get(t.id) ?? 0));
   });
 
-  app.post('/api/admin/tenants', superadmin, async (request, reply): Promise<TenantSummary> => {
+  app.post('/api/admin/tenants', superadmin, async (request, reply): Promise<CreateTenantResponse> => {
     const body = validate(CreateTenantRequestSchema, request.body);
     const firstUser = body.firstUser;
-    const passwordHash = firstUser ? await hashPassword(firstUser.password) : null;
-    const { row, firstUserId } = await ctx.db.transaction(async (tx) => {
+    // Without a password the first user is invited (link by email, or to copy without a mail server).
+    const passwordHash = firstUser
+      ? firstUser.password === undefined
+        ? await unusablePasswordHash()
+        : await hashPassword(firstUser.password)
+      : null;
+    const { row, user, issued } = await ctx.db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(${TENANT_LOCK_KEY})`);
       if (await hostnamesTaken(tx, body.hostnames, null)) throw hostnameTaken();
       const [inserted] = await tx
@@ -87,16 +93,27 @@ export function tenantRoutes(app: FastifyInstance, ctx: AppContext): void {
         .returning();
       if (!inserted) throw conflict('Esiste già un cliente con questo identificativo');
       // The first user (role admin) in the same transaction: an email already taken leaves no client behind.
-      const user =
+      const created =
         firstUser && passwordHash
           ? await insertTenantUser(tx, { tenantId: inserted.id, email: firstUser.email, passwordHash, role: 'admin' })
           : null;
-      return { row: inserted, firstUserId: user?.id ?? null };
+      const link =
+        created && firstUser?.password === undefined ? await issueLink(tx, created.id, 'invite', ctx.now()) : null;
+      return { row: inserted, user: created, issued: link };
     });
     forgetTenants(ctx);
-    request.log.info({ tenantId: row.id, userId: request.user?.id, firstUserId }, 'cliente creato');
+    const delivery = user && issued ? await deliverInvite(ctx, user, issued) : null;
+    request.log.info(
+      {
+        tenantId: row.id,
+        userId: request.user?.id,
+        firstUserId: user?.id ?? null,
+        ...(delivery ? { mail: delivery.mail } : {}),
+      },
+      'cliente creato',
+    );
     void reply.code(201);
-    return tenantSummary(row, firstUserId ? 1 : 0);
+    return { ...tenantSummary(row, user ? 1 : 0), firstUserInvite: delivery };
   });
 
   app.patch('/api/admin/tenants/:id', superadmin, async (request): Promise<TenantSummary> => {

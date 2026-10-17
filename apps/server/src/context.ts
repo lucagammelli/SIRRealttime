@@ -5,6 +5,7 @@ import type { LiveHub, StatePublisher } from './hub.js';
 import type { IngestService } from './ingest.js';
 import type { LeagueService } from './leagues/sync.js';
 import type { FailureLimiter } from './lib/failureLimiter.js';
+import type { MailService } from './mail/service.js';
 import type { ResyncScheduler } from './lib/resync.js';
 import type { TtlCache } from './lib/ttlCache.js';
 import type { Tenant } from './tenancy.js';
@@ -31,6 +32,8 @@ export interface RateLimits {
   agentDownload: number;
   /** «Aggiorna ora» of a championship (`POST /api/admin/leagues/:id/sync`): each one downloads pages of the league site. */
   leagueSync: number;
+  /** Reset of a password and use of invitation links (`/api/auth/password-reset/*`, `/api/auth/invite/*`, `/api/auth/links/*`). */
+  passwordReset: number;
 }
 
 export const DEFAULT_RATE_LIMITS: RateLimits = {
@@ -44,6 +47,7 @@ export const DEFAULT_RATE_LIMITS: RateLimits = {
   shortCodeInvalidTotal: 1000,
   agentDownload: 10,
   leagueSync: 6,
+  passwordReset: 10,
 };
 
 /** Most public WebSockets open at the same time, per client IP and in total. */
@@ -92,6 +96,10 @@ export interface AppContext {
   publicFailures: FailureLimiter;
   /** Unknown short codes of all the IPs together (`rateLimits.shortCodeInvalidTotal` per minute, one key). */
   shortCodeFailures: FailureLimiter;
+  /** Requests of a password reset per email (3 per hour): the over-limit ones are answered the same and ignored. */
+  resetRequests: FailureLimiter;
+  /** Mail server of the invitations and of the password resets (settings in the database, `mail_settings`). */
+  mail: MailService;
   /** Pacing of the full states sent because of `resync` (per socket and per IP). */
   resync: ResyncScheduler;
   /** Downloads and updates of the championships (common to every client). */

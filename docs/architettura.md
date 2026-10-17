@@ -110,9 +110,21 @@ Amministrazione (`admin.ts`):
   corrente o `null`), `CreateUserRequestSchema`, `UpdateUserRequestSchema` (`role`, `password`, `disabled`; almeno un
   campo), `UserSummarySchema` (con `disabled`, predefinito falso);
 - credenziali (`packages/shared/src/credentials.ts`): `EmailSchema`, `PasswordSchema`, `PASSWORD_MIN_LENGTH` (12),
-  `UserCredentialsSchema` (email e password di un nuovo utente, anche del primo utente di un cliente);
+  `UserCredentialsSchema` (email e password di un nuovo utente, anche del primo utente di un cliente),
+  `InvitableUserSchema` (email e password **facoltativa**: senza password l'utente è invitato), `INVITE_TTL_HOURS` (72) e
+  `RESET_TTL_HOURS` (1), `LinkTokenSchema` (token dei link, base64url), `InviteDeliverySchema` (esito della mail di
+  invito: `mail` `sent`/`not_configured`/`failed`, `link` da copiare o `null`, `expiresAt`), `LinkInfoSchema` (cosa
+  mostra la pagina di un link), `SetPasswordRequestSchema` (`token` e `password`), `PasswordResetRequestSchema`,
+  `PasswordResetAnswerSchema` (`{ ok: true }`), `ResetLinkResponseSchema` (link da copiare);
+- posta (`packages/shared/src/mail.ts`): `SMTP_SECURITIES` / `SmtpSecuritySchema` (`none`, `starttls`, `tls`),
+  `MailSettingsSchema` (mai la password: `passwordSet`, `configured`, `encryptionAvailable`),
+  `UpdateMailSettingsRequestSchema` (`password` nuova, assente = tiene la salvata, `clearPassword` la toglie),
+  `MailTestResponseSchema`;
+- in `admin.ts`: `CreateUserRequestSchema` accetta la password facoltativa, `UserSummarySchema` ha `invite`
+  (`pending`/`expired`/`null`) e `UserInviteResponseSchema` aggiunge `delivery`;
 - clienti (`packages/shared/src/tenant.ts`): `TenantSummarySchema` con `userCount` (utenti del cliente, 0 se manca),
-  `CreateTenantRequestSchema` con `firstUser` facoltativo (creato `admin` nella stessa transazione), `clampAgentQuota`
+  `CreateTenantRequestSchema` con `firstUser` facoltativo (`InvitableUserSchema`, creato `admin` nella stessa
+  transazione), `CreateTenantResponseSchema` (con `firstUserInvite`), `clampAgentQuota`
   (quota letta riportata in 0-`AGENT_QUOTA_MAX`);
 - agenti: `CreateAgentRequestSchema`, `AgentSummarySchema`, `CreateAgentResponseSchema`;
 - richieste di registrazione degli agenti (lato admin): `AgentRegistrationStateSchema` (`pending` | `approved` |
@@ -341,7 +353,7 @@ pnpm --filter @sir/server test      # il flusso completo agente→server→WebSo
 ```
 
 ## Riferimenti
-- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `leagues.ts`, `club.ts`, `manifest.ts`, `simulation.ts`, `index.ts`
+- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `credentials.ts`, `mail.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `leagues.ts`, `club.ts`, `manifest.ts`, `simulation.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
 - `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`, `apps/web/src/App.tsx`
 - `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/portale.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,

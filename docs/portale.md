@@ -102,7 +102,7 @@ Fullscreen API non è disponibile o fallisce, «Schermo intero» attiva comunque
 
 ### Area riservata `/admin` (`src/pages/admin/`)
 Prima si verifica la sessione («Verifica della sessione…»); senza sessione compare il login «Area riservata»
-(email e password; si può accedere da **qualunque hostname** del portale e si lavora sempre sul cliente dell'utente), se il
+(email e password, con il link «Password dimenticata?» che porta a `/admin/password-dimenticata`, vedi «Recupero password e inviti»; si può accedere da **qualunque hostname** del portale e si lavora sempre sul cliente dell'utente), se il
 server non risponde «Area riservata non disponibile» con «Riprova». Il **menu laterale**
 (`AdminSidebar.tsx`; `menuGroups({ isAdmin, isSuperadmin, inTenant })` è pura e dà i gruppi in base al ruolo, quelli vuoti
 spariscono) sostituisce la barra a pillole. Gruppi di un cliente (admin e viewer, e il superadmin dentro un cliente):
@@ -114,8 +114,8 @@ spariscono) sostituisce la barra a pillole. Gruppi di un cliente (admin e viewer
 - «Dispositivi»: Agenti;
 - «Amministrazione»: Utenti (solo admin).
 
-Il **superadmin fuori da un cliente** vede solo il suo menu (`SUPERADMIN_MENU`): il gruppo «Amministrazione» con Clienti e
-Campionati. Per lavorare su un cliente ci entra con «Entra nel cliente» (vedi «Più clienti»).
+Il **superadmin fuori da un cliente** vede solo il suo menu (`SUPERADMIN_MENU`): il gruppo «Amministrazione» con Clienti,
+Campionati e Posta. Per lavorare su un cliente ci entra con «Entra nel cliente» (vedi «Più clienti»).
 
 - in cima il logo (`BrandMark`), in fondo il nome del cliente, account, tema e «Esci»; la voce attiva è
   evidenziata (`--sir-nav-active`, rosso in SIR VOLLEY);
@@ -141,9 +141,10 @@ Le voci:
 | Link pubblici | `/admin/link` | admin e viewer (il viewer in sola lettura) | «Nuovo link pubblico» (etichetta, «Cosa mostra»: «Tutte le partite del calendario (canale del club)» oppure «Una partita fissa», «Scadenza (facoltativa)»), «Link creati» (per i link attivi «Link breve», codice e QR, vedi «Link breve e QR»; i revocati stanno dietro «Mostra revocati (N)»), «Revoca» |
 | Simulazione | `/admin/simulazione` | solo admin (il superadmin dentro un cliente) | «Nuova simulazione», «Avanzamento», «Link della simulazione» (con QR): una partita giocata dal server su un link a parte, vedi «Simulazione» |
 | Agenti | `/admin/agenti` | admin e viewer (il viewer in sola lettura) | «Agente per Windows» (vedi sotto), «Nuovo agente» («Crea token», mostrato una sola volta con «Copia config.json»), «Richieste in attesa» (vedi sotto), «Agenti» (stato «Attivo»/«Scaduto»/«Revocato», «Prolunga» con «Salva validità», «Revoca»), con la riga «N di M agenti in uso (limite dato dal superadmin)» |
-| Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, password di almeno 12 caratteri, «Ruolo»: «Lettura e scrittura» o «Sola lettura»; «Crea utente»), scheda «Ruoli» (cosa può fare ciascun ruolo), «Utenti» (per ognuno stato «Attivo»/«Disattivato», ruolo, data di creazione e i comandi descritti sotto), vedi «Utenti del cliente» |
+| Posta | `/admin/posta` | solo superadmin (fuori da un cliente) | server di posta per inviti e recupero password, uguale per tutti i clienti, vedi «Posta» |
+| Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, «Password (facoltativa)» di almeno 12 caratteri, «Ruolo»: «Lettura e scrittura» o «Sola lettura»; «Crea e invita» se la password è vuota, altrimenti «Crea utente»), scheda «Ruoli» (cosa può fare ciascun ruolo), «Utenti» (per ognuno stato «Attivo»/«Disattivato», ruolo, data di creazione e i comandi descritti sotto), vedi «Utenti del cliente» |
 | Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`) | solo admin (il superadmin dentro un cliente) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
-| Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname, «Agenti» = limite di agenti, predefinito 1; «Crea cliente»), «Clienti» con «Entra nel cliente» (il superadmin entra in quel cliente e apre `/admin/live`, vedi «Più clienti») e «Modifica» (nome, hostname e limite di agenti, «Salva»; il limite è mostrato come «un agente» / «fino a N agenti»); riquadro «Primo utente (facoltativo)» nel modulo (email e password; creato con il ruolo «Lettura e scrittura»); ogni cliente mostra «nessun utente», «1 utente» o «N utenti» |
+| Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname, «Agenti» = limite di agenti, predefinito 1; «Crea cliente»), «Clienti» con «Entra nel cliente» (il superadmin entra in quel cliente e apre `/admin/live`, vedi «Più clienti») e «Modifica» (nome, hostname e limite di agenti, «Salva»; il limite è mostrato come «un agente» / «fino a N agenti»); riquadro «Primo utente (facoltativo)» nel modulo («Email del primo utente» e «Password del primo utente (facoltativa)»; creato con il ruolo «Lettura e scrittura»; senza password il primo utente è invitato e sotto il modulo compare l'esito dell'invito, vedi «Utenti del cliente»); ogni cliente mostra «nessun utente», «1 utente» o «N utenti» |
 | Esci | - | tutti | chiude la sessione |
 
 **Anteprima sempre visibile**: nello «Studio grafico» (vedi sotto) l'anteprima è la colonna destra della pagina, sempre in
@@ -472,14 +473,52 @@ protezione è sempre nel server (`docs/server.md`).
 
 ### Utenti del cliente
 Pagina `UsersPage.tsx` (solo admin; il superadmin dentro un cliente, dopo «Entra nel cliente» della pagina «Clienti»). Scheda «Ruoli»: «Lettura e scrittura» (`admin`: gestisce tutto il cliente) e «Sola lettura» (`viewer`: vede
-senza cambiare nulla); il cliente deve avere sempre almeno un utente attivo «Lettura e scrittura». Ogni utente mostra
-«Attivo» o «Disattivato» e ha i comandi «Cambia ruolo» (con «Salva ruolo»), «Reimposta password» (per sé «Cambia
+senza cambiare nulla); il cliente deve avere sempre almeno un utente attivo «Lettura e scrittura» (un utente invitato che non ha ancora scelto la password non conta). Ogni utente mostra
+«Attivo», «Disattivato», «Invito in attesa» o «Invito scaduto» e ha i comandi «Cambia ruolo» (con «Salva ruolo»), «Reimposta password» (per sé «Cambia
 password»; con «Salva password»), «Disattiva» (conferma «Conferma disattivazione») o «Riattiva», «Elimina» (conferma
 «Conferma eliminazione»). Per il proprio utente (segnato «(tu)») resta solo «Cambia password». Messaggi dopo l'azione
 come «Utente … creato.», «… disattivato.», «… riattivato.», «… eliminato.». Il server rifiuta (409) che un utente si tolga
 il ruolo, si disattivi o si elimini, e le modifiche che lasciano il cliente senza un admin attivo; cambio di ruolo,
 nuova password e disattivazione chiudono le sessioni dell'utente (chi cambia la propria password resta collegato). Regole e rotte: `docs/server.md`, «Utenti del cliente». Pagina «Clienti»: `TenantsPage.tsx`
 (`userCountText`, `useChooseTenant`).
+
+**Inviti.** Nel modulo «Nuovo utente» la password è facoltativa (`NEW_PASSWORD_HINT`): lasciata vuota il pulsante diventa
+«Crea e invita» e l'utente riceve una mail con il link per scegliere la password; se scritta, vale come prima («Crea
+utente»). Dopo la creazione `InviteDeliveryBox` (`InviteDelivery.tsx`) dice «Invito inviato a …», oppure, se la mail non
+parte, «La posta non è configurata: copia il link e mandalo all'utente a mano.» / «La mail non è partita (il server di
+posta non l'ha accettata): copia il link e mandalo all'utente a mano.», con il link e «Copia link» (`LinkToCopy`) e la
+scadenza («Il link vale fino al …» e si usa una volta sola); il link è mostrato solo in quel momento. Una riga con invito
+aperto ha: «Invia di nuovo» (non se l'utente è disattivato; il vecchio link smette di valere) e «Annulla invito»
+(conferma «Conferma annullamento»), che **elimina l'utente** perché non ha mai scelto una password. Finché l'invito è
+aperto l'utente non può accedere. Un utente che ha già la password (e non è il proprio) ha «Link per nuova password»:
+mostra un link di un'ora, monouso, da mandare a mano, con «Copia link» (utile senza posta o se la mail non arriva). Il
+primo utente di un cliente si invita già dalla pagina «Clienti» (campo password lasciato vuoto).
+
+### Posta (`MailSettingsPage.tsx`)
+Solo il superadmin, fuori da un cliente (`/admin/posta`, voce «Posta» di «Amministrazione»). Scheda «Posta»: «Il server
+che spedisce le mail di invito e di recupero password, uguale per tutti i clienti.» Campi: «Server SMTP», «Porta»,
+«Sicurezza» («Nessuna (porta 25, solo reti fidate)», «STARTTLS (di solito porta 587)», «TLS (di solito porta 465)»; la
+porta usuale segue la scelta se non è stata scritta a mano), «Utente» (vuoto se il server non chiede l'accesso),
+«Password», «Nome del mittente», «Indirizzo del mittente». La password salvata non si rilegge: il campo dice «Password
+salvata (non si può rileggere)…» e c'è «Cancella la password salvata»; lasciato vuoto il campo tiene quella salvata.
+Pulsanti «Salva» («Impostazioni salvate.») e «Invia una mail di prova», che spedisce al proprio indirizzo con le
+impostazioni **già salvate** e mostra l'esito. Avvisi: «La posta non è configurata: gli inviti non partono e
+l'amministratore del cliente copia il link per mandarlo a mano.» e, se manca `SETTINGS_ENCRYPTION_KEY` sul server,
+«Manca la chiave SETTINGS_ENCRYPTION_KEY nel file .env del server…» (il campo password resta disattivato). Rotte e
+cifratura: `docs/server.md`, «Posta, inviti e recupero password».
+
+### Recupero password e inviti (`AccountLinkPages.tsx`)
+Pagine pubbliche (senza sessione, in Inter, stile del login), raggiunte dal login e dai link nelle mail:
+- `/admin/password-dimenticata` (`ForgotPasswordPage`): «Password dimenticata», campo «Email», «Invia il link»; la
+  risposta è sempre «Controlla la posta» con «Se l'indirizzo è registrato, ti abbiamo mandato una mail…» (il link vale
+  un'ora, una sola volta), perché non si capisca se l'email esiste; «Torna all'accesso» riporta al login;
+- `/admin/invito/:token` (`SetPasswordPage kind="invite"`): «Scegli la password» («Sei stato invitato su …», «Account: …»),
+  «Password» (almeno 12 caratteri) e «Ripeti la password», «Salva e accedi»: l'utente entra già collegato in `/admin`;
+- `/admin/reimposta-password/:token` (`SetPasswordPage kind="reset"`): «Nuova password», «Salva la password», poi
+  «Password cambiata» (le sessioni sugli altri dispositivi sono chiuse) e il ritorno al login;
+- link non valido, scaduto o già usato (410): «Link non valido», con il rimando all'amministratore (invito) o a
+  «Password dimenticata?» (recupero). Se il server non risponde: «Link non verificato» con «Riprova».
+Rotte: `docs/server.md`, «Posta, inviti e recupero password».
 
 ### App installabile e schermo intero (`lib/pwa.ts`, `components/AppInstall.tsx`)
 La pagina pubblica si può installare come app (PWA) e chiede lo schermo intero al primo tocco. Tutto è facoltativo: dove

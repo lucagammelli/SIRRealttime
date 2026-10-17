@@ -214,6 +214,11 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
    ora», «Torna alla data ufficiale»), tenute accanto a quella ufficiale che la sincronizzazione continua ad aggiornare;
    avviso «La Lega ha spostato la partita»; ora di Roma ovunque nel calendario (`docs/server.md`, `docs/portale.md`,
    `docs/architettura.md`).
+9. `email-utenti` (**fatto**, 2026-10-17): posta nel portale (pagina «Posta» del superadmin, password SMTP cifrata con
+   `SETTINGS_ENCRYPTION_KEY`), utenti invitati senza password («Crea e invita», link di 72 ore, «Invia di nuovo», «Annulla
+   invito»), «Password dimenticata?» con link di un'ora, «Link per nuova password» da copiare quando manca la posta,
+   primo utente del cliente invitabile da «Clienti» (`docs/server.md`, `docs/portale.md`, `docs/architettura.md`,
+   `docs/infrastruttura.md`). Da provare con un vero server di posta.
 **Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
 PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo
 mostra con «autore sconosciuto».

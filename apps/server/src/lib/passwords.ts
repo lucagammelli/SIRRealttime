@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import argon2 from 'argon2';
 
 const OPTIONS = { type: argon2.argon2id } as const;
@@ -19,4 +20,9 @@ export async function verifyPassword(hash: string | undefined, password: string)
   } catch {
     return false;
   }
+}
+
+/** Hash of a random password nobody knows: the placeholder of an invited user until it chooses its own. */
+export function unusablePasswordHash(): Promise<string> {
+  return hashPassword(randomBytes(32).toString('base64url'));
 }

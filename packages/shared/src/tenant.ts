@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { AssetIdSchema } from './assets.js';
 import { BRAND_COLOR_KEYS, HexColorSchema } from './colors.js';
-import { UserCredentialsSchema } from './credentials.js';
+import { InvitableUserSchema, InviteDeliverySchema } from './credentials.js';
 import { TENANT_CONFIG_VERSION } from './configVersion.js';
 import { TenantIntermissionsSchema } from './intermissions.js';
 import { TenantLayoutSchema } from './layout.js';
@@ -156,9 +156,15 @@ export const CreateTenantRequestSchema = z.object({
   hostnames: HostnamesSchema,
   agentQuota: AgentQuotaSchema.default(DEFAULT_AGENT_QUOTA),
   /** First user of the client, created with the role `admin` in the same transaction (optional). */
-  firstUser: UserCredentialsSchema.optional(),
+  firstUser: InvitableUserSchema.optional(),
 });
 export type CreateTenantRequest = z.infer<typeof CreateTenantRequestSchema>;
+
+/** Answer of the creation of a client: with an invited first user (no password) also the delivery of the invitation. */
+export const CreateTenantResponseSchema = TenantSummarySchema.extend({
+  firstUserInvite: InviteDeliverySchema.nullable().default(null),
+});
+export type CreateTenantResponse = z.infer<typeof CreateTenantResponseSchema>;
 
 /** The slug never changes (DEFAULT_TENANT_SLUG refers to it); at least one field. */
 export const UpdateTenantRequestSchema = z

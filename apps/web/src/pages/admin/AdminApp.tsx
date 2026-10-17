@@ -21,6 +21,7 @@ import { LiveAdminPage } from './LiveAdminPage.tsx';
 import { LoginPage } from './LoginPage.tsx';
 import { ManagedTenantBar } from './ManagedTenantBar.tsx';
 import { MatchDetailPage } from './MatchDetailPage.tsx';
+import { MailSettingsPage } from './MailSettingsPage.tsx';
 import { MatchesPage } from './MatchesPage.tsx';
 import { ShareLinksPage } from './ShareLinksPage.tsx';
 import { SimulationPage } from './SimulationPage.tsx';
@@ -210,6 +211,7 @@ function AdminLayout() {
               ))}
               <Route path="clienti" element={superadminOnly(<TenantsPage tenants={tenants} />)} />
               <Route path="campionati" element={superadminOnly(<LeaguesPage />)} />
+              <Route path="posta" element={superadminOnly(<MailSettingsPage />)} />
               <Route path="*" element={<Navigate to={home} replace />} />
             </Routes>
           </div>

@@ -24,16 +24,19 @@ import { ADMIN, fileAt, ingest, login, ORIGIN, requestFor, startServer, VIEWER }
 
 let server: TestServer;
 let adminCookie: string;
+// Fixed fake clock for the whole file: tests never depend on the real date (sessions are created and checked on it).
+const BASE_TIME = new Date('2026-10-15T10:00:00.000Z');
 
 beforeAll(async () => {
   server = await startServer();
+  server.setNow(BASE_TIME);
   adminCookie = await login(server.app, ADMIN);
 });
 afterAll(() => server.close());
 beforeEach(async () => {
   await server.database.db.delete(agentRegistrations);
 });
-afterEach(() => server.setNow(null));
+afterEach(() => server.setNow(BASE_TIME));
 
 async function register(name = 'PC DataVolley palestra'): Promise<CreateRegistrationResponse> {
   const res = await server.app.inject({ method: 'POST', url: '/api/agents/registrations', payload: { name } });
@@ -73,7 +76,7 @@ async function pendingList(): Promise<AgentRegistrationSummary[]> {
 
 describe('agent registration', () => {
   it('creates a pending request with a secret, a pairing code and a 24 h expiry', async () => {
-    const now = new Date('2026-10-15T10:00:00.000Z');
+    const now = BASE_TIME;
     server.setNow(now);
     const reg = await register();
     expect(reg.pairingCode).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/);
@@ -147,7 +150,7 @@ describe('agent registration', () => {
   });
 
   it('expires a pending request after 24 h: no longer listed nor approvable', async () => {
-    const start = new Date('2026-10-15T10:00:00.000Z');
+    const start = BASE_TIME;
     server.setNow(start);
     const reg = await register();
     server.setNow(new Date(start.getTime() + REGISTRATION_TTL_MS));
@@ -159,7 +162,7 @@ describe('agent registration', () => {
   });
 
   it('expires an approved request not collected within 24 h, without delivering the token', async () => {
-    const start = new Date('2026-10-15T10:00:00.000Z');
+    const start = BASE_TIME;
     server.setNow(start);
     const reg = await register('PC in ritardo');
     expect((await decide(reg.registrationId, 'approve')).statusCode).toBe(200);
@@ -276,7 +279,7 @@ describe('admin routes of the registrations', () => {
   });
 
   it('lists only pending requests, most recent first', async () => {
-    server.setNow(new Date('2026-10-15T10:00:00.000Z'));
+    server.setNow(BASE_TIME);
     const a = await register('PC A');
     server.setNow(new Date('2026-10-15T10:01:00.000Z'));
     const b = await register('PC B');

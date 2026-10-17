@@ -8,8 +8,8 @@ esegui tu le operazioni git/CI. Rispondi a Luca in italiano.
 **Risparmio di token, regola prima**: ogni agente parte da zero (ricarica CLAUDE.md e le regole, non vede la
 conversazione). Quindi:
 - il **minor numero di agenti** possibile: ogni chiamata Agent in più va giustificata nel piano;
-- per correggere o completare il lavoro di un agente già usato, **`SendMessage` allo stesso agente** (ha già il
-  contesto), non una nuova chiamata Agent;
+- **agenti fissi della sessione** (§2b): ogni agente si crea una volta sola e poi si riprende con `SendMessage`, così
+  non ricarica regole e codice già letti;
 - prompt con tutto il contesto già trovato, rapporti brevi;
 - nel tuo contesto entrano solo righe utili: output lunghi su file e poi `tail -n 30` o `grep`, niente file interi
   se basta un intervallo, rapporti degli agenti non ricopiati a Luca.
@@ -42,10 +42,23 @@ conversazione). Quindi:
 - Se un agente fallisce due volte con un modello, sali di un livello e dillo.
 - Nel dubbio fra due livelli scegli quello più alto: il risparmio non vale un errore su sicurezza o dati.
 
+## 2b. Agenti fissi della sessione: non ripartono da zero
+- Per ogni coppia **ruolo + modello** (es. sviluppatore `sonnet`, supervisore `opus`) c'è **un solo agente per
+  sessione**. Il primo uso è una chiamata Agent; da lì in poi **ogni attività successiva, anche di un altro job,
+  va allo stesso agente con `SendMessage`** (`to` = agentId restituito dalla chiamata Agent). L'agente riparte dalla
+  sua cronologia: ricorda regole, file letti e lavoro fatto.
+- Tieni l'elenco degli agenti attivi (ruolo, modello, agentId, job) nelle note del piano; dopo un `/clear` lo
+  ritrovi con `ListAgents`.
+- Il messaggio di ripresa contiene solo il nuovo: `WORKTREE=` (se cambia), obiettivo, `percorso:riga`, regole di
+  `docs/regole/` **non ancora lette** da quell'agente, cosa non toccare. Niente contesto già dato.
+- Si crea un agente nuovo solo se: serve un modello diverso; l'agente ha già una cronologia lunga (oltre ~8
+  attività, o lavora su file nel frattempo molto cambiati); l'agentId non risponde.
+- Lo sviluppatore e il supervisore restano **agenti distinti**: il supervisore non riceve mai il lavoro da scrivere.
+
 Mostra il piano in una tabella breve (`# | Attività | Livello | Agenti e modelli | Perché`), poi procedi senza aspettare.
 
 ## 3. Prompt agli agenti: contesto dato, non da cercare
-In quest'ordine, senza ripetere CLAUDE.md (l'agente lo carica già):
+Vale per il primo messaggio a un agente; per le riprese basta il nuovo (§2b). In quest'ordine, senza ripetere CLAUDE.md (l'agente lo carica già):
 1. `WORKTREE=<percorso>` e il livello (e, per piccola/normale, «aggiorna anche `docs/<sezione>.md`»);
 2. obiettivo in 2–5 righe;
 3. **dove**: file e funzioni con `percorso:riga`;
@@ -57,8 +70,8 @@ In quest'ordine, senza ripetere CLAUDE.md (l'agente lo carica già):
 ## 4. Esecuzione
 1. **sviluppatore**: un'attività per chiamata; attività indipendenti su file diversi in parallelo.
 2. **supervisore** (normale, delicata): legge il diff, non rilancia i test già riportati come passati.
-   RESPINTO → i soli problemi bloccanti vanno allo **stesso sviluppatore con `SendMessage`**, e il nuovo controllo
-   allo **stesso supervisore con `SendMessage`**; al massimo **2 giri**, poi chiedi a Luca.
+   RESPINTO → i soli problemi bloccanti allo sviluppatore, il nuovo controllo al supervisore, entrambi con
+   `SendMessage` (§2b); al massimo **2 giri**, poi chiedi a Luca.
 3. **documentazione** (solo delicata): dopo l'APPROVATO, con il «Da documentare» dello sviluppatore.
 4. **Scansione DAST** (skill `hawkscan:hawkscan`): solo per attività delicate che toccano rotte del server,
    autenticazione o token, oppure se Luca la chiede. Non dopo ogni modifica a server o portale.

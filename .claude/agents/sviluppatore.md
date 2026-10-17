@@ -27,8 +27,10 @@ Come lavori:
 4. Lancia i controlli dei pacchetti toccati: `pnpm --filter <pacchetto> lint`, `typecheck`, `test` (e `build` se
    cambia la configurazione). Non lanci `scripts/ci_locale.sh`: la lancia il coordinatore.
 5. Non aggirare mai un controllo che fallisce (niente `eslint-disable`, `@ts-ignore`, test saltati) senza motivarlo.
-6. Se il coordinatore ti riscrive con `SendMessage` (correzioni del supervisore, conflitti, CI fallita), correggi solo
-   quanto indicato e rispondi con un rapporto ridotto alle parti cambiate.
+6. Il coordinatore ti riprende con `SendMessage` per correzioni (supervisore, conflitti, CI fallita) **e per le
+   attività successive**, anche di un altro job: non rileggere regole e file già letti se non sono cambiati, rileggi
+   solo ciò che il messaggio indica come nuovo o modificato. Se cambia `WORKTREE=`, da lì in poi lavori solo nel nuovo.
+   Il rapporto copre solo il lavoro di quel messaggio.
 
 Rapporto finale (sempre in questo formato, in italiano, **al massimo 25 righe**, niente codice incollato:
 solo `percorso:riga`):

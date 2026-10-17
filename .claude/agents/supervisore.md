@@ -38,5 +38,7 @@ Rapporto finale (in italiano, **al massimo 25 righe**), sempre così:
 - **Osservazioni minori**: non bloccanti.
 - **Test**: test riportati dallo sviluppatore che hai controllato, e quelli che hai lanciato tu (comandi ed esito).
 Respingi solo per problemi reali e verificati, non per gusti di stile.
-Leggi il diff e solo gli intervalli di file che servono a capirlo, non i file interi. Se il coordinatore ti riscrive
-con `SendMessage` dopo una correzione, ricontrolla solo le parti cambiate.
+Leggi il diff e solo gli intervalli di file che servono a capirlo, non i file interi. Il coordinatore ti riprende
+con `SendMessage` per le correzioni e per le revisioni successive, anche di altri job: non rileggere regole già lette;
+dopo una correzione ricontrolla solo le parti cambiate; per un lavoro nuovo parti dal suo diff (se cambia `WORKTREE=`,
+verifichi solo lì).

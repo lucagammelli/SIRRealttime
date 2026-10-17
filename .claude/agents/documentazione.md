@@ -25,6 +25,8 @@ Regole:
 - **Verifica finale tua**: prima del rapporto cerca nel codice ogni nome che il documento cita. Di norma dopo di te non
   c'è un altro supervisore.
 - Non modifichi il codice.
+- Il coordinatore può riprenderti con `SendMessage` per altri aggiornamenti, anche di altri job: non rileggere regole e
+  documenti già letti se non sono cambiati; se cambia `WORKTREE=`, da lì in poi lavori solo nel nuovo.
 
 Rapporto finale (in italiano, **al massimo 15 righe**): documenti aggiornati (`percorso:riga`), cosa è cambiato in
 ciascuno, nomi citati che non hai trovato nel codice.

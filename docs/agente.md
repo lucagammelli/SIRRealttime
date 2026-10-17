@@ -7,6 +7,7 @@ al server con `POST /api/ingest` (token agente, HTTPS). Se la rete manca, i dati
 inviati appena possibile. Il server e il suo protocollo sono in `docs/server.md`; i contratti in `packages/shared`.
 Il modo più semplice di usarlo è la **finestra** (doppio clic su `sir-agent.exe`): registrazione automatica
 dell'agente, cartella del `.dvw`, START e STOP, senza console. Il servizio NSSM (`--config`) resta per l'avvio automatico.
+Esiste anche una riscrittura in C# (.NET 10) con le stesse funzioni: sezione «Agente C# (.NET 10)» più sotto.
 
 ## Come funziona
 
@@ -392,7 +393,97 @@ Mai provati fuori da Linux; da verificare:
   nome e titolo del cliente; logo PNG e logo JPEG; logo troppo grande o rotto → colori senza logo; `branding.json` rotto o
   assente → grafica predefinita; «Registra» → «Abilita» nel portale → START.
 
+## Agente C# (.NET 10)
+`apps/agent-dotnet` è la riscrittura dell'agente in C# (.NET 10 LTS, scelta di Luca: linguaggio solido, exe nativo; motivi in
+`docs/decisioni.md`, 2026-10-17). **Stato**: codice fatto e testato su Linux (xUnit); **non ancora provato su Windows**.
+Il vecchio agente Node (sopra) resta, e il portale scarica ancora quello (`scripts/costruisci-agente.sh`,
+`docs/infrastruttura.md`) finché Luca non prova il C# su Windows. La firma del codice è ancora da fare: l'exe mostra
+«autore sconosciuto» (SmartScreen).
+
+### Struttura
+- `apps/agent-dotnet/SirAgent.slnx`; `global.json` e `Directory.Build.props` (azienda «SIRRealtime», prodotto «SIRRealtime
+  Agent», versione di default 0.1.0, sovrascritta da `-p:Version`).
+- `src/SirAgent.Core` (net10.0): tutta la logica, senza interfaccia: `Dvw.cs`, `DvwDecoder.cs`, `FileWatcher.cs`,
+  `MatchStore.cs`, `Ingest.cs`, `IngestValidator.cs`, `Sender.cs`, `Registration.cs`, `AgentConfig.cs`, `AgentLock.cs`,
+  `Logging.cs`, `Branding.cs`, `GuiController.cs`, `Agent.cs`, `Cli.cs`.
+- `src/SirAgent.App` (net10.0-windows, WinForms, `AssemblyName` `sir-agent`): `Program.cs`, `MainForm.cs`, `WindowHost.cs`,
+  `app.manifest`, `sir-agent.ico`. Unica dipendenza: `System.ServiceProcess.ServiceController`.
+- `tests/SirAgent.Core.Tests` (xUnit v3): comportamento dell'agente, confronto col Node, schemi, lettura condivisa.
+- **Exe unico** `sir-agent.exe` per win-x64, autosufficiente (runtime .NET incluso, compresso, niente trimming), circa 48 MB,
+  con informazioni di versione (`<versione>+<commit>`) e icona.
+
+### Cosa fa (stesse funzioni dell'agente Node)
+- **Finestra** con le stesse voci e gli stessi testi (cartella del `.dvw`, «Sfoglia…», registrazione con codice di
+  abbinamento e scadenza, «Registrazione scaduta: registrati di nuovo», START e STOP, «Ultimi messaggi»), `GuiController`
+  nel Core come `GuiController` del Node.
+- **Dati**: coda offline con lo stesso JSON (`<dataDir>/matches/<matchKey>.json`), diff `append`/`snapshot` con `seq` e
+  `contentHash` identici, decodifica windows-1252, `agent.lock`, log a rotazione (`sir-agent-AAAA-MM-GG.log`, 10 MB, 14
+  giorni), `registration.json`. `config.json` identico (stessi campi, stessi limiti, stesso `apps/agent/config.example.json`).
+- **Grafica del cliente**: `branding.json` (al massimo 16 KB) e logo PNG/JPEG (al massimo 2 MB e 1024×1024 px, controllati
+  sui byte) validati con gli stessi limiti dell'agente Node (`apps/agent/src/gui/branding.ts`; `MaxBrandingBytes` in `Branding.cs`, logo con `AGENT_LOGO_MAX_BYTES` e `AGENT_LOGO_MAX_SIDE` di `packages/shared/src/agentDownload.ts`), stessi messaggi nel log.
+- **Il `.dvw` non si blocca mai** (`FileWatcher`): apertura con `FileShare.ReadWrite | FileShare.Delete`, lettura intera e
+  chiusura subito, nessun handle tenuto tra due poll. Se non si può aprire (`ReadOutcome.Busy`: `EACCES`, `EBUSY`, `EIO`)
+  si riprova al giro dopo.
+- **Log iniziale**: la riga «agente avviato» ha il campo `agent: "dotnet"` per distinguerlo dal Node.
+
+### Modi dell'exe (`Cli.cs`)
+Come il Node (nessun argomento o `--gui`: finestra; `--config`, `--console`, `--once`, `--help`, stessi codici di uscita di
+`--once`) più `--service` (servizio di Windows `SIRAgent`, non con `--once` o `--gui`). `--help` e gli errori di riga di
+comando scrivono nella console del chiamante (`AttachConsole`). **L'exe è a finestra**: da PowerShell o prompt non
+aspetta la fine né restituisce il codice di uscita, quindi si usa `start /wait sir-agent.exe --once --console` oppure
+`Start-Process -Wait -PassThru`.
+
+### Servizio senza NSSM
+`apps/agent-dotnet/scripts/installa-servizio.ps1` (PowerShell come amministratore) prova la configurazione con `--once`, poi
+crea il servizio `SIRAgent` con `New-Service` (`sir-agent.exe --service --config …`, avvio automatico, riavvio dopo 5 s
+con `sc.exe failure`), sostituendo un eventuale servizio NSSM con lo stesso nome. Il servizio gira come LocalSystem.
+**Permessi** (`icacls`, con SID validi in ogni lingua di Windows): perché chi sostituisce l'exe non esegua codice come
+SYSTEM, lo script toglie l'ereditarietà dei permessi dalla cartella dell'agente (`$CartellaAgente`, `C:\SIRAgent`) e la
+restringe a controllo completo per Administrators e SYSTEM e lettura/esecuzione per Users (variabili `$SidAdmin`,
+`$SidSystem`, `$SidUtenti`). Restano modificabili dagli utenti solo `$CartellaDati` (`data`) e `$CartellaLog` (`logs`),
+perché li scrive anche la finestra. **Conseguenze**: dopo l'installazione `config.json` (token, cartella del `.dvw`) si
+cambia solo da amministratore, quindi **prima si fa la registrazione dalla finestra, poi si installa il servizio**; se
+`dataDir` o `logDir` di `config.json` non sono quelli predefiniti, vanno messi anche in `$CartellaDati` e `$CartellaLog`.
+I log sono in `logs\` (o `logDir`); gli errori prima che esista il log (configurazione non valida) vanno in
+`logs\servizio-errori.log` accanto all'exe. Se le cartelle dati o log non si possono creare: messaggio su stderr (nel
+servizio, in quel file) e uscita 1. Gli errori di file (`IOException`, accesso negato, percorsi non validi) danno un
+messaggio e il codice 1, non un crash. In lettura, `RetryRefusedSnapshots` e `FlushAsync` scrivono qualunque errore nel
+log («errore nel nuovo tentativo dello snapshot», «errore nella gestione della coda», poi backoff) e continuano.
+
+### Fedeltà al Node
+- **Riferimento**: `apps/agent-dotnet/riferimento/genera-riferimento.ts` usa `apps/agent/src/dvw.ts` e `sync.ts` per
+  calcolare, su varianti di `packages/dvw-parser/test/fixtures/partita.dvw` (codifiche, fine riga, troncamenti, spazi),
+  intestazione e righe decodificate, `matchKey`, sospetto e richieste pianificate; scrive
+  `tests/SirAgent.Core.Tests/riferimento-node.json`. `RiferimentoNodeTests.cs` esige gli stessi risultati in C#.
+  **Da rigenerare se cambiano `apps/agent/src/dvw.ts` o `sync.ts`**:
+
+  ```bash
+  # --- variabili ---
+  RADICE="/percorso/del/repository"   # radice del repository o del worktree del job
+
+  # --- comandi ---
+  cd "$RADICE"
+  pnpm install
+  pnpm --filter @sir/agent exec tsx --conditions=@sir/source ../agent-dotnet/riferimento/genera-riferimento.ts
+  ```
+- **Contratti**: gli schemi JSON in `apps/agent-dotnet/schemas/` (`ingest-request`, `ingest-response`,
+  `create-registration-request`/`-response`, `registration-status-response`, `api-error`, `agent-branding`, più
+  `agent-constants.json`) sono **generati** da zod con `pnpm --filter @sir/shared schemi:agente`; non si modificano a mano.
+  `packages/shared/test/agent-schemas.test.ts` fallisce se non sono aggiornati («schemi non aggiornati: lancia pnpm --filter
+  @sir/shared schemi:agente»); `SchemaTests.cs` valida i messaggi del C# con JsonSchema.Net. `docs/architettura.md`.
+
+### Costruzione e prova
+L'exe si costruisce da Linux con `scripts/costruisci-agente-dotnet.sh` (test xUnit + `dotnet publish` in un container,
+`docs/infrastruttura.md`) e finisce in `dist/sir-agent-<versione>.exe`. Su Windows: rinominarlo `sir-agent.exe` in
+`C:\SIRAgent` con `config.json`, poi doppio clic (finestra) o `installa-servizio.ps1` (copiato accanto all'exe).
+Da provare su Windows: finestra e testi, registrazione, lettura con DataVolley che scrive (nessun blocco del `.dvw`),
+servizio come LocalSystem e visibilità di `E:\`, `logs\servizio-errori.log`, SmartScreen, `--once` con `start /wait`.
+
 ## Riferimenti
+- Agente C#: `apps/agent-dotnet/src/SirAgent.Core/` (`Cli.cs`, `Agent.cs`, `FileWatcher.cs`, `Dvw.cs`, `MatchStore.cs`,
+  `Ingest.cs`, `Registration.cs`, `Branding.cs`), `src/SirAgent.App/` (`Program.cs`, `MainForm.cs`),
+  `scripts/installa-servizio.ps1`, `riferimento/genera-riferimento.ts`, `schemas/`, `packages/shared/scripts/agent-schemas.ts`,
+  `packages/shared/scripts/genera-schemi-agente.ts`
 - `apps/agent/src/`: `main.ts` (ingresso), `cli.ts` (`runCli`), `config.ts` (`parseConfig`, `loadConfig`),
   `watcher.ts` (`FileWatcher`), `dvw.ts` (`readDvw`, `suspicion`, `deriveMatchKey`), `sync.ts` (`planRequests`),
   `store.ts` (`MatchStore`, `writeFileAtomic`), `sender.ts` (`Sender`, `apiUrl`, `GZIP_THRESHOLD_BYTES`),

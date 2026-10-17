@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "allOf": [
+        {
+          "pattern": "^[^\\u0000-\\u001f\\u007f]*$"
+        },
+        {
+          "not": {
+            "pattern": "^[\\t\\n\\u000b\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]*$"
+          }
+        }
+      ]
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

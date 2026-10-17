@@ -1,0 +1,2938 @@
+{
+  "source": "packages/dvw-parser/test/fixtures/partita.dvw",
+  "cases": [
+    {
+      "name": "originale-windows-1252",
+      "filePath": "E:\\partita.dvw",
+      "bytesBase64": "WzNEQVRBVk9MTEVZU0NPVVRdCkZJTEVGT1JNQVQ6IDIuMApHRU5FUkFUT1ItREFZOiAyMDI2LTAxLTEwIDE4OjAwOjAwCkdFTkVSQVRPUi1QUkc6IERBVEEgVk9MTEVZQkFMTCAyMDA3ClszTUFUQ0hdCjEwLzAxLzIwMjY7MTguMDAuMDA7MjAyNS8yMDI2O1NlcmllIEI7Ozs7OwpbM1RFQU1TXQpQQ0k7UGFsbGF2b2xvIENpdHTgOzE7Um9zc2kgTWFyaW87Ck9TUDtWb2xsZXkgT3NwaXRlOzA7QmlhbmNoaSBMdWNhOwpbM01PUkVdClBhbGF6emV0dG87Um9tYTsKWzNTRVRdClRydWU7OC02OzE2LTEyOzIxLTE4OzI1LTIzOzMyOwpbM1BMQVlFUlMtSF0KMDs3OzE7MTs7Ozs7MTAwMTtWZXJkaTtBbm5hO0FubmllO0w7MTs7CjA7MTQ7MjsyOzs7OzsxMDAyO05lcmk7U2FyYTs7Qzs1OzsKMDsxODszOyo7KjsqOyo7KjsxMDAzO1Jvc3NpO0dpYW5uYTs7OzM7OwpbM1BMQVlFUlMtVl0KMTszOzE7Mzs7Ozs7MjAwMTtHaWFsbGk7RWxlbmE7OzsyOzsKWzNXSU5OSU5HU1lNQk9MU10KWzNSRVNFUlZFXQpbM1NDT1VUXQoqUDA3PkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYVAwNTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKnoxPkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYXoxOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphMDVTTS1+fn4xNkE7czs7OzAzMjg7OzgyNzU7MTUuMDguNDU7MTsxOzY7MTsxODA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowN1JRKztzOzs7Ozs7MTguMDAuMDQ7MTsxOzY7MTsxMDQ7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxNEVIK0sxQztzOzs7Ozs7MTguMDAuMDY7MTsxOzY7MTsxMDY7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxOEFII1g1RjQ1QkgyO3M7OzswNTE1Ozs4MDQwOzE4LjAwLjA4OzE7MTs2OzE7MTA4Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqJCQmSCM7Ozs7Ozs7MTguMDAuMDk7MTsxOzY7MTsxMDk7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CipwMDE6MDA7Ozs7Ozs7MTguMDAuMTA7MTsxOzY7MTsxMTA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMlNNLTtzOzs7Ozs7MTguMDAuMTI7MTsxOzY7MTsxMTI7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFUOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqVDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKmMwNToxMjs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYWMwNDowOTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYTAzU1E9fn5+fn47Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFwMDE6MDE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMVNNITs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKioxc2V0Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwo=",
+      "bytesHash": "bc70e580cb7541b8228f5bd74f294391cacad8310b1f4377e447816517fe23cc",
+      "maxLines": null,
+      "header": "[3DATAVOLLEYSCOUT]\nFILEFORMAT: 2.0\nGENERATOR-DAY: 2026-01-10 18:00:00\nGENERATOR-PRG: DATA VOLLEYBALL 2007\n[3MATCH]\n10/01/2026;18.00.00;2025/2026;Serie B;;;;;\n[3TEAMS]\nPCI;Pallavolo Città;1;Rossi Mario;\nOSP;Volley Ospite;0;Bianchi Luca;\n[3MORE]\nPalazzetto;Roma;\n[3SET]\nTrue;8-6;16-12;21-18;25-23;32;\n[3PLAYERS-H]\n0;7;1;1;;;;;1001;Verdi;Anna;Annie;L;1;;\n0;14;2;2;;;;;1002;Neri;Sara;;C;5;;\n0;18;3;*;*;*;*;*;1003;Rossi;Gianna;;;3;;\n[3PLAYERS-V]\n1;3;1;3;;;;;2001;Gialli;Elena;;;2;;\n[3WINNINGSYMBOLS]\n[3RESERVE]\n",
+      "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+      "lines": [
+        "*P07>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aP05;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*z1>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "az1;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a05SM-~~~16A;s;;;0328;;8275;15.08.45;1;1;6;1;180;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*07RQ+;s;;;;;;18.00.04;1;1;6;1;104;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*14EH+K1C;s;;;;;;18.00.06;1;1;6;1;106;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*18AH#X5F45BH2;s;;;0515;;8040;18.00.08;1;1;6;1;108;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*$$&H#;;;;;;;18.00.09;1;1;6;1;109;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*p01:00;;;;;;;18.00.10;1;1;6;1;110;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*02SM-;s;;;;;;18.00.12;1;1;6;1;112;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aT;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*T;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*c05:12;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ac04:09;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a03SQ=~~~~~;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ap01:01;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*01SM!;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "**1set;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;"
+      ],
+      "endsWithNewline": true,
+      "matchKey": "10-01-2026_18-00-00_pci_osp_0f451be797",
+      "suspicionWithoutBase": null,
+      "plans": {
+        "nessuna": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "nessuna+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 16,
+              "lineCount": 3,
+              "linesSha256": "ea79d2073afcd1620295c178c0c13f1833276228137dde9f0756c1d7028acce0",
+              "headerSha256": null,
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "uguale": {
+          "suspicion": null,
+          "requests": []
+        },
+        "uguale+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "headerCambiato": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 19,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "headerCambiato+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga+forza": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "utf8-con-bom",
+      "filePath": "E:\\partita.dvw",
+      "bytesBase64": "77u/WzNEQVRBVk9MTEVZU0NPVVRdCkZJTEVGT1JNQVQ6IDIuMApHRU5FUkFUT1ItREFZOiAyMDI2LTAxLTEwIDE4OjAwOjAwCkdFTkVSQVRPUi1QUkc6IERBVEEgVk9MTEVZQkFMTCAyMDA3ClszTUFUQ0hdCjEwLzAxLzIwMjY7MTguMDAuMDA7MjAyNS8yMDI2O1NlcmllIEI7Ozs7OwpbM1RFQU1TXQpQQ0k7UGFsbGF2b2xvIENpdHTDoDsxO1Jvc3NpIE1hcmlvOwpPU1A7Vm9sbGV5IE9zcGl0ZTswO0JpYW5jaGkgTHVjYTsKWzNNT1JFXQpQYWxhenpldHRvO1JvbWE7ClszU0VUXQpUcnVlOzgtNjsxNi0xMjsyMS0xODsyNS0yMzszMjsKWzNQTEFZRVJTLUhdCjA7NzsxOzE7Ozs7OzEwMDE7VmVyZGk7QW5uYTtBbm5pZTtMOzE7OwowOzE0OzI7Mjs7Ozs7MTAwMjtOZXJpO1NhcmE7O0M7NTs7CjA7MTg7MzsqOyo7KjsqOyo7MTAwMztSb3NzaTtHaWFubmE7OzszOzsKWzNQTEFZRVJTLVZdCjE7MzsxOzM7Ozs7OzIwMDE7R2lhbGxpO0VsZW5hOzs7Mjs7ClszV0lOTklOR1NZTUJPTFNdClszUkVTRVJWRV0KWzNTQ09VVF0KKlAwNz5MVXA7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFQMDU7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7Cip6MT5MVXA7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmF6MTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYTA1U00tfn5+MTZBO3M7OzswMzI4Ozs4Mjc1OzE1LjA4LjQ1OzE7MTs2OzE7MTgwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqMDdSUSs7czs7Ozs7OzE4LjAwLjA0OzE7MTs2OzE7MTA0Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqMTRFSCtLMUM7czs7Ozs7OzE4LjAwLjA2OzE7MTs2OzE7MTA2Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqMThBSCNYNUY0NUJIMjtzOzs7MDUxNTs7ODA0MDsxOC4wMC4wODsxOzE7NjsxOzEwODs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKiQkJkgjOzs7Ozs7OzE4LjAwLjA5OzE7MTs2OzE7MTA5Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqcDAxOjAwOzs7Ozs7OzE4LjAwLjEwOzE7MTs2OzE7MTEwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqMDJTTS07czs7Ozs7OzE4LjAwLjEyOzE7MTs2OzE7MTEyOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphVDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKlQ7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CipjMDU6MTI7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFjMDQ6MDk7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmEwM1NRPX5+fn5+Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphcDAxOjAxOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqMDFTTSE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioqMXNldDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsK",
+      "bytesHash": "f57f8f81f6e772ebed241aec1b88715e773db291ba4609b72a3d1d0e169bb86a",
+      "maxLines": null,
+      "header": "[3DATAVOLLEYSCOUT]\nFILEFORMAT: 2.0\nGENERATOR-DAY: 2026-01-10 18:00:00\nGENERATOR-PRG: DATA VOLLEYBALL 2007\n[3MATCH]\n10/01/2026;18.00.00;2025/2026;Serie B;;;;;\n[3TEAMS]\nPCI;Pallavolo Città;1;Rossi Mario;\nOSP;Volley Ospite;0;Bianchi Luca;\n[3MORE]\nPalazzetto;Roma;\n[3SET]\nTrue;8-6;16-12;21-18;25-23;32;\n[3PLAYERS-H]\n0;7;1;1;;;;;1001;Verdi;Anna;Annie;L;1;;\n0;14;2;2;;;;;1002;Neri;Sara;;C;5;;\n0;18;3;*;*;*;*;*;1003;Rossi;Gianna;;;3;;\n[3PLAYERS-V]\n1;3;1;3;;;;;2001;Gialli;Elena;;;2;;\n[3WINNINGSYMBOLS]\n[3RESERVE]\n",
+      "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+      "lines": [
+        "*P07>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aP05;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*z1>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "az1;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a05SM-~~~16A;s;;;0328;;8275;15.08.45;1;1;6;1;180;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*07RQ+;s;;;;;;18.00.04;1;1;6;1;104;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*14EH+K1C;s;;;;;;18.00.06;1;1;6;1;106;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*18AH#X5F45BH2;s;;;0515;;8040;18.00.08;1;1;6;1;108;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*$$&H#;;;;;;;18.00.09;1;1;6;1;109;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*p01:00;;;;;;;18.00.10;1;1;6;1;110;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*02SM-;s;;;;;;18.00.12;1;1;6;1;112;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aT;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*T;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*c05:12;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ac04:09;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a03SQ=~~~~~;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ap01:01;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*01SM!;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "**1set;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;"
+      ],
+      "endsWithNewline": true,
+      "matchKey": "10-01-2026_18-00-00_pci_osp_0f451be797",
+      "suspicionWithoutBase": null,
+      "plans": {
+        "nessuna": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "nessuna+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 16,
+              "lineCount": 3,
+              "linesSha256": "ea79d2073afcd1620295c178c0c13f1833276228137dde9f0756c1d7028acce0",
+              "headerSha256": null,
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "uguale": {
+          "suspicion": null,
+          "requests": []
+        },
+        "uguale+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "headerCambiato": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 19,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "headerCambiato+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga+forza": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "utf8-crlf",
+      "filePath": "E:\\partita.dvw",
+      "bytesBase64": "WzNEQVRBVk9MTEVZU0NPVVRdDQpGSUxFRk9STUFUOiAyLjANCkdFTkVSQVRPUi1EQVk6IDIwMjYtMDEtMTAgMTg6MDA6MDANCkdFTkVSQVRPUi1QUkc6IERBVEEgVk9MTEVZQkFMTCAyMDA3DQpbM01BVENIXQ0KMTAvMDEvMjAyNjsxOC4wMC4wMDsyMDI1LzIwMjY7U2VyaWUgQjs7Ozs7DQpbM1RFQU1TXQ0KUENJO1BhbGxhdm9sbyBDaXR0w6A7MTtSb3NzaSBNYXJpbzsNCk9TUDtWb2xsZXkgT3NwaXRlOzA7QmlhbmNoaSBMdWNhOw0KWzNNT1JFXQ0KUGFsYXp6ZXR0bztSb21hOw0KWzNTRVRdDQpUcnVlOzgtNjsxNi0xMjsyMS0xODsyNS0yMzszMjsNClszUExBWUVSUy1IXQ0KMDs3OzE7MTs7Ozs7MTAwMTtWZXJkaTtBbm5hO0FubmllO0w7MTs7DQowOzE0OzI7Mjs7Ozs7MTAwMjtOZXJpO1NhcmE7O0M7NTs7DQowOzE4OzM7KjsqOyo7KjsqOzEwMDM7Um9zc2k7R2lhbm5hOzs7Mzs7DQpbM1BMQVlFUlMtVl0NCjE7MzsxOzM7Ozs7OzIwMDE7R2lhbGxpO0VsZW5hOzs7Mjs7DQpbM1dJTk5JTkdTWU1CT0xTXQ0KWzNSRVNFUlZFXQ0KWzNTQ09VVF0NCipQMDc+TFVwOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOw0KYVAwNTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsNCip6MT5MVXA7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DQphejE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DQphMDVTTS1+fn4xNkE7czs7OzAzMjg7OzgyNzU7MTUuMDguNDU7MTsxOzY7MTsxODA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DQoqMDdSUSs7czs7Ozs7OzE4LjAwLjA0OzE7MTs2OzE7MTA0Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOw0KKjE0RUgrSzFDO3M7Ozs7OzsxOC4wMC4wNjsxOzE7NjsxOzEwNjs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsNCioxOEFII1g1RjQ1QkgyO3M7OzswNTE1Ozs4MDQwOzE4LjAwLjA4OzE7MTs2OzE7MTA4Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOw0KKiQkJkgjOzs7Ozs7OzE4LjAwLjA5OzE7MTs2OzE7MTA5Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOw0KKnAwMTowMDs7Ozs7OzsxOC4wMC4xMDsxOzE7NjsxOzExMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsNCiowMlNNLTtzOzs7Ozs7MTguMDAuMTI7MTsxOzY7MTsxMTI7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DQphVDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsNCipUOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOw0KKmMwNToxMjs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsNCmFjMDQ6MDk7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DQphMDNTUT1+fn5+fjs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsNCmFwMDE6MDE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DQoqMDFTTSE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DQoqKjFzZXQ7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DQo=",
+      "bytesHash": "840359db7a11c3e2eafaa55fd5be5bfa3f001861aacd55c98e5b69a3fb1980d3",
+      "maxLines": null,
+      "header": "[3DATAVOLLEYSCOUT]\r\nFILEFORMAT: 2.0\r\nGENERATOR-DAY: 2026-01-10 18:00:00\r\nGENERATOR-PRG: DATA VOLLEYBALL 2007\r\n[3MATCH]\r\n10/01/2026;18.00.00;2025/2026;Serie B;;;;;\r\n[3TEAMS]\r\nPCI;Pallavolo Città;1;Rossi Mario;\r\nOSP;Volley Ospite;0;Bianchi Luca;\r\n[3MORE]\r\nPalazzetto;Roma;\r\n[3SET]\r\nTrue;8-6;16-12;21-18;25-23;32;\r\n[3PLAYERS-H]\r\n0;7;1;1;;;;;1001;Verdi;Anna;Annie;L;1;;\r\n0;14;2;2;;;;;1002;Neri;Sara;;C;5;;\r\n0;18;3;*;*;*;*;*;1003;Rossi;Gianna;;;3;;\r\n[3PLAYERS-V]\r\n1;3;1;3;;;;;2001;Gialli;Elena;;;2;;\r\n[3WINNINGSYMBOLS]\r\n[3RESERVE]\r\n",
+      "headerSha256": "ece06800def3bd0dc4352c3964d75c9a5a014a5d701e83b066dab6ca767bb45b",
+      "lines": [
+        "*P07>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aP05;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*z1>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "az1;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a05SM-~~~16A;s;;;0328;;8275;15.08.45;1;1;6;1;180;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*07RQ+;s;;;;;;18.00.04;1;1;6;1;104;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*14EH+K1C;s;;;;;;18.00.06;1;1;6;1;106;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*18AH#X5F45BH2;s;;;0515;;8040;18.00.08;1;1;6;1;108;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*$$&H#;;;;;;;18.00.09;1;1;6;1;109;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*p01:00;;;;;;;18.00.10;1;1;6;1;110;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*02SM-;s;;;;;;18.00.12;1;1;6;1;112;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aT;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*T;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*c05:12;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ac04:09;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a03SQ=~~~~~;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ap01:01;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*01SM!;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "**1set;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;"
+      ],
+      "endsWithNewline": true,
+      "matchKey": "10-01-2026_18-00-00_pci_osp_0f451be797",
+      "suspicionWithoutBase": null,
+      "plans": {
+        "nessuna": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "ece06800def3bd0dc4352c3964d75c9a5a014a5d701e83b066dab6ca767bb45b",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "nessuna+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "ece06800def3bd0dc4352c3964d75c9a5a014a5d701e83b066dab6ca767bb45b",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 16,
+              "lineCount": 3,
+              "linesSha256": "ea79d2073afcd1620295c178c0c13f1833276228137dde9f0756c1d7028acce0",
+              "headerSha256": null,
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "ece06800def3bd0dc4352c3964d75c9a5a014a5d701e83b066dab6ca767bb45b",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "uguale": {
+          "suspicion": null,
+          "requests": []
+        },
+        "uguale+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "headerCambiato": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 19,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "ece06800def3bd0dc4352c3964d75c9a5a014a5d701e83b066dab6ca767bb45b",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "headerCambiato+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "ece06800def3bd0dc4352c3964d75c9a5a014a5d701e83b066dab6ca767bb45b",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "ece06800def3bd0dc4352c3964d75c9a5a014a5d701e83b066dab6ca767bb45b",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "ece06800def3bd0dc4352c3964d75c9a5a014a5d701e83b066dab6ca767bb45b",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "ece06800def3bd0dc4352c3964d75c9a5a014a5d701e83b066dab6ca767bb45b",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga+forza": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "ece06800def3bd0dc4352c3964d75c9a5a014a5d701e83b066dab6ca767bb45b",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "solo-cr",
+      "filePath": "E:\\partita.dvw",
+      "bytesBase64": "WzNEQVRBVk9MTEVZU0NPVVRdDUZJTEVGT1JNQVQ6IDIuMA1HRU5FUkFUT1ItREFZOiAyMDI2LTAxLTEwIDE4OjAwOjAwDUdFTkVSQVRPUi1QUkc6IERBVEEgVk9MTEVZQkFMTCAyMDA3DVszTUFUQ0hdDTEwLzAxLzIwMjY7MTguMDAuMDA7MjAyNS8yMDI2O1NlcmllIEI7Ozs7Ow1bM1RFQU1TXQ1QQ0k7UGFsbGF2b2xvIENpdHTgOzE7Um9zc2kgTWFyaW87DU9TUDtWb2xsZXkgT3NwaXRlOzA7QmlhbmNoaSBMdWNhOw1bM01PUkVdDVBhbGF6emV0dG87Um9tYTsNWzNTRVRdDVRydWU7OC02OzE2LTEyOzIxLTE4OzI1LTIzOzMyOw1bM1BMQVlFUlMtSF0NMDs3OzE7MTs7Ozs7MTAwMTtWZXJkaTtBbm5hO0FubmllO0w7MTs7DTA7MTQ7MjsyOzs7OzsxMDAyO05lcmk7U2FyYTs7Qzs1OzsNMDsxODszOyo7KjsqOyo7KjsxMDAzO1Jvc3NpO0dpYW5uYTs7OzM7Ow1bM1BMQVlFUlMtVl0NMTszOzE7Mzs7Ozs7MjAwMTtHaWFsbGk7RWxlbmE7OzsyOzsNWzNXSU5OSU5HU1lNQk9MU10NWzNSRVNFUlZFXQ1bM1NDT1VUXQ0qUDA3PkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsNYVAwNTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsNKnoxPkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsNYXoxOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOw1hMDVTTS1+fn4xNkE7czs7OzAzMjg7OzgyNzU7MTUuMDguNDU7MTsxOzY7MTsxODA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DSowN1JRKztzOzs7Ozs7MTguMDAuMDQ7MTsxOzY7MTsxMDQ7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DSoxNEVIK0sxQztzOzs7Ozs7MTguMDAuMDY7MTsxOzY7MTsxMDY7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DSoxOEFII1g1RjQ1QkgyO3M7OzswNTE1Ozs4MDQwOzE4LjAwLjA4OzE7MTs2OzE7MTA4Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOw0qJCQmSCM7Ozs7Ozs7MTguMDAuMDk7MTsxOzY7MTsxMDk7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DSpwMDE6MDA7Ozs7Ozs7MTguMDAuMTA7MTsxOzY7MTsxMTA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DSowMlNNLTtzOzs7Ozs7MTguMDAuMTI7MTsxOzY7MTsxMTI7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DWFUOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOw0qVDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsNKmMwNToxMjs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsNYWMwNDowOTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsNYTAzU1E9fn5+fn47Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DWFwMDE6MDE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7DSowMVNNITs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsNKioxc2V0Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOw0=",
+      "bytesHash": "4a574f46fa6eab8a623568d6305e024e51232c53bf92f6be91294e78c8d19368",
+      "maxLines": null,
+      "header": "[3DATAVOLLEYSCOUT]\rFILEFORMAT: 2.0\rGENERATOR-DAY: 2026-01-10 18:00:00\rGENERATOR-PRG: DATA VOLLEYBALL 2007\r[3MATCH]\r10/01/2026;18.00.00;2025/2026;Serie B;;;;;\r[3TEAMS]\rPCI;Pallavolo Città;1;Rossi Mario;\rOSP;Volley Ospite;0;Bianchi Luca;\r[3MORE]\rPalazzetto;Roma;\r[3SET]\rTrue;8-6;16-12;21-18;25-23;32;\r[3PLAYERS-H]\r0;7;1;1;;;;;1001;Verdi;Anna;Annie;L;1;;\r0;14;2;2;;;;;1002;Neri;Sara;;C;5;;\r0;18;3;*;*;*;*;*;1003;Rossi;Gianna;;;3;;\r[3PLAYERS-V]\r1;3;1;3;;;;;2001;Gialli;Elena;;;2;;\r[3WINNINGSYMBOLS]\r[3RESERVE]\r",
+      "headerSha256": "bcf562df655b1434d0115c730eedc9bed43e6258fe65639617b6fb2a2ae57178",
+      "lines": [
+        "*P07>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aP05;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*z1>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "az1;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a05SM-~~~16A;s;;;0328;;8275;15.08.45;1;1;6;1;180;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*07RQ+;s;;;;;;18.00.04;1;1;6;1;104;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*14EH+K1C;s;;;;;;18.00.06;1;1;6;1;106;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*18AH#X5F45BH2;s;;;0515;;8040;18.00.08;1;1;6;1;108;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*$$&H#;;;;;;;18.00.09;1;1;6;1;109;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*p01:00;;;;;;;18.00.10;1;1;6;1;110;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*02SM-;s;;;;;;18.00.12;1;1;6;1;112;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aT;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*T;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*c05:12;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ac04:09;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a03SQ=~~~~~;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ap01:01;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*01SM!;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "**1set;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;"
+      ],
+      "endsWithNewline": false,
+      "matchKey": "10-01-2026_18-00-00_pci_osp_0f451be797",
+      "suspicionWithoutBase": "file senza a capo finale",
+      "plans": {
+        "nessuna": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "bcf562df655b1434d0115c730eedc9bed43e6258fe65639617b6fb2a2ae57178",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "nessuna+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "bcf562df655b1434d0115c730eedc9bed43e6258fe65639617b6fb2a2ae57178",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 16,
+              "lineCount": 3,
+              "linesSha256": "ea79d2073afcd1620295c178c0c13f1833276228137dde9f0756c1d7028acce0",
+              "headerSha256": null,
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "bcf562df655b1434d0115c730eedc9bed43e6258fe65639617b6fb2a2ae57178",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "uguale": {
+          "suspicion": null,
+          "requests": []
+        },
+        "uguale+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "headerCambiato": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 19,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "bcf562df655b1434d0115c730eedc9bed43e6258fe65639617b6fb2a2ae57178",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "headerCambiato+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "bcf562df655b1434d0115c730eedc9bed43e6258fe65639617b6fb2a2ae57178",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "bcf562df655b1434d0115c730eedc9bed43e6258fe65639617b6fb2a2ae57178",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "bcf562df655b1434d0115c730eedc9bed43e6258fe65639617b6fb2a2ae57178",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "bcf562df655b1434d0115c730eedc9bed43e6258fe65639617b6fb2a2ae57178",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga+forza": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "bcf562df655b1434d0115c730eedc9bed43e6258fe65639617b6fb2a2ae57178",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "troncato-a-meta-riga",
+      "filePath": "E:\\partita.dvw",
+      "bytesBase64": "WzNEQVRBVk9MTEVZU0NPVVRdCkZJTEVGT1JNQVQ6IDIuMApHRU5FUkFUT1ItREFZOiAyMDI2LTAxLTEwIDE4OjAwOjAwCkdFTkVSQVRPUi1QUkc6IERBVEEgVk9MTEVZQkFMTCAyMDA3ClszTUFUQ0hdCjEwLzAxLzIwMjY7MTguMDAuMDA7MjAyNS8yMDI2O1NlcmllIEI7Ozs7OwpbM1RFQU1TXQpQQ0k7UGFsbGF2b2xvIENpdHTgOzE7Um9zc2kgTWFyaW87Ck9TUDtWb2xsZXkgT3NwaXRlOzA7QmlhbmNoaSBMdWNhOwpbM01PUkVdClBhbGF6emV0dG87Um9tYTsKWzNTRVRdClRydWU7OC02OzE2LTEyOzIxLTE4OzI1LTIzOzMyOwpbM1BMQVlFUlMtSF0KMDs3OzE7MTs7Ozs7MTAwMTtWZXJkaTtBbm5hO0FubmllO0w7MTs7CjA7MTQ7MjsyOzs7OzsxMDAyO05lcmk7U2FyYTs7Qzs1OzsKMDsxODszOyo7KjsqOyo7KjsxMDAzO1Jvc3NpO0dpYW5uYTs7OzM7OwpbM1BMQVlFUlMtVl0KMTszOzE7Mzs7Ozs7MjAwMTtHaWFsbGk7RWxlbmE7OzsyOzsKWzNXSU5OSU5HU1lNQk9MU10KWzNSRVNFUlZFXQpbM1NDT1VUXQoqUDA3PkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYVAwNTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKnoxPkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYXoxOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphMDVTTS1+fn4xNkE7czs7OzAzMjg7OzgyNzU7MTUuMDguNDU7MTsxOzY7MTsxODA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowN1JRKztzOzs7Ozs7MTguMDAuMDQ7MTsxOzY7MTsxMDQ7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxNEVIK0sxQztzOzs7Ozs7MTguMDAuMDY7MTsxOzY7MTsxMDY7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxOEFII1g1RjQ1QkgyO3M7OzswNTE1Ozs4MDQwOzE4LjAwLjA4OzE7MTs2OzE7MTA4Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqJCQmSCM7Ozs7Ozs7MTguMDAuMDk7MTsxOzY7MTsxMDk7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CipwMDE6MDA7Ozs7Ozs7MTguMDAuMTA7MTsxOzY7MTsxMTA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMlNNLTtzOzs7Ozs7MTguMDAuMTI7MTsxOzY7MTsxMTI7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFUOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqVDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKmMwNToxMjs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYWMwNDowOTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYTAzU1E9fn5+fn47Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFwMDE6MDE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMVNNITs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKioxc2V0Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0Ow==",
+      "bytesHash": "e84e7137132883bdccbb1f4b4f4b1975ddcefc6babacb1a5a82ba9e3d524b862",
+      "maxLines": null,
+      "header": "[3DATAVOLLEYSCOUT]\nFILEFORMAT: 2.0\nGENERATOR-DAY: 2026-01-10 18:00:00\nGENERATOR-PRG: DATA VOLLEYBALL 2007\n[3MATCH]\n10/01/2026;18.00.00;2025/2026;Serie B;;;;;\n[3TEAMS]\nPCI;Pallavolo Città;1;Rossi Mario;\nOSP;Volley Ospite;0;Bianchi Luca;\n[3MORE]\nPalazzetto;Roma;\n[3SET]\nTrue;8-6;16-12;21-18;25-23;32;\n[3PLAYERS-H]\n0;7;1;1;;;;;1001;Verdi;Anna;Annie;L;1;;\n0;14;2;2;;;;;1002;Neri;Sara;;C;5;;\n0;18;3;*;*;*;*;*;1003;Rossi;Gianna;;;3;;\n[3PLAYERS-V]\n1;3;1;3;;;;;2001;Gialli;Elena;;;2;;\n[3WINNINGSYMBOLS]\n[3RESERVE]\n",
+      "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+      "lines": [
+        "*P07>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aP05;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*z1>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "az1;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a05SM-~~~16A;s;;;0328;;8275;15.08.45;1;1;6;1;180;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*07RQ+;s;;;;;;18.00.04;1;1;6;1;104;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*14EH+K1C;s;;;;;;18.00.06;1;1;6;1;106;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*18AH#X5F45BH2;s;;;0515;;8040;18.00.08;1;1;6;1;108;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*$$&H#;;;;;;;18.00.09;1;1;6;1;109;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*p01:00;;;;;;;18.00.10;1;1;6;1;110;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*02SM-;s;;;;;;18.00.12;1;1;6;1;112;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aT;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*T;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*c05:12;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ac04:09;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a03SQ=~~~~~;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ap01:01;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*01SM!;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "**1set;;;;;;;18.00.01;1;1;6;1;100;;7;14;"
+      ],
+      "endsWithNewline": false,
+      "matchKey": "10-01-2026_18-00-00_pci_osp_0f451be797",
+      "suspicionWithoutBase": "file senza a capo finale",
+      "plans": {
+        "nessuna": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5"
+            }
+          ]
+        },
+        "nessuna+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5"
+            }
+          ]
+        },
+        "prefisso": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 16,
+              "lineCount": 3,
+              "linesSha256": "49a41e503c271364b129f4c618e040faeed2938fef57d0062a1b644772e37585",
+              "headerSha256": null,
+              "contentHash": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5"
+            }
+          ]
+        },
+        "prefisso+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5"
+            }
+          ]
+        },
+        "uguale": {
+          "suspicion": null,
+          "requests": []
+        },
+        "uguale+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "headerCambiato": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 19,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5"
+            }
+          ]
+        },
+        "headerCambiato+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5"
+            }
+          ]
+        },
+        "rigaCambiata": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5"
+            }
+          ]
+        },
+        "rigaCambiata+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5"
+            }
+          ]
+        },
+        "piuLunga": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5"
+            }
+          ]
+        },
+        "piuLunga+forza": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "25e6067e365ea8a99491933e5a7f7cf907e63545dccc722bc69651f8bc39a3f5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "senza-scout",
+      "filePath": "E:\\partita.dvw",
+      "bytesBase64": "WzNEQVRBVk9MTEVZU0NPVVRdCkZJTEVGT1JNQVQ6IDIuMApHRU5FUkFUT1ItREFZOiAyMDI2LTAxLTEwIDE4OjAwOjAwCkdFTkVSQVRPUi1QUkc6IERBVEEgVk9MTEVZQkFMTCAyMDA3ClszTUFUQ0hdCjEwLzAxLzIwMjY7MTguMDAuMDA7MjAyNS8yMDI2O1NlcmllIEI7Ozs7OwpbM1RFQU1TXQpQQ0k7UGFsbGF2b2xvIENpdHTgOzE7Um9zc2kgTWFyaW87Ck9TUDtWb2xsZXkgT3NwaXRlOzA7QmlhbmNoaSBMdWNhOwpbM01PUkVdClBhbGF6emV0dG87Um9tYTsKWzNTRVRdClRydWU7OC02OzE2LTEyOzIxLTE4OzI1LTIzOzMyOwpbM1BMQVlFUlMtSF0KMDs3OzE7MTs7Ozs7MTAwMTtWZXJkaTtBbm5hO0FubmllO0w7MTs7CjA7MTQ7MjsyOzs7OzsxMDAyO05lcmk7U2FyYTs7Qzs1OzsKMDsxODszOyo7KjsqOyo7KjsxMDAzO1Jvc3NpO0dpYW5uYTs7OzM7OwpbM1BMQVlFUlMtVl0KMTszOzE7Mzs7Ozs7MjAwMTtHaWFsbGk7RWxlbmE7OzsyOzsKWzNXSU5OSU5HU1lNQk9MU10KWzNSRVNFUlZFXQo=",
+      "bytesHash": "8d35fb5761756729fce81976c5eafb2a23766e65cea119c512018cab0a22f50d",
+      "maxLines": null,
+      "incomplete": "sezione [3SCOUT] assente"
+    },
+    {
+      "name": "vuoto",
+      "filePath": "E:\\partita.dvw",
+      "bytesBase64": "",
+      "bytesHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "maxLines": null,
+      "incomplete": "file vuoto"
+    },
+    {
+      "name": "byte-non-definiti-in-1252",
+      "filePath": "E:\\partita.dvw",
+      "bytesBase64": "WzNEQVRBVk9MTEVZU0NPVVRdCkZJTEVGT1JNQVQ6IDIuMApHRU5FUkFUT1ItREFZOiAyMDI2LTAxLTEwIDE4OjAwOjAwCkdFTkVSQVRPUi1QUkc6IERBVEEgVk9MTEVZQkFMTCAyMDA3ClszTUFUQ0hdCjEwLzAxLzIwMjY7MTguMDAuMDA7MjAyNS8yMDI2O1NlcmllIEI7Ozs7OwpbM1RFQU1TXQpQQ0k7UGFsbGF2b2xvIENpdHTgOzE7Um9zc2kgTWFyaW87Ck9TUDtWb2xsZXkgT3NwaXRlOzA7QmlhbmNoaSBMdWNhOwpbM01PUkVdClBhbGF6emV0dG87Um9tYTsKWzNTRVRdClRydWU7OC02OzE2LTEyOzIxLTE4OzI1LTIzOzMyOwpbM1BMQVlFUlMtSF0KMDs3OzE7MTs7Ozs7MTAwMTtWZXJkaTtBbm5hO0FubmllO0w7MTs7CjA7MTQ7MjsyOzs7OzsxMDAyO05lcmk7U2FyYTs7Qzs1OzsKMDsxODszOyo7KjsqOyo7KjsxMDAzO1Jvc3NpO0dpYW5uYTs7OzM7OwpbM1BMQVlFUlMtVl0KMTszOzE7Mzs7Ozs7MjAwMTtHaWFsbGk7RWxlbmE7OzsyOzsKWzNXSU5OSU5HU1lNQk9MU10KWzNSRVNFUlZFXQqBjY+QnYCfClszU0NPVVRdCipQMDc+TFVwOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphUDA1Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqejE+TFVwOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphejE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmEwNVNNLX5+fjE2QTtzOzs7MDMyODs7ODI3NTsxNS4wOC40NTsxOzE7NjsxOzE4MDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKjA3UlErO3M7Ozs7OzsxOC4wMC4wNDsxOzE7NjsxOzEwNDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKjE0RUgrSzFDO3M7Ozs7OzsxOC4wMC4wNjsxOzE7NjsxOzEwNjs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKjE4QUgjWDVGNDVCSDI7czs7OzA1MTU7OzgwNDA7MTguMDAuMDg7MTsxOzY7MTsxMDg7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiokJCZIIzs7Ozs7OzsxOC4wMC4wOTsxOzE7NjsxOzEwOTs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKnAwMTowMDs7Ozs7OzsxOC4wMC4xMDsxOzE7NjsxOzExMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKjAyU00tO3M7Ozs7OzsxOC4wMC4xMjsxOzE7NjsxOzExMjs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYVQ7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CipUOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqYzA1OjEyOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphYzA0OjA5Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphMDNTUT1+fn5+fjs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYXAwMTowMTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKjAxU00hOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqKjFzZXQ7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7Cg==",
+      "bytesHash": "76701e4f835d6287d6de60e60b6c0bcd754e01527f9f06d52ee6ab7d8a716357",
+      "maxLines": null,
+      "header": "[3DATAVOLLEYSCOUT]\nFILEFORMAT: 2.0\nGENERATOR-DAY: 2026-01-10 18:00:00\nGENERATOR-PRG: DATA VOLLEYBALL 2007\n[3MATCH]\n10/01/2026;18.00.00;2025/2026;Serie B;;;;;\n[3TEAMS]\nPCI;Pallavolo Città;1;Rossi Mario;\nOSP;Volley Ospite;0;Bianchi Luca;\n[3MORE]\nPalazzetto;Roma;\n[3SET]\nTrue;8-6;16-12;21-18;25-23;32;\n[3PLAYERS-H]\n0;7;1;1;;;;;1001;Verdi;Anna;Annie;L;1;;\n0;14;2;2;;;;;1002;Neri;Sara;;C;5;;\n0;18;3;*;*;*;*;*;1003;Rossi;Gianna;;;3;;\n[3PLAYERS-V]\n1;3;1;3;;;;;2001;Gialli;Elena;;;2;;\n[3WINNINGSYMBOLS]\n[3RESERVE]\n�����€Ÿ\n",
+      "headerSha256": "e442599f17a0beb8ce927d4aeddaa79f050980a37c6b78c33f4c6735217661f2",
+      "lines": [
+        "*P07>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aP05;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*z1>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "az1;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a05SM-~~~16A;s;;;0328;;8275;15.08.45;1;1;6;1;180;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*07RQ+;s;;;;;;18.00.04;1;1;6;1;104;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*14EH+K1C;s;;;;;;18.00.06;1;1;6;1;106;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*18AH#X5F45BH2;s;;;0515;;8040;18.00.08;1;1;6;1;108;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*$$&H#;;;;;;;18.00.09;1;1;6;1;109;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*p01:00;;;;;;;18.00.10;1;1;6;1;110;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*02SM-;s;;;;;;18.00.12;1;1;6;1;112;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aT;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*T;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*c05:12;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ac04:09;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a03SQ=~~~~~;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ap01:01;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*01SM!;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "**1set;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;"
+      ],
+      "endsWithNewline": true,
+      "matchKey": "10-01-2026_18-00-00_pci_osp_0f451be797",
+      "suspicionWithoutBase": null,
+      "plans": {
+        "nessuna": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "e442599f17a0beb8ce927d4aeddaa79f050980a37c6b78c33f4c6735217661f2",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "nessuna+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "e442599f17a0beb8ce927d4aeddaa79f050980a37c6b78c33f4c6735217661f2",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 16,
+              "lineCount": 3,
+              "linesSha256": "ea79d2073afcd1620295c178c0c13f1833276228137dde9f0756c1d7028acce0",
+              "headerSha256": null,
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "e442599f17a0beb8ce927d4aeddaa79f050980a37c6b78c33f4c6735217661f2",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "uguale": {
+          "suspicion": null,
+          "requests": []
+        },
+        "uguale+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "headerCambiato": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 19,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "e442599f17a0beb8ce927d4aeddaa79f050980a37c6b78c33f4c6735217661f2",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "headerCambiato+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "e442599f17a0beb8ce927d4aeddaa79f050980a37c6b78c33f4c6735217661f2",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "e442599f17a0beb8ce927d4aeddaa79f050980a37c6b78c33f4c6735217661f2",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "e442599f17a0beb8ce927d4aeddaa79f050980a37c6b78c33f4c6735217661f2",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "e442599f17a0beb8ce927d4aeddaa79f050980a37c6b78c33f4c6735217661f2",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga+forza": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "e442599f17a0beb8ce927d4aeddaa79f050980a37c6b78c33f4c6735217661f2",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "utf8-con-bom-troncato-nel-carattere",
+      "filePath": "E:\\partita.dvw",
+      "bytesBase64": "77u/WzNEQVRBVk9MTEVZU0NPVVRdCkZJTEVGT1JNQVQ6IDIuMApHRU5FUkFUT1ItREFZOiAyMDI2LTAxLTEwIDE4OjAwOjAwCkdFTkVSQVRPUi1QUkc6IERBVEEgVk9MTEVZQkFMTCAyMDA3ClszTUFUQ0hdCjEwLzAxLzIwMjY7MTguMDAuMDA7MjAyNS8yMDI2O1NlcmllIEI7Ozs7OwpbM1RFQU1TXQpQQ0k7UGFsbGF2b2xvIENpdHTDoDsxO1Jvc3NpIE1hcmlvOwpPU1A7Vm9sbGV5IE9zcGl0ZTswO0JpYW5jaGkgTHVjYTsKWzNNT1JFXQpQYWxhenpldHRvO1JvbWE7ClszU0VUXQpUcnVlOzgtNjsxNi0xMjsyMS0xODsyNS0yMzszMjsKWzNQTEFZRVJTLUhdCjA7NzsxOzE7Ozs7OzEwMDE7VmVyZGk7QW5uYTtBbm5pZTtMOzE7OwowOzE0OzI7Mjs7Ozs7MTAwMjtOZXJpO1NhcmE7O0M7NTs7CjA7MTg7MzsqOyo7KjsqOyo7MTAwMztSb3NzaTtHaWFubmE7OzszOzsKWzNQTEFZRVJTLVZdCjE7MzsxOzM7Ozs7OzIwMDE7R2lhbGxpO0VsZW5hOzs7Mjs7ClszV0lOTklOR1NZTUJPTFNdClszUkVTRVJWRV0KWzNTQ09VVF0KKlAwNz5MVXA7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFQMDU7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7Cip6MT5MVXA7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmF6MTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYTA1U00tfn5+MTZBO3M7OzswMzI4Ozs4Mjc1OzE1LjA4LjQ1OzE7MTs2OzE7MTgwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqMDdSUSs7czs7Ozs7OzE4LjAwLjA0OzE7MTs2OzE7MTA0Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqMTRFSCtLMUM7czs7Ozs7OzE4LjAwLjA2OzE7MTs2OzE7MTA2Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqMThBSCNYNUY0NUJIMjtzOzs7MDUxNTs7ODA0MDsxOC4wMC4wODsxOzE7NjsxOzEwODs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKiQkJkgjOzs7Ozs7OzE4LjAwLjA5OzE7MTs2OzE7MTA5Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqcDAxOjAwOzs7Ozs7OzE4LjAwLjEwOzE7MTs2OzE7MTEwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqMDJTTS07czs7Ozs7OzE4LjAwLjEyOzE7MTs2OzE7MTEyOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphVDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKlQ7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CipjMDU6MTI7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFjMDQ6MDk7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmEwM1NRPX5+fn5+Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphcDAxOjAxOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqMDFTTSE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioqMXNldDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKww==",
+      "bytesHash": "2604e3292387e1554b2dc6ee47677ff343c74f6488ea7f7caa459a6b6e8e3fcd",
+      "maxLines": null,
+      "header": "[3DATAVOLLEYSCOUT]\nFILEFORMAT: 2.0\nGENERATOR-DAY: 2026-01-10 18:00:00\nGENERATOR-PRG: DATA VOLLEYBALL 2007\n[3MATCH]\n10/01/2026;18.00.00;2025/2026;Serie B;;;;;\n[3TEAMS]\nPCI;Pallavolo Città;1;Rossi Mario;\nOSP;Volley Ospite;0;Bianchi Luca;\n[3MORE]\nPalazzetto;Roma;\n[3SET]\nTrue;8-6;16-12;21-18;25-23;32;\n[3PLAYERS-H]\n0;7;1;1;;;;;1001;Verdi;Anna;Annie;L;1;;\n0;14;2;2;;;;;1002;Neri;Sara;;C;5;;\n0;18;3;*;*;*;*;*;1003;Rossi;Gianna;;;3;;\n[3PLAYERS-V]\n1;3;1;3;;;;;2001;Gialli;Elena;;;2;;\n[3WINNINGSYMBOLS]\n[3RESERVE]\n",
+      "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+      "lines": [
+        "*P07>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aP05;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*z1>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "az1;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a05SM-~~~16A;s;;;0328;;8275;15.08.45;1;1;6;1;180;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*07RQ+;s;;;;;;18.00.04;1;1;6;1;104;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*14EH+K1C;s;;;;;;18.00.06;1;1;6;1;106;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*18AH#X5F45BH2;s;;;0515;;8040;18.00.08;1;1;6;1;108;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*$$&H#;;;;;;;18.00.09;1;1;6;1;109;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*p01:00;;;;;;;18.00.10;1;1;6;1;110;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*02SM-;s;;;;;;18.00.12;1;1;6;1;112;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aT;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*T;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*c05:12;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ac04:09;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a03SQ=~~~~~;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ap01:01;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*01SM!;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "**1set;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "�"
+      ],
+      "endsWithNewline": false,
+      "matchKey": "10-01-2026_18-00-00_pci_osp_0f451be797",
+      "suspicionWithoutBase": "file senza a capo finale",
+      "plans": {
+        "nessuna": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 20,
+              "linesSha256": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343"
+            }
+          ]
+        },
+        "nessuna+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 20,
+              "linesSha256": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343"
+            }
+          ]
+        },
+        "prefisso": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 17,
+              "lineCount": 3,
+              "linesSha256": "9d64d63061fd327b08e884644c0dc90086a3e6baae633c7a81d0497d03cb49a2",
+              "headerSha256": null,
+              "contentHash": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343"
+            }
+          ]
+        },
+        "prefisso+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 20,
+              "linesSha256": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343"
+            }
+          ]
+        },
+        "uguale": {
+          "suspicion": null,
+          "requests": []
+        },
+        "uguale+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "headerCambiato": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 20,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343"
+            }
+          ]
+        },
+        "headerCambiato+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 20,
+              "linesSha256": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343"
+            }
+          ]
+        },
+        "rigaCambiata": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 20,
+              "linesSha256": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343"
+            }
+          ]
+        },
+        "rigaCambiata+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 20,
+              "linesSha256": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343"
+            }
+          ]
+        },
+        "piuLunga": {
+          "suspicion": "righe scout diminuite da 21 a 20",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 20,
+              "linesSha256": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343"
+            }
+          ]
+        },
+        "piuLunga+forza": {
+          "suspicion": "righe scout diminuite da 21 a 20",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 20,
+              "linesSha256": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "b93cf9b1183a0453da557c9676db82b2c7cd545e58c598edfe10fe2436f21343"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "senza-data-chiave-dal-nome",
+      "filePath": "E:\\Partite\\Città ﬁnale ß Ùno.DVW",
+      "bytesBase64": "WzNEQVRBVk9MTEVZU0NPVVRdCkZJTEVGT1JNQVQ6IDIuMApHRU5FUkFUT1ItREFZOiAyMDI2LTAxLTEwIDE4OjAwOjAwCkdFTkVSQVRPUi1QUkc6IERBVEEgVk9MTEVZQkFMTCAyMDA3ClszTUFUQ0hdCjs7MjAyNS8yMDI2O1NlcmllIEI7Ozs7OwpbM1RFQU1TXQpQQ0k7UGFsbGF2b2xvIENpdHTgOzE7Um9zc2kgTWFyaW87Ck9TUDtWb2xsZXkgT3NwaXRlOzA7QmlhbmNoaSBMdWNhOwpbM01PUkVdClBhbGF6emV0dG87Um9tYTsKWzNTRVRdClRydWU7OC02OzE2LTEyOzIxLTE4OzI1LTIzOzMyOwpbM1BMQVlFUlMtSF0KMDs3OzE7MTs7Ozs7MTAwMTtWZXJkaTtBbm5hO0FubmllO0w7MTs7CjA7MTQ7MjsyOzs7OzsxMDAyO05lcmk7U2FyYTs7Qzs1OzsKMDsxODszOyo7KjsqOyo7KjsxMDAzO1Jvc3NpO0dpYW5uYTs7OzM7OwpbM1BMQVlFUlMtVl0KMTszOzE7Mzs7Ozs7MjAwMTtHaWFsbGk7RWxlbmE7OzsyOzsKWzNXSU5OSU5HU1lNQk9MU10KWzNSRVNFUlZFXQpbM1NDT1VUXQoqUDA3PkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYVAwNTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKnoxPkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYXoxOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphMDVTTS1+fn4xNkE7czs7OzAzMjg7OzgyNzU7MTUuMDguNDU7MTsxOzY7MTsxODA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowN1JRKztzOzs7Ozs7MTguMDAuMDQ7MTsxOzY7MTsxMDQ7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxNEVIK0sxQztzOzs7Ozs7MTguMDAuMDY7MTsxOzY7MTsxMDY7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxOEFII1g1RjQ1QkgyO3M7OzswNTE1Ozs4MDQwOzE4LjAwLjA4OzE7MTs2OzE7MTA4Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqJCQmSCM7Ozs7Ozs7MTguMDAuMDk7MTsxOzY7MTsxMDk7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CipwMDE6MDA7Ozs7Ozs7MTguMDAuMTA7MTsxOzY7MTsxMTA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMlNNLTtzOzs7Ozs7MTguMDAuMTI7MTsxOzY7MTsxMTI7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFUOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqVDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKmMwNToxMjs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYWMwNDowOTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYTAzU1E9fn5+fn47Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFwMDE6MDE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMVNNITs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKioxc2V0Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwo=",
+      "bytesHash": "e9d03dd2c67b9242a9846bc1528b27a19a45c47866c2074c0dfac85603d1474d",
+      "maxLines": null,
+      "header": "[3DATAVOLLEYSCOUT]\nFILEFORMAT: 2.0\nGENERATOR-DAY: 2026-01-10 18:00:00\nGENERATOR-PRG: DATA VOLLEYBALL 2007\n[3MATCH]\n;;2025/2026;Serie B;;;;;\n[3TEAMS]\nPCI;Pallavolo Città;1;Rossi Mario;\nOSP;Volley Ospite;0;Bianchi Luca;\n[3MORE]\nPalazzetto;Roma;\n[3SET]\nTrue;8-6;16-12;21-18;25-23;32;\n[3PLAYERS-H]\n0;7;1;1;;;;;1001;Verdi;Anna;Annie;L;1;;\n0;14;2;2;;;;;1002;Neri;Sara;;C;5;;\n0;18;3;*;*;*;*;*;1003;Rossi;Gianna;;;3;;\n[3PLAYERS-V]\n1;3;1;3;;;;;2001;Gialli;Elena;;;2;;\n[3WINNINGSYMBOLS]\n[3RESERVE]\n",
+      "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+      "lines": [
+        "*P07>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aP05;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*z1>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "az1;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a05SM-~~~16A;s;;;0328;;8275;15.08.45;1;1;6;1;180;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*07RQ+;s;;;;;;18.00.04;1;1;6;1;104;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*14EH+K1C;s;;;;;;18.00.06;1;1;6;1;106;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*18AH#X5F45BH2;s;;;0515;;8040;18.00.08;1;1;6;1;108;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*$$&H#;;;;;;;18.00.09;1;1;6;1;109;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*p01:00;;;;;;;18.00.10;1;1;6;1;110;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*02SM-;s;;;;;;18.00.12;1;1;6;1;112;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aT;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*T;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*c05:12;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ac04:09;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a03SQ=~~~~~;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ap01:01;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*01SM!;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "**1set;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;"
+      ],
+      "endsWithNewline": true,
+      "matchKey": "file_citta-finale-uno_bd4293d590",
+      "suspicionWithoutBase": null,
+      "plans": {
+        "nessuna": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "nessuna+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 16,
+              "lineCount": 3,
+              "linesSha256": "ea79d2073afcd1620295c178c0c13f1833276228137dde9f0756c1d7028acce0",
+              "headerSha256": null,
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "uguale": {
+          "suspicion": null,
+          "requests": []
+        },
+        "uguale+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "headerCambiato": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 19,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "headerCambiato+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga+forza": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "senza-data-percorso-con-barre",
+      "filePath": "C:/dati/scout/gara_01.dvw",
+      "bytesBase64": "WzNEQVRBVk9MTEVZU0NPVVRdCkZJTEVGT1JNQVQ6IDIuMApHRU5FUkFUT1ItREFZOiAyMDI2LTAxLTEwIDE4OjAwOjAwCkdFTkVSQVRPUi1QUkc6IERBVEEgVk9MTEVZQkFMTCAyMDA3ClszTUFUQ0hdCiA7IDsyMDI1LzIwMjY7U2VyaWUgQjs7Ozs7ClszVEVBTVNdClBDSTtQYWxsYXZvbG8gQ2l0dOA7MTtSb3NzaSBNYXJpbzsKT1NQO1ZvbGxleSBPc3BpdGU7MDtCaWFuY2hpIEx1Y2E7ClszTU9SRV0KUGFsYXp6ZXR0bztSb21hOwpbM1NFVF0KVHJ1ZTs4LTY7MTYtMTI7MjEtMTg7MjUtMjM7MzI7ClszUExBWUVSUy1IXQowOzc7MTsxOzs7OzsxMDAxO1ZlcmRpO0FubmE7QW5uaWU7TDsxOzsKMDsxNDsyOzI7Ozs7OzEwMDI7TmVyaTtTYXJhOztDOzU7OwowOzE4OzM7KjsqOyo7KjsqOzEwMDM7Um9zc2k7R2lhbm5hOzs7Mzs7ClszUExBWUVSUy1WXQoxOzM7MTszOzs7OzsyMDAxO0dpYWxsaTtFbGVuYTs7OzI7OwpbM1dJTk5JTkdTWU1CT0xTXQpbM1JFU0VSVkVdClszU0NPVVRdCipQMDc+TFVwOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphUDA1Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqejE+TFVwOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphejE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmEwNVNNLX5+fjE2QTtzOzs7MDMyODs7ODI3NTsxNS4wOC40NTsxOzE7NjsxOzE4MDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKjA3UlErO3M7Ozs7OzsxOC4wMC4wNDsxOzE7NjsxOzEwNDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKjE0RUgrSzFDO3M7Ozs7OzsxOC4wMC4wNjsxOzE7NjsxOzEwNjs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKjE4QUgjWDVGNDVCSDI7czs7OzA1MTU7OzgwNDA7MTguMDAuMDg7MTsxOzY7MTsxMDg7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiokJCZIIzs7Ozs7OzsxOC4wMC4wOTsxOzE7NjsxOzEwOTs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKnAwMTowMDs7Ozs7OzsxOC4wMC4xMDsxOzE7NjsxOzExMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKjAyU00tO3M7Ozs7OzsxOC4wMC4xMjsxOzE7NjsxOzExMjs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYVQ7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CipUOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqYzA1OjEyOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphYzA0OjA5Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphMDNTUT1+fn5+fjs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYXAwMTowMTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKjAxU00hOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqKjFzZXQ7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7Cg==",
+      "bytesHash": "ef23189a36b269892ce1f8d3c1b8603c92fca6617482df2fbc9386559930e43a",
+      "maxLines": null,
+      "header": "[3DATAVOLLEYSCOUT]\nFILEFORMAT: 2.0\nGENERATOR-DAY: 2026-01-10 18:00:00\nGENERATOR-PRG: DATA VOLLEYBALL 2007\n[3MATCH]\n ; ;2025/2026;Serie B;;;;;\n[3TEAMS]\nPCI;Pallavolo Città;1;Rossi Mario;\nOSP;Volley Ospite;0;Bianchi Luca;\n[3MORE]\nPalazzetto;Roma;\n[3SET]\nTrue;8-6;16-12;21-18;25-23;32;\n[3PLAYERS-H]\n0;7;1;1;;;;;1001;Verdi;Anna;Annie;L;1;;\n0;14;2;2;;;;;1002;Neri;Sara;;C;5;;\n0;18;3;*;*;*;*;*;1003;Rossi;Gianna;;;3;;\n[3PLAYERS-V]\n1;3;1;3;;;;;2001;Gialli;Elena;;;2;;\n[3WINNINGSYMBOLS]\n[3RESERVE]\n",
+      "headerSha256": "b4d5218a1512a6412d7c80490012477aad88274f37cb90f6a80bc92ff3905f1a",
+      "lines": [
+        "*P07>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aP05;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*z1>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "az1;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a05SM-~~~16A;s;;;0328;;8275;15.08.45;1;1;6;1;180;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*07RQ+;s;;;;;;18.00.04;1;1;6;1;104;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*14EH+K1C;s;;;;;;18.00.06;1;1;6;1;106;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*18AH#X5F45BH2;s;;;0515;;8040;18.00.08;1;1;6;1;108;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*$$&H#;;;;;;;18.00.09;1;1;6;1;109;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*p01:00;;;;;;;18.00.10;1;1;6;1;110;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*02SM-;s;;;;;;18.00.12;1;1;6;1;112;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aT;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*T;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*c05:12;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ac04:09;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a03SQ=~~~~~;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ap01:01;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*01SM!;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "**1set;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;"
+      ],
+      "endsWithNewline": true,
+      "matchKey": "file_gara-01_9934890571",
+      "suspicionWithoutBase": null,
+      "plans": {
+        "nessuna": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "b4d5218a1512a6412d7c80490012477aad88274f37cb90f6a80bc92ff3905f1a",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "nessuna+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "b4d5218a1512a6412d7c80490012477aad88274f37cb90f6a80bc92ff3905f1a",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 16,
+              "lineCount": 3,
+              "linesSha256": "ea79d2073afcd1620295c178c0c13f1833276228137dde9f0756c1d7028acce0",
+              "headerSha256": null,
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "b4d5218a1512a6412d7c80490012477aad88274f37cb90f6a80bc92ff3905f1a",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "uguale": {
+          "suspicion": null,
+          "requests": []
+        },
+        "uguale+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "headerCambiato": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 19,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "b4d5218a1512a6412d7c80490012477aad88274f37cb90f6a80bc92ff3905f1a",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "headerCambiato+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "b4d5218a1512a6412d7c80490012477aad88274f37cb90f6a80bc92ff3905f1a",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "b4d5218a1512a6412d7c80490012477aad88274f37cb90f6a80bc92ff3905f1a",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "b4d5218a1512a6412d7c80490012477aad88274f37cb90f6a80bc92ff3905f1a",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "b4d5218a1512a6412d7c80490012477aad88274f37cb90f6a80bc92ff3905f1a",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga+forza": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "b4d5218a1512a6412d7c80490012477aad88274f37cb90f6a80bc92ff3905f1a",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "spazi-strani",
+      "filePath": "E:\\partita.dvw",
+      "bytesBase64": "WzNEQVRBVk9MTEVZU0NPVVRdCkZJTEVGT1JNQVQ6IDIuMApHRU5FUkFUT1ItREFZOiAyMDI2LTAxLTEwIDE4OjAwOjAwCkdFTkVSQVRPUi1QUkc6IERBVEEgVk9MTEVZQkFMTCAyMDA3ClszTUFUQ0hdCiAxMC8wMS8yMDI2CTsgIDE4LjAwLjAwIDsyMDI1LzIwMjY7U2VyaWUgQjs7Ozs7ClszVEVBTVNdClDCoEMgIEk7UGFsbGF2b2xvIENpdHTDoDsxO1Jvc3NpIE1hcmlvOwrjgIBPc3AgO1ZvbGxleSBPc3BpdGU7MDtCaWFuY2hpIEx1Y2E7ClszTU9SRV0KUGFsYXp6ZXR0bztSb21hOwpbM1NFVF0KVHJ1ZTs4LTY7MTYtMTI7MjEtMTg7MjUtMjM7MzI7ClszUExBWUVSUy1IXQowOzc7MTsxOzs7OzsxMDAxO1ZlcmRpO0FubmE7QW5uaWU7TDsxOzsKMDsxNDsyOzI7Ozs7OzEwMDI7TmVyaTtTYXJhOztDOzU7OwowOzE4OzM7KjsqOyo7KjsqOzEwMDM7Um9zc2k7R2lhbm5hOzs7Mzs7ClszUExBWUVSUy1WXQoxOzM7MTszOzs7OzsyMDAxO0dpYWxsaTtFbGVuYTs7OzI7OwpbM1dJTk5JTkdTWU1CT0xTXQpbM1JFU0VSVkVdCiAJWzNTQ09VVF0JCiAgIAoqUDA3PkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYVAwNTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKnoxPkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYXoxOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphMDVTTS1+fn4xNkE7czs7OzAzMjg7OzgyNzU7MTUuMDguNDU7MTsxOzY7MTsxODA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowN1JRKztzOzs7Ozs7MTguMDAuMDQ7MTsxOzY7MTsxMDQ7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxNEVIK0sxQztzOzs7Ozs7MTguMDAuMDY7MTsxOzY7MTsxMDY7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxOEFII1g1RjQ1QkgyO3M7OzswNTE1Ozs4MDQwOzE4LjAwLjA4OzE7MTs2OzE7MTA4Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqJCQmSCM7Ozs7Ozs7MTguMDAuMDk7MTsxOzY7MTsxMDk7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CipwMDE6MDA7Ozs7Ozs7MTguMDAuMTA7MTsxOzY7MTsxMTA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMlNNLTtzOzs7Ozs7MTguMDAuMTI7MTsxOzY7MTsxMTI7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFUOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqVDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKmMwNToxMjs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYWMwNDowOTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYTAzU1E9fn5+fn47Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFwMDE6MDE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMVNNITs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKioxc2V0Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwogCSAK",
+      "bytesHash": "2cd95205ac670a16b99b1f8bc522b37de1bda8c5a8958b3eef5320df2bd68ad2",
+      "maxLines": null,
+      "header": "[3DATAVOLLEYSCOUT]\nFILEFORMAT: 2.0\nGENERATOR-DAY: 2026-01-10 18:00:00\nGENERATOR-PRG: DATA VOLLEYBALL 2007\n[3MATCH]\n 10/01/2026\t;  18.00.00 ;2025/2026;Serie B;;;;;\n[3TEAMS]\nP C  I;Pallavolo Città;1;Rossi Mario;\n　Osp ;Volley Ospite;0;Bianchi Luca;\n[3MORE]\nPalazzetto;Roma;\n[3SET]\nTrue;8-6;16-12;21-18;25-23;32;\n[3PLAYERS-H]\n0;7;1;1;;;;;1001;Verdi;Anna;Annie;L;1;;\n0;14;2;2;;;;;1002;Neri;Sara;;C;5;;\n0;18;3;*;*;*;*;*;1003;Rossi;Gianna;;;3;;\n[3PLAYERS-V]\n1;3;1;3;;;;;2001;Gialli;Elena;;;2;;\n[3WINNINGSYMBOLS]\n[3RESERVE]\n",
+      "headerSha256": "19b8bbeb823b732909236e6186f1112ce368a9e3789b74b062e62d256352a325",
+      "lines": [
+        "*P07>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aP05;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*z1>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "az1;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a05SM-~~~16A;s;;;0328;;8275;15.08.45;1;1;6;1;180;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*07RQ+;s;;;;;;18.00.04;1;1;6;1;104;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*14EH+K1C;s;;;;;;18.00.06;1;1;6;1;106;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*18AH#X5F45BH2;s;;;0515;;8040;18.00.08;1;1;6;1;108;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*$$&H#;;;;;;;18.00.09;1;1;6;1;109;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*p01:00;;;;;;;18.00.10;1;1;6;1;110;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*02SM-;s;;;;;;18.00.12;1;1;6;1;112;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aT;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*T;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*c05:12;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ac04:09;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a03SQ=~~~~~;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ap01:01;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*01SM!;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "**1set;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;"
+      ],
+      "endsWithNewline": true,
+      "matchKey": "10-01-2026_18-00-00_p-c-i_osp_877ee9e1a1",
+      "suspicionWithoutBase": null,
+      "plans": {
+        "nessuna": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "19b8bbeb823b732909236e6186f1112ce368a9e3789b74b062e62d256352a325",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "nessuna+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "19b8bbeb823b732909236e6186f1112ce368a9e3789b74b062e62d256352a325",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 16,
+              "lineCount": 3,
+              "linesSha256": "ea79d2073afcd1620295c178c0c13f1833276228137dde9f0756c1d7028acce0",
+              "headerSha256": null,
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "19b8bbeb823b732909236e6186f1112ce368a9e3789b74b062e62d256352a325",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "uguale": {
+          "suspicion": null,
+          "requests": []
+        },
+        "uguale+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "headerCambiato": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 19,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "19b8bbeb823b732909236e6186f1112ce368a9e3789b74b062e62d256352a325",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "headerCambiato+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "19b8bbeb823b732909236e6186f1112ce368a9e3789b74b062e62d256352a325",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "19b8bbeb823b732909236e6186f1112ce368a9e3789b74b062e62d256352a325",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "19b8bbeb823b732909236e6186f1112ce368a9e3789b74b062e62d256352a325",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "19b8bbeb823b732909236e6186f1112ce368a9e3789b74b062e62d256352a325",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga+forza": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "19b8bbeb823b732909236e6186f1112ce368a9e3789b74b062e62d256352a325",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "marcatore-dopo-separatore-unicode",
+      "filePath": "E:\\partita.dvw",
+      "bytesBase64": "WzNEQVRBVk9MTEVZU0NPVVRdCkZJTEVGT1JNQVQ6IDIuMApHRU5FUkFUT1ItREFZOiAyMDI2LTAxLTEwIDE4OjAwOjAwCkdFTkVSQVRPUi1QUkc6IERBVEEgVk9MTEVZQkFMTCAyMDA3ClszTUFUQ0hdCjEwLzAxLzIwMjY7MTguMDAuMDA7MjAyNS8yMDI2O1NlcmllIEI7Ozs7OwpbM1RFQU1TXQpQQ0k7UGFsbGF2b2xvIENpdHTDoDsxO1Jvc3NpIE1hcmlvOwpPU1A7Vm9sbGV5IE9zcGl0ZTswO0JpYW5jaGkgTHVjYTsKWzNNT1JFXQpQYWxhenpldHRvO1JvbWE7ClszU0VUXQpUcnVlOzgtNjsxNi0xMjsyMS0xODsyNS0yMzszMjsKWzNQTEFZRVJTLUhdCjA7NzsxOzE7Ozs7OzEwMDE7VmVyZGk7QW5uYTtBbm5pZTtMOzE7OwowOzE0OzI7Mjs7Ozs7MTAwMjtOZXJpO1NhcmE7O0M7NTs7CjA7MTg7MzsqOyo7KjsqOyo7MTAwMztSb3NzaTtHaWFubmE7OzszOzsKWzNQTEFZRVJTLVZdCjE7MzsxOzM7Ozs7OzIwMDE7R2lhbGxpO0VsZW5hOzs7Mjs7ClszV0lOTklOR1NZTUJPTFNdClszUkVTRVJWRV3igKhbM1NDT1VUXQoqUDA3PkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYVAwNTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKnoxPkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYXoxOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphMDVTTS1+fn4xNkE7czs7OzAzMjg7OzgyNzU7MTUuMDguNDU7MTsxOzY7MTsxODA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowN1JRKztzOzs7Ozs7MTguMDAuMDQ7MTsxOzY7MTsxMDQ7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxNEVIK0sxQztzOzs7Ozs7MTguMDAuMDY7MTsxOzY7MTsxMDY7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxOEFII1g1RjQ1QkgyO3M7OzswNTE1Ozs4MDQwOzE4LjAwLjA4OzE7MTs2OzE7MTA4Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqJCQmSCM7Ozs7Ozs7MTguMDAuMDk7MTsxOzY7MTsxMDk7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CipwMDE6MDA7Ozs7Ozs7MTguMDAuMTA7MTsxOzY7MTsxMTA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMlNNLTtzOzs7Ozs7MTguMDAuMTI7MTsxOzY7MTsxMTI7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFUOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqVDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKmMwNToxMjs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYWMwNDowOTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYTAzU1E9fn5+fn47Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFwMDE6MDE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMVNNITs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKioxc2V0Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwo=",
+      "bytesHash": "ae658f4e59ed31b4aec04112bbb6e214478fec39acaf221fdc39e12385908939",
+      "maxLines": null,
+      "header": "[3DATAVOLLEYSCOUT]\nFILEFORMAT: 2.0\nGENERATOR-DAY: 2026-01-10 18:00:00\nGENERATOR-PRG: DATA VOLLEYBALL 2007\n[3MATCH]\n10/01/2026;18.00.00;2025/2026;Serie B;;;;;\n[3TEAMS]\nPCI;Pallavolo Città;1;Rossi Mario;\nOSP;Volley Ospite;0;Bianchi Luca;\n[3MORE]\nPalazzetto;Roma;\n[3SET]\nTrue;8-6;16-12;21-18;25-23;32;\n[3PLAYERS-H]\n0;7;1;1;;;;;1001;Verdi;Anna;Annie;L;1;;\n0;14;2;2;;;;;1002;Neri;Sara;;C;5;;\n0;18;3;*;*;*;*;*;1003;Rossi;Gianna;;;3;;\n[3PLAYERS-V]\n1;3;1;3;;;;;2001;Gialli;Elena;;;2;;\n[3WINNINGSYMBOLS]\n[3RESERVE] ",
+      "headerSha256": "70f54ddfbfbce8c6ce9b6ea1c061c985acf4afa886ab51776c35818bca6d8f90",
+      "lines": [],
+      "endsWithNewline": true,
+      "matchKey": "10-01-2026_18-00-00_pci_osp_0f451be797",
+      "suspicionWithoutBase": null,
+      "plans": {
+        "nessuna": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "70f54ddfbfbce8c6ce9b6ea1c061c985acf4afa886ab51776c35818bca6d8f90",
+              "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          ]
+        },
+        "nessuna+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "70f54ddfbfbce8c6ce9b6ea1c061c985acf4afa886ab51776c35818bca6d8f90",
+              "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          ]
+        },
+        "prefisso": {
+          "suspicion": null,
+          "requests": []
+        },
+        "prefisso+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "uguale": {
+          "suspicion": null,
+          "requests": []
+        },
+        "uguale+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "headerCambiato": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 0,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "70f54ddfbfbce8c6ce9b6ea1c061c985acf4afa886ab51776c35818bca6d8f90",
+              "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          ]
+        },
+        "headerCambiato+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "70f54ddfbfbce8c6ce9b6ea1c061c985acf4afa886ab51776c35818bca6d8f90",
+              "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          ]
+        },
+        "rigaCambiata": {
+          "suspicion": null,
+          "requests": []
+        },
+        "rigaCambiata+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "piuLunga": {
+          "suspicion": "righe scout diminuite da 1 a 0",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "70f54ddfbfbce8c6ce9b6ea1c061c985acf4afa886ab51776c35818bca6d8f90",
+              "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          ]
+        },
+        "piuLunga+forza": {
+          "suspicion": "righe scout diminuite da 1 a 0",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "70f54ddfbfbce8c6ce9b6ea1c061c985acf4afa886ab51776c35818bca6d8f90",
+              "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "minuscole-speciali",
+      "filePath": "E:\\partita.dvw",
+      "bytesBase64": "WzNEQVRBVk9MTEVZU0NPVVRdCkZJTEVGT1JNQVQ6IDIuMApHRU5FUkFUT1ItREFZOiAyMDI2LTAxLTEwIDE4OjAwOjAwCkdFTkVSQVRPUi1QUkc6IERBVEEgVk9MTEVZQkFMTCAyMDA3ClszTUFUQ0hdCjEwLzAxLzIwMjY7MTguMDAuMDA7MjAyNS8yMDI2O1NlcmllIEI7Ozs7OwpbM1RFQU1TXQrEsFNUQU5CVUwgzp/OlM6fzqM7UGFsbGF2b2xvIENpdHTDoDsxO1Jvc3NpIE1hcmlvOwrOo86RzqMgzqPOn86mzpnOkc6jLjtWb2xsZXkgT3NwaXRlOzA7QmlhbmNoaSBMdWNhOwpbM01PUkVdClBhbGF6emV0dG87Um9tYTsKWzNTRVRdClRydWU7OC02OzE2LTEyOzIxLTE4OzI1LTIzOzMyOwpbM1BMQVlFUlMtSF0KMDs3OzE7MTs7Ozs7MTAwMTtWZXJkaTtBbm5hO0FubmllO0w7MTs7CjA7MTQ7MjsyOzs7OzsxMDAyO05lcmk7U2FyYTs7Qzs1OzsKMDsxODszOyo7KjsqOyo7KjsxMDAzO1Jvc3NpO0dpYW5uYTs7OzM7OwpbM1BMQVlFUlMtVl0KMTszOzE7Mzs7Ozs7MjAwMTtHaWFsbGk7RWxlbmE7OzsyOzsKWzNXSU5OSU5HU1lNQk9MU10KWzNSRVNFUlZFXQpbM1NDT1VUXQoqUDA3PkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYVAwNTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKnoxPkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYXoxOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphMDVTTS1+fn4xNkE7czs7OzAzMjg7OzgyNzU7MTUuMDguNDU7MTsxOzY7MTsxODA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowN1JRKztzOzs7Ozs7MTguMDAuMDQ7MTsxOzY7MTsxMDQ7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxNEVIK0sxQztzOzs7Ozs7MTguMDAuMDY7MTsxOzY7MTsxMDY7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxOEFII1g1RjQ1QkgyO3M7OzswNTE1Ozs4MDQwOzE4LjAwLjA4OzE7MTs2OzE7MTA4Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqJCQmSCM7Ozs7Ozs7MTguMDAuMDk7MTsxOzY7MTsxMDk7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CipwMDE6MDA7Ozs7Ozs7MTguMDAuMTA7MTsxOzY7MTsxMTA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMlNNLTtzOzs7Ozs7MTguMDAuMTI7MTsxOzY7MTsxMTI7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFUOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqVDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKmMwNToxMjs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYWMwNDowOTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYTAzU1E9fn5+fn47Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFwMDE6MDE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMVNNITs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKioxc2V0Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwo=",
+      "bytesHash": "0462e0aab1def56e87ea58089c142348270490b6663e1dada2728b54962168eb",
+      "maxLines": null,
+      "header": "[3DATAVOLLEYSCOUT]\nFILEFORMAT: 2.0\nGENERATOR-DAY: 2026-01-10 18:00:00\nGENERATOR-PRG: DATA VOLLEYBALL 2007\n[3MATCH]\n10/01/2026;18.00.00;2025/2026;Serie B;;;;;\n[3TEAMS]\nİSTANBUL ΟΔΟΣ;Pallavolo Città;1;Rossi Mario;\nΣΑΣ ΣΟΦΙΑΣ.;Volley Ospite;0;Bianchi Luca;\n[3MORE]\nPalazzetto;Roma;\n[3SET]\nTrue;8-6;16-12;21-18;25-23;32;\n[3PLAYERS-H]\n0;7;1;1;;;;;1001;Verdi;Anna;Annie;L;1;;\n0;14;2;2;;;;;1002;Neri;Sara;;C;5;;\n0;18;3;*;*;*;*;*;1003;Rossi;Gianna;;;3;;\n[3PLAYERS-V]\n1;3;1;3;;;;;2001;Gialli;Elena;;;2;;\n[3WINNINGSYMBOLS]\n[3RESERVE]\n",
+      "headerSha256": "3dc75731ac6057c5135dc035f3fa65bff13cfdd141580245d6032d61768e4133",
+      "lines": [
+        "*P07>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aP05;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*z1>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "az1;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a05SM-~~~16A;s;;;0328;;8275;15.08.45;1;1;6;1;180;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*07RQ+;s;;;;;;18.00.04;1;1;6;1;104;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*14EH+K1C;s;;;;;;18.00.06;1;1;6;1;106;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*18AH#X5F45BH2;s;;;0515;;8040;18.00.08;1;1;6;1;108;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*$$&H#;;;;;;;18.00.09;1;1;6;1;109;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*p01:00;;;;;;;18.00.10;1;1;6;1;110;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*02SM-;s;;;;;;18.00.12;1;1;6;1;112;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aT;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*T;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*c05:12;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ac04:09;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a03SQ=~~~~~;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ap01:01;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*01SM!;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "**1set;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;"
+      ],
+      "endsWithNewline": true,
+      "matchKey": "10-01-2026_18-00-00_istanbul_c495abd961",
+      "suspicionWithoutBase": null,
+      "plans": {
+        "nessuna": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3dc75731ac6057c5135dc035f3fa65bff13cfdd141580245d6032d61768e4133",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "nessuna+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3dc75731ac6057c5135dc035f3fa65bff13cfdd141580245d6032d61768e4133",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 16,
+              "lineCount": 3,
+              "linesSha256": "ea79d2073afcd1620295c178c0c13f1833276228137dde9f0756c1d7028acce0",
+              "headerSha256": null,
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3dc75731ac6057c5135dc035f3fa65bff13cfdd141580245d6032d61768e4133",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "uguale": {
+          "suspicion": null,
+          "requests": []
+        },
+        "uguale+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "headerCambiato": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 19,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "3dc75731ac6057c5135dc035f3fa65bff13cfdd141580245d6032d61768e4133",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "headerCambiato+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3dc75731ac6057c5135dc035f3fa65bff13cfdd141580245d6032d61768e4133",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3dc75731ac6057c5135dc035f3fa65bff13cfdd141580245d6032d61768e4133",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3dc75731ac6057c5135dc035f3fa65bff13cfdd141580245d6032d61768e4133",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3dc75731ac6057c5135dc035f3fa65bff13cfdd141580245d6032d61768e4133",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga+forza": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3dc75731ac6057c5135dc035f3fa65bff13cfdd141580245d6032d61768e4133",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "minuscole-speciali-nome-file",
+      "filePath": "E:\\İzmir ΟΔΟΣ.dvw",
+      "bytesBase64": "WzNEQVRBVk9MTEVZU0NPVVRdCkZJTEVGT1JNQVQ6IDIuMApHRU5FUkFUT1ItREFZOiAyMDI2LTAxLTEwIDE4OjAwOjAwCkdFTkVSQVRPUi1QUkc6IERBVEEgVk9MTEVZQkFMTCAyMDA3ClszTUFUQ0hdCjs7MjAyNS8yMDI2O1NlcmllIEI7Ozs7OwpbM1RFQU1TXQpQQ0k7UGFsbGF2b2xvIENpdHTgOzE7Um9zc2kgTWFyaW87Ck9TUDtWb2xsZXkgT3NwaXRlOzA7QmlhbmNoaSBMdWNhOwpbM01PUkVdClBhbGF6emV0dG87Um9tYTsKWzNTRVRdClRydWU7OC02OzE2LTEyOzIxLTE4OzI1LTIzOzMyOwpbM1BMQVlFUlMtSF0KMDs3OzE7MTs7Ozs7MTAwMTtWZXJkaTtBbm5hO0FubmllO0w7MTs7CjA7MTQ7MjsyOzs7OzsxMDAyO05lcmk7U2FyYTs7Qzs1OzsKMDsxODszOyo7KjsqOyo7KjsxMDAzO1Jvc3NpO0dpYW5uYTs7OzM7OwpbM1BMQVlFUlMtVl0KMTszOzE7Mzs7Ozs7MjAwMTtHaWFsbGk7RWxlbmE7OzsyOzsKWzNXSU5OSU5HU1lNQk9MU10KWzNSRVNFUlZFXQpbM1NDT1VUXQoqUDA3PkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYVAwNTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKnoxPkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYXoxOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphMDVTTS1+fn4xNkE7czs7OzAzMjg7OzgyNzU7MTUuMDguNDU7MTsxOzY7MTsxODA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowN1JRKztzOzs7Ozs7MTguMDAuMDQ7MTsxOzY7MTsxMDQ7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxNEVIK0sxQztzOzs7Ozs7MTguMDAuMDY7MTsxOzY7MTsxMDY7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxOEFII1g1RjQ1QkgyO3M7OzswNTE1Ozs4MDQwOzE4LjAwLjA4OzE7MTs2OzE7MTA4Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqJCQmSCM7Ozs7Ozs7MTguMDAuMDk7MTsxOzY7MTsxMDk7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CipwMDE6MDA7Ozs7Ozs7MTguMDAuMTA7MTsxOzY7MTsxMTA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMlNNLTtzOzs7Ozs7MTguMDAuMTI7MTsxOzY7MTsxMTI7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFUOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqVDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKmMwNToxMjs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYWMwNDowOTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYTAzU1E9fn5+fn47Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFwMDE6MDE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMVNNITs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKioxc2V0Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwo=",
+      "bytesHash": "e9d03dd2c67b9242a9846bc1528b27a19a45c47866c2074c0dfac85603d1474d",
+      "maxLines": null,
+      "header": "[3DATAVOLLEYSCOUT]\nFILEFORMAT: 2.0\nGENERATOR-DAY: 2026-01-10 18:00:00\nGENERATOR-PRG: DATA VOLLEYBALL 2007\n[3MATCH]\n;;2025/2026;Serie B;;;;;\n[3TEAMS]\nPCI;Pallavolo Città;1;Rossi Mario;\nOSP;Volley Ospite;0;Bianchi Luca;\n[3MORE]\nPalazzetto;Roma;\n[3SET]\nTrue;8-6;16-12;21-18;25-23;32;\n[3PLAYERS-H]\n0;7;1;1;;;;;1001;Verdi;Anna;Annie;L;1;;\n0;14;2;2;;;;;1002;Neri;Sara;;C;5;;\n0;18;3;*;*;*;*;*;1003;Rossi;Gianna;;;3;;\n[3PLAYERS-V]\n1;3;1;3;;;;;2001;Gialli;Elena;;;2;;\n[3WINNINGSYMBOLS]\n[3RESERVE]\n",
+      "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+      "lines": [
+        "*P07>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aP05;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*z1>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "az1;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a05SM-~~~16A;s;;;0328;;8275;15.08.45;1;1;6;1;180;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*07RQ+;s;;;;;;18.00.04;1;1;6;1;104;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*14EH+K1C;s;;;;;;18.00.06;1;1;6;1;106;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*18AH#X5F45BH2;s;;;0515;;8040;18.00.08;1;1;6;1;108;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*$$&H#;;;;;;;18.00.09;1;1;6;1;109;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*p01:00;;;;;;;18.00.10;1;1;6;1;110;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*02SM-;s;;;;;;18.00.12;1;1;6;1;112;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aT;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*T;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*c05:12;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ac04:09;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a03SQ=~~~~~;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ap01:01;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*01SM!;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "**1set;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;"
+      ],
+      "endsWithNewline": true,
+      "matchKey": "file_izmir_9223ee806d",
+      "suspicionWithoutBase": null,
+      "plans": {
+        "nessuna": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "nessuna+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 16,
+              "lineCount": 3,
+              "linesSha256": "ea79d2073afcd1620295c178c0c13f1833276228137dde9f0756c1d7028acce0",
+              "headerSha256": null,
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "prefisso+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "uguale": {
+          "suspicion": null,
+          "requests": []
+        },
+        "uguale+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "headerCambiato": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 19,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "headerCambiato+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "rigaCambiata+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        },
+        "piuLunga+forza": {
+          "suspicion": "righe scout diminuite da 20 a 19",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 19,
+              "linesSha256": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1",
+              "headerSha256": "3d90e0e87d5e9a3a00fb008d49de852c94ecdcdc4af1ddbaa4e2d009efabaeec",
+              "contentHash": "4953e1c0e61ceae603d21d13b209764e2522304d020b2ff02c84cfbacac628d1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "lungo-diviso",
+      "filePath": "E:\\partita.dvw",
+      "bytesBase64": "WzNEQVRBVk9MTEVZU0NPVVRdCkZJTEVGT1JNQVQ6IDIuMApHRU5FUkFUT1ItREFZOiAyMDI2LTAxLTEwIDE4OjAwOjAwCkdFTkVSQVRPUi1QUkc6IERBVEEgVk9MTEVZQkFMTCAyMDA3ClszTUFUQ0hdCjEwLzAxLzIwMjY7MTguMDAuMDA7MjAyNS8yMDI2O1NlcmllIEI7Ozs7OwpbM1RFQU1TXQpQQ0k7UGFsbGF2b2xvIENpdHTgOzE7Um9zc2kgTWFyaW87Ck9TUDtWb2xsZXkgT3NwaXRlOzA7QmlhbmNoaSBMdWNhOwpbM01PUkVdClBhbGF6emV0dG87Um9tYTsKWzNTRVRdClRydWU7OC02OzE2LTEyOzIxLTE4OzI1LTIzOzMyOwpbM1BMQVlFUlMtSF0KMDs3OzE7MTs7Ozs7MTAwMTtWZXJkaTtBbm5hO0FubmllO0w7MTs7CjA7MTQ7MjsyOzs7OzsxMDAyO05lcmk7U2FyYTs7Qzs1OzsKMDsxODszOyo7KjsqOyo7KjsxMDAzO1Jvc3NpO0dpYW5uYTs7OzM7OwpbM1BMQVlFUlMtVl0KMTszOzE7Mzs7Ozs7MjAwMTtHaWFsbGk7RWxlbmE7OzsyOzsKWzNXSU5OSU5HU1lNQk9MU10KWzNSRVNFUlZFXQpbM1NDT1VUXQoqUDA3PkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYVAwNTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKnoxPkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYXoxOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphMDVTTS1+fn4xNkE7czs7OzAzMjg7OzgyNzU7MTUuMDguNDU7MTsxOzY7MTsxODA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowN1JRKztzOzs7Ozs7MTguMDAuMDQ7MTsxOzY7MTsxMDQ7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxNEVIK0sxQztzOzs7Ozs7MTguMDAuMDY7MTsxOzY7MTsxMDY7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxOEFII1g1RjQ1QkgyO3M7OzswNTE1Ozs4MDQwOzE4LjAwLjA4OzE7MTs2OzE7MTA4Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqJCQmSCM7Ozs7Ozs7MTguMDAuMDk7MTsxOzY7MTsxMDk7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CipwMDE6MDA7Ozs7Ozs7MTguMDAuMTA7MTsxOzY7MTsxMTA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMlNNLTtzOzs7Ozs7MTguMDAuMTI7MTsxOzY7MTsxMTI7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFUOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqVDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKmMwNToxMjs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYWMwNDowOTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYTAzU1E9fn5+fn47Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFwMDE6MDE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMVNNITs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKioxc2V0Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqUDA3PkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYVAwNTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKnoxPkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYXoxOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphMDVTTS1+fn4xNkE7czs7OzAzMjg7OzgyNzU7MTUuMDguNDU7MTsxOzY7MTsxODA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowN1JRKztzOzs7Ozs7MTguMDAuMDQ7MTsxOzY7MTsxMDQ7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxNEVIK0sxQztzOzs7Ozs7MTguMDAuMDY7MTsxOzY7MTsxMDY7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxOEFII1g1RjQ1QkgyO3M7OzswNTE1Ozs4MDQwOzE4LjAwLjA4OzE7MTs2OzE7MTA4Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqJCQmSCM7Ozs7Ozs7MTguMDAuMDk7MTsxOzY7MTsxMDk7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CipwMDE6MDA7Ozs7Ozs7MTguMDAuMTA7MTsxOzY7MTsxMTA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMlNNLTtzOzs7Ozs7MTguMDAuMTI7MTsxOzY7MTsxMTI7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFUOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqVDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKmMwNToxMjs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYWMwNDowOTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYTAzU1E9fn5+fn47Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFwMDE6MDE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMVNNITs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKioxc2V0Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqUDA3PkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYVAwNTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKnoxPkxVcDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYXoxOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwphMDVTTS1+fn4xNkE7czs7OzAzMjg7OzgyNzU7MTUuMDguNDU7MTsxOzY7MTsxODA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowN1JRKztzOzs7Ozs7MTguMDAuMDQ7MTsxOzY7MTsxMDQ7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxNEVIK0sxQztzOzs7Ozs7MTguMDAuMDY7MTsxOzY7MTsxMDY7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CioxOEFII1g1RjQ1QkgyO3M7OzswNTE1Ozs4MDQwOzE4LjAwLjA4OzE7MTs2OzE7MTA4Ozs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqJCQmSCM7Ozs7Ozs7MTguMDAuMDk7MTsxOzY7MTsxMDk7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CipwMDE6MDA7Ozs7Ozs7MTguMDAuMTA7MTsxOzY7MTsxMTA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMlNNLTtzOzs7Ozs7MTguMDAuMTI7MTsxOzY7MTsxMTI7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFUOzs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwoqVDs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKmMwNToxMjs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYWMwNDowOTs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKYTAzU1E9fn5+fn47Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CmFwMDE6MDE7Ozs7Ozs7MTguMDAuMDE7MTsxOzY7MTsxMDA7Ozc7MTQ7MTg7MjsxNzsxMjs2Ozg7NTszOzk7MTE7CiowMVNNITs7Ozs7OzsxOC4wMC4wMTsxOzE7NjsxOzEwMDs7NzsxNDsxODsyOzE3OzEyOzY7ODs1OzM7OTsxMTsKKioxc2V0Ozs7Ozs7OzE4LjAwLjAxOzE7MTs2OzE7MTAwOzs3OzE0OzE4OzI7MTc7MTI7Njs4OzU7Mzs5OzExOwo=",
+      "bytesHash": "c279cd01a4194fdc4ba7e342a9e6b83c4ca7a34057242cfe323b0b9d0be2b522",
+      "maxLines": 7,
+      "header": "[3DATAVOLLEYSCOUT]\nFILEFORMAT: 2.0\nGENERATOR-DAY: 2026-01-10 18:00:00\nGENERATOR-PRG: DATA VOLLEYBALL 2007\n[3MATCH]\n10/01/2026;18.00.00;2025/2026;Serie B;;;;;\n[3TEAMS]\nPCI;Pallavolo Città;1;Rossi Mario;\nOSP;Volley Ospite;0;Bianchi Luca;\n[3MORE]\nPalazzetto;Roma;\n[3SET]\nTrue;8-6;16-12;21-18;25-23;32;\n[3PLAYERS-H]\n0;7;1;1;;;;;1001;Verdi;Anna;Annie;L;1;;\n0;14;2;2;;;;;1002;Neri;Sara;;C;5;;\n0;18;3;*;*;*;*;*;1003;Rossi;Gianna;;;3;;\n[3PLAYERS-V]\n1;3;1;3;;;;;2001;Gialli;Elena;;;2;;\n[3WINNINGSYMBOLS]\n[3RESERVE]\n",
+      "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+      "lines": [
+        "*P07>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aP05;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*z1>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "az1;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a05SM-~~~16A;s;;;0328;;8275;15.08.45;1;1;6;1;180;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*07RQ+;s;;;;;;18.00.04;1;1;6;1;104;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*14EH+K1C;s;;;;;;18.00.06;1;1;6;1;106;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*18AH#X5F45BH2;s;;;0515;;8040;18.00.08;1;1;6;1;108;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*$$&H#;;;;;;;18.00.09;1;1;6;1;109;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*p01:00;;;;;;;18.00.10;1;1;6;1;110;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*02SM-;s;;;;;;18.00.12;1;1;6;1;112;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aT;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*T;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*c05:12;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ac04:09;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a03SQ=~~~~~;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ap01:01;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*01SM!;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "**1set;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*P07>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aP05;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*z1>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "az1;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a05SM-~~~16A;s;;;0328;;8275;15.08.45;1;1;6;1;180;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*07RQ+;s;;;;;;18.00.04;1;1;6;1;104;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*14EH+K1C;s;;;;;;18.00.06;1;1;6;1;106;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*18AH#X5F45BH2;s;;;0515;;8040;18.00.08;1;1;6;1;108;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*$$&H#;;;;;;;18.00.09;1;1;6;1;109;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*p01:00;;;;;;;18.00.10;1;1;6;1;110;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*02SM-;s;;;;;;18.00.12;1;1;6;1;112;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aT;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*T;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*c05:12;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ac04:09;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a03SQ=~~~~~;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ap01:01;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*01SM!;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "**1set;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*P07>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aP05;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*z1>LUp;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "az1;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a05SM-~~~16A;s;;;0328;;8275;15.08.45;1;1;6;1;180;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*07RQ+;s;;;;;;18.00.04;1;1;6;1;104;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*14EH+K1C;s;;;;;;18.00.06;1;1;6;1;106;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*18AH#X5F45BH2;s;;;0515;;8040;18.00.08;1;1;6;1;108;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*$$&H#;;;;;;;18.00.09;1;1;6;1;109;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*p01:00;;;;;;;18.00.10;1;1;6;1;110;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*02SM-;s;;;;;;18.00.12;1;1;6;1;112;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "aT;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*T;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*c05:12;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ac04:09;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "a03SQ=~~~~~;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "ap01:01;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "*01SM!;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;",
+        "**1set;;;;;;;18.00.01;1;1;6;1;100;;7;14;18;2;17;12;6;8;5;3;9;11;"
+      ],
+      "endsWithNewline": true,
+      "matchKey": "10-01-2026_18-00-00_pci_osp_0f451be797",
+      "suspicionWithoutBase": null,
+      "plans": {
+        "nessuna": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 7,
+              "linesSha256": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 7,
+              "lineCount": 7,
+              "linesSha256": "2e23ad9521308ef668616b4984e2c1d7bfb9bbea1049c1212fe239ef8aff1fff",
+              "headerSha256": null,
+              "contentHash": "9bb343d0460c1a5dd9d3299fddf9ab0af6f933c405c9f22608b0530e7e642c6e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 14,
+              "lineCount": 7,
+              "linesSha256": "dd6cbc11770f781ff585854d64ddfe2e1a6f4a0604f886ec9256b154fad2fc0b",
+              "headerSha256": null,
+              "contentHash": "8c187ec68e414701f0a9aa82566f3b19fcd2379c4334c652027e9db332515a1e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 21,
+              "lineCount": 7,
+              "linesSha256": "bc6b4392b2bea630f341e48123a4529962aeb23078cee096cf8b6e923a1ddf93",
+              "headerSha256": null,
+              "contentHash": "035e49ca8643719ceb4756de92065256b896c23998c58745e946e6e573bb6f4e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 28,
+              "lineCount": 7,
+              "linesSha256": "edf4fb2d214927c2ef28f7180f6fbbb782b750bb326033bdf56a489a1fde377c",
+              "headerSha256": null,
+              "contentHash": "e88bd9aa056a267228f63fcbd75d8a62bc614a667c34841b14cce9098adb9b13"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 35,
+              "lineCount": 7,
+              "linesSha256": "6b82b4a47af23ec2d4f1e612309833372a648f9e9e5726719d1b2ed86850a15f",
+              "headerSha256": null,
+              "contentHash": "a458d9e12517a112159d7dc10e55caff30c74d75263b3ea9a04d061b8bc8b680"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 42,
+              "lineCount": 7,
+              "linesSha256": "1e843fd11c14f18dbe2a3f13fc38f99fc63086b084ebf586762c4e183c02c024",
+              "headerSha256": null,
+              "contentHash": "1163c7228bd284c6d029d7d935b84cf4e02ae76df2bfafda04542d92557edfa4"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 49,
+              "lineCount": 7,
+              "linesSha256": "44de85a3d21b219cbfd9aabef915c108b35982577e42957a1fbc55ab4244d35c",
+              "headerSha256": null,
+              "contentHash": "d816db2a12a829f5dfef4906a2ce6806efb95e485aef1f1983ea780c641d162c"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 56,
+              "lineCount": 1,
+              "linesSha256": "be6bb4f5e492365f7d120b2ffcaddc5ecb62fb70e32371dbe4b7071ccd003692",
+              "headerSha256": null,
+              "contentHash": "06e012041c5ce515e2260b1a1b62f14f6062fbfed3dd69842789512b255bed97"
+            }
+          ]
+        },
+        "nessuna+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 7,
+              "linesSha256": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 7,
+              "lineCount": 7,
+              "linesSha256": "2e23ad9521308ef668616b4984e2c1d7bfb9bbea1049c1212fe239ef8aff1fff",
+              "headerSha256": null,
+              "contentHash": "9bb343d0460c1a5dd9d3299fddf9ab0af6f933c405c9f22608b0530e7e642c6e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 14,
+              "lineCount": 7,
+              "linesSha256": "dd6cbc11770f781ff585854d64ddfe2e1a6f4a0604f886ec9256b154fad2fc0b",
+              "headerSha256": null,
+              "contentHash": "8c187ec68e414701f0a9aa82566f3b19fcd2379c4334c652027e9db332515a1e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 21,
+              "lineCount": 7,
+              "linesSha256": "bc6b4392b2bea630f341e48123a4529962aeb23078cee096cf8b6e923a1ddf93",
+              "headerSha256": null,
+              "contentHash": "035e49ca8643719ceb4756de92065256b896c23998c58745e946e6e573bb6f4e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 28,
+              "lineCount": 7,
+              "linesSha256": "edf4fb2d214927c2ef28f7180f6fbbb782b750bb326033bdf56a489a1fde377c",
+              "headerSha256": null,
+              "contentHash": "e88bd9aa056a267228f63fcbd75d8a62bc614a667c34841b14cce9098adb9b13"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 35,
+              "lineCount": 7,
+              "linesSha256": "6b82b4a47af23ec2d4f1e612309833372a648f9e9e5726719d1b2ed86850a15f",
+              "headerSha256": null,
+              "contentHash": "a458d9e12517a112159d7dc10e55caff30c74d75263b3ea9a04d061b8bc8b680"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 42,
+              "lineCount": 7,
+              "linesSha256": "1e843fd11c14f18dbe2a3f13fc38f99fc63086b084ebf586762c4e183c02c024",
+              "headerSha256": null,
+              "contentHash": "1163c7228bd284c6d029d7d935b84cf4e02ae76df2bfafda04542d92557edfa4"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 49,
+              "lineCount": 7,
+              "linesSha256": "44de85a3d21b219cbfd9aabef915c108b35982577e42957a1fbc55ab4244d35c",
+              "headerSha256": null,
+              "contentHash": "d816db2a12a829f5dfef4906a2ce6806efb95e485aef1f1983ea780c641d162c"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 56,
+              "lineCount": 1,
+              "linesSha256": "be6bb4f5e492365f7d120b2ffcaddc5ecb62fb70e32371dbe4b7071ccd003692",
+              "headerSha256": null,
+              "contentHash": "06e012041c5ce515e2260b1a1b62f14f6062fbfed3dd69842789512b255bed97"
+            }
+          ]
+        },
+        "prefisso": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 54,
+              "lineCount": 3,
+              "linesSha256": "ea79d2073afcd1620295c178c0c13f1833276228137dde9f0756c1d7028acce0",
+              "headerSha256": null,
+              "contentHash": "06e012041c5ce515e2260b1a1b62f14f6062fbfed3dd69842789512b255bed97"
+            }
+          ]
+        },
+        "prefisso+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 7,
+              "linesSha256": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 7,
+              "lineCount": 7,
+              "linesSha256": "2e23ad9521308ef668616b4984e2c1d7bfb9bbea1049c1212fe239ef8aff1fff",
+              "headerSha256": null,
+              "contentHash": "9bb343d0460c1a5dd9d3299fddf9ab0af6f933c405c9f22608b0530e7e642c6e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 14,
+              "lineCount": 7,
+              "linesSha256": "dd6cbc11770f781ff585854d64ddfe2e1a6f4a0604f886ec9256b154fad2fc0b",
+              "headerSha256": null,
+              "contentHash": "8c187ec68e414701f0a9aa82566f3b19fcd2379c4334c652027e9db332515a1e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 21,
+              "lineCount": 7,
+              "linesSha256": "bc6b4392b2bea630f341e48123a4529962aeb23078cee096cf8b6e923a1ddf93",
+              "headerSha256": null,
+              "contentHash": "035e49ca8643719ceb4756de92065256b896c23998c58745e946e6e573bb6f4e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 28,
+              "lineCount": 7,
+              "linesSha256": "edf4fb2d214927c2ef28f7180f6fbbb782b750bb326033bdf56a489a1fde377c",
+              "headerSha256": null,
+              "contentHash": "e88bd9aa056a267228f63fcbd75d8a62bc614a667c34841b14cce9098adb9b13"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 35,
+              "lineCount": 7,
+              "linesSha256": "6b82b4a47af23ec2d4f1e612309833372a648f9e9e5726719d1b2ed86850a15f",
+              "headerSha256": null,
+              "contentHash": "a458d9e12517a112159d7dc10e55caff30c74d75263b3ea9a04d061b8bc8b680"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 42,
+              "lineCount": 7,
+              "linesSha256": "1e843fd11c14f18dbe2a3f13fc38f99fc63086b084ebf586762c4e183c02c024",
+              "headerSha256": null,
+              "contentHash": "1163c7228bd284c6d029d7d935b84cf4e02ae76df2bfafda04542d92557edfa4"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 49,
+              "lineCount": 7,
+              "linesSha256": "44de85a3d21b219cbfd9aabef915c108b35982577e42957a1fbc55ab4244d35c",
+              "headerSha256": null,
+              "contentHash": "d816db2a12a829f5dfef4906a2ce6806efb95e485aef1f1983ea780c641d162c"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 56,
+              "lineCount": 1,
+              "linesSha256": "be6bb4f5e492365f7d120b2ffcaddc5ecb62fb70e32371dbe4b7071ccd003692",
+              "headerSha256": null,
+              "contentHash": "06e012041c5ce515e2260b1a1b62f14f6062fbfed3dd69842789512b255bed97"
+            }
+          ]
+        },
+        "uguale": {
+          "suspicion": null,
+          "requests": []
+        },
+        "uguale+forza": {
+          "suspicion": null,
+          "requests": []
+        },
+        "headerCambiato": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "append",
+              "fromIndex": 57,
+              "lineCount": 0,
+              "linesSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "06e012041c5ce515e2260b1a1b62f14f6062fbfed3dd69842789512b255bed97"
+            }
+          ]
+        },
+        "headerCambiato+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 7,
+              "linesSha256": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 7,
+              "lineCount": 7,
+              "linesSha256": "2e23ad9521308ef668616b4984e2c1d7bfb9bbea1049c1212fe239ef8aff1fff",
+              "headerSha256": null,
+              "contentHash": "9bb343d0460c1a5dd9d3299fddf9ab0af6f933c405c9f22608b0530e7e642c6e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 14,
+              "lineCount": 7,
+              "linesSha256": "dd6cbc11770f781ff585854d64ddfe2e1a6f4a0604f886ec9256b154fad2fc0b",
+              "headerSha256": null,
+              "contentHash": "8c187ec68e414701f0a9aa82566f3b19fcd2379c4334c652027e9db332515a1e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 21,
+              "lineCount": 7,
+              "linesSha256": "bc6b4392b2bea630f341e48123a4529962aeb23078cee096cf8b6e923a1ddf93",
+              "headerSha256": null,
+              "contentHash": "035e49ca8643719ceb4756de92065256b896c23998c58745e946e6e573bb6f4e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 28,
+              "lineCount": 7,
+              "linesSha256": "edf4fb2d214927c2ef28f7180f6fbbb782b750bb326033bdf56a489a1fde377c",
+              "headerSha256": null,
+              "contentHash": "e88bd9aa056a267228f63fcbd75d8a62bc614a667c34841b14cce9098adb9b13"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 35,
+              "lineCount": 7,
+              "linesSha256": "6b82b4a47af23ec2d4f1e612309833372a648f9e9e5726719d1b2ed86850a15f",
+              "headerSha256": null,
+              "contentHash": "a458d9e12517a112159d7dc10e55caff30c74d75263b3ea9a04d061b8bc8b680"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 42,
+              "lineCount": 7,
+              "linesSha256": "1e843fd11c14f18dbe2a3f13fc38f99fc63086b084ebf586762c4e183c02c024",
+              "headerSha256": null,
+              "contentHash": "1163c7228bd284c6d029d7d935b84cf4e02ae76df2bfafda04542d92557edfa4"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 49,
+              "lineCount": 7,
+              "linesSha256": "44de85a3d21b219cbfd9aabef915c108b35982577e42957a1fbc55ab4244d35c",
+              "headerSha256": null,
+              "contentHash": "d816db2a12a829f5dfef4906a2ce6806efb95e485aef1f1983ea780c641d162c"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 56,
+              "lineCount": 1,
+              "linesSha256": "be6bb4f5e492365f7d120b2ffcaddc5ecb62fb70e32371dbe4b7071ccd003692",
+              "headerSha256": null,
+              "contentHash": "06e012041c5ce515e2260b1a1b62f14f6062fbfed3dd69842789512b255bed97"
+            }
+          ]
+        },
+        "rigaCambiata": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 7,
+              "linesSha256": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 7,
+              "lineCount": 7,
+              "linesSha256": "2e23ad9521308ef668616b4984e2c1d7bfb9bbea1049c1212fe239ef8aff1fff",
+              "headerSha256": null,
+              "contentHash": "9bb343d0460c1a5dd9d3299fddf9ab0af6f933c405c9f22608b0530e7e642c6e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 14,
+              "lineCount": 7,
+              "linesSha256": "dd6cbc11770f781ff585854d64ddfe2e1a6f4a0604f886ec9256b154fad2fc0b",
+              "headerSha256": null,
+              "contentHash": "8c187ec68e414701f0a9aa82566f3b19fcd2379c4334c652027e9db332515a1e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 21,
+              "lineCount": 7,
+              "linesSha256": "bc6b4392b2bea630f341e48123a4529962aeb23078cee096cf8b6e923a1ddf93",
+              "headerSha256": null,
+              "contentHash": "035e49ca8643719ceb4756de92065256b896c23998c58745e946e6e573bb6f4e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 28,
+              "lineCount": 7,
+              "linesSha256": "edf4fb2d214927c2ef28f7180f6fbbb782b750bb326033bdf56a489a1fde377c",
+              "headerSha256": null,
+              "contentHash": "e88bd9aa056a267228f63fcbd75d8a62bc614a667c34841b14cce9098adb9b13"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 35,
+              "lineCount": 7,
+              "linesSha256": "6b82b4a47af23ec2d4f1e612309833372a648f9e9e5726719d1b2ed86850a15f",
+              "headerSha256": null,
+              "contentHash": "a458d9e12517a112159d7dc10e55caff30c74d75263b3ea9a04d061b8bc8b680"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 42,
+              "lineCount": 7,
+              "linesSha256": "1e843fd11c14f18dbe2a3f13fc38f99fc63086b084ebf586762c4e183c02c024",
+              "headerSha256": null,
+              "contentHash": "1163c7228bd284c6d029d7d935b84cf4e02ae76df2bfafda04542d92557edfa4"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 49,
+              "lineCount": 7,
+              "linesSha256": "44de85a3d21b219cbfd9aabef915c108b35982577e42957a1fbc55ab4244d35c",
+              "headerSha256": null,
+              "contentHash": "d816db2a12a829f5dfef4906a2ce6806efb95e485aef1f1983ea780c641d162c"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 56,
+              "lineCount": 1,
+              "linesSha256": "be6bb4f5e492365f7d120b2ffcaddc5ecb62fb70e32371dbe4b7071ccd003692",
+              "headerSha256": null,
+              "contentHash": "06e012041c5ce515e2260b1a1b62f14f6062fbfed3dd69842789512b255bed97"
+            }
+          ]
+        },
+        "rigaCambiata+forza": {
+          "suspicion": null,
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 7,
+              "linesSha256": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 7,
+              "lineCount": 7,
+              "linesSha256": "2e23ad9521308ef668616b4984e2c1d7bfb9bbea1049c1212fe239ef8aff1fff",
+              "headerSha256": null,
+              "contentHash": "9bb343d0460c1a5dd9d3299fddf9ab0af6f933c405c9f22608b0530e7e642c6e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 14,
+              "lineCount": 7,
+              "linesSha256": "dd6cbc11770f781ff585854d64ddfe2e1a6f4a0604f886ec9256b154fad2fc0b",
+              "headerSha256": null,
+              "contentHash": "8c187ec68e414701f0a9aa82566f3b19fcd2379c4334c652027e9db332515a1e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 21,
+              "lineCount": 7,
+              "linesSha256": "bc6b4392b2bea630f341e48123a4529962aeb23078cee096cf8b6e923a1ddf93",
+              "headerSha256": null,
+              "contentHash": "035e49ca8643719ceb4756de92065256b896c23998c58745e946e6e573bb6f4e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 28,
+              "lineCount": 7,
+              "linesSha256": "edf4fb2d214927c2ef28f7180f6fbbb782b750bb326033bdf56a489a1fde377c",
+              "headerSha256": null,
+              "contentHash": "e88bd9aa056a267228f63fcbd75d8a62bc614a667c34841b14cce9098adb9b13"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 35,
+              "lineCount": 7,
+              "linesSha256": "6b82b4a47af23ec2d4f1e612309833372a648f9e9e5726719d1b2ed86850a15f",
+              "headerSha256": null,
+              "contentHash": "a458d9e12517a112159d7dc10e55caff30c74d75263b3ea9a04d061b8bc8b680"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 42,
+              "lineCount": 7,
+              "linesSha256": "1e843fd11c14f18dbe2a3f13fc38f99fc63086b084ebf586762c4e183c02c024",
+              "headerSha256": null,
+              "contentHash": "1163c7228bd284c6d029d7d935b84cf4e02ae76df2bfafda04542d92557edfa4"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 49,
+              "lineCount": 7,
+              "linesSha256": "44de85a3d21b219cbfd9aabef915c108b35982577e42957a1fbc55ab4244d35c",
+              "headerSha256": null,
+              "contentHash": "d816db2a12a829f5dfef4906a2ce6806efb95e485aef1f1983ea780c641d162c"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 56,
+              "lineCount": 1,
+              "linesSha256": "be6bb4f5e492365f7d120b2ffcaddc5ecb62fb70e32371dbe4b7071ccd003692",
+              "headerSha256": null,
+              "contentHash": "06e012041c5ce515e2260b1a1b62f14f6062fbfed3dd69842789512b255bed97"
+            }
+          ]
+        },
+        "piuLunga": {
+          "suspicion": "righe scout diminuite da 58 a 57",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 7,
+              "linesSha256": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 7,
+              "lineCount": 7,
+              "linesSha256": "2e23ad9521308ef668616b4984e2c1d7bfb9bbea1049c1212fe239ef8aff1fff",
+              "headerSha256": null,
+              "contentHash": "9bb343d0460c1a5dd9d3299fddf9ab0af6f933c405c9f22608b0530e7e642c6e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 14,
+              "lineCount": 7,
+              "linesSha256": "dd6cbc11770f781ff585854d64ddfe2e1a6f4a0604f886ec9256b154fad2fc0b",
+              "headerSha256": null,
+              "contentHash": "8c187ec68e414701f0a9aa82566f3b19fcd2379c4334c652027e9db332515a1e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 21,
+              "lineCount": 7,
+              "linesSha256": "bc6b4392b2bea630f341e48123a4529962aeb23078cee096cf8b6e923a1ddf93",
+              "headerSha256": null,
+              "contentHash": "035e49ca8643719ceb4756de92065256b896c23998c58745e946e6e573bb6f4e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 28,
+              "lineCount": 7,
+              "linesSha256": "edf4fb2d214927c2ef28f7180f6fbbb782b750bb326033bdf56a489a1fde377c",
+              "headerSha256": null,
+              "contentHash": "e88bd9aa056a267228f63fcbd75d8a62bc614a667c34841b14cce9098adb9b13"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 35,
+              "lineCount": 7,
+              "linesSha256": "6b82b4a47af23ec2d4f1e612309833372a648f9e9e5726719d1b2ed86850a15f",
+              "headerSha256": null,
+              "contentHash": "a458d9e12517a112159d7dc10e55caff30c74d75263b3ea9a04d061b8bc8b680"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 42,
+              "lineCount": 7,
+              "linesSha256": "1e843fd11c14f18dbe2a3f13fc38f99fc63086b084ebf586762c4e183c02c024",
+              "headerSha256": null,
+              "contentHash": "1163c7228bd284c6d029d7d935b84cf4e02ae76df2bfafda04542d92557edfa4"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 49,
+              "lineCount": 7,
+              "linesSha256": "44de85a3d21b219cbfd9aabef915c108b35982577e42957a1fbc55ab4244d35c",
+              "headerSha256": null,
+              "contentHash": "d816db2a12a829f5dfef4906a2ce6806efb95e485aef1f1983ea780c641d162c"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 56,
+              "lineCount": 1,
+              "linesSha256": "be6bb4f5e492365f7d120b2ffcaddc5ecb62fb70e32371dbe4b7071ccd003692",
+              "headerSha256": null,
+              "contentHash": "06e012041c5ce515e2260b1a1b62f14f6062fbfed3dd69842789512b255bed97"
+            }
+          ]
+        },
+        "piuLunga+forza": {
+          "suspicion": "righe scout diminuite da 58 a 57",
+          "requests": [
+            {
+              "kind": "snapshot",
+              "fromIndex": 0,
+              "lineCount": 7,
+              "linesSha256": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced",
+              "headerSha256": "9e0ae2a1b9506256ba639749028e0bcf300d328cc978eb1cb211ce13c1fbc415",
+              "contentHash": "1bcdfa42d24ef7cb112b9f2c1805408536ee4e3f63e448df4106f94c658d4ced"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 7,
+              "lineCount": 7,
+              "linesSha256": "2e23ad9521308ef668616b4984e2c1d7bfb9bbea1049c1212fe239ef8aff1fff",
+              "headerSha256": null,
+              "contentHash": "9bb343d0460c1a5dd9d3299fddf9ab0af6f933c405c9f22608b0530e7e642c6e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 14,
+              "lineCount": 7,
+              "linesSha256": "dd6cbc11770f781ff585854d64ddfe2e1a6f4a0604f886ec9256b154fad2fc0b",
+              "headerSha256": null,
+              "contentHash": "8c187ec68e414701f0a9aa82566f3b19fcd2379c4334c652027e9db332515a1e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 21,
+              "lineCount": 7,
+              "linesSha256": "bc6b4392b2bea630f341e48123a4529962aeb23078cee096cf8b6e923a1ddf93",
+              "headerSha256": null,
+              "contentHash": "035e49ca8643719ceb4756de92065256b896c23998c58745e946e6e573bb6f4e"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 28,
+              "lineCount": 7,
+              "linesSha256": "edf4fb2d214927c2ef28f7180f6fbbb782b750bb326033bdf56a489a1fde377c",
+              "headerSha256": null,
+              "contentHash": "e88bd9aa056a267228f63fcbd75d8a62bc614a667c34841b14cce9098adb9b13"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 35,
+              "lineCount": 7,
+              "linesSha256": "6b82b4a47af23ec2d4f1e612309833372a648f9e9e5726719d1b2ed86850a15f",
+              "headerSha256": null,
+              "contentHash": "a458d9e12517a112159d7dc10e55caff30c74d75263b3ea9a04d061b8bc8b680"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 42,
+              "lineCount": 7,
+              "linesSha256": "1e843fd11c14f18dbe2a3f13fc38f99fc63086b084ebf586762c4e183c02c024",
+              "headerSha256": null,
+              "contentHash": "1163c7228bd284c6d029d7d935b84cf4e02ae76df2bfafda04542d92557edfa4"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 49,
+              "lineCount": 7,
+              "linesSha256": "44de85a3d21b219cbfd9aabef915c108b35982577e42957a1fbc55ab4244d35c",
+              "headerSha256": null,
+              "contentHash": "d816db2a12a829f5dfef4906a2ce6806efb95e485aef1f1983ea780c641d162c"
+            },
+            {
+              "kind": "append",
+              "fromIndex": 56,
+              "lineCount": 1,
+              "linesSha256": "be6bb4f5e492365f7d120b2ffcaddc5ecb62fb70e32371dbe4b7071ccd003692",
+              "headerSha256": null,
+              "contentHash": "06e012041c5ce515e2260b1a1b62f14f6062fbfed3dd69842789512b255bed97"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

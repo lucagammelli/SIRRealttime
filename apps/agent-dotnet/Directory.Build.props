@@ -1,0 +1,19 @@
+<Project>
+  <!-- Comune a tutti i progetti dell'agente C#. Version si passa dallo script di build (-p:Version=...). -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <Version Condition="'$(Version)' == ''">0.1.0</Version>
+    <Company>SIRRealtime</Company>
+    <Product>SIRRealtime Agent</Product>
+    <Authors>SIRRealtime</Authors>
+    <Copyright>Copyright © 2026 SIRRealtime</Copyright>
+    <NeutralLanguage>it-IT</NeutralLanguage>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+</Project>

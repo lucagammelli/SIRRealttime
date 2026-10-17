@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "protocol": {
+      "type": "number",
+      "const": 1
+    },
+    "matchKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._-]+$"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "append",
+        "snapshot"
+      ]
+    },
+    "fromIndex": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "lines": {
+      "maxItems": 5000,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 2000,
+        "not": {
+          "anyOf": [
+            {
+              "pattern": "[\\r\\n]"
+            },
+            {
+              "pattern": "\\u0000"
+            },
+            {
+              "pattern": "^[\\t\\n\\u000b\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]*\\[3[A-Z0-9-]+\\][\\t\\n\\u000b\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]*$"
+            }
+          ]
+        }
+      }
+    },
+    "header": {
+      "type": "string",
+      "maxLength": 524288,
+      "not": {
+        "anyOf": [
+          {
+            "pattern": "\\u0000"
+          },
+          {
+            "pattern": "\\[3SCOUT\\]"
+          }
+        ]
+      }
+    },
+    "contentHash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "protocol",
+    "matchKey",
+    "seq",
+    "kind",
+    "fromIndex",
+    "lines",
+    "contentHash"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "snapshot"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "header"
+        ],
+        "properties": {
+          "fromIndex": {
+            "const": 0
+          }
+        }
+      }
+    }
+  ]
+}

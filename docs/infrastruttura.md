@@ -186,6 +186,35 @@ USCITA="$USCITA" NODE_VERSIONE="$NODE_VERSIONE" scripts/costruisci-agente.sh
 `USCITA` e `NODE_VERSIONE` possono anche restare vuote: i default sono `$HOME/sir-agent-download` e la versione del node
 locale.
 
+### Agente C# (`scripts/costruisci-agente-dotnet.sh`)
+Costruisce da Linux l'agente C# (`apps/agent-dotnet`, `docs/agente.md`): prima i test xUnit della libreria core, poi
+`dotnet publish` di `sir-agent.exe` (win-x64, exe unico autosufficiente e compresso, circa 48 MB). Tutto in un container
+temporaneo `mcr.microsoft.com/dotnet/sdk:10.0` (sul server non si installa nulla); i sorgenti sono copiati in una cartella
+`~/.sir-agent-dotnet-XXXXXX` (non in `/tmp`, che è in RAM). Prima di partire controlla Docker e lo spazio libero su `/`
+(almeno 5 GB, `SPAZIO_MINIMO_GB`); la prima volta scarica circa 1,5 GB. Output: `dist/sir-agent-<versione>.exe` (`dist/` è
+escluso da git) con messaggio finale di versione (`<versione>+<commit>`), dimensione e sha256.
+**Pulizia**: alla fine (anche in caso di errore) rimuove container e cartella temporanea; con `RIMUOVI_IMMAGINE=1`
+(default) rimuove anche l'immagine SDK, ma solo se l'ha scaricata questa build (se c'era già, resta); con `0` la tiene
+sempre per la build successiva.
+Le variabili `VERSIONE` (a.b.c, default 0.1.0), `USCITA` (default `<radice>/dist`) e `RIMUOVI_IMMAGINE` si passano
+dall'ambiente.
+
+```bash
+# --- variabili ---
+RADICE="/percorso/del/repository"   # radice del repository o del worktree del job
+VERSIONE="0.1.0"                    # versione dell'agente: numeri a.b.c
+USCITA="$RADICE/dist"               # cartella dell'exe prodotto
+RIMUOVI_IMMAGINE="1"                # 1 = rimuove l'immagine SDK alla fine se l'ha scaricata la build; 0 = la tiene sempre
+
+# --- comandi ---
+cd "$RADICE"
+VERSIONE="$VERSIONE" USCITA="$USCITA" RIMUOVI_IMMAGINE="$RIMUOVI_IMMAGINE" scripts/costruisci-agente-dotnet.sh
+```
+
+**La CI locale non compila il C#** (`scripts/ci_locale.sh` esegue solo i passi Node). Proposta: un passo facoltativo, attivo
+solo se c'è Docker, che lancia questo script. Per i contratti, invece, la CI locale (test di `@sir/shared`) controlla già che
+gli schemi in `apps/agent-dotnet/schemas/` siano aggiornati.
+
 ### Prova di carico (`tools/carico`, `@sir/carico`)
 Apre N WebSocket pubblici contro un server, riproduce una partita `.dvw` tramite `POST /api/ingest` (un ingest ogni
 `--interval` ms) e misura latenza di consegna, byte per aggiornamento, connessioni respinte o chiuse, CPU e memoria del
@@ -248,7 +277,7 @@ Postgres LISTEN/NOTIFY).
 - `tsconfig.base.json`, `packages/*/tsconfig.json`, `packages/*/tsconfig.build.json`
 - `vitest.shared.ts`, `packages/*/vitest.config.ts`
 - `eslint.config.js`, `.prettierrc`, `.editorconfig`
-- `scripts/ci_locale.sh`, `scripts/costruisci-agente.sh`, `.env.example`
+- `scripts/ci_locale.sh`, `scripts/costruisci-agente.sh`, `scripts/costruisci-agente-dotnet.sh`, `.env.example`
 - `docker-compose.yml`, `docker/server.Dockerfile`, `docker/web.Dockerfile`, `docker/web.nginx.conf`,
   `docker/web.nginx.main.conf`, `docker/web.security-headers.conf`, `.dockerignore`, `apps/server/vitest.config.ts`
 - `tools/carico/src/cli.ts` (comandi `prova` e `dimensioni`), `spectators.ts` (processi degli spettatori), `metrics.ts`

@@ -18,7 +18,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "schemi:agente": "tsx --conditions=@sir/source scripts/genera-schemi-agente.ts"
   },
   "dependencies": {
     "@sir/dvw-parser": "workspace:*",
@@ -26,6 +27,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@sir/dvw-simulator": "workspace:*"
+    "@sir/dvw-simulator": "workspace:*",
+    "tsx": "^4.23.15"
   }
 }

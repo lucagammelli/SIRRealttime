@@ -137,7 +137,6 @@ dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in q
    dalla pagina «Agenti» come zip per cliente, con `config.json` del cliente (senza token), `branding.json` e logo che la
    finestra dell'agente mostra (`docs/server.md`, «Agente scaricabile»; `docs/agente.md`, `docs/portale.md`,
    `docs/infrastruttura.md`, `docs/architettura.md`); da provare su Windows.
-
 10. `template-sir-volley` (**fatto**, 2026-10-16): primo modello grafico (template) scelto dal cliente nella pagina
     «Grafica» («Modello grafico»): SIR VOLLEY, tema scuro forzato, rosso e bianco, font Google Sans Code self-hosted, logo
     SIR Real Time, pagina predefinita come il mockup (specifiche e originali in
@@ -197,6 +196,9 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
    portale (600 ms, al massimo 5, salto alla fine oltre 3 s e con movimento ridotto), attesa massima di 2 s
    nell'agente, colori mancanti dell'agente dal template (`docs/portale.md`, `docs/statistiche.md`, `docs/agente.md`,
    `docs/architettura.md`, `docs/server.md`).
+5. `agente-csharp` (**fatto** nel codice, 2026-10-17, **da provare su Windows da Luca**): agente riscritto in C# .NET 10 (`apps/agent-dotnet`,
+   exe unico, servizio senza NSSM, `scripts/costruisci-agente-dotnet.sh`); il portale scarica ancora l'agente Node finché
+   il C# non è provato; firma del codice ancora da fare (`docs/agente.md`, `docs/infrastruttura.md`, `docs/architettura.md`).
 **Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
 PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo
 mostra con «autore sconosciuto».

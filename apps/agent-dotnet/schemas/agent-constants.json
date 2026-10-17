@@ -1,0 +1,13 @@
+{
+  "ingestProtocol": 1,
+  "ingestMaxLines": 5000,
+  "ingestMaxLineLength": 2000,
+  "ingestMaxHeaderLength": 524288,
+  "scoutSectionMarker": "[3SCOUT]",
+  "agentExpiredError": "Registrazione scaduta: registrati di nuovo",
+  "pairingCodeAlphabet": "ABCDEFGHJKLMNPQRSTUVWXYZ23456789",
+  "pairingCodeLength": 6,
+  "agentBrandingVersion": 1,
+  "agentLogoMaxBytes": 2097152,
+  "agentLogoMaxSide": 1024
+}

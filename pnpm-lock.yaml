@@ -380,6 +380,9 @@ importers:
       '@sir/dvw-simulator':
         specifier: workspace:*
         version: link:../../tools/dvw-simulator
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
 
   packages/volley-stats:
     dependencies:

@@ -283,3 +283,15 @@ Una riga per decisione: data, scelta, motivo.
   non deve restare indietro sulla partita e chi riduce il movimento non vuole attese (`docs/portale.md`).
 - 2026-10-17: attesa massima di 2 s (`maxWaitMs`) per un file che cambia di continuo, perché un punto non resti fermo
   finché DataVolley scrive; polling non ridotto, perché a ritmo reale arriva già un punto per invio (`docs/agente.md`).
+- 2026-10-17: agente riscritto in C# .NET 10 LTS come exe unico single-file (scelta di Luca), perché è un linguaggio solido e
+  produce un exe nativo senza il trucco SEA/postject; il Node resta finché il C# non è provato su Windows (`docs/agente.md`).
+- 2026-10-17: l'agente C# si costruisce in un container temporaneo dell'SDK su Linux (`scripts/costruisci-agente-dotnet.sh`),
+  perché sul server non si installa .NET e il disco è poco: container, cache e immagine si rimuovono alla fine.
+- 2026-10-17: servizio dell'agente C# creato dall'exe stesso con `--service` e `New-Service`, senza NSSM, perché toglie una
+  dipendenza esterna da scaricare e il servizio gestisce da sé stop e codici di uscita.
+- 2026-10-17: contratti dell'agente C# come JSON Schema generati da zod (`pnpm --filter @sir/shared schemi:agente`) con test
+  che fallisce se sono vecchi, perché `packages/shared` resta l'unica fonte e il C# non può importare zod.
+- 2026-10-17: fedeltà al Node garantita da un riferimento generato dal codice Node (`riferimento-node.json`), perché hash,
+  `seq` e `matchKey` devono coincidere byte per byte e un confronto automatico evita di rifare i calcoli a mano.
+- 2026-10-17: librerie del C#: JsonSchema.Net (solo test), xunit.v3 (test), System.ServiceProcess.ServiceController
+  (servizio); `tsx` come devDependency di `@sir/shared` per generare gli schemi.

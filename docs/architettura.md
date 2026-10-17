@@ -290,6 +290,12 @@ Validità e quota degli agenti, canale, manifest: `admin.ts` ha `AgentSummary.ex
 
 Ogni schema ha il tipo omonimo senza `Schema` (`z.infer`). Dettagli d'uso: `docs/server.md`.
 
+**Schemi per l'agente C#**: l'agente in C# (`apps/agent-dotnet`, `docs/agente.md`) non può importare gli schemi zod, quindi
+`packages/shared/scripts/agent-schemas.ts` elenca quelli che lo riguardano (ingest, registrazione, errore API, grafica
+dell'agente) e `pnpm --filter @sir/shared schemi:agente` (`genera-schemi-agente.ts`) li scrive come JSON Schema in
+`apps/agent-dotnet/schemas/`, con `agent-constants.json`. Sono file generati, da non modificare; `agent-schemas.test.ts`
+fallisce se non sono aggiornati. Chi cambia quei contratti rigenera gli schemi e ricostruisce l'agente C#.
+
 ### Regole
 - **I contratti stanno solo in `packages/shared`**: server, agente e portale importano tipi e schemi da lì, mai definiti
   in copia.
@@ -308,7 +314,8 @@ RADICE="/percorso/del/repository"   # radice del repository o del worktree del j
 # --- comandi ---
 cd "$RADICE"
 pnpm install
-pnpm --filter @sir/shared test      # test dei contratti (ingest.test.ts, messages.test.ts)
+pnpm --filter @sir/shared test      # test dei contratti (ingest.test.ts, messages.test.ts, agent-schemas.test.ts)
+pnpm --filter @sir/shared schemi:agente   # rigenera gli schemi JSON dell'agente C#
 pnpm --filter @sir/server test      # il flusso completo agente→server→WebSocket con PGlite
 ```
 

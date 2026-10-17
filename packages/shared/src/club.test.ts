@@ -147,7 +147,16 @@ describe('logos of the teams', () => {
 
 describe('profile and broadcast of the matches', () => {
   it('reads an empty or invalid profile as the defaults («casa e trasferta», every logo)', () => {
-    const defaults = { series: null, coverage: 'homeAndAway', teamLogos: 'all' };
+    const defaults = {
+      series: null,
+      gender: null,
+      seriesId: null,
+      leagueId: null,
+      leagueIds: [],
+      newSeason: false,
+      coverage: 'homeAndAway',
+      teamLogos: 'all',
+    };
     expect(resolveClubProfile({})).toEqual(defaults);
     expect(resolveClubProfile({ coverage: 'boh' })).toEqual(defaults);
     expect(resolveClubProfile({ coverage: 'homeOnly' }).coverage).toBe('homeOnly');

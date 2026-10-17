@@ -313,6 +313,41 @@ chiave nelle Note; non c'è un nome breve della squadra (`short_name` resta vuot
 **Prova reale** (2026-10-16, `IdCampionato` 974, 2025/26): 22 giornate, 132 partite, 12 squadre, 12 loghi; Perugia prima con
 58 punti. Le pagine vere usate dai test sono in `apps/server/test/fixtures/legavolley/`.
 
+### Serie del club e catalogo (`src/leagues/catalog.ts`, `src/leagues/seasons.ts`, `src/routes/clubLeague.ts`)
+Lavoro «primo-accesso». Contratti in `packages/shared/src/leagues.ts` (`docs/architettura.md`); procedura nel portale in
+`docs/portale.md`. Il club sceglie **genere e serie** (oggi `M` e `superlega`/`a2`/`a3`) e il server trova il campionato
+della stagione in corso.
+- **Catalogo in memoria** (`LeagueCatalog`): la scoperta parte dalla pagina `/calendario/` del sito e segue gli
+  `IdCampionato` dei link di navigazione (dai più alti, la stagione più recente) finché ogni serie ha un campionato, al
+  massimo `CATALOG_MAX_PAGES` = 10 pagine. Gli indirizzi li costruiamo sempre noi (`calendarMenuUrl`,
+  `championshipPageUrl`): dal sito si leggono solo numeri. Una lettura serve tutti i clienti; è riletta dopo 12 ore su
+  richiesta (`CATALOG_MAX_AGE_MS`) e dall'aggiornamento notturno dopo 20 (`CATALOG_NIGHTLY_AGE_MS`), solo se un cliente
+  ha una serie. Una pagina di un campionato che dà `LeagueFormatError` è saltata (registrata nel log) e la scoperta prosegue; se alla fine manca la serie chiesta, la scelta dà `LEAGUE_FORMAT`. Se è cambiata la prima pagina, errore subito.
+- `GET /api/admin/club/league` (viewer): `ClubLeagueStatus`; `state` è `ready` quando ogni campionato della serie è stato
+  scaricato almeno una volta (anche se un aggiornamento successivo fallisce), `error` se uno non è mai riuscito,
+  altrimenti `downloading`; `none` senza serie.
+- `POST /api/admin/club/league` (admin; limite `RATE_LIMIT_LEAGUE_SYNC`): corpo `SelectClubLeagueRequestSchema`.
+  Aggiunge i campionati non noti (`linkSeries`), li collega al cliente (quelli della serie scelta prima vengono tolti; se
+  il cliente ha già una squadra in uno dei gironi resta solo quello) e avvia in background il download di quelli mai
+  scaricati (il lease dell'aggiornamento fa da blocco: niente parte due volte; un campionato già scaricato da altri è
+  riusato). Risposta **202** mentre scarica, **200** se pronto; **502** `LEAGUE_UNAVAILABLE` («Il sito della Lega non
+  risponde: riprova tra poco») o `LEAGUE_FORMAT` (pagina cambiata o serie assente dalla stagione); 400 per serie non del
+  genere.
+- **A3 ha due gironi**: si scaricano entrambi e `teams` li elenca insieme; quando il cliente sceglie la squadra
+  (`PUT /api/admin/club`, anche dalla pagina «Club») il server toglie gli altri gironi della serie e resta collegato solo il
+  girone di quella squadra.
+- **Cambio di stagione** (`advanceSeasons`, nell'aggiornamento notturno dopo la rilettura del catalogo): per ogni cliente
+  con una serie, se il catalogo nomina campionati diversi, li aggiunge e li scarica; a download riuscito il cliente passa
+  al nuovo con la stessa squadra (si tolgono solo i collegamenti della serie corrente: coppe e play off aggiunti dal
+  superadmin restano), ritrovata per id esterno o, in mancanza, per nome (`teamNameKey`). Se la squadra non
+  c'è, resta il vecchio campionato e il profilo segna `newSeason` («Nuova stagione: scegli di nuovo la squadra»). Un
+  errore su un cliente è registrato e non ferma gli altri.
+- `PUT /api/admin/club/profile` salva solo `coverage` e `teamLogos` del profilo; genere, serie, campionati e `newSeason`
+  restano quelli del database, anche se una scheda «Club» vecchia li rimanda.
+- **Primo accesso**: `GET /api/admin/onboarding` (viewer) e `POST /api/admin/onboarding/complete` (admin, «Fine»; imposta
+  `tenants.onboarded_at` una volta sola) rispondono con `OnboardingStatus` (`src/routes/onboarding.ts`). Colonna e
+  migrazione in «Database».
+
 ### Club, calendario e abbinamento (`src/club.ts`, `src/leagues/match.ts`, `src/matchLock.ts`, `src/routes/club.ts`)
 Ogni cliente sceglie uno o più campionati già noti (al massimo `CLUB_MAX_LEAGUES` = 8) e in ognuno la sua squadra
 (`tenant_leagues`). Dal calendario del campionato il server copia le partite di quella squadra in `client_fixtures`, dà a
@@ -729,6 +764,10 @@ come l'agente), così il comportamento è quello vero; la partita però è **iso
 | GET | `/api/admin/club` | sessione | viewer |
 | PUT | `/api/admin/club` | sessione | admin |
 | PUT | `/api/admin/club/profile` | sessione | admin |
+| GET | `/api/admin/club/league` | sessione | viewer |
+| POST | `/api/admin/club/league` | sessione, limite proprio `RATE_LIMIT_LEAGUE_SYNC` | admin |
+| GET | `/api/admin/onboarding` | sessione | viewer |
+| POST | `/api/admin/onboarding/complete` | sessione | admin |
 | GET | `/api/admin/club/leagues/:id/teams` | sessione | viewer |
 | POST | `/api/admin/club/sync` | sessione, limite proprio `RATE_LIMIT_LEAGUE_SYNC` | admin |
 | GET | `/api/admin/calendar` | sessione | viewer |
@@ -943,6 +982,9 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `mail_settings` | server di posta, **una sola riga** per tutto il sistema (`singleton` sempre vero, CHECK): `host`, `port` (1-65535), `security` (`none`/`starttls`/`tls`), `username`, `password_enc` (password cifrata AES-256-GCM con `SETTINGS_ENCRYPTION_KEY`, forma `v1.<iv>.<tag>.<testo>`, nulla se manca), `from_name`, `from_email`, `updated_at` (migrazione `0011_posta_inviti.sql`) |
 
 La migrazione `0011_posta_inviti.sql` crea `user_tokens` e `mail_settings`.
+
+La migrazione `0012_primo_accesso.sql` aggiunge `tenants.onboarded_at` (timestamp, nullo = procedura guidata da fare) e la
+imposta a `now()` per i clienti già configurati (con un campionato scelto, `club_profile` o `branding` non vuoti).
 
 La migrazione `0008_utenti_clienti.sql` aggiunge `users.disabled`, riporta `tenants.agent_quota` in [0, 100] e aggiunge il
 CHECK `tenants_agent_quota_check`.

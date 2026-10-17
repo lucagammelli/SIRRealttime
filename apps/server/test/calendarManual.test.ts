@@ -255,13 +255,18 @@ describe('coverage of the club and broadcast of one match', () => {
   it('defaults to «casa e trasferta»; «solo partite in casa» makes the away matches not broadcast', async () => {
     expect((await call({ url: '/api/admin/club' })).json<ClubResponse>().profile).toEqual({
       series: null,
+      gender: null,
+      seriesId: null,
+      leagueId: null,
+      leagueIds: [],
+      newSeason: false,
       coverage: 'homeAndAway',
       teamLogos: 'all',
     });
     const away = (await calendar()).fixtures.find((f) => f.origin === 'league' && f.ourSide === 'away');
     if (!away) throw new Error('no away match');
     expect((await publicState(away.link?.shortCode ?? '')).status).toBe(200);
-    expect((await putProfile({ coverage: 'homeOnly', series: 'SuperLega' })).statusCode).toBe(200);
+    expect((await putProfile({ coverage: 'homeOnly' })).statusCode).toBe(200);
     const after = await fixture(away.id);
     expect(after).toMatchObject({ broadcasted: false, broadcast: 'auto' });
     expect((await publicState(away.link?.shortCode ?? '')).status).toBe(404);

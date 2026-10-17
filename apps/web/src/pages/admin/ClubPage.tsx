@@ -2,24 +2,27 @@ import type {
   ClubCoverage,
   ClubLeagueChoice,
   ClubLeagueOption,
+  ClubLeagueStatus,
   ClubResponse,
   TeamLogosMode,
   UpdateClubProfileRequest,
 } from '@sir/shared';
 import {
   CLUB_MAX_LEAGUES,
-  CLUB_SERIES_MAX,
+  ClubLeagueStatusSchema,
   ClubResponseSchema,
   ClubSyncResponseSchema,
   ClubTeamsResponseSchema,
+  LEAGUE_GENDERS,
   OUR_TEAM_CODE_MAX,
   OUR_TEAM_NAME_MAX,
   publicAssetPath,
   seasonLabel,
+  seriesOfGender,
   UpdateClubProfileRequestSchema,
 } from '@sir/shared';
 import type { FormEvent } from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Button, buttonClass, Card, Empty, ErrorBox, Segmented, Spinner } from '../../components/ui.tsx';
 import { apiRequest } from '../../lib/api.ts';
@@ -259,16 +262,152 @@ function ClubForm({
 }
 
 /**
- * Profile of the club: name shown, square logo, series, «nostra squadra» of the `.dvw` files, coverage of the matches
+ * Profile of the club: name shown, square logo, gender and series (from the catalog), «nostra squadra» of the `.dvw` files, coverage of the matches
  * («casa e trasferta» or «solo partite in casa») and «Loghi delle squadre» (tutti / solo il mio / nessuno). Saved
  * together (`PUT /api/admin/club/profile`); read-only for a viewer.
  */
-function ProfileForm({ club, onSaved }: { club: ClubResponse; onSaved: (c: ClubResponse) => void }) {
+/** Milliseconds between two looks at the download of the championship of the series. */
+export const SERIES_POLL_MS = 3000;
+
+/**
+ * Gender and series of the club, from the catalog: choosing the series links the championship of the season (the
+ * server downloads it in the background) and the team can then be chosen below, in «Campionati».
+ */
+function SeriesFields({
+  club,
+  disabled,
+  onChosen,
+}: {
+  club: ClubResponse;
+  disabled: boolean;
+  /** The club after the choice (and after the download ends): its championships changed. */
+  onChosen: (c: ClubResponse) => void;
+}) {
+  const errorMessage = useApiError();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<ClubLeagueStatus | null>(null);
+  const chosen = useRef(onChosen);
+  chosen.current = onChosen;
+  const downloading = status?.state === 'downloading';
+
+  // While the championship downloads the state is looked at again; at the end the club is read again.
+  useEffect(() => {
+    if (!downloading) return;
+    const controller = new AbortController();
+    const id = setTimeout(() => {
+      apiRequest('/api/admin/club/league', ClubLeagueStatusSchema, { signal: controller.signal })
+        .then(async (s) => {
+          setStatus(s);
+          if (s.state !== 'downloading')
+            chosen.current(await apiRequest('/api/admin/club', ClubResponseSchema, { signal: controller.signal }));
+        })
+        .catch((err: unknown) => {
+          if (!controller.signal.aborted) setError(errorMessage(err));
+        });
+    }, SERIES_POLL_MS);
+    return () => {
+      clearTimeout(id);
+      controller.abort();
+    };
+  }, [downloading, status, errorMessage]);
+
+  const choose = async (series: string): Promise<void> => {
+    if (series === '') return;
+    setBusy(true);
+    setError(null);
+    try {
+      const next = await apiRequest('/api/admin/club/league', ClubLeagueStatusSchema, {
+        method: 'POST',
+        body: { gender: 'M', series },
+      });
+      setStatus(next);
+      onChosen(await apiRequest('/api/admin/club', ClubResponseSchema));
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const legacy = club.profile.seriesId === null ? club.profile.series : null;
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field label="Genere" hint="Il femminile arriva presto.">
+        <select
+          value={club.profile.gender ?? 'M'}
+          disabled={disabled}
+          className={inputClass}
+          onChange={() => undefined}
+        >
+          {LEAGUE_GENDERS.map((g) => (
+            <option key={g.id} value={g.id} disabled={!g.available}>
+              {g.label}
+              {g.available ? '' : ' (presto disponibile)'}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field
+        label="Serie"
+        {...(legacy
+          ? { hint: `Ora: «${legacy}» (testo libero). Scegli la serie dall’elenco per avere il calendario.` }
+          : {})}
+      >
+        <select
+          value={club.profile.seriesId ?? ''}
+          disabled={disabled || busy}
+          className={inputClass}
+          onChange={(e) => void choose(e.target.value)}
+        >
+          <option value="" disabled>
+            Scegli la serie
+          </option>
+          {seriesOfGender('M').map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <div className="sm:col-span-2">
+        {club.profile.newSeason && club.profile.seriesId && (
+          <div
+            role="status"
+            className="mb-2 space-y-2 rounded-card border border-border bg-surface-2 p-3 text-sm text-text"
+          >
+            <p>Nuova stagione: scegli di nuovo la squadra.</p>
+            <Button disabled={disabled || busy} onClick={() => void choose(club.profile.seriesId ?? '')}>
+              Scegli la squadra della nuova stagione
+            </Button>
+          </div>
+        )}
+        {(busy || downloading) && <Spinner label="Sto scaricando il calendario…" />}
+        {status?.state === 'error' && <ErrorBox>{status.message ?? 'Il calendario non è stato scaricato.'}</ErrorBox>}
+        {status?.state === 'ready' && (
+          <p role="status" className="text-xs text-muted">
+            Calendario pronto: scegli la squadra del club in «Campionati».
+          </p>
+        )}
+        {error && <ErrorBox>{error}</ErrorBox>}
+      </div>
+    </div>
+  );
+}
+
+function ProfileForm({
+  club,
+  onSaved,
+  onSeriesChosen,
+}: {
+  club: ClubResponse;
+  onSaved: (c: ClubResponse) => void;
+  onSeriesChosen: (c: ClubResponse) => void;
+}) {
   const errorMessage = useApiError();
   const canEdit = useCanEdit();
   const [displayName, setDisplayName] = useState(club.displayName ?? '');
   const [logoMark, setLogoMark] = useState<string | null>(club.logoMark);
-  const [series, setSeries] = useState(club.profile.series ?? '');
   const [code, setCode] = useState(club.ourTeam.code ?? '');
   const [teamName, setTeamName] = useState(club.ourTeam.name ?? '');
   const [coverage, setCoverage] = useState<ClubCoverage>(club.profile.coverage);
@@ -285,7 +424,7 @@ function ProfileForm({ club, onSaved }: { club: ClubResponse; onSaved: (c: ClubR
       displayName: displayName.trim() || null,
       logoMark,
       ourTeam: { code: code.trim() || null, name: teamName.trim() || null },
-      profile: { series: series.trim() || null, coverage, teamLogos },
+      profile: { coverage, teamLogos },
     } satisfies UpdateClubProfileRequest);
     if (!body.success) {
       setError('Controlla i campi: testi su una riga, senza caratteri speciali.');
@@ -329,14 +468,7 @@ function ProfileForm({ club, onSaved }: { club: ClubResponse; onSaved: (c: ClubR
               className={inputClass}
             />
           </Field>
-          <Field label="Serie" hint="Es. «SuperLega» o «Serie A2 femminile» (facoltativa).">
-            <input
-              value={series}
-              onChange={(e) => setSeries(e.target.value)}
-              maxLength={CLUB_SERIES_MAX}
-              className={inputClass}
-            />
-          </Field>
+          <SeriesFields club={club} disabled={!canEdit} onChosen={onSeriesChosen} />
           <div className="grid gap-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
             <Field label="Codice squadra" hint="Nei file .dvw, es. PER.">
               <input
@@ -411,6 +543,7 @@ export function ClubPage() {
   const [current, setCurrent] = useState<ClubResponse | null>(null);
   const [version, setVersion] = useState(0);
   const [profileVersion, setProfileVersion] = useState(0);
+  const [leaguesVersion, setLeaguesVersion] = useState(0);
 
   useEffect(() => {
     document.title = 'Club · Area riservata';
@@ -473,9 +606,18 @@ export function ClubPage() {
             )}
           </div>
         </Card>
-        <ProfileForm key={`${version}-${profileVersion}`} club={current} onSaved={setCurrent} />
+        <ProfileForm
+          key={`${version}-${profileVersion}`}
+          club={current}
+          onSaved={setCurrent}
+          onSeriesChosen={(c) => {
+            // The championship of the series is linked: the list of «Campionati» starts again from it.
+            setCurrent(c);
+            setLeaguesVersion((v) => v + 1);
+          }}
+        />
       </div>
-      <ClubForm key={version} club={current} onSaved={leaguesSaved} reload={club.reload} />
+      <ClubForm key={`${version}-${leaguesVersion}`} club={current} onSaved={leaguesSaved} reload={club.reload} />
     </div>
   );
 }

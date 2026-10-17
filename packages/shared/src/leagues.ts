@@ -176,3 +176,92 @@ export type LeagueDetailResponse = z.infer<typeof LeagueDetailResponseSchema>;
 
 /** Public path of a downloaded team logo. */
 export const publicTeamLogoPath = (id: string): string => `/api/public/team-logos/${id}`;
+
+// --- Catalog of the series a club can choose -----------------------------------------------------------------
+
+/** Gender of a championship: the female one is in the model but not available yet («Presto disponibile»). */
+export const LeagueGenderSchema = z.enum(['M', 'F']);
+export type LeagueGender = z.infer<typeof LeagueGenderSchema>;
+
+export const LEAGUE_GENDERS: readonly { id: LeagueGender; label: string; available: boolean }[] = [
+  { id: 'M', label: 'Maschile', available: true },
+  { id: 'F', label: 'Femminile', available: false },
+];
+
+/** Series of the catalog (the same ids in the profile of the club and in the requests). */
+export const LEAGUE_SERIES_IDS = ['superlega', 'a2', 'a3'] as const;
+export const LeagueSeriesIdSchema = z.enum(LEAGUE_SERIES_IDS);
+export type LeagueSeriesId = z.infer<typeof LeagueSeriesIdSchema>;
+
+export interface LeagueSeries {
+  id: LeagueSeriesId;
+  gender: LeagueGender;
+  label: string;
+  /** Words (normalized) the name of the championship in the menu of the official site must contain. */
+  words: readonly string[];
+}
+
+export const LEAGUE_SERIES: readonly LeagueSeries[] = [
+  { id: 'superlega', gender: 'M', label: 'SuperLega', words: ['superlega'] },
+  { id: 'a2', gender: 'M', label: 'Serie A2', words: ['a2'] },
+  { id: 'a3', gender: 'M', label: 'Serie A3', words: ['a3'] },
+];
+
+/** Pure: the series of the catalog for a gender, in menu order. */
+export const seriesOfGender = (gender: LeagueGender): LeagueSeries[] =>
+  LEAGUE_SERIES.filter((s) => s.gender === gender);
+
+/** Pure: a series of the catalog by id. */
+export const seriesById = (id: string): LeagueSeries | undefined => LEAGUE_SERIES.find((s) => s.id === id);
+
+/**
+ * `POST /api/admin/club/league`: the series chosen by the club. Only the male gender is available today; the series
+ * must be one of the catalog.
+ */
+export const SelectClubLeagueRequestSchema = z.strictObject({
+  gender: z.literal('M'),
+  series: LeagueSeriesIdSchema,
+});
+export type SelectClubLeagueRequest = z.infer<typeof SelectClubLeagueRequestSchema>;
+
+/** Pure: text compared between names of the site and the catalog (case, accents and punctuation ignored). */
+export function normalizeLeagueText(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/** Words that exclude a championship from the series (cups, play off, female ones): they are other championships. */
+const EXCLUDED_WORDS = ['coppa', 'supercoppa', 'play', 'playoff', 'playout', 'promozione', 'femminile', 'challenge'];
+
+/** An option of the menu «Campionato» of the calendar of the official site. */
+export interface ChampionshipOption {
+  externalId: number;
+  name: string;
+}
+
+/**
+ * Pure: the championships of a series among the options of the menu «Campionato»: the name must contain the words of the
+ * series and none of the excluded ones; the «Regular Season» ones are preferred (A3 has two groups, both returned),
+ * otherwise the first match. Empty when the menu has no such option.
+ */
+export function pickSeriesChampionships<T extends ChampionshipOption>(
+  series: LeagueSeries,
+  options: readonly T[],
+): T[] {
+  const candidates = options.filter((o) => {
+    const words = normalizeLeagueText(o.name).split(' ');
+    return series.words.every((w) => words.includes(w)) && !EXCLUDED_WORDS.some((w) => words.includes(w));
+  });
+  const regular = candidates.filter((o) => normalizeLeagueText(o.name).includes('regular season'));
+  return regular.length > 0 ? regular : candidates.slice(0, 1);
+}
+
+/** Pure: the first championship of `pickSeriesChampionships`, null when none. */
+export const pickSeriesChampionship = <T extends ChampionshipOption>(
+  series: LeagueSeries,
+  options: readonly T[],
+): T | null => pickSeriesChampionships(series, options)[0] ?? null;

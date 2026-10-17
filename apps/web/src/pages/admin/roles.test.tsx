@@ -78,7 +78,16 @@ const club: ClubResponse = {
   displayName: null,
   logoMark: null,
   ourTeam: { code: null, name: 'Perugia' },
-  profile: { series: null, coverage: 'homeOnly', teamLogos: 'all' },
+  profile: {
+    series: null,
+    gender: null,
+    seriesId: null,
+    leagueId: null,
+    leagueIds: [],
+    newSeason: false,
+    coverage: 'homeOnly',
+    teamLogos: 'all',
+  },
   leagues: [],
   available: [],
 };

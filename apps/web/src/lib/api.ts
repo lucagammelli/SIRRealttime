@@ -24,7 +24,7 @@ const STATUS_MESSAGES: Record<number, string> = {
 };
 
 /** Statuses whose message from the server is shown as it is (it explains what to change). */
-const EXPLAINED_STATUSES = new Set([409, 410, 413, 422]);
+const EXPLAINED_STATUSES = new Set([409, 410, 413, 422, 502]);
 
 /** Message shown for any error thrown by `apiRequest` (or by anything else). */
 export function errorText(err: unknown): string {
@@ -72,7 +72,7 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
   }
   if (!res.ok) {
     // 409 explains the conflict (also «Scegli prima un cliente», TENANT_REQUIRED_MESSAGE, to a superadmin outside
-    // any client), 413 and 422 why an image was refused.
+    // any client), 413 and 422 why an image was refused, 502 why the site of the league cannot be used.
     const fromServer = EXPLAINED_STATUSES.has(res.status) ? await serverMessage(res) : null;
     const base =
       STATUS_MESSAGES[res.status] ??

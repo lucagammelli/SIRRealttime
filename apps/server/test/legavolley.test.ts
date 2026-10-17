@@ -4,6 +4,7 @@ import {
   LeagueFormatError,
   logoUrl,
   parseCalendar,
+  parseChampionshipMenu,
   parseOfficialDate,
   parseStandings,
   parseTeam,
@@ -232,5 +233,33 @@ describe('team page', () => {
       city: 'Perugia (PG)',
     });
     expect(() => parseTeam('<html></html>')).toThrow(/senza il nome/);
+  });
+});
+
+describe('parseChampionshipMenu (menu «Campionato» of the calendar page)', () => {
+  it('reads the season and the championships of the saved page', () => {
+    const menu = parseChampionshipMenu(fixture('calendario-999-2026-andata.html'));
+    expect(menu.season).toBe(2026);
+    expect(menu.championships).toEqual([
+      { externalId: 999, name: 'Regular Season SuperLega' },
+      { externalId: 1004, name: 'Supercoppa A1' },
+    ]);
+  });
+
+  it('refuses a page that changed with a clear error', () => {
+    const page = fixture('calendario-999-2026-andata.html');
+    expect(() => parseChampionshipMenu('<html><body><p>Manutenzione</p></body></html>')).toThrow(LeagueFormatError);
+    expect(() => parseChampionshipMenu(page.replace('id="Campionato"', 'id="Torneo"'))).toThrow(/menu «Campionato»/);
+    expect(() => parseChampionshipMenu(page.replace(/<option[^>]*value=(999|1004)>[^<]*<\/option>/g, ''))).toThrow(
+      /vuoto/,
+    );
+  });
+
+  it('ignores entries without a valid id', () => {
+    const page = fixture('calendario-999-2026-andata.html').replace(
+      '<option value=1004>Supercoppa A1</option>',
+      '<option value=abc>Rotto</option><option value=0>Zero</option><option value=1004>Supercoppa A1</option>',
+    );
+    expect(parseChampionshipMenu(page).championships.map((c) => c.externalId)).toEqual([999, 1004]);
   });
 });

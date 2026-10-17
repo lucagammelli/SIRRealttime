@@ -4,7 +4,9 @@ import { AssetIdSchema } from './assets.js';
 import {
   FixtureStatusSchema,
   LeagueExternalIdSchema,
+  LeagueGenderSchema,
   LeagueSeasonSchema,
+  LeagueSeriesIdSchema,
   LeagueSyncStateSchema,
   StandingRowSchema,
 } from './leagues.js';
@@ -93,6 +95,15 @@ export const CLUB_SERIES_MAX = 60;
  */
 export const ClubProfileSchema = z.strictObject({
   series: plainText(CLUB_SERIES_MAX).nullable().default(null),
+  /** Gender and series chosen from the catalog (null: not chosen); `series` then holds the label of the catalog. */
+  gender: LeagueGenderSchema.nullable().default(null),
+  seriesId: LeagueSeriesIdSchema.nullable().default(null),
+  /** Championship linked by the choice of the series (set by the server, `POST /api/admin/club/league`). */
+  leagueId: z.uuid().nullable().default(null),
+  /** Every championship of the series (A3 has two groups); `leagueId` is the first. */
+  leagueIds: z.array(z.uuid()).max(CLUB_MAX_LEAGUES).default([]),
+  /** A new season of the series was found and the team was not in it: the club must choose its team again. */
+  newSeason: z.boolean().default(false),
   coverage: ClubCoverageSchema.default('homeAndAway'),
   teamLogos: TeamLogosModeSchema.default('all'),
 });
@@ -105,6 +116,16 @@ export function resolveClubProfile(document: unknown): ClubProfile {
 }
 
 /**
+ * The part of the profile the client edits: coverage and team logos. Series, gender, championships and the notice of
+ * the new season are managed by the server (`POST /api/admin/club/league`, the nightly update): they are not in the
+ * request, and any such field sent is dropped.
+ */
+export const ClubProfileEditSchema = z.object({
+  coverage: ClubCoverageSchema.default('homeAndAway'),
+  teamLogos: TeamLogosModeSchema.default('all'),
+});
+
+/**
  * `PUT /api/admin/club/profile`: name shown (null: the name of the client), square logo (an image `logo` of the
  * client, null: none), «nostra squadra» of the `.dvw` files and the profile.
  */
@@ -112,7 +133,7 @@ export const UpdateClubProfileRequestSchema = z.strictObject({
   displayName: plainText(100).nullable(),
   logoMark: AssetIdSchema.nullable(),
   ourTeam: OurTeamSchema,
-  profile: ClubProfileSchema,
+  profile: ClubProfileEditSchema,
 });
 export type UpdateClubProfileRequest = z.infer<typeof UpdateClubProfileRequestSchema>;
 
@@ -552,3 +573,27 @@ export function standingsRowsToShow(
   }
   return rows.slice(0, count);
 }
+
+/**
+ * Download state of the championship of the series chosen by the club (`POST` and `GET /api/admin/club/league`):
+ * `none` (no series chosen), `downloading` (calendar, standings, teams and logos on their way), `ready`, `error`.
+ */
+export const ClubLeagueStateSchema = z.enum(['none', 'downloading', 'ready', 'error']);
+export type ClubLeagueState = z.infer<typeof ClubLeagueStateSchema>;
+
+export const ClubLeagueStatusSchema = z.object({
+  state: ClubLeagueStateSchema,
+  /** Error of the download, or a warning of a good one; null when none. */
+  message: z.string().nullable(),
+  gender: LeagueGenderSchema.nullable(),
+  series: LeagueSeriesIdSchema.nullable(),
+  leagueId: z.uuid().nullable(),
+  /** Official name and season of the championship, null until known. */
+  leagueName: z.string().nullable(),
+  season: LeagueSeasonSchema.nullable(),
+  /** Teams of the championship (of all its groups), only when `ready`; each with the championship it is in. */
+  teams: z.array(ClubTeamSchema.extend({ leagueId: z.uuid() })),
+  /** The team of the club in this championship (null: not chosen). */
+  teamId: z.uuid().nullable(),
+});
+export type ClubLeagueStatus = z.infer<typeof ClubLeagueStatusSchema>;

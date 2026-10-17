@@ -184,6 +184,34 @@ describe('migration 0008: quota of agents within the limits and users that can b
   });
 });
 
+describe('migration 0012: guided first setup', () => {
+  it('marks the clients already configured as done and leaves the empty ones to do', async () => {
+    const client = new PGlite();
+    cleanup.push(() => client.close());
+    const db = drizzle({ client, schema });
+    await migrate(db, { migrationsFolder: await migrationsUpTo('0011_posta_inviti') });
+    await client.exec(`
+      insert into tenants (slug, name) values ('vuoto', 'Vuoto');
+      insert into tenants (slug, name, club_profile) values ('profilo', 'Profilo', '{"series":"SuperLega"}');
+      insert into tenants (slug, name, branding) values ('grafica', 'Grafica', '{"template":"sir-volley"}');
+      insert into tenants (slug, name) values ('campionato', 'Campionato');
+      insert into leagues (provider, external_id, season) values ('legavolley', 999, 2026);
+      insert into tenant_leagues (tenant_id, league_id)
+        select t.id, l.id from tenants t, leagues l where t.slug = 'campionato';
+    `);
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    const rows = await db.select({ slug: tenants.slug, at: tenants.onboardedAt }).from(tenants);
+    const done = Object.fromEntries(rows.map((r) => [r.slug, r.at !== null]));
+    expect(done).toEqual({
+      [DEFAULT_TENANT_SLUG]: false,
+      vuoto: false,
+      profilo: true,
+      grafica: true,
+      campionato: true,
+    });
+  });
+});
+
 describe('seed', () => {
   const config = (env: Record<string, string> = {}) =>
     loadConfig({

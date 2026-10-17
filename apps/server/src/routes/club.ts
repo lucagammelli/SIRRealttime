@@ -40,6 +40,7 @@ import {
 } from '../db/index.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { validate } from '../lib/validate.js';
+import { seriesLeagueIds } from '../leagues/seasons.js';
 import { dvwDayKey, parseDvwDate } from '../leagues/match.js';
 import { canStayLive, lockTenantMatches } from '../matchLock.js';
 import { requireRole } from '../security.js';
@@ -63,7 +64,7 @@ type LeagueRow = typeof leagues.$inferSelect;
 /** Most `.dvw` to confirm listed in «Calendario» (the most recent). */
 const PENDING_LIST_LIMIT = 50;
 
-const teamOf = (t: TeamRow): ClubTeam => ({
+export const teamOf = (t: TeamRow): ClubTeam => ({
   id: t.id,
   name: t.name,
   city: t.city,
@@ -172,6 +173,12 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
   app.put('/api/admin/club', admin, async (request): Promise<ClubResponse> => {
     const tenantId = adminTenantId(request);
     const body = validate(UpdateClubRequestSchema, request.body);
+    // A team chosen in one championship of the series (a group of A3) takes away the other ones of the series.
+    const stored = await findTenant(ctx, { id: tenantId });
+    const seriesIds = new Set(stored ? seriesLeagueIds(resolveClubProfile(stored.clubProfile)) : []);
+    const ofSeries = body.leagues.filter((l) => seriesIds.has(l.leagueId));
+    const keep = ofSeries.find((l) => l.teamId !== null);
+    if (keep) body.leagues = body.leagues.filter((l) => !seriesIds.has(l.leagueId) || l === keep);
     const ids = body.leagues.map((l) => l.leagueId);
     const known = ids.length
       ? await ctx.db.select({ id: leagues.id }).from(leagues).where(inArray(leagues.id, ids))
@@ -262,15 +269,24 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
           .limit(1);
         if (!asset) throw badRequest('Richiesta non valida: logoMark');
       }
-      const [row] = await tx.select({ branding: tenants.branding }).from(tenants).where(eq(tenants.id, tenantId));
+      const [row] = await tx
+        .select({ branding: tenants.branding, clubProfile: tenants.clubProfile })
+        .from(tenants)
+        .where(eq(tenants.id, tenantId));
       if (!row) throw notFound();
+      // Gender, series, championships and the notice of the new season are the server's: kept from the database.
+      const profile = {
+        ...resolveClubProfile(row.clubProfile),
+        coverage: body.profile.coverage,
+        teamLogos: body.profile.teamLogos,
+      };
       const branding = {
         ...resolveBranding(row.branding),
         displayName: body.displayName,
         logoMark: body.logoMark,
         ourTeam: body.ourTeam,
       };
-      await tx.update(tenants).set({ branding, clubProfile: body.profile }).where(eq(tenants.id, tenantId));
+      await tx.update(tenants).set({ branding, clubProfile: profile }).where(eq(tenants.id, tenantId));
     });
     forgetTenants(ctx);
     // «Nostra squadra» and the coverage change the link of the `.dvw` still to confirm: looked for again at once.

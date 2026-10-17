@@ -30,7 +30,7 @@ import { initBranding } from '../../../lib/branding.ts';
 import { useAsync } from '../../../lib/useAsync.ts';
 import { useViewportWidth } from '../../../lib/useLayout.ts';
 import { socketUrl, useLiveSocket } from '../../../lib/useLiveSocket.ts';
-import { useApiError, useAuth } from '../auth.tsx';
+import { useApiError } from '../auth.tsx';
 import { pauseProblems } from '../intermissionEditor.ts';
 import { layoutProblems } from '../layoutEditor.ts';
 import { blockBrandOf } from './blockEditors.tsx';
@@ -42,7 +42,6 @@ import {
   brandingChanges,
   DEVICE_LABELS,
   intermissionChanges,
-  isFirstAccess,
   isStudioSection,
   layoutChanges,
   overlayChanges,
@@ -75,23 +74,6 @@ interface Pair<T> {
 }
 const pairOf = <T,>(value: T): Pair<T> => ({ base: value, draft: value });
 
-/** Key of localStorage: the guided setup of this client was closed once (it does not open by itself again). */
-export const wizardSeenKey = (tenantId: string): string => `sir-studio-guidata:${tenantId}`;
-function wizardSeen(tenantId: string): boolean {
-  try {
-    return window.localStorage.getItem(wizardSeenKey(tenantId)) === '1';
-  } catch {
-    return false;
-  }
-}
-function rememberWizard(tenantId: string): void {
-  try {
-    window.localStorage.setItem(wizardSeenKey(tenantId), '1');
-  } catch {
-    // Private mode: it will open again next time, nothing else.
-  }
-}
-
 /** Key of localStorage: the preview was made wider («Allarga anteprima»), remembered on this browser. */
 export const PREVIEW_WIDE_KEY = 'sir-studio-anteprima-larga';
 function previewWideSaved(): boolean {
@@ -123,14 +105,12 @@ const TEAM_COLOR_TYPES = new Set(['scoreboard', 'comparison', 'momentum', 'teamD
 type Guard = { kind: 'section'; to: StudioSection } | { kind: 'leave'; href: string };
 
 function Studio({
-  tenantId,
   tenantName,
   saved,
   assets,
   onAssetsChanged,
   hasSection,
 }: {
-  tenantId: string;
   tenantName: string;
   saved: StudioDocs;
   assets: AssetListResponse;
@@ -166,7 +146,8 @@ function Studio({
   const [done, setDone] = useState<string | null>(null);
   const [showChanges, setShowChanges] = useState(false);
   const [guard, setGuard] = useState<Guard | null>(null);
-  const [wizard, setWizard] = useState(() => isFirstAccess(saved) && !wizardSeen(tenantId));
+  // The first setup of a new client is the procedure of `onboarding/`; here the button opens the guided setup.
+  const [wizard, setWizard] = useState(false);
   const [announce, setAnnounce] = useState('');
   const [wide, setWide] = useState(previewWideSaved);
   const toggleWide = useCallback(() => {
@@ -367,10 +348,7 @@ function Studio({
     return () => clearTimeout(id);
   }, [done]);
 
-  const closeWizard = useCallback(() => {
-    rememberWizard(tenantId);
-    setWizard(false);
-  }, [tenantId]);
+  const closeWizard = useCallback(() => setWizard(false), []);
 
   const finishWizard = async (): Promise<void> => {
     setSaving('guidata');
@@ -855,12 +833,11 @@ function GuardDialog({
  * «Avvisi». Three columns: the sections (Colori e loghi, Pagina live, Pause, Avvisi), a few settings at a time in tabs
  * (the less used under «Avanzate»), the big preview always in view with device and scene. Every section is saved on
  * its own (its route PUT /api/admin/branding, /layout, /intermissions, /overlays), with the bar of the changes not
- * saved. On the phone the page is in steps. The guided setup opens by itself at the first visit of a client with
- * nothing saved.
+ * saved. On the phone the page is in steps. The guided setup is opened by its button (the first setup of a new client is the
+ * procedure of `onboarding/`).
  */
 export function StudioPage() {
   const errorMessage = useApiError();
-  const { user } = useAuth();
   const params = useParams();
   const loadBranding = useCallback(
     (signal: AbortSignal) => apiRequest('/api/admin/branding', BrandingResponseSchema, { signal }),
@@ -897,7 +874,6 @@ export function StudioPage() {
     return <Spinner label="Caricamento dello Studio grafico…" />;
   return (
     <Studio
-      tenantId={user.tenant?.id ?? 'nessun-cliente'}
       tenantName={branding.data.tenantName}
       saved={{
         branding: branding.data.branding,

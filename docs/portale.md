@@ -232,9 +232,9 @@ compare.», «Avviso spento: gli spettatori non lo vedono.», «Su <dispositivo>
   telefono sono a **banda** in basso (è il predefinito del telefono; resta modificabile per dispositivo).
 - **Configurazione guidata** (`StudioWizard.tsx`): finestra a 4 passi con l'anteprima TV accanto: «Logo e colori» (3
   colori, logo orizzontale, nome visualizzato), «La tua squadra» (nostra squadra e colori delle due squadre), «La pagina»
-  (quali blocchi mostrare, su tutti i dispositivi) e «Le pause» (modello e pausa a fine set). Si apre da sola al **primo
-  accesso**, quando i quattro documenti sono ancora quelli predefiniti (`isFirstAccess`), e **non si riapre** dopo la
-  chiusura (`localStorage`, chiave `sir-studio-guidata:<idCliente>`); si riapre sempre da «Configurazione guidata».
+  (quali blocchi mostrare, su tutti i dispositivi) e «Le pause» (modello e pausa a fine set). **Non si apre più da sola**
+  (il primo accesso è la procedura guidata di `onboarding/`, vedi «Procedura guidata del primo accesso»): resta il
+  pulsante «Configurazione guidata» per aprirla quando si vuole.
   Pulsanti «Indietro», «Avanti», «Chiudi» (le modifiche restano nelle bozze, non salvate) e, all'ultimo passo, «Fine e
   salva» (salva Colori, Pagina e Pause cambiati).
 - **Modelli pronti** (`model.ts`, `applyPauseModel`, `applyOverlayModel`): in «Pause» e «Avvisi» tre modelli, «Essenziale»,
@@ -307,6 +307,33 @@ tolta da lì; un layout salvato e poi non più valido si legge come predefinito;
 cliente resta fisso anche se cambia modello (va reimpostato con «Ripristina predefinito» per dispositivo). Test:
 `studio/model.test.ts`, `studio/StudioPage.test.tsx`.
 
+### Procedura guidata del primo accesso (`pages/admin/onboarding/`)
+Lavoro «primo-accesso». Contratto `OnboardingStatus` e rotte `GET /api/admin/onboarding` e `POST /api/admin/onboarding/complete`
+in `docs/server.md` e `docs/architettura.md`. `OnboardingHost` (montato in `AdminApp.tsx`) legge lo stato del cliente; il
+segno «fatto» è nel DB (`tenants.onboarded_at`), non nel browser.
+- **Quando si apre**: da sola, una volta per sessione, solo al primo utente «Lettura e scrittura» (admin) di un cliente non
+  configurato (`opensByItself`). Mai a un viewer e mai al superadmin, nemmeno dentro un cliente. «Salta per ora» la chiude
+  fino al prossimo accesso (`sessionStorage`, chiave `sir-configurazione-saltata:<idCliente>`). I clienti già configurati
+  (migrazione `0012`) non la vedono.
+- **Avviso «Configurazione da completare»** sopra le pagine finché non è finita (`noticeFor`): per l'admin il pulsante
+  «Riprendi» (riparte dal passo raggiunto o dal primo senza dati salvati, `resumeStep`), per il superadmin dentro un cliente
+  «Apri la configurazione guidata»; nulla per il viewer.
+- **I 5 passi** (`ONBOARDING_STEPS`; «Indietro», «Avanti», «Salta per ora»; l'ultimo ha «Fine»; ogni «Avanti» salva ciò che
+  il passo ha cambiato, e a destra c'è l'anteprima del cliente):
+  1. «Il logo»: «Il logo della società compare nelle pagine pubbliche, nell’app e nei QR.» «Logo quadrato della società» e
+     «Logo orizzontale (facoltativo)», salvati appena caricati.
+  2. «La squadra»: «In che serie gioca il club: il calendario arriva dal sito della Lega.» «Maschile o femminile» («Femminile»
+     disattivato, «Presto disponibile»), «In che serie gioca» (tendina «Scegli la serie»), «Sto scaricando il calendario…»,
+     «La tua squadra in «…»» con l'elenco (A3: le squadre dei due gironi, resta il girone della squadra scelta), «La mia
+     squadra non è nell’elenco» (nome a mano, le partite si aggiungono dal «Calendario») e «Nome della squadra o del club».
+  3. «I colori»: «Scegli un modello e, se vuoi, i colori della società.» Modello, colore principale e accento, avvisi di
+     contrasto.
+  4. «La grafica»: «Un modello pronto per le pause e gli avvisi durante la partita.» Modello di pause e avvisi.
+  5. «Fatto»: «Ecco il riepilogo e i prossimi passi.» Riepilogo, link del canale del club con QR («Canale del club»),
+     prossima partita, «Scarica l’agente» e «Apri lo Studio grafico». «Fine» chiama `POST /api/admin/onboarding/complete`.
+- File: `OnboardingHost.tsx`, `OnboardingWizard.tsx`, `OnboardingPreview.tsx`, `steps.tsx`, `model.ts` (`resumeStep`,
+  `noticeFor`, `opensByItself`).
+
 ### Link breve e QR (`src/qr/`, `pages/admin/ShareLinksPage.tsx`)
 Ogni link attivo ha un link breve `<base>/l/<codice>` (codice di 8 lettere, mostrato `K7M2-QX9P`; server in
 `docs/server.md`, «Link breve e codice»). Nella pagina «Link pubblici»: alla creazione, sotto il link lungo (mostrato
@@ -371,7 +398,13 @@ Il viewer non vede la voce e `/admin/simulazione` lo riporta a `/admin/live`. Te
 Server, abbinamento e rotte in `docs/server.md`, «Club, calendario e abbinamento»; contratti in `docs/architettura.md`.
 
 **«Club»** (`/admin/club`): a sinistra la scheda del **profilo** (`ProfileForm`, «Salva profilo»; contratto
-`UpdateClubProfileRequest`): «Logo quadrato del club» (`LogoPicker`), «Nome», «Serie», «Nostra squadra nei file .dvw»
+`UpdateClubProfileRequest`): «Logo quadrato del club» (`LogoPicker`), «Nome», «Genere» (solo «Maschile»; «Femminile» è
+disattivato, «presto disponibile») e «Serie» a tendina dal catalogo (SuperLega, Serie A2, Serie A3; `SeriesFields`):
+scegliere la serie fa partire `POST /api/admin/club/league`, mostra «Sto scaricando il calendario…» (si rilegge ogni 3 s,
+`SERIES_POLL_MS`) e poi «Calendario pronto: scegli la squadra del club in «Campionati».». Un club con la serie scritta a mano
+vede «Ora: «…» (testo libero)». Se il cambio di stagione notturno non ha ritrovato la squadra compare «Nuova stagione: scegli
+di nuovo la squadra.» con il pulsante «Scegli la squadra della nuova stagione» (server in `docs/server.md`, «Serie del club e
+catalogo»). «Nostra squadra nei file .dvw»
 («Codice squadra» e/o «Nome della squadra contiene»), «Partite trasmesse» («Casa e trasferta» o «Solo partite in casa»,
 con la copertura predefinita «Casa e trasferta») e «Loghi delle squadre» («Tutti», «Solo il mio», «Nessuno»; nell'interfaccia
 «Solo il mio» = `ours`). Dopo il salvataggio: «Profilo salvato: le pagine pubbliche lo mostrano subito.». A destra la scheda

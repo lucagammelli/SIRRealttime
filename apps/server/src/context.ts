@@ -3,6 +3,7 @@ import type { Config } from './config.js';
 import type { Db } from './db/index.js';
 import type { LiveHub, StatePublisher } from './hub.js';
 import type { IngestService } from './ingest.js';
+import type { LeagueCatalog } from './leagues/catalog.js';
 import type { LeagueService } from './leagues/sync.js';
 import type { FailureLimiter } from './lib/failureLimiter.js';
 import type { MailService } from './mail/service.js';
@@ -104,6 +105,8 @@ export interface AppContext {
   resync: ResyncScheduler;
   /** Downloads and updates of the championships (common to every client). */
   leagues: LeagueService;
+  /** Championships of the season in course on the official site (series chosen by the clubs). */
+  catalog: LeagueCatalog;
   now: () => Date;
 }
 

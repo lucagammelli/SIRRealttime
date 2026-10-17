@@ -26,7 +26,7 @@ import { BLOCKS, REGISTRY_TYPES } from '../../../blocks/registry.tsx';
 import { setTenantLook } from '../../../lib/branding.ts';
 import { AdminApp } from '../AdminApp.tsx';
 import { contrastText, withOurTeamField } from './ColorsSection.tsx';
-import { PREVIEW_WIDE_KEY, wizardSeenKey } from './StudioPage.tsx';
+import { PREVIEW_WIDE_KEY } from './StudioPage.tsx';
 
 // jsdom has no canvas: the chart wrapper is replaced by its accessible label.
 vi.mock('../../../charts/EChart.tsx', () => ({
@@ -870,19 +870,13 @@ describe('«Allarga anteprima»', () => {
 describe('guided setup', () => {
   const nothingSaved = { branding: defaultBranding() };
 
-  it('opens by itself at the first visit of a client with nothing saved, once', async () => {
-    mockServer(nothingSaved);
-    renderAt('/admin/studio');
-    const dialog = await screen.findByRole('dialog', { name: 'Logo e colori' });
-    expect(within(dialog).getByText('Passo 1 di 4')).toBeTruthy();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Chiudi' }));
-    expect(screen.queryByRole('dialog', { name: 'Logo e colori' })).toBeNull();
-    expect(window.localStorage.getItem(wizardSeenKey(TENANT))).toBe('1');
-    cleanup();
+  it('does not open by itself even with nothing saved (the first setup is the procedure of the first access)', async () => {
     mockServer(nothingSaved);
     renderAt('/admin/studio');
     await studio();
     expect(screen.queryByRole('dialog', { name: 'Logo e colori' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Configurazione guidata' }));
+    expect(screen.getByRole('dialog', { name: 'Logo e colori' })).toBeTruthy();
   });
 
   it('does not open by itself when something is saved; the button opens it; four steps, then saves', async () => {

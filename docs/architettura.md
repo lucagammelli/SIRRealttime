@@ -274,6 +274,19 @@ con `LeaguePhaseSchema`, `LeagueListResponseSchema`, `LeagueTeamSchema` (con `lo
 parziali, `FixtureTeamRefSchema`), `StandingRowSchema`, `LeagueDetailResponseSchema` e `publicTeamLogoPath`
 (`/api/public/team-logos/<id>`). Rotte e scaricamento in `docs/server.md` («Campionati»); test `packages/shared/src/leagues.test.ts`.
 
+Catalogo delle serie (`leagues.ts`, lavoro «primo-accesso»): `LeagueGenderSchema` (`M`/`F`) e `LEAGUE_GENDERS` (solo il
+maschile è `available`, il femminile è «Presto disponibile»), `LEAGUE_SERIES_IDS`/`LeagueSeriesIdSchema` (`superlega`,
+`a2`, `a3`), `LEAGUE_SERIES` (id, genere, etichetta e parole che il nome del campionato nel menu del sito deve
+contenere), `seriesOfGender`, `seriesById`, `SelectClubLeagueRequestSchema` (strict: `gender` `M` e `series`, corpo di
+`POST /api/admin/club/league`), `normalizeLeagueText` e le pure `pickSeriesChampionships` (i campionati di una serie fra
+le voci del menu «Campionato»: parole richieste, esclusi coppe, play off e femminili, preferiti i «Regular Season»; A3 ne
+restituisce due, i due gironi) e `pickSeriesChampionship` (il primo). Rotte e scoperta in `docs/server.md` («Serie del
+club e catalogo»).
+
+Primo accesso (`onboarding.ts`): `OnboardingStatusSchema` (`completed`, `completedAt`), risposta di
+`GET /api/admin/onboarding` e `POST /api/admin/onboarding/complete`; il segno sta nel DB (`tenants.onboarded_at`). La
+procedura è in `docs/portale.md` («Procedura guidata del primo accesso»).
+
 Club e calendario (`club.ts`): il club di un cliente (campionati e squadra in ognuno), le sue partite del calendario con un
 link ciascuna e l'abbinamento fra `.dvw` e partita. `CLUB_MAX_LEAGUES` (8), `ClubLeagueChoiceSchema`,
 `UpdateClubRequestSchema` (strict, campionati senza ripetizioni), `ClubResponseSchema` (nome, logo, `ourTeam`, campionati
@@ -281,6 +294,11 @@ scelti, `available`), `ClubLeagueOptionSchema`, `ClubTeamSchema`, `ClubTeamsResp
 `suggestedOurTeamName` (pura: dalla squadra scelta ricava il testo «nostra squadra», città senza provincia o ultima parola
 del nome); `FixtureLinkSchema` (`auto`/`manual`/`pending`/`none`), `ClubFixtureStateSchema` (`scheduled`/`live`/`finished`/
 `postponed`/`pending`/`removed`) e `clubFixtureState` (pura: lo stato dalla partita del calendario e dal `.dvw` abbinato);
+`ClubProfileSchema` ha in più `gender`, `seriesId` (dal catalogo), `leagueId` (il campionato collegato dalla scelta della
+serie), `leagueIds` (tutti i campionati della serie, A3 ne ha due; `leagueId` è il primo) e `newSeason` (nuova stagione
+trovata senza la squadra: la squadra va scelta di nuovo); `series` tiene l'etichetta del catalogo. Questi campi li gestisce solo il server: `UpdateClubProfileRequest.profile` (`ClubProfileEditSchema`) contiene solo `coverage` e `teamLogos`, e `PUT /api/admin/club/profile` conserva dal database tutto il resto. `ClubLeagueStateSchema`
+(`none`/`downloading`/`ready`/`error`) e `ClubLeagueStatusSchema` (`state`, `message`, `gender`, `series`, `leagueId`,
+`leagueName`, `season`, `teamId` e `teams`: le squadre di tutti i gironi, ognuna con il suo `leagueId`);
 `UpcomingFixtureSchema` (ciò che la pagina pubblica mostra prima del `.dvw`: solo dati pubblici del campionato),
 `ClubFixtureSchema`, `PendingMatchSchema`, `FixtureCandidateSchema`, `CalendarResponseSchema`,
 `LinkMatchFixtureRequestSchema` (`PUT /api/admin/matches/:id/fixture`, `clientFixtureId` nullo = «nessuna (amichevole)»).
@@ -353,7 +371,7 @@ pnpm --filter @sir/server test      # il flusso completo agente→server→WebSo
 ```
 
 ## Riferimenti
-- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `credentials.ts`, `mail.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `leagues.ts`, `club.ts`, `manifest.ts`, `simulation.ts`, `index.ts`
+- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `credentials.ts`, `mail.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `leagues.ts`, `club.ts`, `onboarding.ts`, `manifest.ts`, `simulation.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
 - `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`, `apps/web/src/App.tsx`
 - `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/portale.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,

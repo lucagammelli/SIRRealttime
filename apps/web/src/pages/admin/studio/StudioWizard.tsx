@@ -7,10 +7,11 @@ import type {
   TenantLayout,
 } from '@sir/shared';
 import { LAYOUT_DEVICES, templateOf } from '@sir/shared';
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
-import { useEffect, useId, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { useId, useState } from 'react';
 import { BLOCKS } from '../../../blocks/registry.tsx';
 import { Button, ErrorBox } from '../../../components/ui.tsx';
+import { useModalDialog } from '../../../components/useModalDialog.ts';
 import { useApiError } from '../auth.tsx';
 import { Field, inputClass } from '../forms.tsx';
 import { IMAGE_TOO_LARGE, uploadImage } from './blockEditors.tsx';
@@ -18,9 +19,6 @@ import { ColorField, ImageField, OurTeamFields, withColor } from './ColorsSectio
 import type { StudioScene } from './model.ts';
 import { activePauseModel, applyPauseModel, PAUSE_MODEL_LABELS } from './model.ts';
 import { ModelPicker, SwitchRow } from './StudioUi.tsx';
-
-const FOCUSABLE =
-  'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
 
 export const WIZARD_STEPS: readonly { title: string; lead: string; scene: StudioScene }[] = [
   {
@@ -96,38 +94,11 @@ export function StudioWizard({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const titleId = useId();
-  const root = useRef<HTMLDivElement>(null);
   const current = WIZARD_STEPS[step] ?? { title: '', lead: '', scene: 'play' as const };
   const last = step === WIZARD_STEPS.length - 1;
   const template = templateOf(branding.template);
 
-  useEffect(() => {
-    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    root.current?.querySelector<HTMLElement>('h2')?.focus();
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      before?.focus();
-    };
-  }, [onClose]);
-
-  const trap = (e: ReactKeyboardEvent<HTMLDivElement>): void => {
-    if (e.key !== 'Tab') return;
-    const items = [...e.currentTarget.querySelectorAll<HTMLElement>(FOCUSABLE)];
-    const first = items[0];
-    const end = items[items.length - 1];
-    if (!first || !end) return;
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      end.focus();
-    } else if (!e.shiftKey && document.activeElement === end) {
-      e.preventDefault();
-      first.focus();
-    }
-  };
+  const { root, trap } = useModalDialog(onClose);
 
   const color = (key: BrandColorKey) => (
     <ColorField

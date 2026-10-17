@@ -18,8 +18,10 @@ import { HttpError } from './lib/errors.js';
 import { FailureLimiter } from './lib/failureLimiter.js';
 import { ResyncScheduler } from './lib/resync.js';
 import type { LeagueFetcherOptions } from './leagues/fetcher.js';
+import { LeagueCatalog } from './leagues/catalog.js';
 import { LeagueFetcher, leagueUserAgent } from './leagues/fetcher.js';
 import { LeagueScheduler } from './leagues/scheduler.js';
+import { advanceSeasons } from './leagues/seasons.js';
 import { LeagueService } from './leagues/sync.js';
 import { TtlCache } from './lib/ttlCache.js';
 import { adminRoutes } from './routes/admin.js';
@@ -32,7 +34,9 @@ import { mailSettingsRoutes } from './routes/mailSettings.js';
 import { manifestRoutes } from './routes/manifest.js';
 import { healthRoutes } from './routes/health.js';
 import { ingestRoutes } from './routes/ingest.js';
+import { clubLeagueRoutes } from './routes/clubLeague.js';
 import { leaguePublicRoutes, leagueRoutes } from './routes/leagues.js';
+import { onboardingRoutes } from './routes/onboarding.js';
 import { publicRoutes } from './routes/public.js';
 import { registrationRoutes } from './routes/registration.js';
 import { simulationRoutes } from './routes/simulation.js';
@@ -68,6 +72,8 @@ declare module 'fastify' {
     simulations: SimulationService;
     /** Mail of the invitations and password resets (tests wait for `mail.idle()`). */
     mail: MailService;
+    /** New season of the series of the clubs (run by the nightly update; tests call it). */
+    advanceSeasons: () => Promise<void>;
   }
 }
 
@@ -149,12 +155,14 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const now = options.now ?? (() => new Date());
   const rateLimits = { ...config.rateLimits, ...options.rateLimits };
   const hub = new LiveHub(now);
+  const leagueFetcher = new LeagueFetcher({
+    userAgent: leagueUserAgent(serverVersion(), config.leagueContact),
+    ...options.leagueFetcher,
+  });
+  const catalog = new LeagueCatalog({ fetcher: leagueFetcher, now, log: app.log });
   const leagues = new LeagueService({
     db,
-    fetcher: new LeagueFetcher({
-      userAgent: leagueUserAgent(serverVersion(), config.leagueContact),
-      ...options.leagueFetcher,
-    }),
+    fetcher: leagueFetcher,
     assetsDir: config.assetsDir,
     now,
     log: app.log,
@@ -190,12 +198,14 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     }),
     resync: new ResyncScheduler(now),
     leagues,
+    catalog,
     now,
   };
 
   const simulations = new SimulationService(ctx, app.log, options.simulationTimers);
   app.decorate('simulations', simulations);
   app.decorate('mail', ctx.mail);
+  app.decorate('advanceSeasons', () => advanceSeasons(ctx, app.log));
 
   const onRoute = options.onRoute;
   if (onRoute) {
@@ -256,13 +266,17 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     agentDownloadRoutes(scope, ctx);
     leagueRoutes(scope, ctx);
     clubRoutes(scope, ctx);
+    clubLeagueRoutes(scope, ctx);
+    onboardingRoutes(scope, ctx);
     manualFixtureRoutes(scope, ctx);
     simulationRoutes(scope, ctx, simulations);
     done();
   });
 
   // Automatic updates of the championships only when the server is ready (LEAGUE_SYNC=off: never).
-  const scheduler = config.leagueSync ? new LeagueScheduler({ db, leagues, now, log: app.log }) : null;
+  const scheduler = config.leagueSync
+    ? new LeagueScheduler({ db, leagues, catalog, onCatalog: () => app.advanceSeasons(), now, log: app.log })
+    : null;
   // The channels of the clubs move to the next match after the end of the last one, without a reload.
   const channels = new ChannelWatcher(ctx, app.log);
   app.addHook('onReady', (done) => {

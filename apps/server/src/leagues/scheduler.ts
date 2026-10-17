@@ -1,7 +1,9 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type { Db } from '../db/index.js';
-import { leagues } from '../db/index.js';
+import { sql } from 'drizzle-orm';
+import { leagues, tenants } from '../db/index.js';
 import { romeDayAt } from './romeTime.js';
+import type { LeagueCatalog } from './catalog.js';
 import type { LeagueService, StandingsMode } from './sync.js';
 import { leaguesWithClubMatches } from '../club.js';
 
@@ -59,7 +61,14 @@ export class LeagueScheduler {
   private stopped = false;
 
   constructor(
-    private readonly o: { db: Db; leagues: LeagueService; now: () => Date; log: FastifyBaseLogger },
+    private readonly o: {
+      db: Db;
+      leagues: LeagueService;
+      catalog?: LeagueCatalog;
+      onCatalog?: () => Promise<void>;
+      now: () => Date;
+      log: FastifyBaseLogger;
+    },
     private readonly tickMs = SCHEDULER_TICK_MS,
   ) {}
 
@@ -87,6 +96,15 @@ export class LeagueScheduler {
     return this.current;
   }
 
+  private async hasSeriesClubs(): Promise<boolean> {
+    const rows = await this.o.db
+      .select({ id: tenants.id })
+      .from(tenants)
+      .where(sql`${tenants.clubProfile}->>'seriesId' is not null`)
+      .limit(1);
+    return rows.length > 0;
+  }
+
   private async runDue(): Promise<void> {
     const now = this.o.now();
     const day = romeDayAt(now, 0);
@@ -101,6 +119,17 @@ export class LeagueScheduler {
     for (const d of due) {
       if (this.stopped) return;
       await this.o.leagues.syncLeague(d.id, { standings: d.standings });
+    }
+    // The catalog of the series follows the nightly update: read again when old, only if a club has a series; then
+    // the clubs whose series has a new season move to it.
+    const catalog = this.o.catalog;
+    if (catalog?.stale() && !this.stopped && (await this.hasSeriesClubs())) {
+      try {
+        await catalog.refresh();
+        await this.o.onCatalog?.();
+      } catch (err) {
+        this.o.log.warn({ err }, 'catalogo dei campionati non aggiornato');
+      }
     }
   }
 }

@@ -219,6 +219,10 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
    invito»), «Password dimenticata?» con link di un'ora, «Link per nuova password» da copiare quando manca la posta,
    primo utente del cliente invitabile da «Clienti» (`docs/server.md`, `docs/portale.md`, `docs/architettura.md`,
    `docs/infrastruttura.md`). Da provare con un vero server di posta.
+10. `primo-accesso` (**fatto**, 2026-10-17): serie scelte da un catalogo scoperto dal sito della Lega (SuperLega, A2, A3 con
+   due gironi), cambio di stagione notturno, procedura guidata di 5 passi al primo accesso dell'admin
+   (`tenants.onboarded_at`, migrazione `0012`) al posto dell'apertura automatica dello Studio (`docs/server.md`,
+   `docs/portale.md`, `docs/architettura.md`).
 **Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
 PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo
 mostra con «autore sconosciuto».

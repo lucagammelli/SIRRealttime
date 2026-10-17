@@ -358,3 +358,14 @@ Una riga per decisione: data, scelta, motivo.
 - 2026-10-17: link di invito (72 h) e di recupero (1 h) monouso, con solo l'sha256 nel database, costruiti da
   `PUBLIC_BASE_URL` e mai dall'intestazione `Host`; dopo il reset le sessioni dell'utente sono chiuse e, con un invito
   aperto, il login è rifiutato.
+- 2026-10-17: il catalogo delle serie si scopre dal sito della Lega (menu e link di `/calendario/`) invece di un elenco di
+  `IdCampionato` scritto nel codice, perché a ogni stagione gli id cambiano; gli indirizzi li costruiamo sempre noi e dal
+  sito leggiamo solo numeri, con tetto di 10 pagine.
+- 2026-10-17: la Serie A3 è una sola voce del catalogo con due gironi (si scaricano entrambi, resta collegato quello della
+  squadra scelta), perché il club sceglie la serie e solo dopo la squadra, che decide il girone.
+- 2026-10-17: «configurazione fatta» sta nel DB (`tenants.onboarded_at`, migrazione `0012`) e non in `localStorage`, perché
+  vale per tutti i dispositivi e utenti del cliente; i clienti già configurati sono segnati come fatti dalla migrazione.
+- 2026-10-17: la procedura guidata del primo accesso si apre da sola solo all'admin («Lettura e scrittura»), mai al viewer
+  né al superadmin, perché solo l'admin può salvare le scelte; gli altri vedono al più l'avviso o il link.
+- 2026-10-17: il cambio di stagione è automatico nell'aggiornamento notturno (squadra ritrovata per id esterno o nome,
+  altrimenti avviso «Nuova stagione: scegli di nuovo la squadra»), perché ogni estate i campionati ripartono con id nuovi.

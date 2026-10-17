@@ -85,6 +85,13 @@
       "when": 1792258665951,
       "tag": "0011_posta_inviti",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792259678422,
+      "tag": "0012_primo_accesso",
+      "breakpoints": true
     }
   ]
 }

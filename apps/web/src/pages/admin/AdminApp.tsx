@@ -23,6 +23,7 @@ import { ManagedTenantBar } from './ManagedTenantBar.tsx';
 import { MatchDetailPage } from './MatchDetailPage.tsx';
 import { MailSettingsPage } from './MailSettingsPage.tsx';
 import { MatchesPage } from './MatchesPage.tsx';
+import { OnboardingHost } from './onboarding/OnboardingHost.tsx';
 import { ShareLinksPage } from './ShareLinksPage.tsx';
 import { SimulationPage } from './SimulationPage.tsx';
 import { LEGACY_PAGES, studioPath } from './studio/model.ts';
@@ -184,6 +185,10 @@ function AdminLayout() {
         <main inert={menuOpen} className="sir-page min-w-0 flex-1 px-3 py-4 sm:px-5 lg:px-8 lg:py-6">
           <div className={`mx-auto w-full ${studio ? '' : 'max-w-7xl'}`}>
             {exit.error && <ErrorBox>{exit.error}</ErrorBox>}
+            {/* First setup of a client not configured yet (admin; the superadmin only gets a link). */}
+            {!superadminHome && user.role !== 'viewer' && user.tenant && (
+              <OnboardingHost key={user.tenant.id} tenantId={user.tenant.id} role={user.role} />
+            )}
             {/* A new client remounts every page: data and the admin WebSocket follow the choice. */}
             <Routes key={user.tenant?.id ?? 'nessun-cliente'}>
               <Route index element={<Navigate to={home} replace />} />

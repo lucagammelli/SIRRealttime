@@ -24,7 +24,16 @@ const club = (over: Partial<ClubResponse> = {}): ClubResponse => ({
   displayName: null,
   logoMark: null,
   ourTeam: { code: null, name: null },
-  profile: { series: null, coverage: 'homeAndAway', teamLogos: 'all' },
+  profile: {
+    series: null,
+    gender: null,
+    seriesId: null,
+    leagueId: null,
+    leagueIds: [],
+    newSeason: false,
+    coverage: 'homeAndAway',
+    teamLogos: 'all',
+  },
   leagues: [],
   available: [option],
   ...over,
@@ -60,6 +69,21 @@ function mockServer(role: 'admin' | 'superadmin', initial: ClubResponse) {
       if (url === `/api/admin/club/leagues/${LEAGUE}/teams`) return json(teams);
       if (url === '/api/admin/club/sync') return json({ started: 1, busy: 0 }, 202);
       if (url === '/api/admin/club/profile') return json(initial);
+      if (url === '/api/admin/club/league')
+        return json(
+          {
+            state: 'ready',
+            message: null,
+            gender: 'M',
+            series: 'superlega',
+            leagueId: LEAGUE,
+            leagueName: 'Regular Season SuperLega',
+            season: 2026,
+            teams: teams.teams.map((t) => ({ ...t, leagueId: LEAGUE })),
+            teamId: null,
+          },
+          method === 'POST' ? 200 : 200,
+        );
       return json([]);
     }),
   );
@@ -133,11 +157,10 @@ describe('page «Club»', () => {
     expect(screen.queryByRole('heading', { name: 'Nuovo campionato della Lega' })).toBeNull();
   });
 
-  it('saves the profile: name, logo, series, «nostra squadra», coverage and team logos', async () => {
+  it('saves the profile: name, logo, «nostra squadra», coverage and team logos', async () => {
     const calls = mockServer('admin', club());
     renderClub();
     fireEvent.change(await screen.findByLabelText(/^Nome\s*Vuoto/), { target: { value: 'Sir Perugia' } });
-    fireEvent.change(screen.getByLabelText('Serie', { exact: false }), { target: { value: 'SuperLega' } });
     fireEvent.click(screen.getByRole('radio', { name: 'Solo partite in casa' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Solo il mio' }));
     fireEvent.click(screen.getByRole('button', { name: 'Salva profilo' }));
@@ -149,9 +172,55 @@ describe('page «Club»', () => {
           displayName: 'Sir Perugia',
           logoMark: null,
           ourTeam: { code: null, name: null },
-          profile: { series: 'SuperLega', coverage: 'homeOnly', teamLogos: 'ours' },
+          profile: { coverage: 'homeOnly', teamLogos: 'ours' },
         },
       }),
     );
+  });
+
+  it('chooses gender and series from the catalog: the female gender is not available, the choice links the championship', async () => {
+    const calls = mockServer('admin', club());
+    renderClub();
+    const gender = await screen.findByRole('combobox', { name: /^Genere/ });
+    expect(
+      within(gender).getByRole('option', { name: 'Femminile (presto disponibile)' }).hasAttribute('disabled'),
+    ).toBe(true);
+    expect((gender as HTMLSelectElement).value).toBe('M');
+    const series = screen.getByRole('combobox', { name: /^Serie/ });
+    expect(
+      within(series)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Scegli la serie', 'SuperLega', 'Serie A2', 'Serie A3']);
+    fireEvent.change(series, { target: { value: 'a2' } });
+    await waitFor(() =>
+      expect(calls).toContainEqual({
+        url: '/api/admin/club/league',
+        method: 'POST',
+        body: { gender: 'M', series: 'a2' },
+      }),
+    );
+    // The club is read again: the list of championships starts from the new one.
+    await waitFor(() => expect(calls.filter((c) => c.url === '/api/admin/club' && c.method === 'GET').length).toBe(2));
+  });
+
+  it('shows the download error of the series', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((u: string, init?: RequestInit) => {
+        if (u === '/api/auth/me')
+          return Promise.resolve(
+            new Response(JSON.stringify({ id: USER_ID, email: 'a@b.it', role: 'admin', tenant: null })),
+          );
+        if (u === '/api/admin/club/league' && init?.method === 'POST')
+          return Promise.resolve(
+            new Response(JSON.stringify({ error: 'La pagina del calendario della Lega è cambiata' }), { status: 502 }),
+          );
+        return Promise.resolve(new Response(JSON.stringify(club())));
+      }),
+    );
+    renderClub();
+    fireEvent.change(await screen.findByRole('combobox', { name: /^Serie/ }), { target: { value: 'superlega' } });
+    expect(await screen.findByText(/La pagina del calendario della Lega è cambiata/)).toBeTruthy();
   });
 });

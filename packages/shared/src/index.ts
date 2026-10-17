@@ -11,6 +11,7 @@ export * from './leagues.js';
 export * from './mail.js';
 export * from './manifest.js';
 export * from './messages.js';
+export * from './onboarding.js';
 export * from './ourTeam.js';
 export * from './overlays.js';
 export * from './patch.js';

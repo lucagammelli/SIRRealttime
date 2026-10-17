@@ -48,6 +48,8 @@ export const tenants = pgTable(
     clubProfile: tenantConfig('club_profile'),
     /** Most active agents of the client (given by the superadmin); past it a registration cannot be enabled. */
     agentQuota: integer('agent_quota').notNull().default(1),
+    /** When the guided first setup was finished or dismissed for good by an admin; null: still to do. */
+    onboardedAt: timestamp('onboarded_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [

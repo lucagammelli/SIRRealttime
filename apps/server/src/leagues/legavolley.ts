@@ -69,6 +69,16 @@ export function calendarUrl(season: number, championshipId: number, phaseId?: nu
   return url('/calendario/', query);
 }
 
+/** Calendar without filters: the site shows its current season and the championships of it in the menu «Campionato». */
+export function calendarMenuUrl(): URL {
+  return url('/calendario/');
+}
+
+/** Calendar page of a championship (`IdCampionato` only): its menu «Campionato» lists the ones of the same series. */
+export function championshipPageUrl(championshipId: number): URL {
+  return url('/calendario/', { IdCampionato: requireId(championshipId, 'championship') });
+}
+
 /** Standings «Fino ad oggi» (whole championship). */
 export function standingsUrl(season: number, championshipId: number): URL {
   return url('/classifica/', {
@@ -479,4 +489,48 @@ export function parseTeam(html: string): ParsedTeam {
     venueAddress: orNull(address),
     city: orNull(cityLine?.replace(/^\d{5}\s*-\s*/, '')),
   };
+}
+
+export interface ParsedChampionshipMenu {
+  /** Season shown by the page (first year). */
+  season: number;
+  /** Championships of the season in the menu «Campionato», in page order. */
+  championships: { externalId: number; name: string }[];
+}
+
+/**
+ * Pure: the menu «Campionato» of the calendar page (season selected in «Anno», one entry per championship). Throws
+ * LeagueFormatError when the page is not the expected one (menu missing or without valid entries).
+ */
+export function parseChampionshipMenu(html: string): ParsedChampionshipMenu {
+  const doc = parseHtml(html);
+  const season = selectedNumber(doc, 'Anno', 'la stagione').value;
+  const options = selectOptions(doc, 'Campionato');
+  if (options === null)
+    throw new LeagueFormatError('La pagina del calendario della Lega è cambiata: manca il menu «Campionato»');
+  const championships: ParsedChampionshipMenu['championships'] = [];
+  for (const o of options) {
+    const id = Number(o.value);
+    if (validId(id) && !championships.some((c) => c.externalId === id))
+      championships.push({ externalId: id, name: clip(o.text) });
+  }
+  if (championships.length === 0)
+    throw new LeagueFormatError('La pagina del calendario della Lega è cambiata: il menu «Campionato» è vuoto');
+  if (championships.length > MAX_PHASES * 10) throw new LeagueFormatError('Troppi campionati nel menu della pagina');
+  return { season, championships };
+}
+
+/**
+ * Pure: the `IdCampionato` numbers of the links of a page (navigation menu: standings, results, calendar of every
+ * championship). Only the digits are kept: no address found in a page is ever requested.
+ */
+export function parseChampionshipLinkIds(html: string): number[] {
+  const doc = parseHtml(html);
+  const ids: number[] = [];
+  for (const a of findAll(doc, byTag('a'))) {
+    const m = /[?&]IdCampionato=(\d{1,8})(?!\d)/i.exec(a.attrs.href ?? '');
+    const id = m?.[1] ? Number(m[1]) : Number.NaN;
+    if (validId(id) && !ids.includes(id)) ids.push(id);
+  }
+  return ids;
 }

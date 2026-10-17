@@ -73,7 +73,11 @@ describe('tenant requests', () => {
 
   it('creates a client with a plain name and valid hostnames', () => {
     const body = CreateTenantRequestSchema.parse({ slug: 'sir', name: '  Sir Safety  ', hostnames: ['Live.Sir.it'] });
-    expect(body).toEqual({ slug: 'sir', name: 'Sir Safety', hostnames: ['live.sir.it'] });
+    // One agent unless the superadmin gives more.
+    expect(body).toEqual({ slug: 'sir', name: 'Sir Safety', hostnames: ['live.sir.it'], agentQuota: 1 });
+    expect(
+      CreateTenantRequestSchema.safeParse({ slug: 'sir', name: 'Sir', hostnames: [], agentQuota: -1 }).success,
+    ).toBe(false);
     expect(CreateTenantRequestSchema.safeParse({ slug: 'sir', name: 'a\nb', hostnames: [] }).success).toBe(false);
     expect(CreateTenantRequestSchema.safeParse({ slug: 'sir', name: 'Sir' }).success).toBe(false);
   });
@@ -82,6 +86,7 @@ describe('tenant requests', () => {
     expect(UpdateTenantRequestSchema.safeParse({}).success).toBe(false);
     expect(UpdateTenantRequestSchema.parse({ name: 'Nuovo' })).toEqual({ name: 'Nuovo' });
     expect(UpdateTenantRequestSchema.parse({ hostnames: [] })).toEqual({ hostnames: [] });
+    expect(UpdateTenantRequestSchema.parse({ agentQuota: 3 })).toEqual({ agentQuota: 3 });
     expect(UpdateTenantRequestSchema.parse({ slug: 'altro', name: 'X' })).toEqual({ name: 'X' });
   });
 

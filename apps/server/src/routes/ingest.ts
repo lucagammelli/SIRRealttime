@@ -9,6 +9,7 @@ import { perMinute } from '../context.js';
 import { payloadTooLarge, unauthorized, unsupportedMediaType } from '../lib/errors.js';
 import { validate } from '../lib/validate.js';
 import { authenticateAgent } from '../security.js';
+import { channelAllowed, withLogos } from '../state.js';
 
 /**
  * preParsing of the ingest: at most INGEST_MAX_WIRE_BYTES on the wire, gzip decompressed on the fly;
@@ -50,7 +51,10 @@ export function ingestRoutes(app: FastifyInstance, ctx: AppContext): void {
       // The match belongs to the client of the agent, whatever the hostname.
       const { response, published, route } = await ctx.ingest.ingest(agent, body);
       if (published) {
-        ctx.publisher.publish(agent.tenantId, published, route);
+        const fixtureId = route?.clientFixtureId ?? null;
+        const message = await withLogos(ctx, agent.tenantId, published, fixtureId);
+        const channel = await channelAllowed(ctx, agent.tenantId, fixtureId);
+        ctx.publisher.publish(agent.tenantId, message, route ? { ...route, channel } : route);
         // A match that starts or ends changes «Prossima partita»: the public schedule is read again.
         if (route?.becameLive || published.state.status === 'finished') ctx.caches.schedule.delete(agent.tenantId);
       }

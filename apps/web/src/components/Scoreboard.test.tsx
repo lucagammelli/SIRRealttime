@@ -38,4 +38,18 @@ describe('Scoreboard', () => {
     expect(screen.getByText('in corso')).toBeTruthy();
     expect(screen.queryByText('Vince')).toBeNull();
   });
+
+  it('shows the logos of the teams next to their names, and nothing where there is none', () => {
+    const state = midMatchState();
+    for (const device of ['tablet', 'phone', 'tv'] as const) {
+      const { unmount } = render(
+        <Scoreboard state={state} device={device} logos={{ home: '/api/public/assets/casa', away: null }} />,
+      );
+      const logos = screen.getAllByTestId('team-logo');
+      expect(logos.map((l) => l.getAttribute('src'))).toEqual(['/api/public/assets/casa']);
+      unmount();
+    }
+    render(<Scoreboard state={state} />);
+    expect(screen.queryAllByTestId('team-logo')).toHaveLength(0);
+  });
 });

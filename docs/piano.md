@@ -188,6 +188,12 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
    sezioni di un solo «Studio grafico» (`/admin/studio/:sezione`): impostazioni in schede brevi, anteprima grande
    sempre visibile con dispositivo e scena, salvataggio per sezione, configurazione guidata al primo accesso
    (`docs/portale.md`). Da provare su dispositivi veri.
+3. `ruoli-calendario` (**fatto**, 2026-10-17): ruoli di sola lettura (il `viewer` legge club, calendario, agenti, link e
+   grafica), profilo del club (serie, copertura «Solo partite in casa», loghi delle squadre), partite aggiunte a mano e
+   «Trasmessa»/«Non trasmessa», loghi per partita, canale «tutte le partite del calendario», validità e quota degli
+   agenti, pagina «Campionati» del superadmin, manifest dell'app per cliente (`docs/server.md`, `docs/portale.md`,
+   `docs/architettura.md`, `docs/agente.md`). Da completare: collegare al menu e alle rotte di `AdminApp.tsx` la pagina
+   «Campionati» e le voci per il viewer.
 
 **Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
 PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo

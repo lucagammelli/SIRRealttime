@@ -64,6 +64,13 @@ export const LeagueSummarySchema = z.object({
   fixtureCount: z.number().int().nonnegative(),
   sync: LeagueSyncStateSchema,
   createdAt: z.iso.datetime(),
+  /**
+   * Planning of the automatic updates: next one (null: automatic updates off, LEAGUE_SYNC=off) and whether a club
+   * has a match of the championship today (then every 10 minutes, otherwise once a night).
+   */
+  plan: z
+    .object({ nextSyncAt: z.iso.datetime().nullable(), matchToday: z.boolean() })
+    .default({ nextSyncAt: null, matchToday: false }),
 });
 export type LeagueSummary = z.infer<typeof LeagueSummarySchema>;
 

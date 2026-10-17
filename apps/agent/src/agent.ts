@@ -1,4 +1,4 @@
-import { INGEST_PROTOCOL, IngestRequestSchema, hashScoutLines } from '@sir/shared';
+import { AGENT_EXPIRED_ERROR, INGEST_PROTOCOL, IngestRequestSchema, hashScoutLines } from '@sir/shared';
 import type { IngestRequest, IngestResponse } from '@sir/shared';
 import { usesPlainHttpOnPrivateNetwork, type AgentConfig } from './config.js';
 import type { DvwContent } from './dvw.js';
@@ -54,6 +54,8 @@ export interface AgentStatus {
   queue: number;
   lastSuccessAt: string | null;
   serverReachable: boolean;
+  /** The server answered that the registration has expired: register again (the queue is kept). */
+  registrationExpired: boolean;
 }
 
 const AUTH_MESSAGE = 'token agente non valido o revocato';
@@ -76,6 +78,7 @@ export class Agent {
   private failures = 0;
   private nextAttemptAt = 0;
   private authBlocked = false;
+  private registrationExpired = false;
   private serverReachable = true;
   private lastSuccessAt: number | null = null;
   private lastStatusAt = 0;
@@ -124,6 +127,7 @@ export class Agent {
       queue: this.store.queueSize(),
       lastSuccessAt: this.lastSuccessAt === null ? null : new Date(this.lastSuccessAt).toISOString(),
       serverReachable: this.serverReachable,
+      registrationExpired: this.registrationExpired,
     };
   }
 
@@ -386,7 +390,11 @@ export class Agent {
       this.backoff();
       return false;
     }
-    if (result.type === 'http') return this.handleHttpError(record, request, result.status, result.retryAfterMs, ctx);
+    if (result.type === 'http') {
+      this.registrationExpired = result.expired === true;
+      return this.handleHttpError(record, request, result.status, result.retryAfterMs, ctx);
+    }
+    this.registrationExpired = false;
     this.delivered();
     await this.handleResponse(record, request, result.response, ctx);
     return true;
@@ -449,9 +457,10 @@ export class Agent {
   ): Promise<boolean> {
     if (status === 401 || status === 403) {
       if (!this.authBlocked) {
+        const what = this.registrationExpired ? AGENT_EXPIRED_ERROR : AUTH_MESSAGE;
         this.log.error(
           { status, queue: this.store.queueSize() },
-          `${AUTH_MESSAGE}: nuovo tentativo tra ${Math.round(this.timing.authPauseMs / 1000)} s, la coda è conservata`,
+          `${what}: nuovo tentativo tra ${Math.round(this.timing.authPauseMs / 1000)} s, la coda è conservata`,
         );
       }
       this.authBlocked = true;

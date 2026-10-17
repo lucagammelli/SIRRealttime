@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { ApiError, apiCommand, apiRequest, errorText } from '../../lib/api.ts';
 
-interface AuthValue {
+export interface AuthValue {
   user: MeResponse;
   /** Admin of the client, or superadmin. */
   isAdmin: boolean;
@@ -18,6 +18,11 @@ interface AuthValue {
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
+
+/** The session given to the pages (tests: a page rendered on its own, with a chosen role). */
+export function AuthProvider({ value, children }: { value: AuthValue; children: ReactNode }) {
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
 
 export function useAuth(): AuthValue {
   const value = useContext(AuthContext);

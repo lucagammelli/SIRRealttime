@@ -27,6 +27,7 @@ const STATUS: AgentStatus = {
   queue: 0,
   lastSuccessAt: null,
   serverReachable: true,
+  registrationExpired: false,
 };
 
 /** Agent whose start-up and loop the test controls. */

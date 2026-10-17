@@ -1,21 +1,45 @@
-import type { ClubLeagueChoice, ClubLeagueOption, ClubResponse } from '@sir/shared';
+import type {
+  ClubCoverage,
+  ClubLeagueChoice,
+  ClubLeagueOption,
+  ClubResponse,
+  TeamLogosMode,
+  UpdateClubProfileRequest,
+} from '@sir/shared';
 import {
   CLUB_MAX_LEAGUES,
+  CLUB_SERIES_MAX,
   ClubResponseSchema,
   ClubSyncResponseSchema,
   ClubTeamsResponseSchema,
-  LeagueSummarySchema,
+  OUR_TEAM_CODE_MAX,
+  OUR_TEAM_NAME_MAX,
+  publicAssetPath,
   seasonLabel,
+  UpdateClubProfileRequestSchema,
 } from '@sir/shared';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { Button, buttonClass, Card, Empty, ErrorBox, Spinner } from '../../components/ui.tsx';
+import { Button, buttonClass, Card, Empty, ErrorBox, Segmented, Spinner } from '../../components/ui.tsx';
 import { apiRequest } from '../../lib/api.ts';
 import { formatDateTime } from '../../lib/format.ts';
 import { useAsync } from '../../lib/useAsync.ts';
+import { READ_ONLY_TEXT, useCanEdit } from '../../lib/useCanEdit.ts';
 import { useApiError, useAuth } from './auth.tsx';
 import { Field, inputClass } from './forms.tsx';
+import { LogoPicker } from './LogoPicker.tsx';
+
+export const COVERAGE_TEXT: Record<ClubCoverage, string> = {
+  homeAndAway: 'Casa e trasferta',
+  homeOnly: 'Solo partite in casa',
+};
+
+export const TEAM_LOGOS_TEXT: Record<TeamLogosMode, string> = {
+  all: 'Tutti',
+  ours: 'Solo il mio',
+  none: 'Nessuno',
+};
 
 /** Pure: name of a championship in the lists («Regular Season SuperLega 2026/2027», or its IdCampionato until known). */
 export function leagueName(l: Pick<ClubLeagueOption, 'name' | 'season' | 'externalId'>): string {
@@ -36,10 +60,12 @@ function TeamSelect({
   leagueId,
   value,
   onChange,
+  disabled = false,
 }: {
   leagueId: string;
   value: string | null;
   onChange: (teamId: string | null) => void;
+  disabled?: boolean;
 }) {
   const errorMessage = useApiError();
   const load = useCallback(
@@ -56,7 +82,7 @@ function TeamSelect({
       onChange={(e) => onChange(e.target.value || null)}
       className={inputClass}
       aria-label="Squadra del club"
-      disabled={teams.loading && !teams.data}
+      disabled={disabled || (teams.loading && !teams.data)}
     >
       <option value="">
         {teams.loading && !teams.data
@@ -75,71 +101,6 @@ function TeamSelect({
   );
 }
 
-/** Superadmin: a championship of the Lega Pallavolo Serie A by its IdCampionato (different every season). */
-function AddLeague({ onAdded }: { onAdded: () => void }) {
-  const errorMessage = useApiError();
-  const [externalId, setExternalId] = useState('');
-  const [season, setSeason] = useState(String(new Date().getFullYear()));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const submit = async (e: FormEvent): Promise<void> => {
-    e.preventDefault();
-    setError(null);
-    const id = Number(externalId);
-    const year = Number(season);
-    if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(year) || year < 1945 || year > 2100) {
-      setError('Scrivi l’IdCampionato (un numero) e il primo anno della stagione (es. 2026).');
-      return;
-    }
-    setBusy(true);
-    try {
-      const league = await apiRequest('/api/admin/leagues', LeagueSummarySchema, {
-        method: 'POST',
-        body: { provider: 'legavolley', externalId: id, season: year },
-      });
-      await apiRequest(`/api/admin/leagues/${encodeURIComponent(league.id)}/sync`, LeagueSummarySchema, {
-        method: 'POST',
-        body: {},
-      });
-      setExternalId('');
-      onAdded();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <Card
-      title="Nuovo campionato della Lega"
-      subtitle="Solo superadmin: i campionati sono comuni a tutti i clienti e si scaricano dal sito ufficiale."
-    >
-      <form onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
-        <Field label="IdCampionato" hint="Dal sito legavolley.it: cambia ogni stagione (SuperLega 2026/27 = 999).">
-          <input
-            inputMode="numeric"
-            value={externalId}
-            onChange={(e) => setExternalId(e.target.value.trim())}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Stagione (primo anno)" hint="2026 = stagione 2026/2027.">
-          <input
-            inputMode="numeric"
-            value={season}
-            onChange={(e) => setSeason(e.target.value.trim())}
-            className={inputClass}
-          />
-        </Field>
-        {error && <ErrorBox>{error}</ErrorBox>}
-        <Button type="submit" disabled={busy}>
-          {busy ? 'Aggiunta…' : 'Aggiungi e scarica'}
-        </Button>
-      </form>
-    </Card>
-  );
-}
-
 function ClubForm({
   club,
   onSaved,
@@ -151,6 +112,7 @@ function ClubForm({
 }) {
   const errorMessage = useApiError();
   const { isSuperadmin } = useAuth();
+  const canEdit = useCanEdit();
   const [choices, setChoices] = useState<ClubLeagueChoice[]>(() =>
     club.leagues.map((l) => ({ leagueId: l.league.id, teamId: l.team?.id ?? null })),
   );
@@ -208,16 +170,24 @@ function ClubForm({
       title="Campionati"
       subtitle="Uno o più (per esempio regular season e play off): per ognuno la squadra del club."
       actions={
-        <Button onClick={() => void sync()} disabled={syncing || club.leagues.length === 0}>
-          {syncing ? 'Avvio…' : 'Aggiorna calendario'}
-        </Button>
+        canEdit ? (
+          <Button onClick={() => void sync()} disabled={syncing || club.leagues.length === 0}>
+            {syncing ? 'Avvio…' : 'Aggiorna calendario'}
+          </Button>
+        ) : undefined
       }
     >
       <div className="space-y-4">
         {club.available.length === 0 && (
           <Empty>
             Nessun campionato disponibile.{' '}
-            {isSuperadmin ? 'Aggiungilo qui sotto.' : 'Chiedi al superadmin di aggiungere il campionato del club.'}
+            {isSuperadmin ? (
+              <Link to="/admin/campionati" className="underline">
+                Aggiungilo in «Campionati».
+              </Link>
+            ) : (
+              'Chiedi al superadmin di aggiungere il campionato del club.'
+            )}
           </Empty>
         )}
         {choices.length > 0 && (
@@ -233,6 +203,7 @@ function ClubForm({
                         onChange={(e) => set(index, { leagueId: e.target.value, teamId: null })}
                         className={inputClass}
                         aria-label="Campionato"
+                        disabled={!canEdit}
                       >
                         {[...(league ? [league] : []), ...free].map((l) => (
                           <option key={l.id} value={l.id}>
@@ -246,30 +217,35 @@ function ClubForm({
                       leagueId={choice.leagueId}
                       value={choice.teamId}
                       onChange={(teamId) => set(index, { ...choice, teamId })}
+                      disabled={!canEdit}
                     />
                   </div>
-                  <Button variant="ghost" onClick={() => setChoices((list) => list.filter((_, i) => i !== index))}>
-                    Togli
-                  </Button>
+                  {canEdit && (
+                    <Button variant="ghost" onClick={() => setChoices((list) => list.filter((_, i) => i !== index))}>
+                      Togli
+                    </Button>
+                  )}
                 </li>
               );
             })}
           </ul>
         )}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            disabled={free.length === 0 || choices.length >= CLUB_MAX_LEAGUES}
-            onClick={() => {
-              const next = free[0];
-              if (next) setChoices((list) => [...list, { leagueId: next.id, teamId: null }]);
-            }}
-          >
-            Aggiungi campionato
-          </Button>
-          <Button variant="primary" disabled={busy || !dirty} onClick={() => void save()}>
-            {busy ? 'Salvataggio…' : 'Salva'}
-          </Button>
-        </div>
+        {canEdit && (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              disabled={free.length === 0 || choices.length >= CLUB_MAX_LEAGUES}
+              onClick={() => {
+                const next = free[0];
+                if (next) setChoices((list) => [...list, { leagueId: next.id, teamId: null }]);
+              }}
+            >
+              Aggiungi campionato
+            </Button>
+            <Button variant="primary" disabled={busy || !dirty} onClick={() => void save()}>
+              {busy ? 'Salvataggio…' : 'Salva'}
+            </Button>
+          </div>
+        )}
         {error && <ErrorBox>{error}</ErrorBox>}
         {notice && (
           <p role="status" className="text-sm text-text">
@@ -282,9 +258,148 @@ function ClubForm({
 }
 
 /**
- * «Club»: name and logo of the club (from «Grafica»), «nostra squadra» of the `.dvw` files, the championships of the
- * club and its team in each (from the championships downloaded from the official site), «Aggiorna calendario». The
- * superadmin can also add a championship of the Lega by its IdCampionato.
+ * Profile of the club: name shown, square logo, series, «nostra squadra» of the `.dvw` files, coverage of the matches
+ * («casa e trasferta» or «solo partite in casa») and «Loghi delle squadre» (tutti / solo il mio / nessuno). Saved
+ * together (`PUT /api/admin/club/profile`); read-only for a viewer.
+ */
+function ProfileForm({ club, onSaved }: { club: ClubResponse; onSaved: (c: ClubResponse) => void }) {
+  const errorMessage = useApiError();
+  const canEdit = useCanEdit();
+  const [displayName, setDisplayName] = useState(club.displayName ?? '');
+  const [logoMark, setLogoMark] = useState<string | null>(club.logoMark);
+  const [series, setSeries] = useState(club.profile.series ?? '');
+  const [code, setCode] = useState(club.ourTeam.code ?? '');
+  const [teamName, setTeamName] = useState(club.ourTeam.name ?? '');
+  const [coverage, setCoverage] = useState<ClubCoverage>(club.profile.coverage);
+  const [teamLogos, setTeamLogos] = useState<TeamLogosMode>(club.profile.teamLogos);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent): Promise<void> => {
+    e.preventDefault();
+    setError(null);
+    setNotice(null);
+    const body = UpdateClubProfileRequestSchema.safeParse({
+      displayName: displayName.trim() || null,
+      logoMark,
+      ourTeam: { code: code.trim() || null, name: teamName.trim() || null },
+      profile: { series: series.trim() || null, coverage, teamLogos },
+    } satisfies UpdateClubProfileRequest);
+    if (!body.success) {
+      setError('Controlla i campi: testi su una riga, senza caratteri speciali.');
+      return;
+    }
+    setBusy(true);
+    try {
+      onSaved(await apiRequest('/api/admin/club/profile', ClubResponseSchema, { method: 'PUT', body: body.data }));
+      setNotice('Profilo salvato: le pagine pubbliche lo mostrano subito.');
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card
+      title="Profilo del club"
+      subtitle="Come il club compare nelle pagine pubbliche e quali partite si trasmettono."
+    >
+      <form onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
+        {!canEdit && <p className="text-sm text-muted">{READ_ONLY_TEXT}</p>}
+        <fieldset disabled={!canEdit} className="space-y-4">
+          <LogoPicker
+            label="Logo quadrato del club"
+            url={logoMark ? publicAssetPath(logoMark) : null}
+            custom={logoMark !== null}
+            defaultLabel="Togli"
+            disabled={!canEdit}
+            onChange={(id) => {
+              setLogoMark(id);
+              return Promise.resolve();
+            }}
+          />
+          <Field label="Nome" hint={`Vuoto: «${club.name}». Compare nelle pagine pubbliche e nell’app installata.`}>
+            <input
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              maxLength={100}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Serie" hint="Es. «SuperLega» o «Serie A2 femminile» (facoltativa).">
+            <input
+              value={series}
+              onChange={(e) => setSeries(e.target.value)}
+              maxLength={CLUB_SERIES_MAX}
+              className={inputClass}
+            />
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
+            <Field label="Codice squadra" hint="Nei file .dvw, es. PER.">
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                maxLength={OUR_TEAM_CODE_MAX}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Nome della squadra contiene" hint="Es. «Perugia»: riconosce la nostra squadra nei .dvw.">
+              <input
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                maxLength={OUR_TEAM_NAME_MAX}
+                className={inputClass}
+              />
+            </Field>
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-text">Partite trasmesse</p>
+            <Segmented
+              label="Partite trasmesse"
+              value={coverage}
+              onChange={setCoverage}
+              options={(['homeAndAway', 'homeOnly'] as const).map((v) => ({ value: v, label: COVERAGE_TEXT[v] }))}
+            />
+            <p className="text-xs text-muted">
+              Con «solo partite in casa» le trasferte non hanno il link attivo e non compaiono in «Prossima partita».
+              Nel «Calendario» ogni partita può fare eccezione.
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-text">Loghi delle squadre</p>
+            <Segmented
+              label="Loghi delle squadre"
+              value={teamLogos}
+              onChange={setTeamLogos}
+              options={(['all', 'ours', 'none'] as const).map((v) => ({ value: v, label: TEAM_LOGOS_TEXT[v] }))}
+            />
+            <p className="text-xs text-muted">
+              Accanto ai nomi nel tabellone, in «Prossima partita», nel calendario e nella classifica.
+            </p>
+          </div>
+        </fieldset>
+        {error && <ErrorBox>{error}</ErrorBox>}
+        {notice && (
+          <p role="status" className="text-sm text-text">
+            {notice}
+          </p>
+        )}
+        {canEdit && (
+          <Button type="submit" variant="primary" disabled={busy}>
+            {busy ? 'Salvataggio…' : 'Salva profilo'}
+          </Button>
+        )}
+      </form>
+    </Card>
+  );
+}
+
+/**
+ * «Club»: the profile of the club (name, logo, series, «nostra squadra», coverage, team logos) and its championships
+ * with its team in each (from the championships downloaded from the official site), «Aggiorna calendario». The
+ * championships are added by the superadmin in «Campionati». A viewer only reads.
  */
 export function ClubPage() {
   const errorMessage = useApiError();
@@ -293,6 +408,7 @@ export function ClubPage() {
   const club = useAsync(load);
   const [current, setCurrent] = useState<ClubResponse | null>(null);
   const [version, setVersion] = useState(0);
+  const [profileVersion, setProfileVersion] = useState(0);
 
   useEffect(() => {
     document.title = 'Club · Area riservata';
@@ -306,9 +422,14 @@ export function ClubPage() {
 
   if (club.error !== null && !current) return <ErrorBox onRetry={club.reload}>{errorMessage(club.error)}</ErrorBox>;
   if (!current) return <Spinner label="Caricamento del club…" />;
+  // Saving the championships may fill «nostra squadra»: the profile form then starts again from the saved data.
+  const leaguesSaved = (c: ClubResponse): void => {
+    if (JSON.stringify(c.ourTeam) !== JSON.stringify(current.ourTeam)) setProfileVersion((v) => v + 1);
+    setCurrent(c);
+  };
   const our = current.ourTeam;
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
       <div className="space-y-4">
         <Card title="Club">
           <div className="flex items-center gap-4">
@@ -323,7 +444,7 @@ export function ClubPage() {
               <p className="break-words font-display text-xl font-bold uppercase tracking-wide text-text">
                 {current.name}
               </p>
-              <p className="text-sm text-muted">Nome e logo si cambiano nella pagina «Grafica».</p>
+              {current.profile.series && <p className="text-sm text-muted">{current.profile.series}</p>}
             </div>
           </div>
           <dl className="mt-4 space-y-1 text-sm">
@@ -336,13 +457,15 @@ export function ClubPage() {
                 : 'non impostata: si imposta da sola quando scegli la squadra del club'}
             </dd>
           </dl>
-          <Link to="/admin/grafica" className={`${buttonClass()} mt-4`}>
-            Apri «Grafica»
-          </Link>
+          {isSuperadmin && (
+            <Link to="/admin/campionati" className={`${buttonClass()} mt-4`}>
+              Apri «Campionati»
+            </Link>
+          )}
         </Card>
-        {isSuperadmin && <AddLeague onAdded={club.reload} />}
+        <ProfileForm key={`${version}-${profileVersion}`} club={current} onSaved={setCurrent} />
       </div>
-      <ClubForm key={version} club={current} onSaved={setCurrent} reload={club.reload} />
+      <ClubForm key={version} club={current} onSaved={leaguesSaved} reload={club.reload} />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { MatchKeySchema } from './ingest.js';
 import { MatchStateSchema } from './messages.js';
 import { PairingCodeSchema } from './registration.js';
 import { hasNoControlChars, plainText, safeString } from './strings.js';
-import { TenantRefSchema } from './tenant.js';
+import { AgentQuotaSchema, TenantRefSchema } from './tenant.js';
 
 /** Long public share token: random ≥ 128 bit, base64url (`/live/<token>`). */
 export const LONG_SHARE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{22,128}$/;
@@ -116,8 +116,32 @@ export const AgentSummarySchema = z.object({
   revoked: z.boolean(),
   lastSeenAt: z.iso.datetime().nullable(),
   createdAt: z.iso.datetime(),
+  /** End of the validity of the registration (past it the ingest answers 401); null: no expiry. */
+  expiresAt: z.iso.datetime().nullable().default(null),
 });
 export type AgentSummary = z.infer<typeof AgentSummarySchema>;
+
+/**
+ * Validity of an agent: `expiresAt` null «Senza scadenza», otherwise «Fino al» that time (in the future). Body of
+ * `POST /api/admin/agent-registrations/:id/approve` (empty body: no expiry) and of `PATCH /api/admin/agents/:id`
+ * (prolong or shorten).
+ */
+export const AgentValidityRequestSchema = z.strictObject({
+  expiresAt: z.iso.datetime().nullable().default(null),
+});
+export type AgentValidityRequest = z.infer<typeof AgentValidityRequestSchema>;
+
+/**
+ * `GET /api/admin/agent-quota`: agents the client can have (given by the superadmin) and the ones counted now (not
+ * revoked and not expired, plus the registrations enabled and not collected yet).
+ */
+export const AgentQuotaResponseSchema = z.object({ quota: AgentQuotaSchema, used: z.number().int().nonnegative() });
+export type AgentQuotaResponse = z.infer<typeof AgentQuotaResponseSchema>;
+
+/** Pure: whether an agent counts as active at `now` (not revoked, not expired). */
+export function agentActive(agent: { revoked: boolean; expiresAt: string | null }, now: Date): boolean {
+  return !agent.revoked && (agent.expiresAt === null || Date.parse(agent.expiresAt) > now.getTime());
+}
 
 /** State of an agent registration as stored; `expired` is derived from `expiresAt`. */
 export const AgentRegistrationStateSchema = z.enum(['pending', 'approved', 'rejected', 'consumed']);
@@ -140,7 +164,11 @@ export type AgentRegistrationSummary = z.infer<typeof AgentRegistrationSummarySc
 export const CreateAgentResponseSchema = AgentSummarySchema.extend({ token: z.string() });
 export type CreateAgentResponse = z.infer<typeof CreateAgentResponseSchema>;
 
-/** `matchId` null: the link follows the live match. `expiresAt` null: no expiry. */
+/**
+ * `matchId` null: the channel of the club («tutte le partite del calendario»: the match live now, otherwise the next
+ * broadcast match with its countdown, after a match the finished one until the day of the next). `expiresAt` null:
+ * no expiry.
+ */
 export const CreateShareTokenRequestSchema = z.object({
   label: plainText(100),
   matchId: z.uuid().nullable(),

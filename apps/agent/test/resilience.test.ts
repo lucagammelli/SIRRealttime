@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { decodeDvw } from '@sir/dvw-parser';
 import type { GeneratedMatch } from '@sir/dvw-simulator';
 import { applyCorrection, generateMatch, renderDvw } from '@sir/dvw-simulator';
-import { hashScoutLines, splitDvwText } from '@sir/shared';
+import { AGENT_EXPIRED_ERROR, hashScoutLines, splitDvwText } from '@sir/shared';
 import { afterEach, describe, expect, it } from 'vitest';
 import { agents } from '../../server/src/db/index.js';
 import { createAgent, startServer } from '../../server/test/helpers.js';
@@ -235,6 +235,30 @@ describe('rete e server', () => {
     await server.database.db.update(agents).set({ revoked: false });
     await waitServerAt(server, match, 30);
     expect(raw.join('')).not.toContain(server.token);
+  });
+});
+
+describe('registrazione scaduta', () => {
+  it('401 per registrazione scaduta: «Registrazione scaduta: registrati di nuovo» nello stato e nel log', async () => {
+    const { dirs, file } = await setup();
+    const server = await live();
+    const { logger, entries } = memoryLogger();
+    const running = await runAgent(agentConfig(dirs, server.url, server.token), logger);
+    cleanups.push(() => running.stop());
+    await writeDvw(file, match, 20);
+    await waitServerAt(server, match, 20);
+    expect(running.agent.status().registrationExpired).toBe(false);
+
+    await server.database.db.update(agents).set({ expiresAt: new Date(Date.now() - 1000) });
+    await writeDvw(file, match, 30);
+    await waitFor(() => running.agent.status().registrationExpired, 5000, 'registrazione scaduta');
+    expect(entries.some((e) => e.msg.includes(AGENT_EXPIRED_ERROR))).toBe(true);
+    expect(running.agent.status().queue).toBe(1);
+
+    // Prolungata dal portale: riparte da sola.
+    await server.database.db.update(agents).set({ expiresAt: null });
+    await waitServerAt(server, match, 30);
+    await waitFor(() => !running.agent.status().registrationExpired, 5000, 'registrazione di nuovo valida');
   });
 });
 

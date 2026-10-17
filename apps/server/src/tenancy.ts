@@ -22,6 +22,8 @@ export interface Tenant {
   intermissions: Record<string, unknown>;
   /** Stored overlays of the events of the match (read it with `resolveOverlays` of `@sir/shared`). */
   overlays: Record<string, unknown>;
+  /** Stored profile of the club (read it with `resolveClubProfile` of `@sir/shared`). */
+  clubProfile: Record<string, unknown>;
 }
 
 const TENANT_COLUMNS = {
@@ -33,6 +35,7 @@ const TENANT_COLUMNS = {
   layout: tenants.layout,
   intermissions: tenants.intermissions,
   overlays: tenants.overlays,
+  clubProfile: tenants.clubProfile,
 };
 
 /**
@@ -101,6 +104,8 @@ async function resolveHost(ctx: AppContext, hostname: string | null): Promise<Te
  */
 export function forgetTenants(ctx: AppContext): void {
   ctx.caches.hosts.clear();
+  // Logos of the matches: the square logo and «nostra squadra» are in the branding.
+  ctx.caches.logos.clear();
 }
 
 /**

@@ -49,3 +49,9 @@ export const RegistrationStatusResponseSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('expired') }),
 ]);
 export type RegistrationStatusResponse = z.infer<typeof RegistrationStatusResponseSchema>;
+
+/**
+ * `error` of the 401 of `POST /api/ingest` when the registration of the agent has expired (validity chosen at the
+ * approval): the agent shows it and proposes to register again.
+ */
+export const AGENT_EXPIRED_ERROR = 'Registrazione scaduta: registrati di nuovo';

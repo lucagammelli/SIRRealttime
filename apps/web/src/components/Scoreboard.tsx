@@ -1,6 +1,7 @@
+import type { TeamLogoPair } from '@sir/shared';
 import type { MatchState, Side } from '@sir/volley-stats';
 import type { ReactNode } from 'react';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useTemplate } from '../lib/branding.ts';
 import { formatMinutes, SIDE_LABEL, teamName, teamShort } from '../lib/format.ts';
 import type { Device } from '../lib/layout.ts';
@@ -22,8 +23,22 @@ const ON: Record<Side, string> = { home: 'text-on-home', away: 'text-on-away' };
 
 /** Sizes of the big scoreboard: tablet and big screen (on the TV every rem scales with the screen). */
 const SIZES = {
-  tablet: { score: 'text-8xl', colon: 'text-6xl', sets: 'text-5xl', name: 'text-2xl', facts: 'text-sm' },
-  tv: { score: 'text-[min(20vh,10rem)]', colon: 'text-7xl', sets: 'text-6xl', name: 'text-4xl', facts: 'text-base' },
+  tablet: {
+    score: 'text-8xl',
+    colon: 'text-6xl',
+    sets: 'text-5xl',
+    name: 'text-2xl',
+    facts: 'text-sm',
+    logo: 'size-10',
+  },
+  tv: {
+    score: 'text-[min(20vh,10rem)]',
+    colon: 'text-7xl',
+    sets: 'text-6xl',
+    name: 'text-4xl',
+    facts: 'text-base',
+    logo: 'size-16',
+  },
 } as const;
 
 function ServeDot({ side, active, small = false }: { side: Side; active: boolean; small?: boolean }) {
@@ -31,6 +46,24 @@ function ServeDot({ side, active, small = false }: { side: Side; active: boolean
     <span
       aria-hidden="true"
       className={`inline-block shrink-0 rounded-full ${small ? 'size-2' : 'size-4'} ${active ? `${BG[side]} sir-pulse` : 'bg-transparent'}`}
+    />
+  );
+}
+
+/**
+ * Logo of a team next to its name (chosen by the server: «Loghi delle squadre»); nothing at all when missing or not
+ * loading, so the name stays aligned without an empty space.
+ */
+export function TeamLogo({ url, className }: { url: string | null | undefined; className: string }) {
+  const [broken, setBroken] = useState<string | null>(null);
+  if (!url || broken === url) return null;
+  return (
+    <img
+      src={url}
+      alt=""
+      data-testid="team-logo"
+      onError={() => setBroken(url)}
+      className={`shrink-0 object-contain ${className}`}
     />
   );
 }
@@ -121,17 +154,20 @@ export function Partials({ partials, compact = false }: { partials: SetPartial[]
  * Big score of the match: first thing on the page, readable from far away. With the team colours, the logo of the
  * client (`brand`, big screen) and the score in the display font.
  * `phone`: compact scoreboard fixed on top while scrolling (teams, sets and score), the facts of the set under it.
+ * `logos`: the logos of the teams next to their names (missing: none).
  */
 export function Scoreboard({
   state,
   status,
   device = 'tablet',
   brand = false,
+  logos,
 }: {
   state: MatchState;
   status?: ReactNode;
   device?: Device;
   brand?: boolean;
+  logos?: TeamLogoPair | undefined;
 }) {
   const sticky = useRef<HTMLElement>(null);
   useStickyOffset(sticky, device === 'phone');
@@ -178,6 +214,7 @@ export function Scoreboard({
                 >
                   {state.setsWon[side]}
                 </span>
+                <TeamLogo url={logos?.[side]} className="size-7" />
                 <div className={`min-w-0 ${side === 'home' ? 'text-left' : 'text-right'}`}>
                   <h2
                     className={`truncate font-display text-base font-bold uppercase leading-tight ${INK[side]}`}
@@ -209,7 +246,9 @@ export function Scoreboard({
   }
 
   if (template.id === 'sir-volley')
-    return <TemplateScoreboard state={state} status={status} brand={brand} names={names} serving={serving} />;
+    return (
+      <TemplateScoreboard state={state} status={status} brand={brand} names={names} serving={serving} logos={logos} />
+    );
 
   const size = SIZES[device];
   return (
@@ -227,12 +266,14 @@ export function Scoreboard({
           >
             <div className={`flex w-full items-center gap-2 ${side === 'home' ? 'justify-start' : 'justify-end'}`}>
               {side === 'home' && <ServeDot side={side} active={serving === side} />}
+              {side === 'home' && <TeamLogo url={logos?.home} className={size.logo} />}
               <h2
                 className={`min-w-0 truncate font-display font-bold uppercase leading-tight ${size.name} ${TEXT[side]}`}
                 title={names[side]}
               >
                 {names[side]}
               </h2>
+              {side === 'away' && <TeamLogo url={logos?.away} className={size.logo} />}
               {side === 'away' && <ServeDot side={side} active={serving === side} />}
             </div>
             <div className={`mt-2 flex items-center gap-3 ${side === 'away' ? 'flex-row-reverse' : ''}`}>
@@ -271,12 +312,14 @@ function TemplateScoreboard({
   brand,
   names,
   serving,
+  logos,
 }: {
   state: MatchState;
   status?: ReactNode;
   brand: boolean;
   names: Record<Side, string>;
   serving: Side | null;
+  logos?: TeamLogoPair | undefined;
 }) {
   const winner = matchWinner(state);
   const minutes = matchMinutes(state);
@@ -286,6 +329,7 @@ function TemplateScoreboard({
       className={`flex min-w-0 items-center gap-3 sm:gap-4 ${side === 'home' ? 'order-1 justify-start' : 'order-3 justify-end'}`}
     >
       <ServeDot side={side} active={serving === side} />
+      <TeamLogo url={logos?.[side]} className="size-12 sm:size-14" />
       <h2
         data-long={names[side].length > LONG_NAME}
         className={`sir-team-name line-clamp-3 min-w-0 break-words font-display font-bold uppercase leading-[1.05] text-text ${

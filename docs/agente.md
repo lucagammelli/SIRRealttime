@@ -76,7 +76,7 @@ visti come la **stessa partita**. L'agente si riallinea con uno snapshot (il ser
 | `ok` | richiesta tolta dalla coda, `nextSeq` aggiornato, risposta salvata in `confirmed` |
 | `duplicate` | uguale a `ok` se `seq` e `contentHash` coincidono con quelli inviati; altrimenti come `needSnapshot` |
 | `needSnapshot` | coda sostituita da uno snapshot con `seq` oltre quello del server («server non allineato: invio uno snapshot»); se `needSnapshot` risponde a uno snapshot, si aspetta la modifica successiva o `snapshotRetryMs` |
-| 401 / 403 | «token agente non valido o revocato»: coda conservata, nuovo tentativo ogni 60 s |
+| 401 / 403 | «token agente non valido o revocato»: coda conservata, nuovo tentativo ogni 60 s. Se il 401 ha il testo `AGENT_EXPIRED_ERROR` («Registrazione scaduta: registrati di nuovo», `expiredAnswer` in `sender.ts` → `expired` nel risultato dell'invio, `registrationExpired` in `agent.ts`) l'agente lo scrive nel log al posto del messaggio di token non valido; la finestra mostra «● Registrazione scaduta: registrati di nuovo (STOP, poi «Registra»)» (`window.ps1`). Un admin può prolungare la validità dal portale («Agenti», «Prolunga») oppure serve una nuova registrazione |
 | 413 | richiesta scartata, coda svuotata, prossima modifica come snapshot; in più nuovo tentativo dello snapshot ogni `snapshotRetryMs` |
 | altri 4xx | richiesta scartata; se era un `append` si accoda subito uno snapshot, se era uno snapshot si riprova alla modifica successiva o dopo `snapshotRetryMs` |
 | 408, 429, 5xx, rete assente, risposta non valida | backoff come sopra, dati in coda: «server non raggiungibile: i dati restano in coda» (una volta, poi «server di nuovo raggiungibile») |

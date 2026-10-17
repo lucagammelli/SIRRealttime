@@ -103,6 +103,7 @@ class FakeAgents {
         queue: 0,
         lastSuccessAt: null,
         serverReachable: true,
+        registrationExpired: false,
       }),
       run: (signal: AbortSignal) =>
         new Promise<void>((resolve) => {

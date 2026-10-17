@@ -16,6 +16,7 @@ const tenant = (id: string, slug: string, name: string, hostnames: string[]): Te
   name,
   hostnames,
   createdAt: AT,
+  agentQuota: 1,
 });
 
 interface Call {
@@ -108,7 +109,7 @@ describe('«Clienti» page', () => {
   it('lists the clients and creates a new one', async () => {
     const { calls } = mockServer('superadmin');
     renderAt('/admin/clienti');
-    expect(await screen.findByText('a.sir.it · creato', { exact: false })).toBeTruthy();
+    expect(await screen.findByText('a.sir.it · un agente · creato', { exact: false })).toBeTruthy();
     const form = (await screen.findByRole('heading', { name: 'Nuovo cliente' })).closest('section');
     if (!form) throw new Error('no form');
     fireEvent.change(within(form).getByLabelText('Nome'), { target: { value: 'Club C' } });
@@ -119,7 +120,12 @@ describe('«Clienti» page', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'Crea cliente' }));
     expect(await screen.findByText('Cliente «Club C» creato.')).toBeTruthy();
     const post = calls.find((c) => c.url === '/api/admin/tenants' && c.method === 'POST');
-    expect(post?.body).toEqual({ slug: 'club-c', name: 'Club C', hostnames: ['live.club-c.it', 'c2.club-c.it'] });
+    expect(post?.body).toEqual({
+      slug: 'club-c',
+      name: 'Club C',
+      hostnames: ['live.club-c.it', 'c2.club-c.it'],
+      agentQuota: 1,
+    });
     // The new client is in the list and in the selector.
     const selector = screen.getByLabelText('Cliente');
     await waitFor(() => expect(within(selector).getByRole('option', { name: 'Club C' })).toBeTruthy());
@@ -148,7 +154,7 @@ describe('«Clienti» page', () => {
     fireEvent.change(within(editor).getByLabelText('Nome'), { target: { value: 'Club B nuovo' } });
     fireEvent.change(within(editor).getByLabelText('Hostname', { exact: false }), { target: { value: 'b.sir.it' } });
     fireEvent.click(within(editor).getByRole('button', { name: 'Salva' }));
-    expect(await screen.findByText('b.sir.it · creato', { exact: false })).toBeTruthy();
+    expect(await screen.findByText('b.sir.it · un agente · creato', { exact: false })).toBeTruthy();
     const patch = calls.find((c) => c.method === 'PATCH');
     expect(patch).toMatchObject({
       url: `/api/admin/tenants/${B}`,

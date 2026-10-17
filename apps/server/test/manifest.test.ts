@@ -1,0 +1,61 @@
+import type { AssetSummary, WebManifest } from '@sir/shared';
+import { DEFAULT_MANIFEST_ICONS } from '@sir/shared';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { TestServer } from './helpers.js';
+import { createTenant, createUser, login, startServer } from './helpers.js';
+import { png } from './imageFixtures.js';
+
+const HOST = 'manifest.test';
+const ADMIN_M = { email: 'admin-manifest@sir.test', password: 'password-admin-mf' };
+
+let server: TestServer;
+beforeAll(async () => {
+  server = await startServer();
+});
+afterAll(() => server.close());
+
+const manifest = async (host?: string) => {
+  const res = await server.app.inject({
+    url: '/api/public/manifest.webmanifest',
+    ...(host ? { headers: { host } } : {}),
+  });
+  expect(res.statusCode).toBe(200);
+  expect(res.headers['content-type']).toContain('application/manifest+json');
+  return res.json<WebManifest>();
+};
+
+describe('manifest of the installable app', () => {
+  it('is the one of the portal for a client without graphics, without start_url', async () => {
+    const body = await manifest();
+    expect(body).toMatchObject({ name: 'SIRRealtime', display: 'fullscreen', theme_color: '#1d4ed8' });
+    expect(body.icons).toEqual(DEFAULT_MANIFEST_ICONS);
+    expect('start_url' in body).toBe(false);
+  });
+
+  it('has the name, the colours and the square logo of the client of the hostname', async () => {
+    const tenantId = await createTenant(server, 'manifest', [HOST]);
+    await createUser(server, ADMIN_M, 'admin', tenantId);
+    const cookie = await login(server.app, ADMIN_M, HOST);
+    const call = (method: 'POST' | 'PUT', url: string, payload: unknown) =>
+      server.app.inject({ method, url, payload: payload as object, headers: { cookie, host: HOST } });
+    const logo = (
+      await call('POST', '/api/admin/assets', { kind: 'logo', data: png(256, 256).toString('base64') })
+    ).json<AssetSummary>();
+    const saved = await call('PUT', '/api/admin/branding', {
+      displayName: 'Sir Susa Scai Perugia',
+      colors: { primary: '#c8102e', background: '#ffffff' },
+      logoMark: logo.id,
+    });
+    expect(saved.statusCode).toBe(200);
+    const body = await manifest(HOST);
+    expect(body).toMatchObject({
+      name: 'Sir Susa Scai Perugia',
+      short_name: 'Sir Susa Sca',
+      theme_color: '#c8102e',
+      background_color: '#ffffff',
+    });
+    expect(body.icons[0]).toEqual({ src: logo.url, sizes: '256x256', type: 'image/png', purpose: 'any' });
+    // Another client keeps its own.
+    expect((await manifest()).name).toBe('SIRRealtime');
+  });
+});

@@ -9,6 +9,12 @@ import { TenantOverlaysSchema } from './overlays.js';
 import { plainText } from './strings.js';
 import { DEFAULT_TEMPLATE, TemplateIdSchema } from './templates.js';
 
+/** Agents of a new client (`tenants.agent_quota`). */
+export const DEFAULT_AGENT_QUOTA = 1;
+/** Most agents a superadmin can give to one client. */
+export const AGENT_QUOTA_MAX = 100;
+export const AgentQuotaSchema = z.number().int().min(0).max(AGENT_QUOTA_MAX);
+
 /** Slug of the client always present (created by the migration and by the seed). */
 export const DEFAULT_TENANT_SLUG = 'predefinito';
 
@@ -127,6 +133,8 @@ export type TenantRef = z.infer<typeof TenantRefSchema>;
 export const TenantSummarySchema = TenantRefSchema.extend({
   hostnames: z.array(z.string()),
   createdAt: z.iso.datetime(),
+  /** Most agents of the client (missing in an older answer: the default). */
+  agentQuota: AgentQuotaSchema.default(DEFAULT_AGENT_QUOTA),
 });
 export type TenantSummary = z.infer<typeof TenantSummarySchema>;
 
@@ -134,13 +142,20 @@ export const CreateTenantRequestSchema = z.object({
   slug: TenantSlugSchema,
   name: plainText(100),
   hostnames: HostnamesSchema,
+  agentQuota: AgentQuotaSchema.default(DEFAULT_AGENT_QUOTA),
 });
 export type CreateTenantRequest = z.infer<typeof CreateTenantRequestSchema>;
 
 /** The slug never changes (DEFAULT_TENANT_SLUG refers to it); at least one field. */
 export const UpdateTenantRequestSchema = z
-  .object({ name: plainText(100).optional(), hostnames: HostnamesSchema.optional() })
-  .refine((r) => r.name !== undefined || r.hostnames !== undefined, { message: 'nessun campo da modificare' });
+  .object({
+    name: plainText(100).optional(),
+    hostnames: HostnamesSchema.optional(),
+    agentQuota: AgentQuotaSchema.optional(),
+  })
+  .refine((r) => r.name !== undefined || r.hostnames !== undefined || r.agentQuota !== undefined, {
+    message: 'nessun campo da modificare',
+  });
 export type UpdateTenantRequest = z.infer<typeof UpdateTenantRequestSchema>;
 
 /** Client on which a superadmin works (`POST /api/admin/active-tenant`); null: the client of the hostname. */

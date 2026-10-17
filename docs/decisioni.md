@@ -266,3 +266,13 @@ Una riga per decisione: data, scelta, motivo.
   `OverlayBanner`) con la bozza non salvata e marcatori inerti `data-studio-*`, perché un'anteprima separata si
   scosterebbe dalla pagina reale e basta un attributo senza effetto sul pubblico per trovare l'elemento cliccato
   (`docs/portale.md`).
+- 2026-10-17: copertura predefinita «Casa e trasferta» (`homeAndAway`), perché nessuna partita deve sparire finché il
+  cliente non sceglie «Solo partite in casa» (`docs/server.md`).
+- 2026-10-17: quota iniziale di agenti = agenti non revocati dei clienti esistenti (almeno 1), perché la migrazione non
+  deve spegnere né bloccare nessuno di quelli già in uso; poi la cambia solo il superadmin (`docs/server.md`).
+- 2026-10-17: i vecchi link «segue la live» (`matchId` e `clientFixtureId` nulli) diventano il canale del club, senza
+  migrazione, perché il bersaglio si ricava dal link e i QR già stampati continuano a funzionare (`docs/server.md`).
+- 2026-10-17: le `.dvw` non abbinate a una partita del calendario restano visibili nel canale (quelle abbinate a una
+  partita non trasmessa no), perché un'amichevole fuori calendario va comunque in onda (`docs/server.md`).
+- 2026-10-17: nel canale la partita finita resta fino alle 00:00 (Roma) del giorno della successiva, perché il pubblico
+  vede il risultato per giorni e il conto alla rovescia parte solo nel giorno della gara (`docs/server.md`).

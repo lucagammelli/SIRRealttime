@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
+  chooseTeamLogo,
   clubFixtureState,
   EMPTY_SCHEDULE,
+  FixtureSettingsRequestSchema,
+  isFixtureBroadcast,
+  ManualFixtureRequestSchema,
+  matchTeamLogos,
+  resolveClubProfile,
   ScheduleResponseSchema,
+  shownTeamLogo,
   standingsRowsToShow,
   suggestedOurTeamName,
+  teamLogoShown,
   UpdateClubRequestSchema,
 } from './club.js';
 import { ServerMessageSchema } from './messages.js';
@@ -98,5 +106,79 @@ describe('rows of the standings of a block', () => {
   it('reads an empty schedule and refuses wrong data', () => {
     expect(ScheduleResponseSchema.parse(EMPTY_SCHEDULE)).toEqual({ fixtures: [], standings: null });
     expect(ScheduleResponseSchema.safeParse({ fixtures: [{}], standings: null }).success).toBe(false);
+  });
+});
+
+describe('logos of the teams', () => {
+  const base = { matchLogo: null, profileLogo: '/p.png', leagueLogo: '/lega.png' };
+  it('chooses the logo of the match, then the profile (our team only), then the league, then none', () => {
+    expect(chooseTeamLogo({ ...base, ours: true, matchLogo: '/m.png' })).toBe('/m.png');
+    expect(chooseTeamLogo({ ...base, ours: true })).toBe('/p.png');
+    expect(chooseTeamLogo({ ...base, ours: false })).toBe('/lega.png');
+    expect(chooseTeamLogo({ ...base, ours: true, profileLogo: null })).toBe('/lega.png');
+    expect(chooseTeamLogo({ ours: false, matchLogo: null, profileLogo: null, leagueLogo: null })).toBeNull();
+  });
+
+  it('shows them as «Loghi delle squadre» says', () => {
+    expect([teamLogoShown('all', true), teamLogoShown('all', false)]).toEqual([true, true]);
+    expect([teamLogoShown('ours', true), teamLogoShown('ours', false)]).toEqual([true, false]);
+    expect([teamLogoShown('none', true), teamLogoShown('none', false)]).toEqual([false, false]);
+    expect(shownTeamLogo('ours', { ...base, ours: false, matchLogo: '/m.png' })).toBeNull();
+    expect(shownTeamLogo('ours', { ...base, ours: true })).toBe('/p.png');
+  });
+
+  it('puts the logos on the sides of the .dvw: «nostra squadra» first, then the side in the calendar', () => {
+    const info = {
+      our: '/our.png',
+      opponent: '/opp.png',
+      calendarSide: 'home' as const,
+      ourTeam: { code: null, name: 'Perugia' },
+    };
+    const teams = { home: { name: 'Itas Trentino', code: 'TN' }, away: { name: 'Sir Perugia', code: 'PG' } };
+    expect(matchTeamLogos(info, teams)).toEqual({ home: '/opp.png', away: '/our.png' });
+    const unknown = { home: { name: 'A', code: null }, away: { name: 'B', code: null } };
+    expect(matchTeamLogos(info, unknown)).toEqual({ home: '/our.png', away: '/opp.png' });
+    expect(matchTeamLogos({ ...info, calendarSide: null }, unknown)).toEqual({ home: null, away: null });
+  });
+});
+
+describe('profile and broadcast of the matches', () => {
+  it('reads an empty or invalid profile as the defaults («casa e trasferta», every logo)', () => {
+    const defaults = { series: null, coverage: 'homeAndAway', teamLogos: 'all' };
+    expect(resolveClubProfile({})).toEqual(defaults);
+    expect(resolveClubProfile({ coverage: 'boh' })).toEqual(defaults);
+    expect(resolveClubProfile({ coverage: 'homeOnly' }).coverage).toBe('homeOnly');
+  });
+
+  it('broadcasts as the coverage says, unless the match says otherwise; never a hidden one', () => {
+    const at = (
+      ourSide: 'home' | 'away',
+      broadcast: 'auto' | 'on' | 'off',
+      coverage: 'homeAndAway' | 'homeOnly',
+      hidden = false,
+    ) => isFixtureBroadcast({ ourSide, broadcast, coverage, hidden });
+    expect(at('away', 'auto', 'homeAndAway')).toBe(true);
+    expect(at('away', 'auto', 'homeOnly')).toBe(false);
+    expect(at('home', 'auto', 'homeOnly')).toBe(true);
+    expect(at('away', 'on', 'homeOnly')).toBe(true);
+    expect(at('home', 'off', 'homeAndAway')).toBe(false);
+    expect(at('home', 'on', 'homeAndAway', true)).toBe(false);
+  });
+
+  it('checks the matches added by hand and the settings of a match', () => {
+    const ok = {
+      kind: 'friendly',
+      startsAt: '2026-10-12T16:00:00.000Z',
+      opponent: ' Suntory ',
+      opponentLogo: null,
+      ourSide: 'home',
+      venue: null,
+      venueCity: null,
+    };
+    expect(ManualFixtureRequestSchema.parse(ok).opponent).toBe('Suntory');
+    expect(ManualFixtureRequestSchema.safeParse({ ...ok, kind: 'campionato' }).success).toBe(false);
+    expect(ManualFixtureRequestSchema.safeParse({ ...ok, extra: 1 }).success).toBe(false);
+    expect(FixtureSettingsRequestSchema.safeParse({}).success).toBe(false);
+    expect(FixtureSettingsRequestSchema.safeParse({ opponentLogo: null }).success).toBe(true);
   });
 });

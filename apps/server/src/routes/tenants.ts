@@ -28,6 +28,7 @@ const tenantSummary = (t: TenantRow): TenantSummary => ({
   name: t.name,
   hostnames: t.hostnames,
   createdAt: t.createdAt.toISOString(),
+  agentQuota: t.agentQuota,
 });
 
 const hostnameTaken = () => conflict('Hostname già usato da un altro cliente');
@@ -60,7 +61,7 @@ export function tenantRoutes(app: FastifyInstance, ctx: AppContext): void {
       if (await hostnamesTaken(tx, body.hostnames, null)) throw hostnameTaken();
       const [inserted] = await tx
         .insert(tenants)
-        .values({ slug: body.slug, name: body.name, hostnames: body.hostnames })
+        .values({ slug: body.slug, name: body.name, hostnames: body.hostnames, agentQuota: body.agentQuota })
         .onConflictDoNothing({ target: tenants.slug })
         .returning();
       if (!inserted) throw conflict('Esiste già un cliente con questo identificativo');
@@ -83,6 +84,8 @@ export function tenantRoutes(app: FastifyInstance, ctx: AppContext): void {
         .set({
           ...(body.name === undefined ? {} : { name: body.name }),
           ...(body.hostnames === undefined ? {} : { hostnames: body.hostnames }),
+          // A lower quota does not switch off the agents already there: it stops new approvals until they fit.
+          ...(body.agentQuota === undefined ? {} : { agentQuota: body.agentQuota }),
         })
         .where(eq(tenants.id, id))
         .returning();

@@ -104,6 +104,21 @@ describe('applyMessage', () => {
     expect(applyMessage(v5, { type: 'noMatch' })).toEqual({ kind: 'noMatch' });
   });
 
+  it('keeps the logos of the full state across the patches', () => {
+    const logos = { home: '/api/public/assets/a', away: null };
+    const full = applyMessage(null, { ...stateMsg(MATCH_A, 1), logos });
+    expect(full).toMatchObject({ kind: 'state', logos });
+    const patched = applyPatchMessage(full, {
+      type: 'patch',
+      matchId: MATCH_A,
+      baseVersion: 1,
+      version: 2,
+      ops: [],
+    });
+    expect(patched).toMatchObject({ kind: 'state', version: 2, logos });
+    expect(applyMessage(null, stateMsg(MATCH_A, 1))).not.toHaveProperty('logos');
+  });
+
   it('shows «Prossima partita» until the first state of the match of the calendar', () => {
     const fixture = {
       startsAt: null,

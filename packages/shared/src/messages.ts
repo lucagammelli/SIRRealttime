@@ -1,6 +1,6 @@
 import type { MatchState } from '@sir/volley-stats';
 import { z } from 'zod';
-import { UpcomingFixtureSchema } from './club.js';
+import { TeamLogoPairSchema, UpcomingFixtureSchema } from './club.js';
 import { PatchOpsSchema } from './patch.js';
 
 /** Match state computed by `@sir/volley-stats`: only checked to be an object (it comes from the server). */
@@ -14,10 +14,15 @@ export const StateMessageSchema = z.object({
   matchId: z.uuid(),
   version: z.int().min(0),
   state: MatchStateSchema,
+  /**
+   * Logos of the two sides of the `.dvw` (match of the calendar, profile of the club, league), already filtered by
+   * «Loghi delle squadre»; missing: no logos (older servers). A patch keeps the logos of the state it applies to.
+   */
+  logos: TeamLogoPairSchema.optional(),
 });
 export type StateMessage = z.infer<typeof StateMessageSchema>;
 
-/** No match available (a "live" link while no match is live). */
+/** No match available (a channel link of a client without matches). */
 export const NoMatchMessageSchema = z.object({ type: z.literal('noMatch') });
 export type NoMatchMessage = z.infer<typeof NoMatchMessageSchema>;
 

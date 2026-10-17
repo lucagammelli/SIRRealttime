@@ -1,4 +1,6 @@
+import type { Side } from '@sir/volley-stats';
 import { z } from 'zod';
+import { AssetIdSchema } from './assets.js';
 import {
   FixtureStatusSchema,
   LeagueExternalIdSchema,
@@ -6,7 +8,9 @@ import {
   LeagueSyncStateSchema,
   StandingRowSchema,
 } from './leagues.js';
-import { OUR_TEAM_NAME_MAX, OurTeamSchema } from './ourTeam.js';
+import type { OurTeam } from './ourTeam.js';
+import { OUR_TEAM_NAME_MAX, ourTeamSide, OurTeamSchema } from './ourTeam.js';
+import { plainText } from './strings.js';
 
 /**
  * The club of a client: the championships it plays (one or more, e.g. regular season and play off), its team in each
@@ -63,6 +67,108 @@ export function suggestedOurTeamName(team: { name: string; city: string | null }
   return text ? text.slice(0, OUR_TEAM_NAME_MAX) : null;
 }
 
+// --- Profile of the club: series, coverage of the matches, team logos -------------------------------------------
+
+/**
+ * Matches the client broadcasts: `homeAndAway` (default: nothing is hidden unless the client chooses it) or
+ * `homeOnly` (the away matches are «non trasmesse»: link not active, out of the link of the `.dvw` and of «Prossima
+ * partita»). Each match can override it (`FixtureBroadcastSchema`).
+ */
+export const ClubCoverageSchema = z.enum(['homeAndAway', 'homeOnly']);
+export type ClubCoverage = z.infer<typeof ClubCoverageSchema>;
+
+/**
+ * Logos of the teams next to their names (scoreboard, «Prossima partita», calendar, standings): `all` ours and the
+ * opponent's (default), `ours` only ours, `none` no logo.
+ */
+export const TeamLogosModeSchema = z.enum(['all', 'ours', 'none']);
+export type TeamLogosMode = z.infer<typeof TeamLogosModeSchema>;
+
+/** Longest series of the club («Serie A1 maschile»). */
+export const CLUB_SERIES_MAX = 60;
+
+/**
+ * Profile of the club (jsonb `tenants.club_profile`); name, square logo and «nostra squadra» stay in the branding.
+ * Every field has a default: the empty document reads as the defaults.
+ */
+export const ClubProfileSchema = z.strictObject({
+  series: plainText(CLUB_SERIES_MAX).nullable().default(null),
+  coverage: ClubCoverageSchema.default('homeAndAway'),
+  teamLogos: TeamLogosModeSchema.default('all'),
+});
+export type ClubProfile = z.output<typeof ClubProfileSchema>;
+
+/** Pure: a stored profile with the missing fields filled; an invalid one reads as the defaults. */
+export function resolveClubProfile(document: unknown): ClubProfile {
+  const parsed = ClubProfileSchema.safeParse(document ?? {});
+  return parsed.success ? parsed.data : ClubProfileSchema.parse({});
+}
+
+/**
+ * `PUT /api/admin/club/profile`: name shown (null: the name of the client), square logo (an image `logo` of the
+ * client, null: none), «nostra squadra» of the `.dvw` files and the profile.
+ */
+export const UpdateClubProfileRequestSchema = z.strictObject({
+  displayName: plainText(100).nullable(),
+  logoMark: AssetIdSchema.nullable(),
+  ourTeam: OurTeamSchema,
+  profile: ClubProfileSchema,
+});
+export type UpdateClubProfileRequest = z.infer<typeof UpdateClubProfileRequestSchema>;
+
+/** Logo of each side of a match (public path, null: no logo to show). */
+export const TeamLogoPairSchema = z.object({ home: z.string().nullable(), away: z.string().nullable() });
+export type TeamLogoPair = z.infer<typeof TeamLogoPairSchema>;
+
+/**
+ * Pure: the logo of a team, in this order: the one chosen for the match → the logo of the profile (only for our team)
+ * → the public logo of the league → none (the blocks that have them show the initials).
+ */
+export function chooseTeamLogo(input: {
+  ours: boolean;
+  matchLogo: string | null;
+  profileLogo: string | null;
+  leagueLogo: string | null;
+}): string | null {
+  return input.matchLogo ?? (input.ours ? input.profileLogo : null) ?? input.leagueLogo ?? null;
+}
+
+/** Pure: whether the setting «Loghi delle squadre» shows the logo of our team or of the opponent. */
+export function teamLogoShown(mode: TeamLogosMode, ours: boolean): boolean {
+  return mode === 'all' || (mode === 'ours' && ours);
+}
+
+/** Pure: the logo to show for a team: `chooseTeamLogo`, then the setting decides (null: hidden or none). */
+export function shownTeamLogo(mode: TeamLogosMode, input: Parameters<typeof chooseTeamLogo>[0]): string | null {
+  return teamLogoShown(mode, input.ours) ? chooseTeamLogo(input) : null;
+}
+
+/**
+ * Logos of a match for its public messages, already chosen (`chooseTeamLogo`) and filtered by the setting: `our` and
+ * `opponent`, the side of the club in the calendar (null: no match of the calendar) and «nostra squadra» to find
+ * our side in the `.dvw`.
+ */
+export interface MatchLogoInfo {
+  our: string | null;
+  opponent: string | null;
+  calendarSide: ClubSide | null;
+  ourTeam: OurTeam;
+}
+
+/**
+ * Pure: the logos of the two sides of a `.dvw`. Our side: «nostra squadra» recognized in the file, otherwise the
+ * side of the club in the calendar; unknown: no logos (never one on the wrong team).
+ */
+export function matchTeamLogos(
+  info: MatchLogoInfo,
+  teams: Record<Side, { name: string | null; code: string | null }>,
+): TeamLogoPair {
+  const ours = ourTeamSide(teams, info.ourTeam) ?? info.calendarSide;
+  if (ours === 'home') return { home: info.our, away: info.opponent };
+  if (ours === 'away') return { home: info.opponent, away: info.our };
+  return { home: null, away: null };
+}
+
 /** A known championship (added by the superadmin) that a client can choose. */
 export const ClubLeagueOptionSchema = z.object({
   id: z.uuid(),
@@ -87,8 +193,14 @@ export const ClubResponseSchema = z.object({
   name: z.string(),
   /** Square or horizontal logo of the graphics, null when none. */
   logoUrl: z.string().nullable(),
+  /** Name chosen by the client (display name of the graphics), null: the name of the client. */
+  displayName: z.string().nullable().default(null),
+  /** Square logo of the graphics (id of an image of the client), null when none. */
+  logoMark: AssetIdSchema.nullable().default(null),
   /** «Nostra squadra» of the graphics (filled from the team of the club when it was empty). */
   ourTeam: OurTeamSchema,
+  /** Series, coverage of the matches and team logos (missing in an older answer: the defaults). */
+  profile: ClubProfileSchema.prefault({}),
   leagues: z.array(ClubLeagueSchema),
   /** Every known championship (the ones that can be chosen). */
   available: z.array(ClubLeagueOptionSchema),
@@ -190,10 +302,95 @@ export const ClubFixtureMatchSchema = z.object({
   link: FixtureLinkSchema,
 });
 
+/** Where a match of the club comes from: the calendar of a championship, or added by the client. */
+export const FixtureOriginSchema = z.enum(['league', 'manual']);
+export type FixtureOrigin = z.infer<typeof FixtureOriginSchema>;
+
+/** Kind of a match added by the client. */
+export const ManualFixtureKindSchema = z.enum(['friendly', 'cup', 'other']);
+export type ManualFixtureKind = z.infer<typeof ManualFixtureKindSchema>;
+
+/** Round label of a match added by the client (its «giornata»). */
+export const MANUAL_FIXTURE_LABEL: Record<ManualFixtureKind, string> = {
+  friendly: 'Amichevole',
+  cup: 'Coppa',
+  other: 'Partita',
+};
+
+/**
+ * Broadcast of one match: `auto` follows the coverage of the profile, `on` «Trasmessa» and `off` «Non trasmessa»
+ * whatever the coverage.
+ */
+export const FixtureBroadcastSchema = z.enum(['auto', 'on', 'off']);
+export type FixtureBroadcast = z.infer<typeof FixtureBroadcastSchema>;
+
+/**
+ * Pure: whether a match of the club is broadcast. A hidden match never is; otherwise the choice of the match, and with
+ * `auto` the coverage (`homeOnly`: only the home matches).
+ */
+export function isFixtureBroadcast(input: {
+  ourSide: ClubSide;
+  broadcast: FixtureBroadcast;
+  hidden: boolean;
+  coverage: ClubCoverage;
+}): boolean {
+  if (input.hidden) return false;
+  if (input.broadcast !== 'auto') return input.broadcast === 'on';
+  return input.coverage === 'homeAndAway' || input.ourSide === 'home';
+}
+
+/** Body of `POST /api/admin/calendar/fixtures` and `PUT /api/admin/calendar/fixtures/:id` (matches added by hand). */
+export const ManualFixtureRequestSchema = z.strictObject({
+  kind: ManualFixtureKindSchema,
+  /** Start in UTC (the page sends the local date and time of the admin converted). */
+  startsAt: z.iso.datetime(),
+  opponent: plainText(100),
+  /** Logo of the opponent (an image `logo` of the client), null: none. */
+  opponentLogo: AssetIdSchema.nullable(),
+  ourSide: ClubSideSchema,
+  venue: plainText(100).nullable(),
+  venueCity: plainText(100).nullable(),
+});
+export type ManualFixtureRequest = z.infer<typeof ManualFixtureRequestSchema>;
+
+/** Answer of `POST /api/admin/calendar/fixtures`: the new match (its link and QR are in «Calendario»). */
+export const CreatedFixtureResponseSchema = z.object({ id: z.uuid() });
+export type CreatedFixtureResponse = z.infer<typeof CreatedFixtureResponseSchema>;
+
+/**
+ * `PATCH /api/admin/calendar/fixtures/:id/settings` (every match): broadcast, hidden (only a downloaded match: one
+ * added by hand is deleted instead) and the logos of this match (an image `logo` of the client; null: back to the
+ * default one). At least one field.
+ */
+export const FixtureSettingsRequestSchema = z
+  .strictObject({
+    broadcast: FixtureBroadcastSchema.optional(),
+    hidden: z.boolean().optional(),
+    ourLogo: AssetIdSchema.nullable().optional(),
+    opponentLogo: AssetIdSchema.nullable().optional(),
+  })
+  .refine((r) => Object.values(r).some((v) => v !== undefined), { message: 'nessun campo da modificare' });
+export type FixtureSettingsRequest = z.infer<typeof FixtureSettingsRequestSchema>;
+
 /** A match of the club in «Calendario» (`GET /api/admin/calendar`). */
 export const ClubFixtureSchema = UpcomingFixtureSchema.extend({
   id: z.uuid(),
-  league: z.object({ id: z.uuid(), name: z.string().nullable(), season: LeagueSeasonSchema }),
+  /** Championship of the match; null for a match added by hand. */
+  league: z.object({ id: z.uuid(), name: z.string().nullable(), season: LeagueSeasonSchema }).nullable(),
+  origin: FixtureOriginSchema.default('league'),
+  /** Kind of a match added by hand, null for a downloaded one. */
+  kind: ManualFixtureKindSchema.nullable().default(null),
+  broadcast: FixtureBroadcastSchema.default('auto'),
+  /** Broadcast now (`isFixtureBroadcast`): otherwise the link is not active. */
+  broadcasted: z.boolean().default(true),
+  hidden: z.boolean().default(false),
+  /** Logos chosen for this match (images of the client), null: the default one. */
+  logos: z
+    .object({
+      our: z.object({ id: AssetIdSchema, url: z.string() }).nullable(),
+      opponent: z.object({ id: AssetIdSchema, url: z.string() }).nullable(),
+    })
+    .default({ our: null, opponent: null }),
   state: ClubFixtureStateSchema,
   link: ClubFixtureLinkSchema.nullable(),
   /** `.dvw` linked to this match (the live one or the last one), null when none. */

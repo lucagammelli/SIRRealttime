@@ -37,6 +37,7 @@ const AgentStatusSchema = z.object({
   queue: z.int(),
   lastSuccessAt: z.string().nullable(),
   serverReachable: z.boolean(),
+  registrationExpired: z.boolean().default(false),
 });
 
 /** State of the self-registration shown in the window (`error`: the last attempt failed, see `message`). */

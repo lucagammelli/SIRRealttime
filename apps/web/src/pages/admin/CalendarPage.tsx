@@ -1,14 +1,32 @@
-import type { ClubFixture, ClubFixtureState, ClubFixtureTeam, PendingMatch } from '@sir/shared';
-import { CalendarResponseSchema, ClubSyncResponseSchema, formatShortCode } from '@sir/shared';
+import type {
+  ClubFixture,
+  ClubFixtureState,
+  ClubFixtureTeam,
+  FixtureBroadcast,
+  FixtureSettingsRequest,
+  ManualFixtureKind,
+  ManualFixtureRequest,
+  PendingMatch,
+} from '@sir/shared';
+import {
+  CalendarResponseSchema,
+  ClubSyncResponseSchema,
+  CreatedFixtureResponseSchema,
+  formatShortCode,
+  ManualFixtureRequestSchema,
+} from '@sir/shared';
+import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { Button, CopyButton, Card, Empty, ErrorBox, Spinner } from '../../components/ui.tsx';
+import { Button, CopyButton, Card, Empty, ErrorBox, Segmented, Spinner } from '../../components/ui.tsx';
 import { apiCommand, apiRequest } from '../../lib/api.ts';
 import { formatFixtureDate } from '../../lib/format.ts';
 import { useAsync } from '../../lib/useAsync.ts';
+import { READ_ONLY_TEXT, useCanEdit } from '../../lib/useCanEdit.ts';
 import { ShareQr } from '../../qr/ShareQr.tsx';
 import { useApiError } from './auth.tsx';
-import { inputClass } from './forms.tsx';
+import { ConfirmButton, Field, inputClass } from './forms.tsx';
+import { LogoPicker } from './LogoPicker.tsx';
 
 export const STATE_TEXT: Record<ClubFixtureState, string> = {
   scheduled: 'Programmata',
@@ -28,11 +46,30 @@ const STATE_CLASS: Record<ClubFixtureState, string> = {
   removed: 'border-danger text-danger',
 };
 
+export const KIND_TEXT: Record<ManualFixtureKind, string> = { friendly: 'Amichevole', cup: 'Coppa', other: 'Altro' };
+
+const BROADCAST_OPTIONS: { value: FixtureBroadcast; label: string }[] = [
+  { value: 'auto', label: 'Come il profilo' },
+  { value: 'on', label: 'Trasmessa' },
+  { value: 'off', label: 'Non trasmessa' },
+];
+
 /** Pure: «Avversario – dom 18 ott 2026» for the choices of a `.dvw` to confirm. */
 export function fixtureChoiceText(f: ClubFixture): string {
   const opponent = f.ourSide === 'home' ? f.away.name : f.home.name;
   const where = f.ourSide === 'home' ? 'in casa' : 'in trasferta';
   return `${opponent} (${where}) – ${formatFixtureDate(f.startsAt).date}`;
+}
+
+/** Pure: date and time (`YYYY-MM-DD`, `HH:MM`) of an instant on the clock of the browser, for the inputs. */
+export function localDateTime(iso: string | null): { date: string; time: string } {
+  const d = iso ? new Date(iso) : null;
+  if (!d || Number.isNaN(d.getTime())) return { date: '', time: '' };
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
 }
 
 function TeamCell({ team, our }: { team: ClubFixtureTeam; our: boolean }) {
@@ -48,10 +85,182 @@ function TeamCell({ team, our }: { team: ClubFixtureTeam; our: boolean }) {
   );
 }
 
-function FixtureItem({ f }: { f: ClubFixture }) {
+/** Form of a match added by hand (new, or the change of one): kind, date and time, opponent and its logo, venue. */
+function ManualFixtureForm({
+  initial,
+  onSaved,
+  onCancel,
+}: {
+  initial: ClubFixture | null;
+  onSaved: () => void;
+  onCancel?: () => void;
+}) {
+  const errorMessage = useApiError();
+  const start = localDateTime(initial?.startsAt ?? null);
+  const opponentSide = initial?.ourSide === 'away' ? 'home' : 'away';
+  const [kind, setKind] = useState<ManualFixtureKind>(initial?.kind ?? 'friendly');
+  const [date, setDate] = useState(start.date);
+  const [time, setTime] = useState(start.time || '18:00');
+  const [opponent, setOpponent] = useState(initial ? initial[opponentSide].name : '');
+  const [opponentLogo, setOpponentLogo] = useState<{ id: string; url: string } | null>(initial?.logos.opponent ?? null);
+  const [ourSide, setOurSide] = useState<'home' | 'away'>(initial?.ourSide ?? 'home');
+  const [venue, setVenue] = useState(initial?.venue ?? '');
+  const [venueCity, setVenueCity] = useState(initial?.venueCity ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent): Promise<void> => {
+    e.preventDefault();
+    setError(null);
+    const when = new Date(`${date}T${time}`);
+    if (!date || !time || Number.isNaN(when.getTime())) {
+      setError('Scegli data e ora della partita.');
+      return;
+    }
+    const body = ManualFixtureRequestSchema.safeParse({
+      kind,
+      startsAt: when.toISOString(),
+      opponent: opponent.trim(),
+      opponentLogo: opponentLogo?.id ?? null,
+      ourSide,
+      venue: venue.trim() || null,
+      venueCity: venueCity.trim() || null,
+    } satisfies ManualFixtureRequest);
+    if (!body.success) {
+      setError('Scrivi il nome dell’avversario (al massimo 100 caratteri, senza caratteri speciali).');
+      return;
+    }
+    setBusy(true);
+    try {
+      if (initial) {
+        await apiCommand(`/api/admin/calendar/fixtures/${encodeURIComponent(initial.id)}`, {
+          method: 'PUT',
+          body: body.data,
+        });
+      } else {
+        await apiRequest('/api/admin/calendar/fixtures', CreatedFixtureResponseSchema, {
+          method: 'POST',
+          body: body.data,
+        });
+        setOpponent('');
+        setOpponentLogo(null);
+        setVenue('');
+        setVenueCity('');
+      }
+      onSaved();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={(e) => void submit(e)} className="space-y-4" noValidate aria-label="Partita aggiunta a mano">
+      <Segmented
+        label="Tipo di partita"
+        value={kind}
+        onChange={setKind}
+        options={(['friendly', 'cup', 'other'] as const).map((k) => ({ value: k, label: KIND_TEXT[k] }))}
+      />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Data">
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputClass} required />
+        </Field>
+        <Field label="Ora">
+          <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputClass} required />
+        </Field>
+      </div>
+      <Field label="Avversario">
+        <input
+          value={opponent}
+          onChange={(e) => setOpponent(e.target.value)}
+          maxLength={100}
+          required
+          className={inputClass}
+        />
+      </Field>
+      <LogoPicker
+        label="Logo dell’avversario (facoltativo)"
+        url={opponentLogo?.url ?? null}
+        custom={opponentLogo !== null}
+        defaultLabel="Togli"
+        onChange={async (id) => {
+          setOpponentLogo(id ? { id, url: `/api/public/assets/${id}` } : null);
+          return Promise.resolve();
+        }}
+      />
+      <Segmented
+        label="Dove si gioca"
+        value={ourSide}
+        onChange={setOurSide}
+        options={[
+          { value: 'home', label: 'In casa' },
+          { value: 'away', label: 'In trasferta' },
+        ]}
+      />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Palazzetto (facoltativo)">
+          <input value={venue} onChange={(e) => setVenue(e.target.value)} maxLength={100} className={inputClass} />
+        </Field>
+        <Field label="Città (facoltativa)">
+          <input
+            value={venueCity}
+            onChange={(e) => setVenueCity(e.target.value)}
+            maxLength={100}
+            className={inputClass}
+          />
+        </Field>
+      </div>
+      {error && <ErrorBox>{error}</ErrorBox>}
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" variant="primary" disabled={busy}>
+          {busy ? 'Salvataggio…' : initial ? 'Salva la partita' : 'Aggiungi la partita'}
+        </Button>
+        {onCancel && (
+          <Button variant="ghost" onClick={onCancel}>
+            Annulla
+          </Button>
+        )}
+      </div>
+    </form>
+  );
+}
+
+function FixtureItem({ f, onChanged }: { f: ClubFixture; onChanged: () => void }) {
+  const errorMessage = useApiError();
+  const canEdit = useCanEdit();
   const [qr, setQr] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const when = formatFixtureDate(f.startsAt);
   const sets = f.match?.setsWon ?? f.result;
+  const manual = f.origin === 'manual';
+  const opponentSide = f.ourSide === 'home' ? 'away' : 'home';
+
+  const change = async (body: FixtureSettingsRequest): Promise<void> => {
+    await apiCommand(`/api/admin/calendar/fixtures/${encodeURIComponent(f.id)}/settings`, { method: 'PATCH', body });
+    onChanged();
+  };
+  const act = async (task: () => Promise<void>): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      await task();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = () =>
+    act(async () => {
+      await apiCommand(`/api/admin/calendar/fixtures/${encodeURIComponent(f.id)}`, { method: 'DELETE' });
+      onChanged();
+    });
+
   return (
     <li className="space-y-3 py-3" data-testid="calendar-fixture">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -59,6 +268,7 @@ function FixtureItem({ f }: { f: ClubFixture }) {
           <p className="text-xs uppercase tracking-wide text-muted">
             {f.roundLabel} · {when.date}
             {f.startsAt && ` · ore ${when.time}`}
+            {manual && ' · aggiunta a mano'}
           </p>
           <div className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center sm:gap-3">
             <TeamCell team={f.home} our={f.ourSide === 'home'} />
@@ -78,13 +288,28 @@ function FixtureItem({ f }: { f: ClubFixture }) {
             </p>
           )}
         </div>
-        <span
-          className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${STATE_CLASS[f.state]}`}
-        >
-          {STATE_TEXT[f.state]}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            data-testid="broadcast-state"
+            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${
+              f.broadcasted ? 'border-border text-text' : 'border-warn text-warn'
+            }`}
+          >
+            {f.broadcasted ? 'Trasmessa' : 'Non trasmessa'}
+          </span>
+          <span
+            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${STATE_CLASS[f.state]}`}
+          >
+            {STATE_TEXT[f.state]}
+          </span>
+        </div>
       </div>
-      {f.link?.shortUrl && f.link.shortCode ? (
+      {!f.broadcasted ? (
+        <p className="text-sm text-muted">
+          Link non attivo: la partita non è trasmessa
+          {f.broadcast === 'auto' ? ' (il profilo del club trasmette solo le partite in casa).' : '.'}
+        </p>
+      ) : f.link?.shortUrl && f.link.shortCode ? (
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
             <span>
@@ -101,6 +326,70 @@ function FixtureItem({ f }: { f: ClubFixture }) {
       ) : (
         <p className="text-sm text-muted">{f.link?.revoked ? 'Link revocato.' : 'Link non ancora pronto.'}</p>
       )}
+      {canEdit && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+            {open ? 'Chiudi impostazioni' : 'Impostazioni'}
+          </Button>
+          {manual ? (
+            <>
+              <Button variant="ghost" onClick={() => setEditing((e) => !e)} aria-expanded={editing}>
+                {editing ? 'Chiudi modifica' : 'Modifica'}
+              </Button>
+              <ConfirmButton
+                label="Cancella"
+                confirmLabel="Conferma cancellazione"
+                busy={busy}
+                onConfirm={() => void remove()}
+              />
+            </>
+          ) : (
+            <Button variant="ghost" disabled={busy} onClick={() => void act(() => change({ hidden: !f.hidden }))}>
+              {f.hidden ? 'Mostra' : 'Nascondi'}
+            </Button>
+          )}
+        </div>
+      )}
+      {canEdit && editing && manual && (
+        <div className="rounded-card border border-border p-3">
+          <ManualFixtureForm
+            initial={f}
+            onSaved={() => {
+              setEditing(false);
+              onChanged();
+            }}
+            onCancel={() => setEditing(false)}
+          />
+        </div>
+      )}
+      {canEdit && open && (
+        <div className="space-y-3 rounded-card border border-border p-3">
+          <Segmented
+            label="Trasmissione della partita"
+            value={f.broadcast}
+            onChange={(broadcast) => void act(() => change({ broadcast }))}
+            options={BROADCAST_OPTIONS}
+          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <LogoPicker
+              label="Logo della nostra squadra"
+              url={f[f.ourSide].logoUrl}
+              custom={f.logos.our !== null}
+              onChange={(ourLogo) => change({ ourLogo })}
+            />
+            <LogoPicker
+              label={`Logo di ${f[opponentSide].name}`}
+              url={f[opponentSide].logoUrl}
+              custom={f.logos.opponent !== null}
+              onChange={(opponentLogo) => change({ opponentLogo })}
+            />
+          </div>
+          <p className="text-xs text-muted">
+            Predefiniti: il logo quadrato del profilo per la nostra squadra, quello della Lega per gli avversari.
+          </p>
+        </div>
+      )}
+      {error && <ErrorBox>{error}</ErrorBox>}
     </li>
   );
 }
@@ -108,6 +397,7 @@ function FixtureItem({ f }: { f: ClubFixture }) {
 /** A `.dvw` whose match of the calendar the admin confirms: one of the candidates, any match, or «nessuna». */
 function PendingItem({ m, fixtures, onDone }: { m: PendingMatch; fixtures: ClubFixture[]; onDone: () => void }) {
   const errorMessage = useApiError();
+  const canEdit = useCanEdit();
   const byId = new Map(fixtures.map((f) => [f.id, f]));
   const candidates = m.candidates.filter((c) => byId.has(c.clientFixtureId));
   const [choice, setChoice] = useState<string>(candidates[0]?.clientFixtureId ?? 'none');
@@ -142,53 +432,60 @@ function PendingItem({ m, fixtures, onDone }: { m: PendingMatch; fixtures: ClubF
             : `${candidates.length === 1 ? 'una partita simile' : `${candidates.length} partite simili`} nel calendario`}
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          value={choice}
-          onChange={(e) => setChoice(e.target.value)}
-          className={`${inputClass} max-w-md`}
-          aria-label={`Partita del calendario di ${title}`}
-        >
-          {candidates.map((c) => {
-            const f = byId.get(c.clientFixtureId);
-            return f ? (
-              <option key={c.clientFixtureId} value={c.clientFixtureId}>
-                {fixtureChoiceText(f)} · somiglianza {Math.round(c.score * 100)}%
-              </option>
-            ) : null;
-          })}
-          <option value="none">Nessuna (amichevole)</option>
-          <optgroup label="Altre partite del calendario">
-            {fixtures
-              .filter((f) => !candidates.some((c) => c.clientFixtureId === f.id))
-              .map((f) => (
-                <option key={f.id} value={f.id}>
-                  {fixtureChoiceText(f)}
+      {canEdit && (
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={choice}
+            onChange={(e) => setChoice(e.target.value)}
+            className={`${inputClass} max-w-md`}
+            aria-label={`Partita del calendario di ${title}`}
+          >
+            {candidates.map((c) => {
+              const f = byId.get(c.clientFixtureId);
+              return f ? (
+                <option key={c.clientFixtureId} value={c.clientFixtureId}>
+                  {fixtureChoiceText(f)} · somiglianza {Math.round(c.score * 100)}%
                 </option>
-              ))}
-          </optgroup>
-        </select>
-        <Button variant="primary" disabled={busy} onClick={() => void confirm()}>
-          {busy ? 'Conferma…' : 'Conferma'}
-        </Button>
-      </div>
+              ) : null;
+            })}
+            <option value="none">Nessuna (amichevole)</option>
+            <optgroup label="Altre partite del calendario">
+              {fixtures
+                .filter((f) => !candidates.some((c) => c.clientFixtureId === f.id))
+                .map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {fixtureChoiceText(f)}
+                  </option>
+                ))}
+            </optgroup>
+          </select>
+          <Button variant="primary" disabled={busy} onClick={() => void confirm()}>
+            {busy ? 'Conferma…' : 'Conferma'}
+          </Button>
+        </div>
+      )}
       {error && <ErrorBox>{error}</ErrorBox>}
     </li>
   );
 }
 
 /**
- * «Calendario»: the matches of the club from the calendars of its championships (date, time, teams with logos,
- * venue, state) with the link of each (copy, QR), the `.dvw` to confirm and «Aggiorna calendario».
+ * «Calendario»: the matches of the club, from the calendars of its championships and added by hand (friendly, cup,
+ * other), with date, time, teams with logos, venue, state and «Trasmessa» / «Non trasmessa», the link of each (copy,
+ * QR), the `.dvw` to confirm and «Aggiorna calendario». The admin adds, changes and deletes the matches added by
+ * hand, hides the downloaded ones, chooses the broadcast and the logos of each; a viewer only reads.
  */
 export function CalendarPage() {
   const errorMessage = useApiError();
+  const canEdit = useCanEdit();
   const load = useCallback(
     (signal: AbortSignal) => apiRequest('/api/admin/calendar', CalendarResponseSchema, { signal }),
     [],
   );
   const calendar = useAsync(load);
   const [syncing, setSyncing] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -216,6 +513,8 @@ export function CalendarPage() {
   };
 
   const data = calendar.data;
+  const visible = data?.fixtures.filter((f) => !f.hidden) ?? [];
+  const hidden = data?.fixtures.filter((f) => f.hidden) ?? [];
   return (
     <div className="space-y-4">
       {data && data.pending.length > 0 && (
@@ -230,15 +529,39 @@ export function CalendarPage() {
           </ul>
         </Card>
       )}
+      {canEdit && adding && (
+        <Card
+          title="Nuova partita"
+          subtitle="Amichevole, coppa o altro: compare nel calendario con il suo link e il suo QR, e il file .dvw si abbina da solo."
+        >
+          <ManualFixtureForm
+            initial={null}
+            onSaved={() => {
+              setAdding(false);
+              setNotice('Partita aggiunta: il suo link e il QR sono qui sotto.');
+              calendar.reload();
+            }}
+            onCancel={() => setAdding(false)}
+          />
+        </Card>
+      )}
       <Card
         title="Calendario"
         subtitle="Le partite della squadra del club, ognuna con il suo link e il suo QR, pronti prima della gara."
         actions={
-          <Button onClick={() => void sync()} disabled={syncing}>
-            {syncing ? 'Avvio…' : 'Aggiorna calendario'}
-          </Button>
+          canEdit ? (
+            <span className="inline-flex flex-wrap gap-2">
+              <Button variant="primary" onClick={() => setAdding((a) => !a)} aria-expanded={adding}>
+                {adding ? 'Chiudi' : 'Aggiungi partita'}
+              </Button>
+              <Button onClick={() => void sync()} disabled={syncing}>
+                {syncing ? 'Avvio…' : 'Aggiorna calendario'}
+              </Button>
+            </span>
+          ) : undefined
         }
       >
+        {!canEdit && <p className="mb-2 text-sm text-muted">{READ_ONLY_TEXT}</p>}
         {calendar.loading && !data && <Spinner label="Caricamento del calendario…" />}
         {calendar.error !== null && <ErrorBox onRetry={calendar.reload}>{errorMessage(calendar.error)}</ErrorBox>}
         {error && <ErrorBox>{error}</ErrorBox>}
@@ -253,15 +576,29 @@ export function CalendarPage() {
             <Link to="/admin/club" className="underline">
               «Club»
             </Link>
-            .
+            {canEdit ? ' oppure aggiungi una partita.' : '.'}
           </Empty>
         )}
-        {data && data.fixtures.length > 0 && (
+        {visible.length > 0 && (
           <ul className="divide-y divide-grid">
-            {data.fixtures.map((f) => (
-              <FixtureItem key={f.id} f={f} />
+            {visible.map((f) => (
+              <FixtureItem key={f.id} f={f} onChanged={calendar.reload} />
             ))}
           </ul>
+        )}
+        {hidden.length > 0 && (
+          <div className="mt-3 border-t border-grid pt-3">
+            <Button variant="ghost" aria-expanded={showHidden} onClick={() => setShowHidden((s) => !s)}>
+              {showHidden ? 'Nascondi' : 'Mostra'} le partite nascoste ({hidden.length})
+            </Button>
+            {showHidden && (
+              <ul className="divide-y divide-grid" aria-label="Partite nascoste">
+                {hidden.map((f) => (
+                  <FixtureItem key={f.id} f={f} onChanged={calendar.reload} />
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </Card>
     </div>

@@ -61,7 +61,13 @@ const define = <T extends BlockType>(
 /** Every block of the match page, in the order of «Aggiungi blocco». */
 export const BLOCKS: Registry = {
   scoreboard: define('scoreboard', 'Tabellone', 'Punteggio, set vinti e dettagli del set in corso.', (_b, env) => (
-    <Scoreboard state={env.state} status={env.status} device={env.device} brand={env.brandInScoreboard && tv(env)} />
+    <Scoreboard
+      state={env.state}
+      status={env.status}
+      device={env.device}
+      brand={env.brandInScoreboard && tv(env)}
+      {...(env.logos ? { logos: env.logos } : {})}
+    />
   )),
   momentum: define(
     'momentum',

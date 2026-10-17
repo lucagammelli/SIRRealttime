@@ -1,4 +1,4 @@
-import type { ScheduleResponse, TenantLayout } from '@sir/shared';
+import type { ScheduleResponse, TeamLogoPair, TenantLayout } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
 import type { ReactNode } from 'react';
 import type { BlockBrand } from '../blocks/env.ts';
@@ -28,6 +28,7 @@ export function MatchView({
   pageUrl,
   rotationPaused = false,
   schedule,
+  logos,
 }: {
   state: MatchState;
   status?: ReactNode;
@@ -42,6 +43,8 @@ export function MatchView({
   rotationPaused?: boolean;
   /** Matches and standings of the club (the editor passes an example); missing: read from the server when needed. */
   schedule?: ScheduleResponse | null;
+  /** Logos of the teams for the scoreboard (public messages); missing: none. */
+  logos?: TeamLogoPair;
 }) {
   const auto = useDevice();
   const used: Device = device ?? (auto === 'tv' ? 'tablet' : auto);
@@ -67,6 +70,7 @@ export function MatchView({
       paused: rotationPaused,
       schedule: data,
       ...(pageUrl === undefined ? {} : { pageUrl }),
+      ...(logos ? { logos } : {}),
     });
 
   return <BlockLayout blocks={blocks} device={used} renderBlock={renderBlock} rotationPaused={rotationPaused} />;

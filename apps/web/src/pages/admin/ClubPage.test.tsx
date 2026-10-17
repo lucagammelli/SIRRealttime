@@ -21,7 +21,10 @@ const option = {
 const club = (over: Partial<ClubResponse> = {}): ClubResponse => ({
   name: 'Sir Safety Perugia',
   logoUrl: null,
+  displayName: null,
+  logoMark: null,
   ourTeam: { code: null, name: null },
+  profile: { series: null, coverage: 'homeAndAway', teamLogos: 'all' },
   leagues: [],
   available: [option],
   ...over,
@@ -54,6 +57,7 @@ function mockServer(role: 'admin' | 'superadmin', initial: ClubResponse) {
         );
       if (url === `/api/admin/club/leagues/${LEAGUE}/teams`) return json(teams);
       if (url === '/api/admin/club/sync') return json({ started: 1, busy: 0 }, 202);
+      if (url === '/api/admin/club/profile') return json(initial);
       return json([]);
     }),
   );
@@ -110,10 +114,35 @@ describe('page «Club»', () => {
     expect(await screen.findByText(/Aggiornamento avviato/)).toBeTruthy();
   });
 
-  it('lets the superadmin add a championship of the Lega by IdCampionato', async () => {
+  it('sends the superadmin to «Campionati» to add a championship of the Lega', async () => {
     mockServer('superadmin', club({ available: [] }));
     renderClub();
-    expect(await screen.findByRole('heading', { name: 'Nuovo campionato della Lega' })).toBeTruthy();
-    expect(screen.getByText(/Nessun campionato disponibile/)).toBeTruthy();
+    expect(await screen.findByText(/Nessun campionato disponibile/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Aggiungilo in «Campionati».' }).getAttribute('href')).toBe(
+      '/admin/campionati',
+    );
+    expect(screen.queryByRole('heading', { name: 'Nuovo campionato della Lega' })).toBeNull();
+  });
+
+  it('saves the profile: name, logo, series, «nostra squadra», coverage and team logos', async () => {
+    const calls = mockServer('admin', club());
+    renderClub();
+    fireEvent.change(await screen.findByLabelText(/^Nome\s*Vuoto/), { target: { value: 'Sir Perugia' } });
+    fireEvent.change(screen.getByLabelText('Serie', { exact: false }), { target: { value: 'SuperLega' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'Solo partite in casa' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Solo il mio' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salva profilo' }));
+    await waitFor(() =>
+      expect(calls).toContainEqual({
+        url: '/api/admin/club/profile',
+        method: 'PUT',
+        body: {
+          displayName: 'Sir Perugia',
+          logoMark: null,
+          ourTeam: { code: null, name: null },
+          profile: { series: 'SuperLega', coverage: 'homeOnly', teamLogos: 'ours' },
+        },
+      }),
+    );
   });
 });

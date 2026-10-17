@@ -22,6 +22,9 @@ import { perMinute } from '../context.js';
 import { fixtures, leagues, leagueTeams, standings, teamLogos } from '../db/index.js';
 import { conflict, notFound } from '../lib/errors.js';
 import { validate } from '../lib/validate.js';
+import { leaguesWithClubMatches } from '../club.js';
+import { romeDayAt } from '../leagues/romeTime.js';
+import { nextSyncAt } from '../leagues/scheduler.js';
 import { SYNC_LEASE_MS } from '../leagues/sync.js';
 import { requireRole } from '../security.js';
 import { IMMUTABLE_CACHE, SVG_CSP } from './branding.js';
@@ -42,7 +45,20 @@ export function leagueSyncState(ctx: AppContext, l: LeagueRow): LeagueSyncState 
   };
 }
 
-function summary(ctx: AppContext, l: LeagueRow, teamCount: number, fixtureCount: number): LeagueSummary {
+/** Championships with a match of a club today (Rome day): updated every 10 minutes. */
+async function matchTodaySet(ctx: AppContext): Promise<Set<string>> {
+  const day = romeDayAt(ctx.now(), 0);
+  return leaguesWithClubMatches(ctx.db, day.at, day.nextDay);
+}
+
+function summary(
+  ctx: AppContext,
+  l: LeagueRow,
+  teamCount: number,
+  fixtureCount: number,
+  today: Set<string>,
+): LeagueSummary {
+  const matchToday = today.has(l.id);
   return {
     id: l.id,
     provider: LeagueProviderSchema.parse(l.provider),
@@ -54,6 +70,12 @@ function summary(ctx: AppContext, l: LeagueRow, teamCount: number, fixtureCount:
     fixtureCount,
     sync: leagueSyncState(ctx, l),
     createdAt: l.createdAt.toISOString(),
+    plan: {
+      nextSyncAt: ctx.config.leagueSync
+        ? nextSyncAt(ctx.now(), { lastSyncAt: l.lastSyncAt, matchToday }).toISOString()
+        : null,
+      matchToday,
+    },
   };
 }
 
@@ -68,11 +90,12 @@ async function counts(ctx: AppContext): Promise<{ teams: Map<string, number>; fi
 async function summaryOf(ctx: AppContext, id: string): Promise<LeagueSummary> {
   const [row] = await ctx.db.select().from(leagues).where(eq(leagues.id, id)).limit(1);
   if (!row) throw notFound();
-  const [[t], [f]] = await Promise.all([
+  const [[t], [f], today] = await Promise.all([
     ctx.db.select({ n: count() }).from(leagueTeams).where(eq(leagueTeams.leagueId, id)),
     ctx.db.select({ n: count() }).from(fixtures).where(eq(fixtures.leagueId, id)),
+    matchTodaySet(ctx),
   ]);
-  return summary(ctx, row, t?.n ?? 0, f?.n ?? 0);
+  return summary(ctx, row, t?.n ?? 0, f?.n ?? 0, today);
 }
 
 /**
@@ -83,12 +106,13 @@ export function leagueRoutes(app: FastifyInstance, ctx: AppContext): void {
   const superadmin = { config: perMinute(ctx.rateLimits.admin), preHandler: requireRole(ctx, 'superadmin') };
 
   app.get('/api/admin/leagues', superadmin, async (): Promise<LeagueListResponse> => {
-    const [rows, c] = await Promise.all([
+    const [rows, c, today] = await Promise.all([
       ctx.db.select().from(leagues).orderBy(desc(leagues.season), asc(leagues.externalId)),
       counts(ctx),
+      matchTodaySet(ctx),
     ]);
     return {
-      leagues: rows.map((l) => summary(ctx, l, c.teams.get(l.id) ?? 0, c.fixtures.get(l.id) ?? 0)),
+      leagues: rows.map((l) => summary(ctx, l, c.teams.get(l.id) ?? 0, c.fixtures.get(l.id) ?? 0, today)),
     };
   });
 
@@ -102,7 +126,7 @@ export function leagueRoutes(app: FastifyInstance, ctx: AppContext): void {
     if (!row) throw conflict('Campionato già presente');
     request.log.info({ leagueId: row.id, externalId: row.externalId, season: row.season }, 'campionato aggiunto');
     void reply.code(201);
-    return summary(ctx, row, 0, 0);
+    return summary(ctx, row, 0, 0, new Set());
   });
 
   app.get('/api/admin/leagues/:id', superadmin, async (request): Promise<LeagueDetailResponse> => {

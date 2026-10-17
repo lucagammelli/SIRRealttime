@@ -13,6 +13,7 @@ import { Button, Card, Empty, ErrorBox, SecretBox, Spinner } from '../../compone
 import { apiCommand, apiRequest } from '../../lib/api.ts';
 import { formatDateTime } from '../../lib/format.ts';
 import { useAsync } from '../../lib/useAsync.ts';
+import { READ_ONLY_TEXT, useCanEdit } from '../../lib/useCanEdit.ts';
 import { ShareQr } from '../../qr/ShareQr.tsx';
 import { useApiError } from './auth.tsx';
 import { ConfirmButton, Field, inputClass } from './forms.tsx';
@@ -27,8 +28,15 @@ function linkState(s: ShareTokenSummary, now: number): { text: string; className
   return { text: 'Attivo', className: 'text-live' };
 }
 
+/** What a link shows, as written in the list. */
+export function linkTargetText(s: Pick<ShareTokenSummary, 'clientFixtureId' | 'matchId'>, matchName?: string): string {
+  if (s.clientFixtureId) return 'Partita del calendario (creato dal «Calendario»)';
+  if (s.matchId) return `Partita: ${matchName ?? s.matchId}`;
+  return 'Canale del club: tutte le partite del calendario';
+}
+
 /**
- * Public links: create (live or fixed match, optional expiry), long URL shown once with Copy, short link and QR code
+ * Public links: create (channel of the club or fixed match, optional expiry), long URL shown once with Copy, short link and QR code
  * of every active link (copy, PNG and SVG download), revoke.
  */
 export function ShareLinksPage() {
@@ -46,7 +54,8 @@ export function ShareLinksPage() {
   const links = useAsync(loadLinks);
   const matches = useAsync(loadMatches);
   const [label, setLabel] = useState('');
-  const [mode, setMode] = useState<'live' | 'match'>(preset ? 'match' : 'live');
+  const canEdit = useCanEdit();
+  const [mode, setMode] = useState<'channel' | 'match'>(preset ? 'match' : 'channel');
   const [matchId, setMatchId] = useState(preset ?? '');
   const [expires, setExpires] = useState('');
   const [busy, setBusy] = useState(false);
@@ -76,7 +85,7 @@ export function ShareLinksPage() {
     }
     const body = CreateShareTokenRequestSchema.safeParse({
       label: label.trim(),
-      matchId: mode === 'live' ? null : matchId || undefined,
+      matchId: mode === 'channel' ? null : matchId || undefined,
       expiresAt,
     });
     if (!body.success) {
@@ -119,73 +128,82 @@ export function ShareLinksPage() {
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-      <Card title="Nuovo link pubblico">
-        <form onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
-          <Field label="Etichetta" hint="Per riconoscerlo nell’elenco, es. «Tribuna» o «Maxischermo».">
-            <input
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              maxLength={100}
-              required
-              className={inputClass}
-            />
-          </Field>
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-text">Cosa mostra</legend>
-            <label className="flex items-center gap-2 text-sm text-text">
-              <input type="radio" name="mode" checked={mode === 'live'} onChange={() => setMode('live')} />
-              Segue la partita live (anche le prossime)
-            </label>
-            <label className="flex items-center gap-2 text-sm text-text">
-              <input type="radio" name="mode" checked={mode === 'match'} onChange={() => setMode('match')} />
-              Una partita fissa
-            </label>
-            {mode === 'match' && (
-              <select
-                value={matchId}
-                onChange={(e) => setMatchId(e.target.value)}
+    <div className={canEdit ? 'grid gap-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]' : 'space-y-4'}>
+      {canEdit && (
+        <Card title="Nuovo link pubblico">
+          <form onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
+            <Field label="Etichetta" hint="Per riconoscerlo nell’elenco, es. «Tribuna» o «Maxischermo».">
+              <input
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                maxLength={100}
+                required
                 className={inputClass}
-                aria-label="Partita"
-              >
-                <option value="">{matches.loading ? 'Caricamento…' : 'Scegli la partita'}</option>
-                {(matches.data ?? []).map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {matchTitle(m)} · {formatDateTime(m.updatedAt)}
-                  </option>
-                ))}
-              </select>
-            )}
-          </fieldset>
-          <Field label="Scadenza (facoltativa)" hint="Vuota: il link vale finché non lo revochi.">
-            <input
-              type="datetime-local"
-              value={expires}
-              onChange={(e) => setExpires(e.target.value)}
-              className={inputClass}
-            />
-          </Field>
-          {formError && <ErrorBox>{formError}</ErrorBox>}
-          <Button type="submit" variant="primary" disabled={busy}>
-            {busy ? 'Creazione…' : 'Crea link'}
-          </Button>
-        </form>
-        {created && (
-          <div className="mt-4">
-            <SecretBox title={`Link «${created.label}»: copialo ora, non sarà più mostrato.`} value={created.url}>
-              <p className="text-xs text-muted">Aggiungi «?tv=1» in fondo per la modalità maxischermo.</p>
-              {created.shortUrl && (
+              />
+            </Field>
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium text-text">Cosa mostra</legend>
+              <label className="flex items-center gap-2 text-sm text-text">
+                <input type="radio" name="mode" checked={mode === 'channel'} onChange={() => setMode('channel')} />
+                Tutte le partite del calendario (canale del club)
+              </label>
+              {mode === 'channel' && (
                 <p className="text-xs text-muted">
-                  Link breve (sempre disponibile nell’elenco, con il QR):{' '}
-                  <span className="font-mono text-text select-all">{created.shortUrl}</span>
+                  Mostra la partita in diretta; senza diretta la prossima partita trasmessa con il conto alla rovescia;
+                  finita una partita resta su di essa fino al giorno della successiva.
                 </p>
               )}
-            </SecretBox>
-          </div>
-        )}
-      </Card>
+              <label className="flex items-center gap-2 text-sm text-text">
+                <input type="radio" name="mode" checked={mode === 'match'} onChange={() => setMode('match')} />
+                Una partita fissa
+              </label>
+              {mode === 'match' && (
+                <select
+                  value={matchId}
+                  onChange={(e) => setMatchId(e.target.value)}
+                  className={inputClass}
+                  aria-label="Partita"
+                >
+                  <option value="">{matches.loading ? 'Caricamento…' : 'Scegli la partita'}</option>
+                  {(matches.data ?? []).map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {matchTitle(m)} · {formatDateTime(m.updatedAt)}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </fieldset>
+            <Field label="Scadenza (facoltativa)" hint="Vuota: il link vale finché non lo revochi.">
+              <input
+                type="datetime-local"
+                value={expires}
+                onChange={(e) => setExpires(e.target.value)}
+                className={inputClass}
+              />
+            </Field>
+            {formError && <ErrorBox>{formError}</ErrorBox>}
+            <Button type="submit" variant="primary" disabled={busy}>
+              {busy ? 'Creazione…' : 'Crea link'}
+            </Button>
+          </form>
+          {created && (
+            <div className="mt-4">
+              <SecretBox title={`Link «${created.label}»: copialo ora, non sarà più mostrato.`} value={created.url}>
+                <p className="text-xs text-muted">Aggiungi «?tv=1» in fondo per la modalità maxischermo.</p>
+                {created.shortUrl && (
+                  <p className="text-xs text-muted">
+                    Link breve (sempre disponibile nell’elenco, con il QR):{' '}
+                    <span className="font-mono text-text select-all">{created.shortUrl}</span>
+                  </p>
+                )}
+              </SecretBox>
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card title="Link creati">
+        {!canEdit && <p className="mb-2 text-sm text-muted">{READ_ONLY_TEXT}</p>}
         {links.loading && !links.data && <Spinner label="Caricamento dei link…" />}
         {links.error !== null && <ErrorBox onRetry={links.reload}>{errorMessage(links.error)}</ErrorBox>}
         {listError && <ErrorBox>{listError}</ErrorBox>}
@@ -204,16 +222,11 @@ export function ShareLinksPage() {
                         <span className={`ml-1 text-xs font-semibold uppercase ${st.className}`}>{st.text}</span>
                       </p>
                       <p className="text-xs text-muted">
-                        {s.clientFixtureId
-                          ? 'Partita del calendario (creato dal «Calendario»)'
-                          : s.matchId
-                            ? `Partita: ${target ? matchTitle(target) : s.matchId}`
-                            : 'Segue la partita live'}{' '}
-                        · scadenza {s.expiresAt ? formatDateTime(s.expiresAt) : 'nessuna'} · creato{' '}
-                        {formatDateTime(s.createdAt)}
+                        {linkTargetText(s, target ? matchTitle(target) : undefined)} · scadenza{' '}
+                        {s.expiresAt ? formatDateTime(s.expiresAt) : 'nessuna'} · creato {formatDateTime(s.createdAt)}
                       </p>
                     </div>
-                    {!s.revoked && (
+                    {canEdit && !s.revoked && (
                       <ConfirmButton
                         label="Revoca"
                         confirmLabel="Conferma revoca"

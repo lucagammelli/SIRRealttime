@@ -5,12 +5,14 @@ import type { WebSocket } from 'ws';
 
 /**
  * What a client follows, always within one client (tenant): a fixed match, the live match of the client (the one
- * that became live last), or a match of the calendar of the club (`clientFixtureId`: «Prossima partita» until a
- * `.dvw` is linked to it, then that match).
+ * that became live last: the admin page), the channel of the club (public links without a match: the live match,
+ * otherwise «Prossima partita» of the next broadcast match, see `channelMessage`), or a match of the calendar of the
+ * club (`clientFixtureId`: «Prossima partita» until a `.dvw` is linked to it, then that match).
  */
 export type Target =
   | { kind: 'match'; tenantId: string; matchId: string }
   | { kind: 'live'; tenantId: string }
+  | { kind: 'channel'; tenantId: string }
   | { kind: 'fixture'; tenantId: string; clientFixtureId: string };
 
 /** What lets a client stay connected: closed when it is revoked (or the session ends) and when it expires. */
@@ -33,6 +35,8 @@ interface Entry extends Subscriber {
   alive: boolean;
   /** Last state version sent to the client: a patch is sent only to a client that has its `baseVersion`. */
   last: { matchId: string; version: number } | null;
+  /** Channel: what `showChannel` sent last (a match or the next match), to send it only when it changes. */
+  channelKey?: string;
 }
 
 /**
@@ -42,6 +46,8 @@ interface Entry extends Subscriber {
 export interface PublishRoute {
   clientFixtureId: string | null;
   becameLive: boolean;
+  /** false: linked to a match not broadcast, the channel of the club does not show it (missing: shown). */
+  channel?: boolean;
 }
 
 /** Without a route (older callers): not linked to the calendar, and the live match of the client. */
@@ -102,10 +108,14 @@ export class LiveHub implements StatePublisher {
   private readonly snapshots = new Map<string, Snapshot>();
   /** Live match of each client: the one that became live last. */
   private readonly liveMatch = new Map<string, string>();
+  /** Match the channel of each client follows: the live one that became live last among the broadcast ones. */
+  private readonly channelMatch = new Map<string, string>();
   /** Match linked to a match of the calendar, as last published (`clientFixtureId` → `matchId`). */
   private readonly fixtureMatch = new Map<string, string>();
   /** «Prossima partita» read from the database, by match of the calendar, with the time it was read. */
   private readonly scheduled = new Map<string, { tenantId: string; message: ScheduledMessage; at: number }>();
+  /** What the channel of a client shows when no match is being played (read from the database), by client. */
+  private readonly channel = new Map<string, { message: ServerMessage; at: number }>();
   private readonly perIp = new Map<string, number>();
   private publicCount = 0;
   private readonly timer: NodeJS.Timeout;
@@ -172,6 +182,62 @@ export class LiveHub implements StatePublisher {
   /** Forgets the «Prossima partita» of a client (its calendar was copied again: times or venues may have changed). */
   forgetScheduled(tenantId: string): void {
     for (const [id, kept] of this.scheduled) if (kept.tenantId === tenantId) this.scheduled.delete(id);
+    this.channel.delete(tenantId);
+  }
+
+  /** What the channel of a client shows, kept here at most SCHEDULED_TTL_MS (null: read it from the database). */
+  currentChannel(tenantId: string): ServerMessage | null {
+    const kept = this.channel.get(tenantId);
+    if (!kept) return null;
+    if (this.now().getTime() - kept.at >= SCHEDULED_TTL_MS) {
+      this.channel.delete(tenantId);
+      return null;
+    }
+    return kept.message;
+  }
+
+  rememberChannel(tenantId: string, message: ServerMessage): void {
+    this.channel.delete(tenantId);
+    this.channel.set(tenantId, { message, at: this.now().getTime() });
+    while (this.channel.size > SCHEDULED_LIMIT) {
+      const oldest = this.channel.keys().next();
+      if (oldest.done) break;
+      this.channel.delete(oldest.value);
+    }
+  }
+
+  /** The channel of a client follows this match (chosen by `channelMessage` from the database). */
+  setChannelMatch(tenantId: string, matchId: string): void {
+    this.channelMatch.set(tenantId, matchId);
+  }
+
+  /** Clients with at least one socket on their channel (checked every minute by `ChannelWatcher`). */
+  channelTenants(): Set<string> {
+    const out = new Set<string>();
+    for (const entry of this.entries.values()) if (entry.target.kind === 'channel') out.add(entry.target.tenantId);
+    return out;
+  }
+
+  /**
+   * What the channel of a client shows now (from `channelMessage`), sent to its sockets that show something else: the
+   * next match after the end of the last one, or a match the socket does not show. Sent once per change.
+   */
+  showChannel(tenantId: string, message: ServerMessage): void {
+    const key =
+      message.type === 'state'
+        ? `m:${message.matchId}`
+        : message.type === 'scheduled'
+          ? `f:${JSON.stringify(message.fixture)}`
+          : message.type;
+    for (const entry of this.entries.values()) {
+      if (entry.target.kind !== 'channel' || entry.target.tenantId !== tenantId) continue;
+      if (message.type === 'state') {
+        if (entry.last?.matchId === message.matchId) continue;
+      } else if (entry.channelKey === key && entry.last === null) continue;
+      entry.last = null;
+      entry.channelKey = key;
+      this.send(entry.socket, message);
+    }
   }
 
   /**
@@ -220,6 +286,10 @@ export class LiveHub implements StatePublisher {
     const text = JSON.stringify(message);
     const snap = this.store(tenantId, message, text);
     if (route.becameLive || !this.liveMatch.has(tenantId)) this.liveMatch.set(tenantId, message.matchId);
+    if (route.channel !== false && (route.becameLive || !this.channelMatch.has(tenantId)))
+      this.channelMatch.set(tenantId, message.matchId);
+    // A match that starts or ends changes what the channel shows when nothing is played.
+    if (route.becameLive || message.state.status === 'finished') this.channel.delete(tenantId);
     if (route.clientFixtureId) {
       this.fixtureMatch.set(route.clientFixtureId, message.matchId);
       this.scheduled.delete(route.clientFixtureId);
@@ -241,6 +311,7 @@ export class LiveHub implements StatePublisher {
     }
     for (const entry of this.entries.values()) {
       if (entry.target.tenantId !== tenantId) continue;
+      if (entry.target.kind === 'channel' && route.channel === false) continue;
       if (this.matchOf(entry.target) === message.matchId) this.deliver(entry, message, snap.frame, patch);
     }
   }
@@ -267,6 +338,7 @@ export class LiveHub implements StatePublisher {
   private matchOf(target: Target): string | null {
     if (target.kind === 'match') return target.matchId;
     if (target.kind === 'live') return this.liveMatch.get(target.tenantId) ?? null;
+    if (target.kind === 'channel') return this.channelMatch.get(target.tenantId) ?? null;
     return this.fixtureMatch.get(target.clientFixtureId) ?? null;
   }
 

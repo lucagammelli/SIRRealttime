@@ -144,11 +144,21 @@ async function statusOf(
           gt(agentRegistrations.expiresAt, now),
         ),
       )
-      .returning({ name: agentRegistrations.name, tenantId: agentRegistrations.tenantId });
+      .returning({
+        name: agentRegistrations.name,
+        tenantId: agentRegistrations.tenantId,
+        agentExpiresAt: agentRegistrations.agentExpiresAt,
+      });
     if (!claimed) return null;
+    // The place in the quota of the client was taken by the approval: the agent keeps it.
     const [agent] = await tx
       .insert(agents)
-      .values({ tenantId: claimed.tenantId, name: claimed.name, tokenHash: hashToken(token) })
+      .values({
+        tenantId: claimed.tenantId,
+        name: claimed.name,
+        tokenHash: hashToken(token),
+        expiresAt: claimed.agentExpiresAt,
+      })
       .returning({ id: agents.id });
     if (!agent) throw new Error('agent not inserted');
     await tx.update(agentRegistrations).set({ agentId: agent.id }).where(eq(agentRegistrations.id, row.id));

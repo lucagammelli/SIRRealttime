@@ -328,6 +328,10 @@ function Show-State($phase, $status) {
                 $text = $text + ' · server non raggiungibile'
                 $color = [System.Drawing.Color]::DarkOrange
             }
+            if ($status -and $status.registrationExpired) {
+                $text = '● Registrazione scaduta: registrati di nuovo (STOP, poi «Registra»)'
+                $color = [System.Drawing.Color]::Firebrick
+            }
         }
         default { $text = '● ' + $script:phase }
     }

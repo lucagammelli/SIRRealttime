@@ -1,4 +1,4 @@
-import type { ScheduleResponse, UserRole } from '@sir/shared';
+import type { MatchLogoInfo, ScheduleResponse, UserRole } from '@sir/shared';
 import type { Config } from './config.js';
 import type { Db } from './db/index.js';
 import type { LiveHub, StatePublisher } from './hub.js';
@@ -71,6 +71,10 @@ export interface LookupCaches {
   shares: TtlCache<string, ResolvedShareToken>;
   /** `GET /api/public/tenant/schedule` by client id (60 s; emptied when the club changes or a match starts or ends). */
   schedule: TtlCache<string, ScheduleResponse>;
+  /** Logos of the `.dvw` by `<tenantId>:<clientFixtureId or empty>` (60 s; emptied when a client or its club changes). */
+  logos: TtlCache<string, MatchLogoInfo>;
+  /** Whether the `.dvw` of a match of the calendar go to the channel, by `<tenantId>:<clientFixtureId>` (60 s). */
+  broadcast: TtlCache<string, boolean>;
 }
 
 /** Shared services of the routes. */

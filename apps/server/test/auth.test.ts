@@ -113,13 +113,15 @@ describe('sessions and roles', () => {
     expect(res.statusCode).toBe(401);
   });
 
-  it('lets a viewer read matches but not the admin-only routes', async () => {
+  it('lets a viewer read, but not the users and the registrations of the agents', async () => {
     const cookie = await login(server.app, VIEWER);
     expect((await server.app.inject({ url: '/api/auth/me', headers: { cookie } })).json<MeResponse>().role).toBe(
       'viewer',
     );
-    expect((await server.app.inject({ url: '/api/admin/matches', headers: { cookie } })).statusCode).toBe(200);
-    for (const url of ['/api/admin/agents', '/api/admin/share-tokens', '/api/admin/users']) {
+    for (const url of ['/api/admin/matches', '/api/admin/agents', '/api/admin/share-tokens', '/api/admin/calendar']) {
+      expect((await server.app.inject({ url, headers: { cookie } })).statusCode).toBe(200);
+    }
+    for (const url of ['/api/admin/users', '/api/admin/agent-registrations']) {
       expect((await server.app.inject({ url, headers: { cookie } })).statusCode).toBe(403);
     }
     const post = await server.app.inject({

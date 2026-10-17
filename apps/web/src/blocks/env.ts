@@ -1,4 +1,4 @@
-import type { ScheduleResponse } from '@sir/shared';
+import type { ScheduleResponse, TeamLogoPair } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
 import type { ReactNode } from 'react';
 import type { Device } from '../lib/layout.ts';
@@ -26,4 +26,6 @@ export interface BlockEnv {
   schedule: ScheduleResponse | null;
   /** Automatic changes stopped by the viewer (big screen): the sponsor images do not rotate either. */
   paused: boolean;
+  /** Logos of the teams next to their names in the scoreboard (from the server); missing: none. */
+  logos?: TeamLogoPair;
 }

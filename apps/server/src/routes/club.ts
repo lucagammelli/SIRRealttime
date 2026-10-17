@@ -17,22 +17,34 @@ import {
   publicAssetPath,
   publicTeamLogoPath,
   resolveBranding,
+  resolveClubProfile,
   suggestedOurTeamName,
+  UpdateClubProfileRequestSchema,
   UpdateClubRequestSchema,
 } from '@sir/shared';
 import { and, asc, count, desc, eq, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { publicSchedule, upcomingOf } from '../club.js';
+import { ADMIN_LOGOS, broadcastOf, clubLook, publicSchedule, upcomingOf } from '../club.js';
 import type { AppContext } from '../context.js';
 import { perMinute } from '../context.js';
-import { clientFixtures, leagues, leagueTeams, matches, shareTokens, tenantLeagues, tenants } from '../db/index.js';
+import {
+  assets,
+  clientFixtures,
+  leagues,
+  leagueTeams,
+  matches,
+  shareTokens,
+  tenantLeagues,
+  tenants,
+} from '../db/index.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { validate } from '../lib/validate.js';
 import { dvwDayKey, parseDvwDate } from '../leagues/match.js';
 import { canStayLive, lockTenantMatches } from '../matchLock.js';
 import { requireRole } from '../security.js';
 import { ensureShortCode } from '../shareCodes.js';
-import { announceFixture, refreshClub } from '../state.js';
+import { announceFixture, closeNotBroadcast, refreshClub } from '../state.js';
+import { lockClientAssets } from './branding.js';
 import {
   adminTenantId,
   findTenant,
@@ -92,6 +104,8 @@ export function clubPublicRoutes(app: FastifyInstance, ctx: AppContext): void {
  */
 export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
   const admin = { config: perMinute(ctx.rateLimits.admin), preHandler: requireRole(ctx, 'admin') };
+  // Reading for every user of the client (`viewer` included), changes only for `admin`.
+  const viewer = { config: admin.config, preHandler: requireRole(ctx, 'viewer') };
 
   const optionOf = (l: LeagueRow, teamCount: number): ClubLeagueOption => ({
     id: l.id,
@@ -123,7 +137,10 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
     return {
       name: tenantDisplayName(tenant, branding),
       logoUrl: logo ? publicAssetPath(logo) : null,
+      displayName: branding.displayName,
+      logoMark: branding.logoMark,
       ourTeam: branding.ourTeam,
+      profile: resolveClubProfile(tenant.clubProfile),
       leagues: choices.flatMap(({ choice, team }) => {
         const league = byId.get(choice.leagueId);
         return league ? [{ league, team: team ? teamOf(team) : null }] : [];
@@ -132,9 +149,9 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
     };
   };
 
-  app.get('/api/admin/club', admin, async (request): Promise<ClubResponse> => clubOf(adminTenantId(request)));
+  app.get('/api/admin/club', viewer, async (request): Promise<ClubResponse> => clubOf(adminTenantId(request)));
 
-  app.get('/api/admin/club/leagues/:id/teams', admin, async (request): Promise<ClubTeamsResponse> => {
+  app.get('/api/admin/club/leagues/:id/teams', viewer, async (request): Promise<ClubTeamsResponse> => {
     adminTenantId(request);
     const { id } = validate(IdParamSchema, request.params);
     const [league] = await ctx.db.select({ id: leagues.id }).from(leagues).where(eq(leagues.id, id)).limit(1);
@@ -226,10 +243,47 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
     },
   );
 
-  app.get('/api/admin/calendar', admin, async (request): Promise<CalendarResponse> => {
+  /**
+   * Profile of the club: name shown, square logo (an image `logo` of the client), «nostra squadra» (all three in the
+   * branding) and series, coverage, team logos (`tenants.club_profile`). The public pages see it at once: the links of
+   * the matches no longer broadcast stop working and their spectators are disconnected.
+   */
+  app.put('/api/admin/club/profile', admin, async (request): Promise<ClubResponse> => {
+    const tenantId = adminTenantId(request);
+    const body = validate(UpdateClubProfileRequestSchema, request.body);
+    await ctx.db.transaction(async (tx) => {
+      await lockClientAssets(tx, tenantId);
+      if (body.logoMark) {
+        const [asset] = await tx
+          .select({ id: assets.id })
+          .from(assets)
+          .where(tenantScope(assets, tenantId, eq(assets.id, body.logoMark), eq(assets.kind, 'logo')))
+          .limit(1);
+        if (!asset) throw badRequest('Richiesta non valida: logoMark');
+      }
+      const [row] = await tx.select({ branding: tenants.branding }).from(tenants).where(eq(tenants.id, tenantId));
+      if (!row) throw notFound();
+      const branding = {
+        ...resolveBranding(row.branding),
+        displayName: body.displayName,
+        logoMark: body.logoMark,
+        ourTeam: body.ourTeam,
+      };
+      await tx.update(tenants).set({ branding, clubProfile: body.profile }).where(eq(tenants.id, tenantId));
+    });
+    forgetTenants(ctx);
+    // «Nostra squadra» and the coverage change the link of the `.dvw` still to confirm: looked for again at once.
+    await refreshClub(ctx, tenantId);
+    await closeNotBroadcast(ctx, tenantId);
+    request.log.info({ tenantId, userId: request.user?.id }, 'profilo del club salvato');
+    return clubOf(tenantId);
+  });
+
+  app.get('/api/admin/calendar', viewer, async (request): Promise<CalendarResponse> => {
     const tenantId = adminTenantId(request);
     const tenant = await findTenant(ctx, { id: tenantId });
     const base = publicBaseUrlFor(ctx.config.publicBaseUrl, tenant?.hostnames ?? []);
+    const look = await clubLook(ctx.db, tenantId);
     const [rows, links, linked, pendingRows, leagueRows] = await Promise.all([
       ctx.db
         .select()
@@ -292,7 +346,7 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
     const doubtful = new Set(pending.flatMap((p) => p.candidates.map((c) => c.clientFixtureId)));
     const list: ClubFixture[] = rows.map((r) => {
       const m = matchOf.get(r.id);
-      const league = leagueById.get(r.leagueId);
+      const league = r.leagueId ? leagueById.get(r.leagueId) : undefined;
       const match = m
         ? {
             id: m.id,
@@ -305,9 +359,21 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
           }
         : null;
       return {
-        ...upcomingOf(r),
+        // The admin sees every logo, whatever «Loghi delle squadre».
+        ...upcomingOf(r, { profileLogo: look.profileLogo, ...ADMIN_LOGOS }),
         id: r.id,
-        league: { id: r.leagueId, name: league?.name ?? r.leagueName, season: league?.season ?? 0 },
+        league: r.leagueId ? { id: r.leagueId, name: league?.name ?? r.leagueName, season: league?.season ?? 0 } : null,
+        origin: r.origin,
+        kind: r.manualKind,
+        broadcast: r.broadcast,
+        broadcasted: broadcastOf(r, look.coverage),
+        hidden: r.hidden,
+        logos: {
+          our: r.ourLogoAssetId ? { id: r.ourLogoAssetId, url: publicAssetPath(r.ourLogoAssetId) } : null,
+          opponent: r.opponentLogoAssetId
+            ? { id: r.opponentLogoAssetId, url: publicAssetPath(r.opponentLogoAssetId) }
+            : null,
+        },
         state: clubFixtureState({
           removed: r.removedAt !== null,
           fixtureStatus: r.status,

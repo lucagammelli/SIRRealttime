@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DEFAULT_BRAND_NAME, webManifest } from '@sir/shared';
 import { describe, expect, it } from 'vitest';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -46,9 +47,13 @@ describe('manifest.webmanifest (installable app)', () => {
     }
   });
 
-  it('index.html links the manifest and the icon of iPhone', () => {
+  it('is the manifest of the server for a client without graphics (one source: webManifest of @sir/shared)', () => {
+    expect(manifest).toEqual(webManifest({ name: DEFAULT_BRAND_NAME, colors: {}, logo: null }));
+  });
+
+  it('index.html links the manifest of the client of the hostname and the icon of iPhone', () => {
     const html = read('../../index.html');
-    expect(html).toContain('<link rel="manifest" href="/manifest.webmanifest" />');
+    expect(html).toContain('<link rel="manifest" href="/api/public/manifest.webmanifest" />');
     expect(html).toContain('rel="apple-touch-icon"');
     expect(html).toContain('name="apple-mobile-web-app-capable"');
   });

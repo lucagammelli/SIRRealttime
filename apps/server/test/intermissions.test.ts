@@ -176,8 +176,8 @@ describe('pauses of the public page', () => {
     expect((await del()).statusCode).toBe(204);
   });
 
-  it('is for admins only; a superadmin works on its active client', async () => {
-    expect((await call(HOST_A, cookieViewerA, { url: URL })).statusCode).toBe(403);
+  it('is read-only for a viewer; a superadmin works on its active client', async () => {
+    expect((await call(HOST_A, cookieViewerA, { url: URL })).statusCode).toBe(200);
     expect((await putPauses(HOST_A, cookieViewerA, {})).statusCode).toBe(403);
     expect((await call(HOST_A, null, { url: URL })).statusCode).toBe(401);
     expect((await putPauses(HOST_A, '', {})).statusCode).toBe(401);

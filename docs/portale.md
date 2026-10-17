@@ -105,13 +105,14 @@ Le voci:
 |---|---|---|---|
 | Partita live | `/admin/live` | admin e viewer | la partita live via `/ws/admin`, con gli stessi componenti della pagina pubblica |
 | Partite | `/admin/partite`, `/admin/partite/:id` | admin e viewer | elenco delle partite ricevute e dettaglio (`MatchDetailSchema`: «Stato», «Righe di scout», «Versione», «Aggiornata») |
-| Calendario | `/admin/calendario` | solo admin | le partite del club con link, QR e stato; «Da confermare»; «Aggiorna calendario», vedi «Club e Calendario» |
-| Club | `/admin/club` | solo admin (il superadmin lavora sul cliente scelto) | campionati e squadra del club, «Nostra squadra nei file .dvw», vedi «Club e Calendario» |
-| Link pubblici | `/admin/link` | solo admin | «Nuovo link pubblico» (etichetta, partita o live, «Scadenza (facoltativa)»), «Link creati» (per i link attivi «Link breve», codice e QR, vedi «Link breve e QR»), «Revoca» |
-| Agenti | `/admin/agenti` | solo admin | «Agente per Windows» (vedi sotto), «Nuovo agente» («Crea token», mostrato una sola volta con «Copia config.json»), «Richieste in attesa» (vedi sotto), «Agenti», «Revoca» |
+| Calendario | `/admin/calendario` | admin (viewer: vedi sotto) | le partite del club con link, QR e stato; partite aggiunte a mano, «Trasmessa»/«Non trasmessa»; «Da confermare»; «Aggiorna calendario», vedi «Club e Calendario» |
+| Club | `/admin/club` | admin (il superadmin lavora sul cliente scelto) | profilo del club, campionati e squadra, «Nostra squadra nei file .dvw», vedi «Club e Calendario» |
+| Campionati | (da collegare) | solo superadmin | elenco dei campionati della Lega, «Nuovo campionato della Lega», «Aggiorna ora», vedi «Club e Calendario» |
+| Link pubblici | `/admin/link` | admin | «Nuovo link pubblico» (etichetta, «Cosa mostra»: «Tutte le partite del calendario (canale del club)» oppure «Una partita fissa», «Scadenza (facoltativa)»), «Link creati» (per i link attivi «Link breve», codice e QR, vedi «Link breve e QR»), «Revoca» |
+| Agenti | `/admin/agenti` | admin | «Agente per Windows» (vedi sotto), «Nuovo agente» («Crea token», mostrato una sola volta con «Copia config.json»), «Richieste in attesa» (vedi sotto), «Agenti» (stato «Attivo»/«Scaduto»/«Revocato», «Prolunga» con «Salva validità», «Revoca»), con la riga «N di M agenti in uso (limite dato dal superadmin)» |
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, password di almeno 12 caratteri, ruolo), «Utenti» |
 | Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`) | solo admin (il superadmin lavora sul cliente scelto) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
-| Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname; «Crea cliente»), «Clienti» con «Modifica» (nome e hostname, «Salva») |
+| Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname, «Agenti» = limite di agenti, predefinito 1; «Crea cliente»), «Clienti» con «Modifica» (nome, hostname e limite di agenti, «Salva»; il limite è mostrato come «un agente» / «fino a N agenti») |
 | Esci | - | tutti | chiude la sessione |
 
 **Anteprima sempre visibile**: nello «Studio grafico» (vedi sotto) l'anteprima è la colonna destra della pagina, sempre in
@@ -271,19 +272,29 @@ Ogni link attivo ha un link breve `<base>/l/<codice>` (codice di 8 lettere, most
 una sola volta), compare anche «Link breve (sempre disponibile nell’elenco, con il QR)»; in «Link creati» ogni link
 **attivo** mostra «Link breve», il codice e l'anteprima del QR con i pulsanti «Copia link», «Scarica QR (PNG)» e
 «Scarica QR (SVG)». Un link revocato o scaduto non li mostra. I link creati dal «Calendario» compaiono qui con la nota
-«Partita del calendario (creato dal «Calendario»)».
+«Partita del calendario (creato dal «Calendario»)»; il link di tutte le partite compare con «Canale del club: tutte le
+partite del calendario» (`docs/server.md`, «Profilo del club, partite del cliente e canale»). Per un viewer la pagina è in sola lettura.
 
 ### Club e Calendario (`pages/admin/ClubPage.tsx`, `CalendarPage.tsx`)
 Server, abbinamento e rotte in `docs/server.md`, «Club, calendario e abbinamento»; contratti in `docs/architettura.md`.
 
-**«Club»** (`/admin/club`): a sinistra la scheda «Club» con nome e logo (si cambiano in «Colori e loghi» dello Studio, con il pulsante
-«Apri «Grafica»», che passa dalla vecchia rotta `/admin/grafica` e arriva lì) e «Nostra squadra nei file .dvw» (codice e/o testo del nome; «non impostata: si imposta da sola quando
-scegli la squadra del club»). A destra la scheda «Campionati»: per ogni campionato un menu «Campionato» (nome e stagione,
-con lo stato dell'ultimo aggiornamento: «Mai scaricato», «Aggiornamento in corso…», «aggiornato …») e un menu «Squadra
-del club»; «Togli», «Aggiungi campionato» (al massimo 8), «Salva» (attivo solo se c'è una modifica) e «Aggiorna calendario».
-Un admin sceglie solo tra i campionati già noti («Nessun campionato disponibile. Chiedi al superadmin di aggiungere il
-campionato del club.»); il superadmin vede anche la scheda «Nuovo campionato della Lega» (`IdCampionato` e primo anno
-della stagione, «Aggiungi e scarica»).
+**«Club»** (`/admin/club`): a sinistra la scheda del **profilo** (`ProfileForm`, «Salva profilo»; contratto
+`UpdateClubProfileRequest`): «Logo quadrato del club» (`LogoPicker`), «Nome», «Serie», «Nostra squadra nei file .dvw»
+(«Codice squadra» e/o «Nome della squadra contiene»), «Partite trasmesse» («Casa e trasferta» o «Solo partite in casa»,
+con la copertura predefinita «Casa e trasferta») e «Loghi delle squadre» («Tutti», «Solo il mio», «Nessuno»; nell'interfaccia
+«Solo il mio» = `ours`). Dopo il salvataggio: «Profilo salvato: le pagine pubbliche lo mostrano subito.». A destra la scheda
+«Campionati»: per ogni campionato un menu «Campionato» (nome e stagione, con lo stato dell'ultimo aggiornamento: «Mai
+scaricato», «Aggiornamento in corso…», «aggiornato …») e un menu «Squadra del club»; «Togli», «Aggiungi campionato» (al
+massimo 8), «Salva» (attivo solo se c'è una modifica) e «Aggiorna calendario». Un admin sceglie solo tra i campionati già
+noti («Nessun campionato disponibile. Chiedi al superadmin di aggiungere il campionato del club.»); aggiungerli spetta al
+superadmin nella pagina «Campionati». Un viewer vede la pagina in sola lettura.
+
+**«Campionati»** (`pages/admin/LeaguesPage.tsx`, solo superadmin; **non ancora collegata** al menu, vedi sopra): «Nuovo
+campionato della Lega» (`IdCampionato` e «Stagione (primo anno)», «Aggiungi e scarica»; spostato qui dalla pagina «Club»),
+poi l'elenco dei campionati con lo stato dell'ultimo aggiornamento (`leagueSyncText`), il prossimo aggiornamento automatico
+(`leaguePlanText`, da `LeagueSummary.plan`: ogni notte alle 04:00 oppure ogni 10 minuti nei giorni di partita; «Aggiornamenti
+automatici spenti sul server (LEAGUE_SYNC=off).») e «Aggiorna ora». Durante un aggiornamento l'elenco si rilegge ogni 3 s
+(`LEAGUES_REFRESH_MS`).
 
 **«Calendario»** (`/admin/calendario`): la scheda «Calendario» elenca le partite del club per data: giornata, data e ora
 italiane (`formatFixtureDate`), squadre con logo (in grassetto la nostra), risultato in set, palazzetto, un'etichetta di stato
@@ -293,6 +304,22 @@ pubblici); un link revocato mostra «Link revocato.». Sopra, la scheda «Da con
 cui il server non è sicuro: per ognuno un menu con i candidati («somiglianza N%»), «Nessuna (amichevole)» e «Altre partite
 del calendario», e il pulsante «Conferma». Finché non è confermata, la partita ha comunque i suoi link. «Aggiorna
 calendario» chiede al server di riscaricare i campionati del club (orari e risultati arrivano in pochi minuti: ricaricare).
+
+Partite del cliente (`docs/server.md`, «Profilo del club, partite del cliente e canale»): «Aggiungi partita» apre il modulo
+«Partita aggiunta a mano» (`ManualFixtureForm`: «Tipo di partita» Amichevole, Coppa o Altro, «Data», «Ora», «Avversario»,
+«Logo dell’avversario (facoltativo)», «Dove si gioca» «In casa»/«In trasferta», «Palazzetto (facoltativo)», «Città
+(facoltativa)»; «Aggiungi la partita» / «Salva la partita»). Dopo il salvataggio: «Partita aggiunta: il suo link e il QR sono
+qui sotto.». Una partita aggiunta a mano ha link breve e QR come le altre, si abbina ai `.dvw` allo stesso modo, e ha
+«Modifica» e «Cancella» (con «Conferma cancellazione»). Una partita scaricata dal calendario si può solo «Nascondere»
+(«Mostra» la rimette; le nascoste stanno in una scheda a parte, `Partite nascoste`). «Impostazioni» di ogni partita:
+«Trasmissione della partita» («Come il profilo», «Trasmessa», «Non trasmessa») e due `LogoPicker` («Logo della nostra
+squadra» e «Logo di …»; predefiniti: logo quadrato del profilo per la nostra squadra, logo della Lega per gli avversari).
+Una partita non trasmessa ha il link non attivo e il `.dvw` non le viene abbinato. Il viewer vede tutto in sola lettura.
+
+**Loghi nella pagina pubblica**: il messaggio di stato porta `logos` (casa e ospite); `Scoreboard` li mostra accanto ai nomi
+(`TeamLogo`, prop `logos`) e «Prossima partita», classifica e calendario usano gli stessi
+(ordine e regole in `docs/server.md`). **Manifest dell'app**: `index.html` punta a `/api/public/manifest.webmanifest`, con
+nome, colori e logo quadrato del cliente (rotta del server, `docs/server.md`).
 
 ### Prossima partita (`components/NextMatch.tsx`)
 È la pagina pubblica di un link del calendario prima che arrivi il `.dvw` (messaggio `scheduled`, `LiveMatch.tsx`): titolo
@@ -327,21 +354,32 @@ pubblicato: «L’agente non è ancora stato pubblicato sul server.» con il com
 **Richieste in attesa** (`PendingRegistrations` in `apps/web/src/pages/admin/AgentsPage.tsx`): i PC che si sono
 auto-registrati come agenti (`docs/server.md`). Ogni richiesta mostra nome, «Codice di abbinamento» (6 caratteri, in
 grande), IP di provenienza, ora della richiesta e scadenza. L'admin controlla che il codice sia quello mostrato sul PC con
-DataVolley e preme «Abilita» (l'agente riceve il token da solo entro pochi secondi e compare in «Agenti») oppure
+DataVolley, sceglie la **validità** («Validità della registrazione»: «Senza scadenza» oppure «Fino al» con un giorno,
+`ValidityChoice`; «Scegli il giorno di scadenza, oppure «Senza scadenza».» se manca) e preme «Abilita» (l'agente riceve il
+token da solo entro pochi secondi e compare in «Agenti»; oltre il limite di agenti del cliente il server risponde 409 con
+«Limite di agenti raggiunto…») oppure
 «Rifiuta», senza conferma perché la richiesta si può rifare. Senza richieste: «Nessuna richiesta in attesa.». Elenco
 richieste e agenti si aggiornano ogni 5 secondi (`AGENTS_REFRESH_MS`) e si fermano a scheda nascosta.
 
-Un **viewer** (ruolo «sola lettura») vede solo «Partita live» e «Partite»; gli indirizzi riservati agli admin lo
-riportano a `/admin/live`. Il ruolo è mostrato accanto all'email («superadmin», «amministratore» o «sola lettura», `ROLE_TEXT` in `AdminApp.tsx`); la vera
+Un **viewer** (ruolo «sola lettura») nel menu vede oggi solo «Partita live» e «Partite»; gli indirizzi riservati agli admin
+lo riportano a `/admin/live` (`menuGroups` e `adminOnly` in `AdminSidebar.tsx` e `AdminApp.tsx`). Le pagine «Calendario»,
+«Club», «Link pubblici» e «Agenti» sono però già pronte per la sola lettura: il server fa leggere club, calendario, agenti e
+link al viewer (`docs/server.md`, «Ruoli»), `useCanEdit` (`lib/useCanEdit.ts`: vero per admin e superadmin) nasconde o
+disabilita i comandi che scrivono e mostra `READ_ONLY_TEXT` («Sola lettura: chiedi a un amministratore del cliente per le
+modifiche.»). **Da collegare**: aprire al viewer le voci di menu e le rotte di quelle pagine, e aggiungere in `AdminApp.tsx`
+e nel menu la rotta di `LeaguesPage` (la pagina «Campionati», sotto): oggi esiste ed è provata in `roles.test.tsx`, ma non
+è raggiungibile. Il ruolo è mostrato accanto all'email («superadmin», «amministratore» o «sola lettura», `ROLE_TEXT` in `AdminApp.tsx`); la vera
 protezione è sempre nel server (`docs/server.md`).
 
 ### App installabile e schermo intero (`lib/pwa.ts`, `components/AppInstall.tsx`)
 La pagina pubblica si può installare come app (PWA) e chiede lo schermo intero al primo tocco. Tutto è facoltativo: dove
 il browser non ha l'API non succede nulla.
 
-- **Manifest** (`public/manifest.webmanifest`): `display` `fullscreen` con `display_override` `fullscreen` e `standalone`,
-  `scope` `/`, icone di `public/icons/` generate dal favicon. Nome e icona sono per ora generici («SIRRealtime»): quelli del
-  cliente arriveranno con una rotta del server in un lavoro successivo. Non c'è `start_url`, così Chrome riapre il link da
+- **Manifest** (`GET /api/public/manifest.webmanifest`, `webManifest` di `packages/shared/src/manifest.ts`; `index.html` lo
+  collega): `display` `fullscreen` con `display_override` `fullscreen` e `standalone`, `scope` `/`; nome, colori e icona
+  sono quelli del cliente dell'hostname (logo quadrato per primo), seguito dalle icone generiche di `public/icons/`
+  (`DEFAULT_MANIFEST_ICONS`, le sole quando manca il logo); senza cliente il nome è «SIRRealtime». Il vecchio `public/manifest.webmanifest` statico è ancora nel
+  repository ma non è più collegato. Non c'è `start_url`, così Chrome riapre il link da
   cui si installa. `index.html` ha il manifest, `apple-touch-icon` e i meta.
 - **Service worker** (`public/sw.js`, registrato da `registerServiceWorker`): minimo, solo perché il browser consideri la
   pagina installabile. **Nessuna cache e nessuna intercettazione delle richieste**: pagine, dati e WebSocket passano sempre
@@ -905,6 +943,11 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
   `charts/usePalette.ts` (`PaletteScopeContext`, `usePalette`), `pages/admin/AdminApp.tsx` (rotte e menu ridotto),
   marcatori `data-studio-*` in `components/BlockLayout.tsx` e `Intermission.tsx`; test `studio/model.test.ts`,
   `studio/StudioPage.test.tsx`
+- Ruoli, club e calendario: `apps/web/src/lib/useCanEdit.ts` (`useCanEdit`, `READ_ONLY_TEXT`),
+  `pages/admin/LeaguesPage.tsx` (`LeaguesPage`, `leagueSyncText`, `leaguePlanText`), `LogoPicker.tsx` (`LogoPicker`,
+  `uploadLogo`), `CalendarPage.tsx` (`ManualFixtureForm`), `ClubPage.tsx` (`ProfileForm`, `COVERAGE_TEXT`,
+  `TEAM_LOGOS_TEXT`), `AgentsPage.tsx` (`ValidityChoice`, `validityText`), `TenantsPage.tsx` (`quotaText`),
+  `components/Scoreboard.tsx` (`logos`); test `pages/admin/roles.test.tsx`; API in `docs/server.md`
 - Anteprima a tutto schermo, font e app: `apps/web/src/components/PreviewDock.tsx` (`PreviewDock`, `PreviewFullscreen`),
   `components/AppInstall.tsx` (`InstallButton`, `FullscreenHint`), `lib/pwa.ts` (`registerServiceWorker`, `useInstallApp`,
   `useFullscreenOnFirstTouch`), `public/manifest.webmanifest`, `public/sw.js`, `public/icons/`, `index.html`,

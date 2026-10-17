@@ -112,6 +112,7 @@ export function LiveMatch({
           rotationPaused={rotationPaused}
           layout={layout}
           look={look}
+          {...(data.logos ? { logos: data.logos } : {})}
         />
       </div>
     </div>

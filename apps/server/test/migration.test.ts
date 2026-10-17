@@ -108,6 +108,34 @@ describe('migration to clients', () => {
   });
 });
 
+describe('migration to the quota of agents and the calendar of the client', () => {
+  it('keeps every active agent within the quota and the old matches and links as they were', async () => {
+    const client = new PGlite();
+    cleanup.push(() => client.close());
+    const db = drizzle({ client, schema });
+    await migrate(db, { migrationsFolder: await migrationsUpTo('0006_club') });
+    const [tenant] = await db.select({ id: tenants.id }).from(tenants);
+    if (!tenant) throw new Error('no tenant');
+    await client.exec(`
+      insert into tenants (slug, name) values ('vuoto', 'Vuoto');
+      insert into agents (tenant_id, name, token_hash, revoked) values
+        ('${tenant.id}', 'a', 'h1', false), ('${tenant.id}', 'b', 'h2', false),
+        ('${tenant.id}', 'c', 'h3', false), ('${tenant.id}', 'd', 'h4', true);
+      insert into share_tokens (tenant_id, token_hash, match_id, label) values ('${tenant.id}', 't1', null, 'Live');
+    `);
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    const rows = await db.select({ slug: tenants.slug, quota: tenants.agentQuota }).from(tenants);
+    expect(rows.sort((a, b) => a.slug.localeCompare(b.slug))).toEqual([
+      { slug: DEFAULT_TENANT_SLUG, quota: 3 },
+      { slug: 'vuoto', quota: 1 },
+    ]);
+    const live = await db.select().from(shareTokens);
+    expect(live).toEqual([expect.objectContaining({ matchId: null, clientFixtureId: null, label: 'Live' })]);
+    const all = await db.select({ expiresAt: agents.expiresAt }).from(agents);
+    expect(all.every((a) => a.expiresAt === null)).toBe(true);
+  });
+});
+
 describe('seed', () => {
   const config = (env: Record<string, string> = {}) =>
     loadConfig({

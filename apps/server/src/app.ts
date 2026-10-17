@@ -25,6 +25,8 @@ import { agentDownloadRoutes } from './routes/agentDownload.js';
 import { authRoutes } from './routes/auth.js';
 import { brandingAdminRoutes, brandingPublicRoutes } from './routes/branding.js';
 import { clubPublicRoutes, clubRoutes } from './routes/club.js';
+import { manualFixtureRoutes } from './routes/calendar.js';
+import { manifestRoutes } from './routes/manifest.js';
 import { healthRoutes } from './routes/health.js';
 import { ingestRoutes } from './routes/ingest.js';
 import { leaguePublicRoutes, leagueRoutes } from './routes/leagues.js';
@@ -33,7 +35,7 @@ import { registrationRoutes } from './routes/registration.js';
 import { tenantRoutes } from './routes/tenants.js';
 import { browserWriteGuard, rejectNulBody } from './security.js';
 import { tenantsOfLeague } from './club.js';
-import { refreshClub } from './state.js';
+import { ChannelWatcher, refreshClub } from './state.js';
 
 export interface AppOptions {
   config: Config;
@@ -45,6 +47,8 @@ export interface AppOptions {
   now?: () => Date;
   /** Downloads from the league sites (tests: fake fetch, no pacing). */
   leagueFetcher?: Partial<Omit<LeagueFetcherOptions, 'userAgent'>>;
+  /** Called for every route registered (tests: the list of the routes, e.g. every admin route that writes). */
+  onRoute?: (route: { method: string; url: string }) => void;
 }
 
 type LoggerOption = Exclude<FastifyServerOptions['logger'], undefined>;
@@ -69,7 +73,8 @@ function serverVersion(): string {
 
 /** Share tokens appear in public paths: they are masked in the logs (not the graphics routes of the client). */
 export function redactUrl(url: string): string {
-  if (/^\/api\/public\/(?:tenant(?:[?#]|$)|assets\/|team-logos\/)/.test(url)) return url;
+  if (/^\/api\/public\/(?:tenant(?:[?#]|$)|manifest\.webmanifest(?:[?#]|$)|assets\/|team-logos\/)/.test(url))
+    return url;
   return url.replace(/^\/(api|ws)\/public\/[^/?#]+/, '/$1/public/[token]');
 }
 
@@ -145,6 +150,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
       hosts: new TtlCache(LOOKUP_CACHE_TTL_MS, LOOKUP_CACHE_ENTRIES, now),
       shares: new TtlCache(LOOKUP_CACHE_TTL_MS, LOOKUP_CACHE_ENTRIES, now),
       schedule: new TtlCache(SCHEDULE_CACHE_TTL_MS, LOOKUP_CACHE_ENTRIES, now),
+      logos: new TtlCache(SCHEDULE_CACHE_TTL_MS, LOOKUP_CACHE_ENTRIES, now),
+      broadcast: new TtlCache(SCHEDULE_CACHE_TTL_MS, LOOKUP_CACHE_ENTRIES, now),
     },
     publicFailures: new FailureLimiter(rateLimits.publicInvalid, 60_000, now),
     shortCodeFailures: new FailureLimiter(rateLimits.shortCodeInvalidTotal, 60_000, now),
@@ -153,6 +160,12 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     now,
   };
 
+  const onRoute = options.onRoute;
+  if (onRoute) {
+    app.addHook('onRoute', (route) => {
+      for (const method of [route.method].flat()) onRoute({ method, url: route.url });
+    });
+  }
   app.decorateRequest('user', null);
   app.decorateRequest('sessionExpiresAt', null);
   app.decorateRequest('adminTenantId', null);
@@ -190,6 +203,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   brandingPublicRoutes(app, ctx);
   leaguePublicRoutes(app, ctx);
   clubPublicRoutes(app, ctx);
+  manifestRoutes(app, ctx);
   publicRoutes(app, ctx);
   registrationRoutes(app, ctx);
   // Checks with a cost or a rejection go in preParsing/preValidation/preHandler: the rate limit of a route is an
@@ -203,16 +217,21 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     agentDownloadRoutes(scope, ctx);
     leagueRoutes(scope, ctx);
     clubRoutes(scope, ctx);
+    manualFixtureRoutes(scope, ctx);
     done();
   });
 
   // Automatic updates of the championships only when the server is ready (LEAGUE_SYNC=off: never).
   const scheduler = config.leagueSync ? new LeagueScheduler({ db, leagues, now, log: app.log }) : null;
+  // The channels of the clubs move to the next match after the end of the last one, without a reload.
+  const channels = new ChannelWatcher(ctx, app.log);
   app.addHook('onReady', (done) => {
     scheduler?.start();
+    channels.start();
     done();
   });
   app.addHook('onClose', async () => {
+    channels.stop();
     ctx.hub.closeAll();
     leagues.close();
     await scheduler?.stop();

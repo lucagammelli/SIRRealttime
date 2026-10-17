@@ -1,4 +1,5 @@
 import type {
+  AgentQuotaResponse,
   AgentRegistrationSummary,
   AgentSummary,
   CreateAgentResponse,
@@ -9,6 +10,7 @@ import type {
   UserSummary,
 } from '@sir/shared';
 import {
+  AgentValidityRequestSchema,
   CreateAgentRequestSchema,
   CreateShareTokenRequestSchema,
   CreateUserRequestSchema,
@@ -16,6 +18,7 @@ import {
 } from '@sir/shared';
 import { desc, eq, gt } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { agentQuotaOf, agentsInUse, lockTenantAgents, requireAgentSlot } from '../agentQuota.js';
 import type { AppContext } from '../context.js';
 import { perMinute, SESSION_COOKIE } from '../context.js';
 import { agentRegistrations, agents, matches, shareTokens, users } from '../db/index.js';
@@ -58,6 +61,7 @@ const agentSummary = (a: AgentRow): AgentSummary => ({
   revoked: a.revoked,
   lastSeenAt: a.lastSeenAt ? iso(a.lastSeenAt) : null,
   createdAt: iso(a.createdAt),
+  expiresAt: a.expiresAt ? iso(a.expiresAt) : null,
 });
 
 const registrationSummary = (r: RegistrationRow): AgentRegistrationSummary => ({
@@ -84,8 +88,9 @@ const shareSummary = (s: ShareRow, code: string | null, base: string): ShareToke
 });
 
 /**
- * Reserved area: matches for every logged-in user, everything else only for `admin` (and `superadmin`). Every query
- * is limited to the client of the session (`adminTenantId`) with `tenantScope`: an id of another client is a 404.
+ * Reserved area: reading for every logged-in user (`viewer` included: matches, agents, public links), every change and
+ * the lists with personal data (users, addresses of the registrations) only for `admin` (and `superadmin`). Every
+ * query is limited to the client of the session (`adminTenantId`) with `tenantScope`: an id of another client is a 404.
  */
 export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
   const viewer = { config: perMinute(ctx.rateLimits.admin), preHandler: requireRole(ctx, 'viewer') };
@@ -114,21 +119,34 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
     return { ...matchSummary(m), lastSeq: m.lastSeq, contentHash: m.contentHash, state: m.state };
   });
 
+  /** End of a validity chosen by the admin: null (no expiry) or a time in the future (400 otherwise). */
+  const validityOf = (body: unknown): Date | null => {
+    const { expiresAt } = validate(AgentValidityRequestSchema, body ?? {});
+    const end = expiresAt === null ? null : new Date(expiresAt);
+    if (end && end <= ctx.now()) throw badRequest('Richiesta non valida: la scadenza deve essere nel futuro');
+    return end;
+  };
+
   app.post('/api/admin/agents', admin, async (request, reply): Promise<CreateAgentResponse> => {
     const tenantId = adminTenantId(request);
     const body = validate(CreateAgentRequestSchema, request.body);
     const token = generateToken();
-    const [row] = await ctx.db
-      .insert(agents)
-      .values({ tenantId, name: body.name, tokenHash: hashToken(token) })
-      .returning();
+    const row = await ctx.db.transaction(async (tx) => {
+      await lockTenantAgents(tx, tenantId);
+      await requireAgentSlot(tx, tenantId, ctx.now());
+      const [inserted] = await tx
+        .insert(agents)
+        .values({ tenantId, name: body.name, tokenHash: hashToken(token) })
+        .returning();
+      return inserted;
+    });
     if (!row) throw new Error('agent not inserted');
     request.log.info({ agentId: row.id }, 'token agente creato');
     void reply.code(201);
     return { ...agentSummary(row), token };
   });
 
-  app.get('/api/admin/agents', admin, async (request): Promise<AgentSummary[]> => {
+  app.get('/api/admin/agents', viewer, async (request): Promise<AgentSummary[]> => {
     const tenantId = adminTenantId(request);
     const rows = await ctx.db
       .select()
@@ -136,6 +154,44 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
       .where(tenantScope(agents, tenantId))
       .orderBy(desc(agents.createdAt));
     return rows.map(agentSummary);
+  });
+
+  app.get('/api/admin/agent-quota', viewer, async (request): Promise<AgentQuotaResponse> => {
+    const tenantId = adminTenantId(request);
+    return ctx.db.transaction(async (tx) => ({
+      quota: await agentQuotaOf(tx, tenantId),
+      used: await agentsInUse(tx, tenantId, ctx.now()),
+    }));
+  });
+
+  /**
+   * New validity of an agent not revoked («Prolunga»: null for no expiry). An agent already expired that becomes
+   * valid again takes a place of the quota (409 when there is none).
+   */
+  app.patch('/api/admin/agents/:id', admin, async (request): Promise<AgentSummary> => {
+    const tenantId = adminTenantId(request);
+    const { id } = validate(IdParamSchema, request.params);
+    const expiresAt = validityOf(request.body);
+    const row = await ctx.db.transaction(async (tx) => {
+      await lockTenantAgents(tx, tenantId);
+      const [agent] = await tx
+        .select()
+        .from(agents)
+        .where(tenantScope(agents, tenantId, eq(agents.id, id), eq(agents.revoked, false)))
+        .limit(1);
+      if (!agent) throw notFound();
+      const now = ctx.now();
+      if (agent.expiresAt && agent.expiresAt <= now) await requireAgentSlot(tx, tenantId, now, agent.id);
+      const [updated] = await tx
+        .update(agents)
+        .set({ expiresAt })
+        .where(tenantScope(agents, tenantId, eq(agents.id, id)))
+        .returning();
+      return updated;
+    });
+    if (!row) throw notFound();
+    request.log.info({ agentId: id, expiresAt: row.expiresAt, userId: request.user?.id }, 'validità agente cambiata');
+    return agentSummary(row);
   });
 
   app.delete('/api/admin/agents/:id', admin, async (request, reply) => {
@@ -168,25 +224,36 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
     return rows.map(registrationSummary);
   });
 
-  /** Approves or rejects a pending, not expired request (404 otherwise); the agent collects its token later. */
+  /**
+   * Approves or rejects a pending, not expired request (404 otherwise); the agent collects its token later. The
+   * approval carries the validity of the agent («Senza scadenza» or «Fino al») and needs a free place in the quota of
+   * the client (409 otherwise).
+   */
   const decide = (status: 'approved' | 'rejected', message: string) =>
     async function (request: FastifyRequest): Promise<AgentRegistrationSummary> {
       const tenantId = adminTenantId(request);
       const { id } = validate(IdParamSchema, request.params);
+      const agentExpiresAt = status === 'approved' ? validityOf(request.body) : null;
       const now = ctx.now();
-      const [row] = await ctx.db
-        .update(agentRegistrations)
-        .set({ status, decidedAt: now })
-        .where(
-          tenantScope(
-            agentRegistrations,
-            tenantId,
-            eq(agentRegistrations.id, id),
-            eq(agentRegistrations.status, 'pending'),
-            gt(agentRegistrations.expiresAt, now),
-          ),
-        )
-        .returning();
+      const row = await ctx.db.transaction(async (tx) => {
+        await lockTenantAgents(tx, tenantId);
+        const pending = tenantScope(
+          agentRegistrations,
+          tenantId,
+          eq(agentRegistrations.id, id),
+          eq(agentRegistrations.status, 'pending'),
+          gt(agentRegistrations.expiresAt, now),
+        );
+        const [found] = await tx.select({ id: agentRegistrations.id }).from(agentRegistrations).where(pending);
+        if (!found) throw notFound();
+        if (status === 'approved') await requireAgentSlot(tx, tenantId, now);
+        const [updated] = await tx
+          .update(agentRegistrations)
+          .set({ status, decidedAt: now, agentExpiresAt })
+          .where(pending)
+          .returning();
+        return updated;
+      });
       if (!row) throw notFound();
       request.log.info({ registrationId: id, userId: request.user?.id }, message);
       return registrationSummary(row);
@@ -225,7 +292,7 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
   });
 
   /** The short code of each link is derived again from its id (assigned first to a link that has none yet). */
-  app.get('/api/admin/share-tokens', admin, async (request): Promise<ShareTokenSummary[]> => {
+  app.get('/api/admin/share-tokens', viewer, async (request): Promise<ShareTokenSummary[]> => {
     const tenantId = adminTenantId(request);
     const tenant = await findTenant(ctx, { id: tenantId });
     const base = publicBaseUrlFor(ctx.config.publicBaseUrl, tenant?.hostnames ?? []);

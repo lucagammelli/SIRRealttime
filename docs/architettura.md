@@ -264,6 +264,29 @@ bordi per tenere sempre 5 righe; senza la nostra squadra, le prime `count`). Rot
 `docs/portale.md` («Blocchi del calendario»). Rotte, abbinamento e tabelle in `docs/server.md` («Club, calendario e abbinamento»), pagine in `docs/portale.md`; test
 `packages/shared/src/club.test.ts`.
 
+Profilo del club, partite del cliente e loghi (`club.ts`, lavoro «ruoli-calendario»; rotte e canale in `docs/server.md`,
+pagine in `docs/portale.md`): `ClubProfileSchema` (`series` fino a `CLUB_SERIES_MAX` = 60, `coverage`
+`ClubCoverageSchema` = `homeAndAway` predefinita o `homeOnly`, `teamLogos` `TeamLogosModeSchema` = `all` predefinita,
+`ours`, `none`) e `resolveClubProfile` (pura, i campi mancanti o un documento non valido tornano ai predefiniti),
+`UpdateClubProfileRequestSchema` (`displayName`, `logoMark`, `ourTeam`, `profile`; `PUT /api/admin/club/profile`);
+partite: `FixtureOriginSchema` (`league`/`manual`), `ManualFixtureKindSchema` (`friendly`/`cup`/`other`) e
+`MANUAL_FIXTURE_LABEL`, `FixtureBroadcastSchema` (`auto`/`on`/`off`), `isFixtureBroadcast` (pura: nascosta mai; altrimenti
+la scelta della partita, con `auto` la copertura), `ManualFixtureRequestSchema`, `CreatedFixtureResponseSchema`,
+`FixtureSettingsRequestSchema` (`broadcast`, `hidden`, `ourLogo`, `opponentLogo`, almeno un campo), e in `ClubFixtureSchema`
+i campi `origin`, `kind`, `broadcast`, `broadcasted`, `hidden`, `logos`; loghi: `chooseTeamLogo` (pura: logo della partita
+→ logo del profilo, solo per la nostra squadra → logo pubblico della Lega → nessuno), `teamLogoShown`, `shownTeamLogo`
+(l'impostazione `teamLogos` decide se mostrarlo) e `matchTeamLogos` (i loghi dei due lati del `.dvw`: il lato nostro è la
+«nostra squadra» riconosciuta nel file, altrimenti il lato del club nel calendario; ignoto: nessun logo). `StateMessage` ha
+il campo facoltativo `logos` (`TeamLogoPairSchema`, `home` e `away`).
+
+Validità e quota degli agenti, canale, manifest: `admin.ts` ha `AgentSummary.expiresAt`, `AgentValidityRequestSchema`
+(`expiresAt` nulla = senza scadenza; corpo di `approve` e di `PATCH /api/admin/agents/:id`), `AgentQuotaResponseSchema`
+(`quota`, `used`), `agentActive` (pura); `CreateShareTokenRequestSchema` con `matchId` nullo = canale del club;
+`tenant.ts` ha `AgentQuotaSchema` (0-`AGENT_QUOTA_MAX` = 100, `DEFAULT_AGENT_QUOTA` = 1) in `TenantSummary`,
+`CreateTenantRequest` e `UpdateTenantRequest`; `leagues.ts` ha `plan` in `LeagueSummary`; `registration.ts` ha
+`AGENT_EXPIRED_ERROR` («Registrazione scaduta: registrati di nuovo», il testo del 401 `AGENT_EXPIRED`); `manifest.ts` ha
+`webManifest` e `DEFAULT_MANIFEST_ICONS` (manifest dell'app del cliente).
+
 Ogni schema ha il tipo omonimo senza `Schema` (`z.infer`). Dettagli d'uso: `docs/server.md`.
 
 ### Regole
@@ -289,7 +312,7 @@ pnpm --filter @sir/server test      # il flusso completo agente→server→WebSo
 ```
 
 ## Riferimenti
-- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `leagues.ts`, `club.ts`, `index.ts`
+- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `leagues.ts`, `club.ts`, `manifest.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
 - `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`, `apps/web/src/App.tsx`
 - `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/portale.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,

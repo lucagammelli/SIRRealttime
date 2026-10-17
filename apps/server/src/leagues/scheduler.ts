@@ -36,6 +36,22 @@ export function dueSyncs(now: Date, list: ScheduledLeague[]): { id: string; stan
   return due;
 }
 
+/**
+ * Pure: time of the next automatic update of a championship (the same rules as `dueSyncs`): `now` when one is due,
+ * otherwise 10 minutes after the last attempt on a match day (never later than the nightly one), otherwise the
+ * next nightly update at 04:00 (Rome).
+ */
+export function nextSyncAt(now: Date, l: Omit<ScheduledLeague, 'id'>): Date {
+  const nightly = romeDayAt(now, NIGHTLY_HOUR);
+  if (now >= nightly.at && (l.lastSyncAt === null || l.lastSyncAt < nightly.at)) return now;
+  const nextNightly = now < nightly.at ? nightly.at : nightly.nextDay;
+  if (l.matchToday) {
+    const at = l.lastSyncAt ? new Date(Math.max(now.getTime(), l.lastSyncAt.getTime() + MATCH_DAY_INTERVAL_MS)) : now;
+    return at < nextNightly ? at : nextNightly;
+  }
+  return nextNightly;
+}
+
 /** Automatic updates in the server process (off with LEAGUE_SYNC=off): one championship at a time. */
 export class LeagueScheduler {
   private timer: NodeJS.Timeout | null = null;

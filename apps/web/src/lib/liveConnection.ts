@@ -1,4 +1,4 @@
-import type { JsonValue, PatchMessage, ServerMessage, UpcomingFixture } from '@sir/shared';
+import type { JsonValue, PatchMessage, ServerMessage, TeamLogoPair, UpcomingFixture } from '@sir/shared';
 import { applyPatch } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
 import { gunzipFrame, supportsGzip, withGzip } from './frames.ts';
@@ -21,6 +21,8 @@ export type LiveData =
        * state of a connection and the answer to a `resync`, which only bring the match up to date (no overlays).
        */
       live?: boolean;
+      /** Logos of the two sides, as chosen by the server («Loghi delle squadre»); missing: none. */
+      logos?: TeamLogoPair;
     }
   | { kind: 'noMatch' }
   /** Link of a match of the calendar before its start: «Prossima partita». */
@@ -92,7 +94,13 @@ export function applyMessage(current: LiveData | null, message: ServerMessage): 
   if (!looksLikeMatchState(message.state)) return null;
   if (current?.kind === 'state' && current.matchId === message.matchId && message.version <= current.version)
     return null;
-  return { kind: 'state', matchId: message.matchId, version: message.version, state: message.state };
+  return {
+    kind: 'state',
+    matchId: message.matchId,
+    version: message.version,
+    state: message.state,
+    ...(message.logos ? { logos: message.logos } : {}),
+  };
 }
 
 /**
@@ -110,7 +118,14 @@ export function applyPatchMessage(current: LiveData | null, message: PatchMessag
     return 'resync';
   }
   if (!looksLikeMatchState(next)) return 'resync';
-  return { kind: 'state', matchId: message.matchId, version: message.version, state: next };
+  // A patch changes only the state: the logos stay those of the full state it applies to.
+  return {
+    kind: 'state',
+    matchId: message.matchId,
+    version: message.version,
+    state: next,
+    ...(current.logos ? { logos: current.logos } : {}),
+  };
 }
 
 /**

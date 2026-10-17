@@ -29,13 +29,13 @@ import {
   TenantOverlaysSchema,
   UploadAssetRequestSchema,
 } from '@sir/shared';
-import { desc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { desc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { readAssetFile, removeAssetFile, writeAssetFile } from '../assetStore.js';
 import type { AppContext } from '../context.js';
 import { perMinute } from '../context.js';
-import { assets, tenants } from '../db/index.js';
+import { assets, clientFixtures, tenants } from '../db/index.js';
 import { badRequest, conflict, HttpError, notFound } from '../lib/errors.js';
 import { ImageRejected, inspectImage } from '../lib/images.js';
 import { validate } from '../lib/validate.js';
@@ -75,7 +75,8 @@ const assetSummary = (a: AssetRow): AssetSummary => ({
   url: publicAssetPath(a.id),
 });
 
-const lockClient = (tx: Tx, tenantId: string) =>
+/** Lock of the images and of the graphics of a client (uploads, deletions, branding, profile of the club). */
+export const lockClientAssets = (tx: Tx, tenantId: string) =>
   tx.execute(sql`select pg_advisory_xact_lock(${ASSET_LOCK_KEY}, hashtext(${tenantId}))`);
 
 async function usedBytes(tx: Tx | AppContext['db'], tenantId: string): Promise<number> {
@@ -163,6 +164,8 @@ export function brandingPublicRoutes(app: FastifyInstance, ctx: AppContext): voi
 /** Branding and images of the client of the session (admin; a superadmin works on its active client). */
 export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void {
   const admin = { config: perMinute(ctx.rateLimits.admin), preHandler: requireRole(ctx, 'admin') };
+  // Reading for every user of the client (`viewer` included), changes only for `admin`.
+  const viewer = { config: admin.config, preHandler: requireRole(ctx, 'viewer') };
 
   const brandingOf = async (tenantId: string): Promise<BrandingResponse> => {
     const tenant = await findTenant(ctx, { id: tenantId });
@@ -170,7 +173,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     return { tenantName: tenant.name, branding: resolveBranding(tenant.branding) };
   };
 
-  app.get('/api/admin/branding', admin, async (request): Promise<BrandingResponse> =>
+  app.get('/api/admin/branding', viewer, async (request): Promise<BrandingResponse> =>
     brandingOf(adminTenantId(request)),
   );
 
@@ -179,7 +182,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const tenantId = adminTenantId(request);
     const branding = validate(TenantBrandingSchema, request.body);
     await ctx.db.transaction(async (tx) => {
-      await lockClient(tx, tenantId);
+      await lockClientAssets(tx, tenantId);
       for (const slot of SLOTS) {
         const id = branding[slot];
         if (id === null) continue;
@@ -209,7 +212,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     return { tenantName: tenant.name, layout: resolveLayout(tenant.layout, resolveBranding(tenant.branding).template) };
   };
 
-  app.get('/api/admin/layout', admin, async (request): Promise<LayoutResponse> => layoutOf(adminTenantId(request)));
+  app.get('/api/admin/layout', viewer, async (request): Promise<LayoutResponse> => layoutOf(adminTenantId(request)));
 
   /**
    * Replaces the layout of the public page (closed list of block types, options checked by the shared schema); every
@@ -220,7 +223,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const layout = validate(TenantLayoutSchema, request.body);
     const images = layoutImageIds(layout);
     await ctx.db.transaction(async (tx) => {
-      await lockClient(tx, tenantId);
+      await lockClientAssets(tx, tenantId);
       await requireOwnImages(tx, tenantId, images);
       const updated = await tx
         .update(tenants)
@@ -240,7 +243,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     return { tenantName: tenant.name, intermissions: resolveIntermissions(tenant.intermissions) };
   };
 
-  app.get('/api/admin/intermissions', admin, async (request): Promise<IntermissionsResponse> =>
+  app.get('/api/admin/intermissions', viewer, async (request): Promise<IntermissionsResponse> =>
     intermissionsOf(adminTenantId(request)),
   );
 
@@ -253,7 +256,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const intermissions = validate(TenantIntermissionsSchema, request.body);
     const images = intermissionImageIds(intermissions);
     await ctx.db.transaction(async (tx) => {
-      await lockClient(tx, tenantId);
+      await lockClientAssets(tx, tenantId);
       await requireOwnImages(tx, tenantId, images);
       const updated = await tx
         .update(tenants)
@@ -273,7 +276,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     return { tenantName: tenant.name, overlays: resolveOverlays(tenant.overlays) };
   };
 
-  app.get('/api/admin/overlays', admin, async (request): Promise<OverlaysResponse> =>
+  app.get('/api/admin/overlays', viewer, async (request): Promise<OverlaysResponse> =>
     overlaysOf(adminTenantId(request)),
   );
 
@@ -295,7 +298,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     return overlaysOf(tenantId);
   });
 
-  app.get('/api/admin/assets', admin, async (request): Promise<AssetListResponse> => {
+  app.get('/api/admin/assets', viewer, async (request): Promise<AssetListResponse> => {
     const tenantId = adminTenantId(request);
     const rows = await ctx.db
       .select()
@@ -337,7 +340,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       }
       const sha256 = createHash('sha256').update(data).digest('hex');
       const { row, created } = await ctx.db.transaction(async (tx) => {
-        await lockClient(tx, tenantId);
+        await lockClientAssets(tx, tenantId);
         const [existing] = await tx
           .select()
           .from(assets)
@@ -378,7 +381,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const tenantId = adminTenantId(request);
     const { id } = validate(IdParamSchema, request.params);
     await ctx.db.transaction(async (tx) => {
-      await lockClient(tx, tenantId);
+      await lockClientAssets(tx, tenantId);
       const [row] = await tx
         .select()
         .from(assets)
@@ -395,6 +398,19 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
         throw conflict('Immagine in uso nella pagina pubblica: toglila dal blocco sponsor prima di eliminarla');
       if (intermissionImageIds(resolveIntermissions(tenant?.intermissions)).includes(id))
         throw conflict('Immagine in uso nelle pause: toglila dalla diapositiva sponsor prima di eliminarla');
+      const [fixture] = await tx
+        .select({ id: clientFixtures.id })
+        .from(clientFixtures)
+        .where(
+          tenantScope(
+            clientFixtures,
+            tenantId,
+            or(eq(clientFixtures.ourLogoAssetId, id), eq(clientFixtures.opponentLogoAssetId, id)),
+          ),
+        )
+        .limit(1);
+      if (fixture)
+        throw conflict('Immagine in uso come logo di una partita del calendario: toglila prima di eliminarla');
       await tx.delete(assets).where(tenantScope(assets, tenantId, eq(assets.id, id)));
       const [twin] = await tx
         .select({ id: assets.id })

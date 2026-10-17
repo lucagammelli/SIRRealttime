@@ -259,8 +259,9 @@ Ogni cliente sceglie uno o più campionati già noti (al massimo `CLUB_MAX_LEAGU
 (`tenant_leagues`). Dal calendario del campionato il server copia le partite di quella squadra in `client_fixtures`, dà a
 ognuna un link pubblico breve e abbina a ogni partita il `.dvw` che arriva dall'agente. Contratti in
 `packages/shared/src/club.ts` (`docs/architettura.md`); pagine «Club», «Calendario» e «Prossima partita» in
-`docs/portale.md`. Un admin sceglie solo tra i campionati già noti; il superadmin li aggiunge (pagina «Club», rotta
-`POST /api/admin/leagues`).
+`docs/portale.md`. Un admin sceglie solo tra i campionati già noti; il superadmin li aggiunge dalla pagina «Campionati»
+(rotta `POST /api/admin/leagues`; `LeagueSummary.plan` = prossimo aggiornamento automatico e `matchToday`). Profilo del
+club, partite aggiunte a mano e canale sono in «Profilo del club, partite del cliente e canale» più sotto.
 
 **Copia delle partite** (`refreshClientFixtures`, `club.ts`; `refreshClub` in `state.ts` la lancia e poi avvisa i client):
 avviene al salvataggio delle scelte (`PUT /api/admin/club`), a «Aggiorna calendario» e a ogni aggiornamento riuscito di un
@@ -311,9 +312,10 @@ possibili; ne resta live uno solo.
 - link di una partita del calendario (`share_tokens.client_fixture_id`, bersaglio `fixture`): «Prossima partita»
   (`ScheduledMessage`, tipo `scheduled`) finché nessun `.dvw` è abbinato, poi lo stato di quel `.dvw` (quello live, altrimenti
   l'ultimo live); la pagina cambia da sola;
-- link che «segue la live» (`matchId` nullo): la partita diventata live per ultima (`live_since`); si sposta su un'altra
-  **solo quando questa diventa live** (`PublishRoute.becameLive`), così due partite contemporanee su due campi non se la
-  strappano a ogni punto;
+- link senza partita (`matchId` e `clientFixtureId` nulli, bersaglio `channel`): il **canale** del club, vedi «Profilo del
+  club, partite del cliente e canale». I vecchi link «segue la live» sono già canali, senza migrazione (`targetOf`). Si
+  sposta su un'altra partita **solo quando questa diventa live** (`PublishRoute.becameLive`), così due partite
+  contemporanee su due campi non se la strappano a ogni punto;
 - `LiveHub.retarget` (conferma o aggiornamento): gli spettatori collegati ricevono subito il messaggio nuovo (stato o
   «Prossima partita»), senza ricaricare;
 - la «Prossima partita» letta dal database è tenuta in memoria dall'hub per `SCHEDULED_TTL_MS` (45 s, al massimo
@@ -365,6 +367,73 @@ fuori calendario restano «da confermare» fino alla scelta «Nessuna (amichevol
 `.dvw` reali Perugia–Suntory e Perugia–Itas (amichevoli, fuori calendario) restano «da confermare»; una copia con la data
 della 5ª giornata si è abbinata da sola.
 
+### Profilo del club, partite del cliente e canale (`src/routes/calendar.ts`, `src/routes/club.ts`, `src/state.ts`)
+Lavoro «ruoli-calendario» (migrazione `0007_ruoli_calendario.sql`). Contratti in `packages/shared/src/club.ts`
+(`docs/architettura.md`); pagine in `docs/portale.md`.
+
+**Profilo del club** (`tenants.club_profile`, jsonb, `ClubProfileSchema`; `resolveClubProfile` riempie i predefiniti):
+`series` (testo, al massimo `CLUB_SERIES_MAX` = 60), `coverage` (`homeAndAway` predefinita, oppure `homeOnly`) e `teamLogos`
+(`all` predefinita, `ours`, `none`). `PUT /api/admin/club/profile` (`UpdateClubProfileRequest`, admin) salva insieme nome
+mostrato, logo quadrato (un'immagine `logo` del cliente, altrimenti 400), «nostra squadra» (questi tre nella grafica) e il
+profilo; poi svuota la cache dei clienti, rilegge le partite (`refreshClub`) e disconnette gli spettatori dei link che non
+sono più trasmessi (`closeNotBroadcast`). Risponde con `ClubResponse`.
+
+**Partite aggiunte a mano** (`manualFixtureRoutes`, admin, sotto `lockTenantMatches`; i loghi devono essere immagini `logo`
+del cliente, altrimenti 400):
+
+- `POST /api/admin/calendar/fixtures` (`ManualFixtureRequest`: `kind` `friendly`/`cup`/`other`, `startsAt` UTC, `opponent`,
+  `opponentLogo`, `ourSide`, `venue`, `venueCity`) → 201 `{ id }`. La riga ha `origin` `manual`, `league_id` nullo, id esterno
+  `manual:<id>`, giornata `Amichevole`/`Coppa`/`Partita` (`MANUAL_FIXTURE_LABEL`) e il nome della nostra squadra
+  (`ourTeamForManual`); poi `refreshClub` le dà link breve e QR come alle altre e riprova i `.dvw` da confermare;
+- `PUT /api/admin/calendar/fixtures/:id` → 204; `DELETE` → 204. Solo per le partite `manual`, altrimenti 400 «Si modificano
+  e si cancellano solo le partite aggiunte a mano». Il `DELETE` toglie il link (spettatori disconnessi) e rimette i `.dvw`
+  abbinati tra quelli «da confermare» (`pending`; restano live solo se nessun altro `.dvw` non abbinato lo è);
+- `PATCH /api/admin/calendar/fixtures/:id/settings` (`FixtureSettingsRequest`, almeno un campo) → 204: `broadcast`
+  (`auto`/`on`/`off`), `hidden` (solo partite scaricate; per una manuale 400: si cancella), `ourLogo` e `opponentLogo`
+  (`null` = logo predefinito). Una partita scaricata non si modifica né si cancella: si può solo nascondere.
+
+**Trasmessa o no** (`isFixtureBroadcast`, `broadcastOf`; in SQL `broadcastSql`): una partita nascosta non lo è mai; con
+`broadcast` `on`/`off` decide la scelta; con `auto` decide la copertura (`homeAndAway` = tutte, `homeOnly` = solo in casa).
+Una partita non trasmessa: il suo link non è attivo (`resolveShareToken` dà 404 e il `PATCH` o il profilo disconnettono
+chi era collegato), non è proposta come «Prossima partita» né nel blocco pubblico (`comingFixtures`) e l'abbinamento
+automatico del `.dvw` non la considera (`evaluateFixtureLink`). In `GET /api/admin/calendar` ogni `ClubFixture` ha
+`origin`, `kind`, `broadcast`, `broadcasted`, `hidden` e `logos`.
+
+**Loghi nello stato** (`withLogos` in `state.ts`): ogni `StateMessage` ha `logos` (`TeamLogoPair`, lato casa e ospite). Per
+ogni squadra vale `shownTeamLogo`: prima il logo scelto per la partita, poi (solo per la nostra squadra) quello del profilo,
+poi il logo pubblico della Lega, altrimenti nessuno; l'impostazione `teamLogos` può nasconderlo. Il lato «nostro» è la
+«nostra squadra» riconosciuta nel `.dvw`, altrimenti il lato del club nel calendario; se ignoto, nessun logo
+(`matchTeamLogos`). Le informazioni sono tenute in `ctx.caches.logos`.
+
+**Canale «tutte le partite del calendario»** (bersaglio `channel`; `channelMessage`, `channelChoice`, `ChannelWatcher` in
+`state.ts`, `LiveHub.showChannel`): è il link creato con `matchId` nullo da `POST /api/admin/share-tokens`. Mostra:
+
+1. la partita in corso, cioè l'ultima per `live`, `live_since`, aggiornamento, se è live, non finita e aggiornata da meno di
+   `CHANNEL_STALE_MS` (6 ore: un agente lasciato acceso non occupa il canale);
+2. altrimenti «Prossima partita» (`scheduled`, con conto alla rovescia) della prossima partita trasmessa, **dalle 00:00
+   (ora di Roma) del giorno in cui gioca** (`romeDayAt`), oppure subito se non c'è una partita precedente;
+3. altrimenti l'ultima partita, anche finita, che resta fino a quel momento; se non c'è nulla, `noMatch`.
+
+Concorrono al canale i `.dvw` non abbinati a una partita del calendario (le amichevoli non abbinate restano visibili) e
+quelli abbinati a una partita trasmessa; quelli abbinati a una partita non trasmessa sono esclusi (`channelAllowed` in
+ingest, cache `ctx.caches.broadcast` di 60 s, e il `where` di `channelMessage`). Il risultato è tenuto in memoria dall'hub
+45 s (`SCHEDULED_TTL_MS`) e riletto dal database dopo: la regola delle 6 ore si applica a quella lettura. `ChannelWatcher`
+(avviato da `app.ts`) controlla ogni `CHANNEL_CHECK_MS` (60 s), **in ogni processo**, i clienti con almeno un socket sul
+canale e manda solo ciò che è cambiato, così la pagina passa alla partita successiva senza ricaricare. Il canale si
+svuota anche quando una partita inizia o finisce e a ogni modifica del calendario o del profilo (`forgetClubCaches`).
+**Da verificare**: nel codice letto, uno stato di partita tenuto in memoria dall'hub (`current`) viene confrontato con
+quello letto solo per la versione, non per le 6 ore; il riabbinamento immediato dopo un cambio di impostazioni non c'è
+(si rivalutano solo i `.dvw` `pending`, `relinkPending`, a ogni `refreshClub`).
+
+**Ruoli** (`requireRole`): il `viewer` legge club, calendario, agenti, quota agenti, link, grafica (`branding`, `layout`,
+`intermissions`, `overlays`, `assets`) e partite; non legge utenti né richieste di registrazione (admin). Ogni scrittura
+admin rifiuta il viewer con 403 prima di leggere il corpo; `apps/server/test/roles.test.ts` elenca le rotte che scrivono e
+copre da solo quelle nuove.
+
+**Manifest dell'app** (`routes/manifest.ts`, `GET /api/public/manifest.webmanifest`, rate limit pubblico,
+`Cache-Control: public, max-age=300`): `webManifest` di `packages/shared/src/manifest.ts` con nome mostrato, colori e logo
+quadrato (`logoMark`) del cliente dell'hostname; senza cliente quelli del portale («SIRRealtime»).
+
 ### Ingest (`POST /api/ingest`, protocollo 1)
 L'agente invia una richiesta `IngestRequest` (`packages/shared/src/ingest.ts`):
 
@@ -413,7 +482,19 @@ rifiutata dallo schema.
 
 ### Accessi
 - **Token agente**: segreto casuale da 256 bit (base64url) creato da un admin; si salva solo l'hash sha256. L'agente lo
-  invia come `Authorization: Bearer <token>`; un token revocato è rifiutato (401). Aggiorna `lastSeenAt`.
+  invia come `Authorization: Bearer <token>`; un token revocato è rifiutato (401). Aggiorna `lastSeenAt`. Se l'agente ha
+  una scadenza (`agents.expires_at`) e questa è passata, chi presenta il token giusto riceve 401 con `AGENT_EXPIRED` e il
+  testo «Registrazione scaduta: registrati di nuovo» (`AGENT_EXPIRED_ERROR`, `security.ts`); chiunque altro il 401 normale.
+- **Validità e quota degli agenti** (`src/agentQuota.ts`): l'admin sceglie per ogni agente «Senza scadenza» o «Fino al»
+  (`AgentValidityRequest`, `expiresAt` nulla o futura, altrimenti 400). L'approvazione di una registrazione porta il corpo
+  `{ expiresAt }` (corpo vuoto = senza scadenza), salvato in `agent_registrations.agent_expires_at` e copiato nell'agente
+  quando ritira il token. `PATCH /api/admin/agents/:id` (admin) prolunga o accorcia un agente non revocato (404 altrimenti).
+  Il cliente può avere al massimo `tenants.agent_quota` agenti: contano quelli non revocati e non scaduti più le
+  registrazioni abilitate e non ancora ritirate (`agentsInUse`); creare un agente, abilitare una registrazione o
+  riattivare un agente scaduto oltre il limite dà **409** `AGENT_QUOTA` («Limite di agenti raggiunto…»), controllato sotto
+  `lockTenantAgents`. `GET /api/admin/agent-quota` → `{ quota, used }` (anche viewer). La quota la imposta solo il
+  superadmin (`agentQuota` in `POST`/`PATCH /api/admin/tenants`, `TenantSummary.agentQuota`, 0-`AGENT_QUOTA_MAX`); abbassarla
+  non spegne gli agenti già presenti, blocca le nuove approvazioni finché non rientrano.
 - **Auto-registrazione dell'agente** (abbinamento), alternativa alla creazione manuale del token:
   1. l'agente chiede `POST /api/agents/registrations` con `{ name }` (pubblica, nessuna autenticazione); la risposta 201
      (`CreateRegistrationResponse`) ha `registrationId`, `secret` (segreto da 256 bit tenuto dall'agente, nel database solo
@@ -437,7 +518,8 @@ rifiutata dallo schema.
   solo IP può riempirlo in circa 2 minuti (rate limit 10/min) e bloccare le registrazioni fino a 24 h; per un portale
   piccolo o in LAN va bene, e il rimedio è rifiutare dal portale le richieste in coda.
 - **Link pubblici** (`share_tokens`): token casuale in `/live/<token>` (URL composto con `PUBLIC_BASE_URL`). Se `matchId`
-  è `null` il link **segue la partita live corrente** (la diventata live per ultima); con un `matchId` mostra quella
+  è `null` (e non c'è `client_fixture_id`) il link è il **canale del club** (partita in corso, altrimenti la prossima
+  trasmessa; vedi «Profilo del club, partite del cliente e canale»); con un `matchId` mostra quella
   partita fissa; con un `client_fixture_id` (link creati dal «Calendario», uno per partita, `ShareTokenSummary.clientFixtureId`)
   mostra «Prossima partita» e poi la partita abbinata (vedi «Club, calendario e abbinamento»). `expiresAt`
   facoltativa. Un token non valido, revocato o scaduto dà sempre 404; la revoca chiude subito i WebSocket già aperti (codice
@@ -469,8 +551,8 @@ rifiutata dallo schema.
   - Cambiando `SHARE_CODE_SECRET` cambiano **tutti** i codici: i QR stampati smettono di funzionare, i link lunghi
     restano.
 - **Sessioni admin e viewer**: login con email e password (argon2id) su `/api/auth/login`; cookie `sir_session`
-  (`httpOnly`, `SameSite=Lax`, `Secure` secondo `COOKIE_SECURE`), durata `SESSION_TTL_HOURS`. Ruoli: `viewer` (vede le
-  partite), `admin` (tutto il resto del proprio cliente) e `superadmin` (anche i clienti; vedi «Clienti»). Le scritture
+  (`httpOnly`, `SameSite=Lax`, `Secure` secondo `COOKIE_SECURE`), durata `SESSION_TTL_HOURS`. Ruoli: `viewer` (sola lettura: partite, club,
+  calendario, agenti, link e grafica; mai utenti e richieste di registrazione né scritture, 403), `admin` (tutto il resto del proprio cliente) e `superadmin` (anche i clienti; vedi «Clienti»). Le scritture
   dal browser (`POST`/`PATCH`/`DELETE` su `/api/auth/*` e `/api/admin/*`) richiedono corpo JSON e, se presente, un `Origin`
   ammesso (`CORS_ORIGIN` o un hostname del cliente; protezione CSRF). Il primo superadmin si crea all'avvio da
   `ADMIN_EMAIL` / `ADMIN_PASSWORD`, solo se non esiste già un superadmin.
@@ -494,15 +576,16 @@ rifiutata dallo schema.
 | GET | `/api/public/tenant` | rate limit pubblico (grafica del cliente dell'hostname) | - |
 | GET | `/api/public/assets/:id` | rate limit pubblico (solo immagini del cliente dell'hostname) | - |
 | GET | `/api/public/:token/state` | link pubblico, `:token` è il token lungo o il codice breve (404 se non valido) | - |
-| GET | `/api/admin/branding` | sessione | admin |
+| GET | `/api/public/manifest.webmanifest` | rate limit pubblico (manifest dell'app del cliente dell'hostname) | - |
+| GET | `/api/admin/branding` | sessione | viewer |
 | PUT | `/api/admin/branding` | sessione | admin |
-| GET | `/api/admin/layout` | sessione | admin |
+| GET | `/api/admin/layout` | sessione | viewer |
 | PUT | `/api/admin/layout` | sessione | admin |
-| GET | `/api/admin/intermissions` | sessione | admin |
+| GET | `/api/admin/intermissions` | sessione | viewer |
 | PUT | `/api/admin/intermissions` | sessione | admin |
-| GET | `/api/admin/overlays` | sessione | admin |
+| GET | `/api/admin/overlays` | sessione | viewer |
 | PUT | `/api/admin/overlays` | sessione | admin |
-| GET | `/api/admin/assets` | sessione | admin |
+| GET | `/api/admin/assets` | sessione | viewer |
 | POST | `/api/admin/assets` | sessione (corpo fino a ~2,7 MB) | admin |
 | DELETE | `/api/admin/assets/:id` | sessione | admin |
 | GET | `/api/admin/agent/info` | sessione | admin |
@@ -512,22 +595,29 @@ rifiutata dallo schema.
 | POST | `/api/admin/leagues` | sessione | superadmin |
 | GET | `/api/admin/leagues/:id` | sessione | superadmin |
 | POST | `/api/admin/leagues/:id/sync` | sessione, limite proprio `RATE_LIMIT_LEAGUE_SYNC` | superadmin |
-| GET | `/api/admin/club` | sessione | admin |
+| GET | `/api/admin/club` | sessione | viewer |
 | PUT | `/api/admin/club` | sessione | admin |
-| GET | `/api/admin/club/leagues/:id/teams` | sessione | admin |
+| PUT | `/api/admin/club/profile` | sessione | admin |
+| GET | `/api/admin/club/leagues/:id/teams` | sessione | viewer |
 | POST | `/api/admin/club/sync` | sessione, limite proprio `RATE_LIMIT_LEAGUE_SYNC` | admin |
-| GET | `/api/admin/calendar` | sessione | admin |
+| GET | `/api/admin/calendar` | sessione | viewer |
+| POST | `/api/admin/calendar/fixtures` | sessione | admin |
+| PUT | `/api/admin/calendar/fixtures/:id` | sessione | admin |
+| DELETE | `/api/admin/calendar/fixtures/:id` | sessione | admin |
+| PATCH | `/api/admin/calendar/fixtures/:id/settings` | sessione | admin |
 | PUT | `/api/admin/matches/:id/fixture` | sessione | admin |
 | GET | `/api/admin/matches` | sessione | viewer |
 | GET | `/api/admin/matches/:id` | sessione | viewer |
 | POST | `/api/admin/agents` | sessione | admin |
-| GET | `/api/admin/agents` | sessione | admin |
+| GET | `/api/admin/agents` | sessione | viewer |
+| GET | `/api/admin/agent-quota` | sessione | viewer |
+| PATCH | `/api/admin/agents/:id` | sessione | admin |
 | DELETE | `/api/admin/agents/:id` | sessione | admin |
 | GET | `/api/admin/agent-registrations` | sessione | admin |
 | POST | `/api/admin/agent-registrations/:id/approve` | sessione | admin |
 | POST | `/api/admin/agent-registrations/:id/reject` | sessione | admin |
 | POST | `/api/admin/share-tokens` | sessione | admin |
-| GET | `/api/admin/share-tokens` | sessione | admin |
+| GET | `/api/admin/share-tokens` | sessione | viewer |
 | DELETE | `/api/admin/share-tokens/:id` | sessione | admin |
 | POST | `/api/admin/users` | sessione | admin |
 | GET | `/api/admin/users` | sessione | admin |
@@ -696,10 +786,11 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `team_logos` | `sha256` (unico), `mime`, `width`, `height`, `bytes`: il file è `ASSETS_DIR/_leagues/<sha256>` |
 | `league_http_cache` | `url` (chiave), `etag`, `last_modified` |
 | `tenant_leagues` | scelta del cliente (migrazione `0006_club.sql`): `tenant_id`, `league_id`, `league_team_id` (la squadra del club, nulla finché non scelta; `ON DELETE SET NULL`); unica per cliente e campionato |
-| `client_fixtures` | copia delle partite del club dal calendario (migrazione `0006_club.sql`): `tenant_id`, `league_id`, `fixture_external_id` (unica con cliente e campionato), `fixture_id`, `removed_at` (la partita non è più nel calendario, il link resta), `starts_at`, `our_side` (`club_side`: `home`/`away`), nomi, città e loghi delle due squadre, impianto, `round_label`, `league_name`, `status`, `home_sets`, `away_sets` |
+| `client_fixtures` | copia delle partite del club dal calendario (migrazione `0006_club.sql`; `0007_ruoli_calendario.sql` aggiunge `origin` `league`/`manual`, `manual_kind` `friendly`/`cup`/`other`, `broadcast` `auto`/`on`/`off`, `hidden`, `our_logo_asset_id` e `opponent_logo_asset_id` → `assets` `ON DELETE SET NULL`, e rende `league_id` nullo; vincolo: `league_id` nullo se e solo se `origin` è `manual`): `tenant_id`, `league_id`, `fixture_external_id` (unica con cliente e campionato), `fixture_id`, `removed_at` (la partita non è più nel calendario, il link resta), `starts_at`, `our_side` (`club_side`: `home`/`away`), nomi, città e loghi delle due squadre, impianto, `round_label`, `league_name`, `status`, `home_sets`, `away_sets` |
 | `share_tokens` | `tenant_id`, `token_hash`, `match_id` (null: segue la live), `client_fixture_id` (link di una partita del calendario, `ON DELETE CASCADE`; unico quando non nullo), `label`, `expires_at`, `revoked`, `short_code_hash` (unica, null finché non assegnato), `short_code_salt` (migrazioni `0004_short_codes.sql`, `0006_club.sql`) |
 | `assets` | `tenant_id`, `kind` (enum `asset_kind`: `logo`/`sponsor`), `sha256`, `mime`, `width`, `height`, `bytes`, `created_at`; indice univoco `assets_tenant_sha256_kind_idx` su cliente + `sha256` + `kind` (migrazione `0003_assets.sql`) |
-| `agent_registrations` | `tenant_id`, `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at` (migrazione `0001_agent_registrations.sql`) |
+| `agent_registrations` | `tenant_id`, `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at`, `agent_expires_at` (validità scelta all'approvazione; migrazioni `0001_agent_registrations.sql`, `0007_ruoli_calendario.sql`) |
+| `agents`, `tenants` (colonne di `0007_ruoli_calendario.sql`) | `agents.expires_at` (nulla = senza scadenza); `tenants.club_profile` (jsonb, predefinito `{}`) e `tenants.agent_quota` (intero, predefinito 1; la migrazione la porta a max(1, agenti non revocati) per i clienti esistenti) |
 
 La migrazione `0002_tenants.sql` crea il cliente «Predefinito» (slug `predefinito`), gli assegna tutti i dati esistenti e
 solo dopo rende `tenant_id` NOT NULL.
@@ -931,6 +1022,12 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
   `src/state.ts` (`currentMessage`, `announceFixture`, `refreshClub`, `targetOf`), `src/hub.ts` (`Target` `fixture`,
   `PublishRoute`, `retarget`, `currentScheduled`, `rememberScheduled`, `SCHEDULED_TTL_MS`), `src/routes/club.ts`
   (`clubRoutes`, `clubPublicRoutes`), `src/context.ts` (`SCHEDULE_CACHE_TTL_MS`), `drizzle/0006_club.sql`, `packages/shared/src/club.ts`; pagine in `docs/portale.md`
+- Ruoli, calendario del cliente e canale: `src/routes/calendar.ts` (`manualFixtureRoutes`), `src/routes/club.ts`
+  (`PUT /api/admin/club/profile`), `src/routes/manifest.ts` (`manifestRoutes`), `src/agentQuota.ts` (`lockTenantAgents`,
+  `agentsInUse`, `requireAgentSlot`, `quotaReached`), `src/state.ts` (`channelChoice`, `channelMessage`, `channelAllowed`,
+  `CHANNEL_STALE_MS`, `ChannelWatcher`, `closeNotBroadcast`, `withLogos`), `src/club.ts` (`broadcastOf`,
+  `ourTeamForManual`, `comingFixtures`), `drizzle/0007_ruoli_calendario.sql`, `packages/shared/src/club.ts`, `admin.ts`,
+  `tenant.ts`, `manifest.ts`, `registration.ts`; test `apps/server/test/roles.test.ts`
 - Link brevi: `src/lib/shortCode.ts` (`deriveShortCode`, `shortCodeLookupHash`), `src/shareCodes.ts` (`insertShareToken`,
   `ensureShortCode`, `syncShortCodes`, `currentShortCode`), `src/lib/failureLimiter.ts` (`hasRecent`),
   `packages/shared/src/admin.ts` (`ShortCodeSchema`, `normalizeShortCode`, `formatShortCode`, `ShareTokenParamSchema`),

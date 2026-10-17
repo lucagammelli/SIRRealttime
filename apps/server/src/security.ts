@@ -1,5 +1,5 @@
 import type { UserRole } from '@sir/shared';
-import { containsNul } from '@sir/shared';
+import { AGENT_EXPIRED_ERROR, containsNul } from '@sir/shared';
 import { and, eq, gt } from 'drizzle-orm';
 import type {
   FastifyReply,
@@ -11,7 +11,7 @@ import type {
 import type { AppContext, SessionUser } from './context.js';
 import { SESSION_COOKIE } from './context.js';
 import { agents, sessions, users } from './db/index.js';
-import { badRequest, forbidden, unauthorized, unsupportedMediaType } from './lib/errors.js';
+import { badRequest, forbidden, HttpError, unauthorized, unsupportedMediaType } from './lib/errors.js';
 import { hashesEqual, hashToken } from './lib/tokens.js';
 import { hostTenant } from './tenancy.js';
 
@@ -131,20 +131,27 @@ export function bearerHash(request: FastifyRequest): string {
   return hashToken(match[1]);
 }
 
+const agentExpired = (): HttpError => new HttpError(401, 'AGENT_EXPIRED', AGENT_EXPIRED_ERROR);
+
 /**
  * preParsing of `/api/ingest` (after the rate limit, before the body is read): bearer token of a non-revoked agent,
- * looked up by its hash and compared again in constant time.
+ * looked up by its hash and compared again in constant time; an expired registration is a 401 with
+ * AGENT_EXPIRED_ERROR (only to the holder of the token: anyone else gets the plain 401).
  */
 export function authenticateAgent(ctx: AppContext) {
   return async (request: FastifyRequest): Promise<void> => {
     const hash = bearerHash(request);
     // The token identifies the agent and so its client: the hostname does not matter for the ingest.
     const [agent] = await ctx.db
-      .select({ id: agents.id, tenantId: agents.tenantId, tokenHash: agents.tokenHash })
+      .select({ id: agents.id, tenantId: agents.tenantId, tokenHash: agents.tokenHash, expiresAt: agents.expiresAt })
       .from(agents)
       .where(and(eq(agents.tokenHash, hash), eq(agents.revoked, false)))
       .limit(1);
     if (!agent || !hashesEqual(agent.tokenHash, hash)) throw unauthorized();
+    if (agent.expiresAt && agent.expiresAt <= ctx.now()) {
+      request.log.info({ agentId: agent.id }, 'agente con registrazione scaduta');
+      throw agentExpired();
+    }
     request.agent = { id: agent.id, tenantId: agent.tenantId };
     await ctx.db.update(agents).set({ lastSeenAt: ctx.now() }).where(eq(agents.id, agent.id));
   };

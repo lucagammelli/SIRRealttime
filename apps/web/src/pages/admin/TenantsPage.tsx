@@ -1,6 +1,8 @@
 import type { MeResponse, TenantSummary } from '@sir/shared';
 import {
+  AGENT_QUOTA_MAX,
   CreateTenantRequestSchema,
+  DEFAULT_AGENT_QUOTA,
   MeResponseSchema,
   TenantSummarySchema,
   UpdateTenantRequestSchema,
@@ -33,15 +35,40 @@ function formProblem(issues: readonly { path: readonly PropertyKey[] }[]): strin
   if (field === 'slug') return 'Identificativo non valido: lettere minuscole, cifre e trattini (es. sir-susa).';
   if (field === 'name') return 'Il nome è obbligatorio (massimo 100 caratteri).';
   if (field === 'hostnames') return 'Hostname non valido o ripetuto: solo il nome, senza https:// né porta.';
+  if (field === 'agentQuota') return `Agenti: un numero intero da 0 a ${AGENT_QUOTA_MAX}.`;
   return 'Dati non validi: controlla i campi.';
 }
 
-/** Clients (superadmin only): list, new client, change of name and hostnames. `tenants` is shared with the selector. */
+/** Pure: the quota of agents of a client, as written in the list. */
+export const quotaText = (n: number): string => (n === 1 ? 'un agente' : `fino a ${n} agenti`);
+
+/** Most agents of a client: past it a registration cannot be enabled (the agents already there keep working). */
+function QuotaField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <Field
+      label="Agenti"
+      hint={`Quanti PC con l’agente può avere il cliente (da 0 a ${AGENT_QUOTA_MAX}). Oltre, una nuova registrazione non si abilita.`}
+    >
+      <input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        max={AGENT_QUOTA_MAX}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${inputClass} w-28`}
+      />
+    </Field>
+  );
+}
+
+/** Clients (superadmin only): list, new client, change of name, hostnames and quota of agents. `tenants` is shared with the selector. */
 export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> }) {
   const errorMessage = useApiError();
   const [slug, setSlug] = useState('');
   const [name, setName] = useState('');
   const [hostnames, setHostnames] = useState('');
+  const [quota, setQuota] = useState(String(DEFAULT_AGENT_QUOTA));
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -55,7 +82,12 @@ export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> 
     e.preventDefault();
     setFormError(null);
     setDone(null);
-    const body = CreateTenantRequestSchema.safeParse({ slug: slug.trim(), name, hostnames: parseHostnames(hostnames) });
+    const body = CreateTenantRequestSchema.safeParse({
+      slug: slug.trim(),
+      name,
+      hostnames: parseHostnames(hostnames),
+      agentQuota: Number(quota),
+    });
     if (!body.success) {
       setFormError(formProblem(body.error.issues));
       return;
@@ -67,6 +99,7 @@ export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> 
       setSlug('');
       setName('');
       setHostnames('');
+      setQuota(String(DEFAULT_AGENT_QUOTA));
       tenants.reload();
     } catch (err) {
       setFormError(errorMessage(err));
@@ -100,6 +133,7 @@ export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> 
               className={inputClass}
             />
           </Field>
+          <QuotaField value={quota} onChange={setQuota} />
           {formError && <ErrorBox>{formError}</ErrorBox>}
           {done && (
             <p role="status" className="rounded-card bg-success-soft px-3 py-2 text-sm text-text">
@@ -136,8 +170,8 @@ export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> 
                       {t.name} <span className="text-xs text-muted">({t.slug})</span>
                     </p>
                     <p className="break-all text-xs text-muted">
-                      {t.hostnames.length > 0 ? t.hostnames.join(', ') : 'Nessun hostname'} · creato{' '}
-                      {formatDateTime(t.createdAt)}
+                      {t.hostnames.length > 0 ? t.hostnames.join(', ') : 'Nessun hostname'} · {quotaText(t.agentQuota)}{' '}
+                      · creato {formatDateTime(t.createdAt)}
                     </p>
                   </div>
                   <Button variant="ghost" onClick={() => setEditing(t.id)} aria-label={`Modifica ${t.name}`}>
@@ -166,13 +200,18 @@ function TenantEditor({
   const { user, updateUser } = useAuth();
   const [name, setName] = useState(tenant.name);
   const [hostnames, setHostnames] = useState(tenant.hostnames.join('\n'));
+  const [quota, setQuota] = useState(String(tenant.agentQuota));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const save = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
     setError(null);
-    const body = UpdateTenantRequestSchema.safeParse({ name, hostnames: parseHostnames(hostnames) });
+    const body = UpdateTenantRequestSchema.safeParse({
+      name,
+      hostnames: parseHostnames(hostnames),
+      agentQuota: Number(quota),
+    });
     if (!body.success) {
       setError(formProblem(body.error.issues));
       return;
@@ -206,6 +245,7 @@ function TenantEditor({
           className={inputClass}
         />
       </Field>
+      <QuotaField value={quota} onChange={setQuota} />
       {error && <ErrorBox>{error}</ErrorBox>}
       <div className="flex gap-2">
         <Button type="submit" variant="primary" disabled={busy}>
@@ -253,7 +293,9 @@ export function TenantSelector({
     [errorMessage, updateUser],
   );
 
-  const list = tenants.data ?? (user.tenant ? [{ ...user.tenant, hostnames: [], createdAt: '' }] : []);
+  const list =
+    tenants.data ??
+    (user.tenant ? [{ ...user.tenant, hostnames: [], createdAt: '', agentQuota: DEFAULT_AGENT_QUOTA }] : []);
   return (
     <span className={stacked ? 'flex flex-col gap-1' : 'inline-flex items-center gap-2'}>
       <label className={`text-xs text-muted ${stacked ? 'flex flex-col gap-1' : 'inline-flex items-center gap-2'}`}>

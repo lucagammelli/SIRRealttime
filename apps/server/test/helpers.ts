@@ -24,6 +24,8 @@ export const ORIGIN = 'http://portale.test';
 export const ADMIN = { email: 'admin@sir.test', password: 'password-admin-1' };
 export const VIEWER = { email: 'viewer@sir.test', password: 'password-viewer-1' };
 export const SUPERADMIN = { email: 'super@sir.test', password: 'password-super-1' };
+/** Agents of the clients of the tests (`tenants.agent_quota` is 1 for a new client). */
+export const TEST_AGENT_QUOTA = 50;
 
 export interface TestServer {
   app: FastifyInstance;
@@ -44,7 +46,7 @@ export interface TestServer {
 export async function startServer(
   rateLimits: Partial<RateLimits> = {},
   env: Record<string, string> = {},
-  appOptions: Pick<AppOptions, 'leagueFetcher'> = {},
+  appOptions: Pick<AppOptions, 'leagueFetcher' | 'onRoute'> = {},
 ): Promise<TestServer> {
   const database = createPgliteDatabase();
   await database.migrate();
@@ -85,12 +87,15 @@ export async function startServer(
       minIntervalMs: 0,
       ...appOptions.leagueFetcher,
     },
+    ...(appOptions.onRoute ? { onRoute: appOptions.onRoute } : {}),
   });
   const [tenant] = await database.db
     .select({ id: tenants.id })
     .from(tenants)
     .where(eq(tenants.slug, DEFAULT_TENANT_SLUG));
   if (!tenant) throw new Error('default tenant missing');
+  // Most tests create several agents: the quota of the clients is tested on its own (agentQuota.test.ts).
+  await database.db.update(tenants).set({ agentQuota: TEST_AGENT_QUOTA }).where(eq(tenants.id, tenant.id));
   await database.db.insert(users).values([
     { tenantId: tenant.id, email: ADMIN.email, passwordHash: await hashPassword(ADMIN.password), role: 'admin' },
     { tenantId: tenant.id, email: VIEWER.email, passwordHash: await hashPassword(VIEWER.password), role: 'viewer' },
@@ -146,7 +151,7 @@ export async function createAgent(server: TestServer, revoked = false, tenantId 
 export async function createTenant(server: TestServer, slug: string, hostnames: string[]): Promise<string> {
   const [row] = await server.database.db
     .insert(tenants)
-    .values({ slug, name: slug.toUpperCase(), hostnames })
+    .values({ slug, name: slug.toUpperCase(), hostnames, agentQuota: TEST_AGENT_QUOTA })
     .returning({ id: tenants.id });
   if (!row) throw new Error('tenant not inserted');
   return row.id;

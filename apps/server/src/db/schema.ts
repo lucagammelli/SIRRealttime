@@ -44,6 +44,10 @@ export const tenants = pgTable(
     layout: tenantConfig('layout'),
     intermissions: tenantConfig('intermissions'),
     overlays: tenantConfig('overlays'),
+    /** Profile of the club: series, coverage of the matches, team logos (`resolveClubProfile` of `@sir/shared`). */
+    clubProfile: tenantConfig('club_profile'),
+    /** Most active agents of the client (given by the superadmin); past it a registration cannot be enabled. */
+    agentQuota: integer('agent_quota').notNull().default(1),
     createdAt: createdAt(),
   },
   (t) => [index('tenants_hostnames_idx').using('gin', t.hostnames)],
@@ -105,6 +109,8 @@ export const agents = pgTable(
     revoked: boolean('revoked').notNull().default(false),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
     createdAt: createdAt(),
+    /** End of the validity of the registration (the ingest answers 401 after it); null: no expiry. */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
   },
   (t) => [index('agents_tenant_idx').on(t.tenantId)],
 );
@@ -136,6 +142,8 @@ export const agentRegistrations = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     /** Time of the approval or rejection. */
     decidedAt: timestamp('decided_at', { withTimezone: true }),
+    /** Validity chosen at the approval, copied to the agent when it collects its token; null: no expiry. */
+    agentExpiresAt: timestamp('agent_expires_at', { withTimezone: true }),
   },
   (t) => [index('agent_registrations_status_idx').on(t.tenantId, t.status, t.expiresAt)],
 );
@@ -424,6 +432,9 @@ export const tenantLeagues = pgTable(
 );
 
 export const clubSide = pgEnum('club_side', ['home', 'away']);
+export const fixtureOrigin = pgEnum('fixture_origin', ['league', 'manual']);
+export const manualFixtureKind = pgEnum('manual_fixture_kind', ['friendly', 'cup', 'other']);
+export const fixtureBroadcast = pgEnum('fixture_broadcast', ['auto', 'on', 'off']);
 
 /**
  * Matches of the team of the club in its championships, with a copy of what is shown (the row of `fixtures` can be
@@ -434,11 +445,20 @@ export const clientFixtures = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     tenantId: tenantId(),
-    leagueId: uuid('league_id')
-      .notNull()
-      .references(() => leagues.id),
-    /** `fixtures.external_id`: stable within the championship. */
+    /** null only for a match added by the client (`origin` manual; check constraint). */
+    leagueId: uuid('league_id').references(() => leagues.id),
+    /** `fixtures.external_id`: stable within the championship; `manual:<id>` for a match added by the client. */
     fixtureExternalId: text('fixture_external_id').notNull(),
+    origin: fixtureOrigin('origin').notNull().default('league'),
+    /** Kind of a match added by the client; null for a downloaded one. */
+    manualKind: manualFixtureKind('manual_kind'),
+    /** «Trasmessa» / «Non trasmessa» chosen for this match, over the coverage of the profile (`auto`). */
+    broadcast: fixtureBroadcast('broadcast').notNull().default('auto'),
+    /** Hidden by the client (only downloaded matches: the ones added by hand are deleted). */
+    hidden: boolean('hidden').notNull().default(false),
+    /** Logos chosen for this match (images of the client); null: the default one. */
+    ourLogoAssetId: uuid('our_logo_asset_id').references(() => assets.id, { onDelete: 'set null' }),
+    opponentLogoAssetId: uuid('opponent_logo_asset_id').references(() => assets.id, { onDelete: 'set null' }),
     /** null when the match is no longer in the calendar. */
     fixtureId: uuid('fixture_id').references(() => fixtures.id, { onDelete: 'set null' }),
     /** Time the match left the calendar (or the team of the club changed); null while it is there. */
@@ -465,6 +485,7 @@ export const clientFixtures = pgTable(
   (t) => [
     uniqueIndex('client_fixtures_tenant_fixture_idx').on(t.tenantId, t.leagueId, t.fixtureExternalId),
     index('client_fixtures_tenant_starts_idx').on(t.tenantId, t.startsAt),
+    check('client_fixtures_origin_league_check', sql`(${t.origin} = 'manual') = (${t.leagueId} is null)`),
   ],
 );
 
@@ -493,5 +514,8 @@ export const schema = {
   fixtureLink,
   tenantLeagues,
   clubSide,
+  fixtureOrigin,
+  manualFixtureKind,
+  fixtureBroadcast,
   clientFixtures,
 };

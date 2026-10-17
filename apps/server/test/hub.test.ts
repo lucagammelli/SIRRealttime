@@ -269,3 +269,41 @@ describe('LiveHub', () => {
     expect(hub.publicSockets('10.0.0.2')).toEqual({ total: 0, fromIp: 0 });
   });
 });
+
+describe('channel of the club', () => {
+  const channel: Target = { kind: 'channel', tenantId: TENANT };
+  const next = (startsAt: string): ScheduledMessage =>
+    ({
+      type: 'scheduled',
+      fixture: { startsAt, home: { name: 'A' }, away: { name: 'B' } },
+    }) as unknown as ScheduledMessage;
+
+  it('follows the live match, then shows the next match once, and the next match after it changes', () => {
+    const socket = add(share, null, channel);
+    hub.publish(TENANT, state(1));
+    expect(socket.messages().map((m) => m.type)).toEqual(['state']);
+    expect(hub.channelTenants()).toEqual(new Set([TENANT]));
+    // The watcher finds the next match: sent once, not at every check.
+    hub.showChannel(TENANT, next('2026-01-08T16:00:00Z'));
+    hub.showChannel(TENANT, next('2026-01-08T16:00:00Z'));
+    expect(socket.messages().map((m) => m.type)).toEqual(['state', 'scheduled']);
+    hub.showChannel(TENANT, next('2026-01-08T17:00:00Z'));
+    expect(socket.messages()).toHaveLength(3);
+    // The same match the socket shows is not sent again; a new live match is.
+    hub.showChannel(TENANT, state(1));
+    expect(socket.messages()).toHaveLength(4);
+    hub.showChannel(TENANT, state(1));
+    expect(socket.messages()).toHaveLength(4);
+  });
+
+  it('keeps what the channel shows for a while, and forgets it when a match starts', () => {
+    hub.rememberChannel(TENANT, next('2026-01-08T16:00:00Z'));
+    expect(hub.currentChannel(TENANT)?.type).toBe('scheduled');
+    hub.publish(TENANT, state(1), { clientFixtureId: null, becameLive: true });
+    expect(hub.currentChannel(TENANT)).toBeNull();
+    hub.rememberChannel(TENANT, next('2026-01-08T16:00:00Z'));
+    now = new Date(now.getTime() + SCHEDULED_TTL_MS);
+    expect(hub.currentChannel(TENANT)).toBeNull();
+    expect(hub.current(channel)?.matchId).toBe('m1');
+  });
+});

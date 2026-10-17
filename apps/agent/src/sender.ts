@@ -1,6 +1,6 @@
 import { gzipSync } from 'node:zlib';
 import type { IngestRequest, IngestResponse } from '@sir/shared';
-import { IngestResponseSchema } from '@sir/shared';
+import { AGENT_EXPIRED_ERROR, ApiErrorSchema, IngestResponseSchema } from '@sir/shared';
 import { errorMessage } from './util.js';
 
 /** Bodies larger than this are sent with `Content-Encoding: gzip`. */
@@ -8,8 +8,11 @@ export const GZIP_THRESHOLD_BYTES = 4 * 1024;
 
 export type SendResult =
   | { type: 'ok'; response: IngestResponse }
-  /** Answer with an HTTP error status (`retryAfterMs` from `Retry-After`, if any). */
-  | { type: 'http'; status: number; retryAfterMs?: number }
+  /**
+   * Answer with an HTTP error status (`retryAfterMs` from `Retry-After`, if any; `expired`: a 401 because the
+   * registration of the agent has expired).
+   */
+  | { type: 'http'; status: number; retryAfterMs?: number; expired?: boolean }
   /** Network error, timeout or an answer that is not a valid ingest response. */
   | { type: 'network'; message: string };
 
@@ -31,6 +34,16 @@ export function apiUrl(serverUrl: string, path: string): string {
 /** URL of `POST /api/ingest`, keeping a path prefix of `serverUrl`. */
 export function ingestUrl(serverUrl: string): string {
   return apiUrl(serverUrl, 'api/ingest');
+}
+
+/** True when a 401 says that the registration of the agent has expired (`AGENT_EXPIRED_ERROR`). */
+async function expiredAnswer(res: Response): Promise<boolean> {
+  try {
+    const parsed = ApiErrorSchema.safeParse(await res.json());
+    return parsed.success && parsed.data.error === AGENT_EXPIRED_ERROR;
+  } catch {
+    return false;
+  }
 }
 
 /** Sends ingest requests; the token only ever goes into the `Authorization` header. */
@@ -63,12 +76,15 @@ export class Sender {
       return { type: 'network', message: errorMessage(err) };
     }
     if (!res.ok) {
-      await res.body?.cancel().catch(() => undefined);
+      // Only the 401 says why (registration expired or token not valid): the other bodies are not read.
+      const expired = res.status === 401 && (await expiredAnswer(res));
+      if (res.status !== 401) await res.body?.cancel().catch(() => undefined);
       const retryAfter = Number(res.headers.get('retry-after'));
       return {
         type: 'http',
         status: res.status,
         ...(Number.isFinite(retryAfter) && retryAfter > 0 ? { retryAfterMs: retryAfter * 1000 } : {}),
+        ...(expired ? { expired: true } : {}),
       };
     }
     let raw: unknown;

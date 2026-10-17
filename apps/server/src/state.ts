@@ -1,5 +1,5 @@
 import type { ClubCoverage, MatchLogoInfo, ServerMessage, ShareAccess, StateMessage } from '@sir/shared';
-import { ClientMessageSchema, LiveSocketQuerySchema, matchTeamLogos } from '@sir/shared';
+import { ClientMessageSchema, effectiveStartsAt, LiveSocketQuerySchema, matchTeamLogos } from '@sir/shared';
 import { and, desc, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import {
   broadcastOf,
@@ -108,7 +108,7 @@ export async function channelMessage(ctx: AppContext, tenantId: string): Promise
     latest: latest
       ? { live: latest.live, finished: latest.state.status === 'finished', updatedAt: latest.updatedAt }
       : null,
-    next,
+    next: next ? { startsAt: effectiveStartsAt(next) } : null,
     now,
   });
   let message: ServerMessage;

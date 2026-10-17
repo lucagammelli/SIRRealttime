@@ -409,6 +409,18 @@ del cliente, altrimenti 400):
 - `PUT /api/admin/calendar/fixtures/:id` → 204; `DELETE` → 204. Solo per le partite `manual`, altrimenti 400 «Si modificano
   e si cancellano solo le partite aggiunte a mano». Il `DELETE` toglie il link (spettatori disconnessi) e rimette i `.dvw`
   abbinati tra quelli «da confermare» (`pending`; restano live solo se nessun altro `.dvw` non abbinato lo è);
+- `PUT /api/admin/calendar/fixtures/:id/date` (`FixtureDateRequest` = `{ startsAt }`, ISO UTC o `null`; admin, isolata per
+  cliente, sotto `lockTenantMatches`) → 204, per **qualunque** partita. Per una scaricata la data ufficiale resta in
+  `starts_at` e quella scelta a mano va accanto, nelle colonne `override_starts_at`, `overridden_at` e
+  `override_official_starts_at` (la data ufficiale di quel momento, per accorgersi se poi la Lega sposta la partita;
+  migrazione `drizzle/0010_date_modificabili.sql`). `null`, oppure una data uguale all'ufficiale, azzera le tre colonne
+  (torna l'ufficiale: nulla da congelare). Per una manuale cambia `starts_at` e `null` dà 400 «Una partita aggiunta a mano ha
+  sempre una data». Aggiorna l'etichetta del link, poi `refreshClub`, `closeNotBroadcast` e `announceFixture`. La
+  sincronizzazione (`leagues/sync.ts`, `refreshClientFixtures`) non tocca queste colonne e continua ad aggiornare
+  risultato, stato e data ufficiale. **Data effettiva** (`effectiveStartsAt` di `@sir/shared`; in SQL `effectiveStartSql` in
+  `apps/server/src/club.ts` = `coalesce(override_starts_at, starts_at)`): usata per l'abbinamento dei `.dvw`, il piano del
+  giorno di gara, la «Prossima partita», il canale e i link; `ClubFixture.startsAt` è la data effettiva,
+  `officialStartsAt` quella della Lega, `movedByLeague` dice che la Lega l'ha spostata dopo la modifica a mano;
 - `PATCH /api/admin/calendar/fixtures/:id/settings` (`FixtureSettingsRequest`, almeno un campo) → 204: `broadcast`
   (`auto`/`on`/`off`), `hidden` (solo partite scaricate; per una manuale 400: si cancella), `ourLogo` e `opponentLogo`
   (`null` = logo predefinito). Una partita scaricata non si modifica né si cancella: si può solo nascondere.
@@ -680,6 +692,7 @@ come l'agente), così il comportamento è quello vero; la partita però è **iso
 | POST | `/api/admin/calendar/fixtures` | sessione | admin |
 | PUT | `/api/admin/calendar/fixtures/:id` | sessione | admin |
 | DELETE | `/api/admin/calendar/fixtures/:id` | sessione | admin |
+| PUT | `/api/admin/calendar/fixtures/:id/date` | sessione | admin |
 | PATCH | `/api/admin/calendar/fixtures/:id/settings` | sessione | admin |
 | PUT | `/api/admin/matches/:id/fixture` | sessione | admin |
 | GET | `/api/admin/matches` | sessione | viewer |

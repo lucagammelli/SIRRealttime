@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   chooseTeamLogo,
   clubFixtureState,
+  effectiveStartsAt,
   EMPTY_SCHEDULE,
+  FixtureDateRequestSchema,
   FixtureSettingsRequestSchema,
   isFixtureBroadcast,
   ManualFixtureRequestSchema,
+  movedByLeague,
   matchTeamLogos,
   resolveClubProfile,
   ScheduleResponseSchema,
@@ -180,5 +183,37 @@ describe('profile and broadcast of the matches', () => {
     expect(ManualFixtureRequestSchema.safeParse({ ...ok, extra: 1 }).success).toBe(false);
     expect(FixtureSettingsRequestSchema.safeParse({}).success).toBe(false);
     expect(FixtureSettingsRequestSchema.safeParse({ opponentLogo: null }).success).toBe(true);
+  });
+});
+
+describe('date of a match changed by hand', () => {
+  const official = '2026-10-18T16:00:00.000Z';
+  const changed = '2026-10-19T17:30:00.000Z';
+
+  it('uses the date changed by hand, otherwise the official one', () => {
+    expect(effectiveStartsAt({ startsAt: official, overrideStartsAt: changed })).toBe(changed);
+    expect(effectiveStartsAt({ startsAt: official, overrideStartsAt: null })).toBe(official);
+    expect(effectiveStartsAt({ startsAt: null, overrideStartsAt: null })).toBeNull();
+    const date = new Date(official);
+    expect(effectiveStartsAt({ startsAt: date, overrideStartsAt: null })).toBe(date);
+  });
+
+  it('tells that the league moved a match changed by hand, only then', () => {
+    const base = { startsAt: official, overrideStartsAt: changed, overrideOfficialStartsAt: official };
+    expect(movedByLeague(base)).toBe(false);
+    expect(movedByLeague({ ...base, startsAt: '2026-10-25T16:00:00.000Z' })).toBe(true);
+    expect(movedByLeague({ ...base, startsAt: null })).toBe(true);
+    expect(movedByLeague({ ...base, startsAt: new Date(official), overrideOfficialStartsAt: official })).toBe(false);
+    expect(
+      movedByLeague({ startsAt: '2026-10-25T16:00:00.000Z', overrideStartsAt: null, overrideOfficialStartsAt: null }),
+    ).toBe(false);
+  });
+
+  it('accepts a valid ISO date or null, and nothing else', () => {
+    expect(FixtureDateRequestSchema.safeParse({ startsAt: changed }).success).toBe(true);
+    expect(FixtureDateRequestSchema.safeParse({ startsAt: null }).success).toBe(true);
+    expect(FixtureDateRequestSchema.safeParse({ startsAt: '19/10/2026' }).success).toBe(false);
+    expect(FixtureDateRequestSchema.safeParse({}).success).toBe(false);
+    expect(FixtureDateRequestSchema.safeParse({ startsAt: changed, extra: 1 }).success).toBe(false);
   });
 });

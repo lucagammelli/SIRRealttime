@@ -15,6 +15,7 @@ import type {
   UpcomingFixture,
 } from '@sir/shared';
 import {
+  effectiveStartsAt,
   isFixtureBroadcast,
   ourTeamSide,
   publicAssetPath,
@@ -69,6 +70,9 @@ export interface LinkedMatch {
   clientFixtureId: string;
 }
 
+/** SQL of `effectiveStartsAt` on `client_fixtures`: the date changed by hand, otherwise the official one. */
+export const effectiveStartSql = sql<Date | null>`coalesce(${clientFixtures.overrideStartsAt}, ${clientFixtures.startsAt})`;
+
 const DAY_MS = 86_400_000;
 const LABEL_MAX = 100;
 
@@ -79,9 +83,13 @@ export function romeDateText(date: Date): string {
 }
 
 /** Pure: label of the link of a match of the calendar, «Avversario – data» (the date only when known). */
-export function fixtureLabel(row: Pick<ClientFixtureRow, 'ourSide' | 'homeName' | 'awayName' | 'startsAt'>): string {
+export function fixtureLabel(
+  row: Pick<ClientFixtureRow, 'ourSide' | 'homeName' | 'awayName' | 'startsAt'> &
+    Partial<Pick<ClientFixtureRow, 'overrideStartsAt'>>,
+): string {
   const opponent = row.ourSide === 'home' ? row.awayName : row.homeName;
-  const date = row.startsAt ? ` – ${romeDateText(row.startsAt)}` : '';
+  const start = effectiveStartsAt({ startsAt: row.startsAt, overrideStartsAt: row.overrideStartsAt ?? null });
+  const date = start ? ` – ${romeDateText(start)}` : '';
   return `${opponent.slice(0, LABEL_MAX - date.length).trim()}${date}`;
 }
 
@@ -160,8 +168,9 @@ export function upcomingOf(
   look: Pick<ClubLook, 'profileLogo' | 'teamLogos'> = { profileLogo: null, teamLogos: 'all' },
 ): UpcomingFixture {
   const logos = fixtureLogos(row, look);
+  const effective = effectiveStartsAt(row);
   return {
-    startsAt: row.startsAt ? row.startsAt.toISOString() : null,
+    startsAt: effective ? effective.toISOString() : null,
     home: { name: row.homeName, logoUrl: logos.home },
     away: { name: row.awayName, logoUrl: logos.away },
     ourSide: row.ourSide,
@@ -250,7 +259,7 @@ export async function ourTeamForManual(tx: Db | Tx, tenantId: string): Promise<{
 
 const candidateOf = (r: ClientFixtureRow): CalendarCandidate => ({
   id: r.id,
-  startsAt: r.startsAt,
+  startsAt: effectiveStartsAt(r),
   ourSide: r.ourSide,
   homeName: r.homeName,
   awayName: r.awayName,
@@ -280,17 +289,14 @@ export async function evaluateFixtureLink(
   let window;
   if (facts.date) {
     const day = Date.UTC(facts.date.year, facts.date.month - 1, facts.date.day);
-    window = and(
-      gte(clientFixtures.startsAt, new Date(day - 2 * DAY_MS)),
-      lt(clientFixtures.startsAt, new Date(day + 3 * DAY_MS)),
-    );
+    window = and(gte(effectiveStartSql, new Date(day - 2 * DAY_MS)), lt(effectiveStartSql, new Date(day + 3 * DAY_MS)));
   }
   const rows = await tx
     .select()
     .from(clientFixtures)
     .where(tenantScope(clientFixtures, tenantId, isNull(clientFixtures.removedAt), window))
     // Deterministic order: candidates with the same score are always proposed in the same order.
-    .orderBy(asc(clientFixtures.startsAt), asc(clientFixtures.id));
+    .orderBy(asc(effectiveStartSql), asc(clientFixtures.id));
   // The matches not broadcast (hidden, «Non trasmessa», away with «solo partite in casa») are never proposed.
   const outcome = linkFixture(facts, rows.filter((r) => broadcastOf(r, look.coverage)).map(candidateOf));
   return outcome.kind === 'linked'
@@ -471,8 +477,8 @@ export async function leaguesWithClubMatches(db: Db, from: Date, to: Date): Prom
     .from(clientFixtures)
     .where(
       and(
-        gte(clientFixtures.startsAt, from),
-        lt(clientFixtures.startsAt, to),
+        gte(effectiveStartSql, from),
+        lt(effectiveStartSql, to),
         isNull(clientFixtures.removedAt),
         isNotNull(clientFixtures.leagueId),
       ),
@@ -509,10 +515,10 @@ export async function comingFixtures(db: Db, tenantId: string, now: Date): Promi
         isNull(clientFixtures.removedAt),
         eq(clientFixtures.hidden, false),
         eq(clientFixtures.status, 'scheduled'),
-        gte(clientFixtures.startsAt, new Date(now.getTime() - SCHEDULE_GRACE_MS)),
+        gte(effectiveStartSql, new Date(now.getTime() - SCHEDULE_GRACE_MS)),
       ),
     )
-    .orderBy(asc(clientFixtures.startsAt), asc(clientFixtures.id))
+    .orderBy(asc(effectiveStartSql), asc(clientFixtures.id))
     .limit(SCHEDULE_CANDIDATES);
   const broadcast = candidates.filter((r) => broadcastOf(r, look.coverage));
   const ids = broadcast.map((r) => r.id);

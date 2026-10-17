@@ -409,6 +409,14 @@ qui sotto.». Una partita aggiunta a mano ha link breve e QR come le altre, si a
 squadra» e «Logo di …»; predefiniti: logo quadrato del profilo per la nostra squadra, logo della Lega per gli avversari).
 Una partita non trasmessa ha il link non attivo e il `.dvw` non le viene abbinato. Il viewer vede tutto in sola lettura.
 
+**Data e ora di una partita scaricata**: «Cambia data e ora» (poi «Chiudi data e ora») apre il modulo «Data e ora della
+partita» (`FixtureDateForm`: «Data (ora italiana)», «Ora (ora italiana)», «Salva data e ora»). Una partita cambiata a mano
+mostra l'etichetta «Modificata a mano» e «data ufficiale:» con la data della Lega barrata; il pulsante «Torna alla data
+ufficiale» rimette quella della Lega. Se la Lega sposta la partita dopo la modifica compare «La Lega ha spostato la partita
+al …» con la nuova data ufficiale (la data scelta a mano resta finché non si torna all'ufficiale). Date e ore del calendario e
+del modulo «Partita aggiunta a mano» sono sempre in ora di Roma (`romeDateTime` e `romeToIso` in `src/lib/format.ts`, che
+gestiscono l'ora legale). Le partite a mano si cambiano con «Modifica». Rotta e regole in `docs/server.md`.
+
 **Loghi nella pagina pubblica**: il messaggio di stato porta `logos` (casa e ospite); `Scoreboard` li mostra accanto ai nomi
 (`TeamLogo`, prop `logos`) e «Prossima partita», classifica e calendario usano gli stessi
 (ordine e regole in `docs/server.md`). **Manifest dell'app**: `index.html` punta a `/api/public/manifest.webmanifest`, con

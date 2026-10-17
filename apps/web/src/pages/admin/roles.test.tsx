@@ -10,7 +10,7 @@ import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderAs } from '../../test/adminPage.tsx';
 import { AgentsPage, validityEnd, validityText } from './AgentsPage.tsx';
-import { CalendarPage, localDateTime } from './CalendarPage.tsx';
+import { CalendarPage } from './CalendarPage.tsx';
 import { ClubPage } from './ClubPage.tsx';
 import { LeaguesPage, leaguePlanText } from './LeaguesPage.tsx';
 import { ShareLinksPage } from './ShareLinksPage.tsx';
@@ -24,6 +24,10 @@ const REG = '6d1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b70';
 const fixture = (over: Partial<ClubFixture>): ClubFixture => ({
   id: F1,
   startsAt: '2026-10-18T16:00:00.000Z',
+  officialStartsAt: '2026-10-18T16:00:00.000Z',
+  dateOverridden: false,
+  dateOverriddenAt: null,
+  movedByLeague: false,
   home: { name: "Acqua Sant'Anna Cuneo", logoUrl: null },
   away: { name: 'Sir Susa Scai Perugia', logoUrl: null },
   ourSide: 'away',
@@ -255,7 +259,8 @@ describe('page «Calendario» of an admin', () => {
         method: 'POST',
         body: {
           kind: 'cup',
-          startsAt: new Date('2026-10-21T20:30').toISOString(),
+          // 20:30 in Rome (CEST, UTC+2).
+          startsAt: '2026-10-21T18:30:00.000Z',
           opponent: 'Itas Trentino',
           opponentLogo: null,
           ourSide: 'away',
@@ -265,12 +270,6 @@ describe('page «Calendario» of an admin', () => {
       }),
     );
     expect(await screen.findByText(/Partita aggiunta/)).toBeTruthy();
-  });
-
-  it('localDateTime: the date and time of the inputs on the clock of the browser', () => {
-    const iso = new Date('2026-10-21T20:30').toISOString();
-    expect(localDateTime(iso)).toEqual({ date: '2026-10-21', time: '20:30' });
-    expect(localDateTime(null)).toEqual({ date: '', time: '' });
   });
 });
 

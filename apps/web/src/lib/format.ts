@@ -108,6 +108,47 @@ export function formatFixtureDate(iso: string | null): { date: string; time: str
   return { date: fixtureDate.format(d), time: fixtureTime.format(d) };
 }
 
+const romeParts = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Rome',
+  hourCycle: 'h23',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+function romeFields(ms: number): { y: number; mo: number; d: number; h: number; mi: number } {
+  const get = (type: string): number => Number(romeParts.formatToParts(ms).find((p) => p.type === type)?.value);
+  return { y: get('year'), mo: get('month'), d: get('day'), h: get('hour'), mi: get('minute') };
+}
+
+/** Date and time (`YYYY-MM-DD`, `HH:MM`) of an ISO instant in Italian time, for the inputs; empty when not a date. */
+export function romeDateTime(iso: string | null): { date: string; time: string } {
+  const ms = iso ? Date.parse(iso) : Number.NaN;
+  if (Number.isNaN(ms)) return { date: '', time: '' };
+  const f = romeFields(ms);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return { date: `${f.y}-${pad(f.mo)}-${pad(f.d)}`, time: `${pad(f.h)}:${pad(f.mi)}` };
+}
+
+/** Pure: the ISO instant (UTC) of a date `YYYY-MM-DD` and a time `HH:MM` written in Italian time; null when invalid. */
+export function romeToIso(date: string, time: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const t = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!m || !t) return null;
+  const wall = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(t[1]), Number(t[2]));
+  // The offset of Rome changes with the summer time: settle it with two passes around the guess.
+  let guess = wall;
+  for (let i = 0; i < 2; i++) {
+    const f = romeFields(guess);
+    guess += wall - Date.UTC(f.y, f.mo - 1, f.d, f.h, f.mi);
+  }
+  const f = romeFields(guess);
+  if (Date.UTC(f.y, f.mo - 1, f.d, f.h, f.mi) !== wall) return null;
+  return new Date(guess).toISOString();
+}
+
 /** Evaluation symbols of DataVolley, from best to worst (`~` = no evaluation). */
 export const EVALUATIONS = ['#', '+', '!', '-', '/', '='] as const;
 export type EvaluationSymbol = (typeof EVALUATIONS)[number];

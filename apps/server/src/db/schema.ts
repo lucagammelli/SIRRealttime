@@ -477,7 +477,14 @@ export const clientFixtures = pgTable(
     fixtureId: uuid('fixture_id').references(() => fixtures.id, { onDelete: 'set null' }),
     /** Time the match left the calendar (or the team of the club changed); null while it is there. */
     removedAt: timestamp('removed_at', { withTimezone: true }),
+    /** Official start (league); for a match added by hand it is its date. */
     startsAt: timestamp('starts_at', { withTimezone: true }),
+    /** Start chosen by the client for a downloaded match: the update of the calendar never touches it. */
+    overrideStartsAt: timestamp('override_starts_at', { withTimezone: true }),
+    /** Time of the change by hand; null without one. */
+    overriddenAt: timestamp('overridden_at', { withTimezone: true }),
+    /** Official start when the client changed the date (to tell that the league moved the match since). */
+    overrideOfficialStartsAt: timestamp('override_official_starts_at', { withTimezone: true }),
     ourSide: clubSide('our_side').notNull(),
     homeName: text('home_name').notNull(),
     awayName: text('away_name').notNull(),

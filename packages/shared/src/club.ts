@@ -265,7 +265,7 @@ export const ClubFixtureResultSchema = z.object({
  * league (teams, logos, time, venue).
  */
 export const UpcomingFixtureSchema = z.object({
-  /** Official start in UTC; null when not set yet. */
+  /** Start in UTC (`effectiveStartsAt`: the one changed by hand, otherwise the official one); null when not set yet. */
   startsAt: z.iso.datetime().nullable(),
   home: ClubFixtureTeamSchema,
   away: ClubFixtureTeamSchema,
@@ -339,6 +339,38 @@ export function isFixtureBroadcast(input: {
   return input.coverage === 'homeAndAway' || input.ourSide === 'home';
 }
 
+/**
+ * Pure: the start of a match of the club that every feature uses (countdown, «Prossima partita», channel, links,
+ * `.dvw` matching, update plan): the date changed by hand when there is one, otherwise the official one of the league.
+ */
+export function effectiveStartsAt<T extends Date | string>(f: {
+  startsAt: T | null;
+  overrideStartsAt: T | null;
+}): T | null {
+  return f.overrideStartsAt ?? f.startsAt;
+}
+
+const timeOf = (value: Date | string | null): number | null => (value === null ? null : new Date(value).getTime());
+
+/**
+ * Pure: whether the league moved a match whose date was changed by hand: the official date now differs from the one
+ * it had when the client changed the date. Never for a match without a change by hand.
+ */
+export function movedByLeague(f: {
+  startsAt: Date | string | null;
+  overrideStartsAt: Date | string | null;
+  overrideOfficialStartsAt: Date | string | null;
+}): boolean {
+  return f.overrideStartsAt !== null && timeOf(f.startsAt) !== timeOf(f.overrideOfficialStartsAt);
+}
+
+/**
+ * `PUT /api/admin/calendar/fixtures/:id/date` (every match): the date and time chosen by hand (UTC), or null to go back
+ * to the official date of the league.
+ */
+export const FixtureDateRequestSchema = z.strictObject({ startsAt: z.iso.datetime().nullable() });
+export type FixtureDateRequest = z.infer<typeof FixtureDateRequestSchema>;
+
 /** Body of `POST /api/admin/calendar/fixtures` and `PUT /api/admin/calendar/fixtures/:id` (matches added by hand). */
 export const ManualFixtureRequestSchema = z.strictObject({
   kind: ManualFixtureKindSchema,
@@ -378,6 +410,14 @@ export const ClubFixtureSchema = UpcomingFixtureSchema.extend({
   /** Championship of the match; null for a match added by hand. */
   league: z.object({ id: z.uuid(), name: z.string().nullable(), season: LeagueSeasonSchema }).nullable(),
   origin: FixtureOriginSchema.default('league'),
+  /** Official start of the league in UTC (a downloaded match; for one added by hand it is its own date). */
+  officialStartsAt: z.iso.datetime().nullable().default(null),
+  /** The date was changed by hand: `startsAt` is that one and it is no longer updated from the league. */
+  dateOverridden: z.boolean().default(false),
+  /** Time of the change by hand, null when none. */
+  dateOverriddenAt: z.iso.datetime().nullable().default(null),
+  /** The league moved the match after the change by hand (`movedByLeague`): the official date is not the old one. */
+  movedByLeague: z.boolean().default(false),
   /** Kind of a match added by hand, null for a downloaded one. */
   kind: ManualFixtureKindSchema.nullable().default(null),
   broadcast: FixtureBroadcastSchema.default('auto'),

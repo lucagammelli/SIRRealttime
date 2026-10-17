@@ -291,7 +291,11 @@ partite: `FixtureOriginSchema` (`league`/`manual`), `ManualFixtureKindSchema` (`
 `MANUAL_FIXTURE_LABEL`, `FixtureBroadcastSchema` (`auto`/`on`/`off`), `isFixtureBroadcast` (pura: nascosta mai; altrimenti
 la scelta della partita, con `auto` la copertura), `ManualFixtureRequestSchema`, `CreatedFixtureResponseSchema`,
 `FixtureSettingsRequestSchema` (`broadcast`, `hidden`, `ourLogo`, `opponentLogo`, almeno un campo), e in `ClubFixtureSchema`
-i campi `origin`, `kind`, `broadcast`, `broadcasted`, `hidden`, `logos`; loghi: `chooseTeamLogo` (pura: logo della partita
+i campi `origin`, `kind`, `broadcast`, `broadcasted`, `hidden`, `logos`; date: `effectiveStartsAt` (pura: la data
+cambiata a mano, altrimenti l'ufficiale), `movedByLeague` (pura: la Lega ha spostato la partita dopo la modifica a mano),
+`FixtureDateRequestSchema` (`{ startsAt }` ISO o `null`; `PUT /api/admin/calendar/fixtures/:id/date`) e in `ClubFixtureSchema`
+`startsAt` (ora la data **effettiva**), `officialStartsAt`, `dateOverridden`, `dateOverriddenAt`, `movedByLeague`
+(`docs/server.md`, `docs/portale.md`); loghi: `chooseTeamLogo` (pura: logo della partita
 → logo del profilo, solo per la nostra squadra → logo pubblico della Lega → nessuno), `teamLogoShown`, `shownTeamLogo`
 (l'impostazione `teamLogos` decide se mostrarlo) e `matchTeamLogos` (i loghi dei due lati del `.dvw`: il lato nostro è la
 «nostra squadra» riconosciuta nel file, altrimenti il lato del club nel calendario; ignoto: nessun logo). `StateMessage` ha

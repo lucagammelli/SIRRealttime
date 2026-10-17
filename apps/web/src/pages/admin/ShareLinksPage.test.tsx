@@ -10,6 +10,10 @@ const ids = (n: number) => `${n}f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c`;
 const fixture = (n: number, over: Partial<ClubFixture> = {}): ClubFixture => ({
   id: ids(n),
   startsAt: '2026-10-25T17:00:00.000Z',
+  officialStartsAt: '2026-10-25T17:00:00.000Z',
+  dateOverridden: false,
+  dateOverriddenAt: null,
+  movedByLeague: false,
   home: { name: 'Sir Susa Scai Perugia', logoUrl: null },
   away: { name: 'Itas Trentino', logoUrl: null },
   ourSide: 'home',

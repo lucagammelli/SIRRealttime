@@ -13,6 +13,10 @@ const MATCH = '7c1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7f';
 const fixture = (over: Partial<ClubFixture>): ClubFixture => ({
   id: F1,
   startsAt: '2026-10-18T16:00:00.000Z',
+  officialStartsAt: '2026-10-18T16:00:00.000Z',
+  dateOverridden: false,
+  dateOverriddenAt: null,
+  movedByLeague: false,
   home: { name: "Acqua Sant'Anna Cuneo", logoUrl: null },
   away: { name: 'Sir Susa Scai Perugia', logoUrl: null },
   ourSide: 'away',
@@ -65,7 +69,7 @@ const data: CalendarResponse = {
   ],
 };
 
-function mockServer() {
+function mockServer(calendar: CalendarResponse = data) {
   const calls: { url: string; method: string; body: unknown }[] = [];
   const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
   vi.stubGlobal(
@@ -75,7 +79,8 @@ function mockServer() {
       const body: unknown = typeof init?.body === 'string' ? JSON.parse(init.body) : null;
       calls.push({ url, method, body });
       if (url === '/api/auth/me') return json({ id: USER_ID, email: 'a@b.it', role: 'admin', tenant: null });
-      if (url === '/api/admin/calendar') return json(data);
+      if (url === '/api/admin/calendar') return json(calendar);
+      if (url.endsWith('/date')) return Promise.resolve(new Response(null, { status: 204 }));
       if (url === `/api/admin/matches/${MATCH}/fixture`) return Promise.resolve(new Response(null, { status: 204 }));
       return json([]);
     }),
@@ -133,6 +138,60 @@ describe('page «Calendario»', () => {
         url: `/api/admin/matches/${MATCH}/fixture`,
         method: 'PUT',
         body: { clientFixtureId: null },
+      }),
+    );
+  });
+
+  it('marks a date changed by hand: label, official date struck through, warning of the league, button', async () => {
+    const changed = fixture({
+      startsAt: '2026-10-19T17:30:00.000Z',
+      officialStartsAt: '2026-10-25T16:00:00.000Z',
+      dateOverridden: true,
+      dateOverriddenAt: '2026-10-10T10:00:00.000Z',
+      movedByLeague: true,
+    });
+    const calls = mockServer({ ...data, fixtures: [changed, fixture({ id: F2 })] });
+    renderCalendar();
+    const items = await screen.findAllByTestId('calendar-fixture');
+    const [first, second] = items;
+    if (!first || !second) throw new Error('no item');
+    expect(within(first).getByText(/lun 19 ott 2026/)).toBeTruthy();
+    expect(within(first).getByText(/ore 19:30/)).toBeTruthy();
+    expect(within(first).getByText('Modificata a mano')).toBeTruthy();
+    const official = within(first).getByTestId('official-date');
+    expect(official.tagName).toBe('S');
+    expect(official.textContent).toMatch(/dom 25 ott 2026 · ore 17:00/);
+    expect(within(first).getByTestId('moved-by-league').textContent).toMatch(
+      /La Lega ha spostato la partita al dom 25 ott 2026 · ore 17:00/,
+    );
+    expect(within(second).queryByText('Modificata a mano')).toBeNull();
+    expect(within(second).queryByTestId('moved-by-league')).toBeNull();
+    expect(within(second).queryByRole('button', { name: 'Torna alla data ufficiale' })).toBeNull();
+    fireEvent.click(within(first).getByRole('button', { name: 'Torna alla data ufficiale' }));
+    await waitFor(() =>
+      expect(calls).toContainEqual({
+        url: `/api/admin/calendar/fixtures/${F1}/date`,
+        method: 'PUT',
+        body: { startsAt: null },
+      }),
+    );
+  });
+
+  it('changes the date of a downloaded match in Italian time', async () => {
+    const calls = mockServer();
+    renderCalendar();
+    const [first] = await screen.findAllByTestId('calendar-fixture');
+    if (!first) throw new Error('no item');
+    fireEvent.click(within(first).getByRole('button', { name: 'Cambia data e ora' }));
+    fireEvent.change(within(first).getByLabelText('Data (ora italiana)'), { target: { value: '2026-11-02' } });
+    fireEvent.change(within(first).getByLabelText('Ora (ora italiana)'), { target: { value: '20:30' } });
+    fireEvent.click(within(first).getByRole('button', { name: 'Salva data e ora' }));
+    await waitFor(() =>
+      expect(calls).toContainEqual({
+        url: `/api/admin/calendar/fixtures/${F1}/date`,
+        method: 'PUT',
+        // 20:30 in Rome on 2 November (CET, UTC+1).
+        body: { startsAt: '2026-11-02T19:30:00.000Z' },
       }),
     );
   });

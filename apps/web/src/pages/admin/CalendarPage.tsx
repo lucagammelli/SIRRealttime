@@ -12,6 +12,7 @@ import {
   CalendarResponseSchema,
   ClubSyncResponseSchema,
   CreatedFixtureResponseSchema,
+  FixtureDateRequestSchema,
   formatShortCode,
   ManualFixtureRequestSchema,
 } from '@sir/shared';
@@ -20,7 +21,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { Button, CopyButton, Card, Empty, ErrorBox, Segmented, Spinner } from '../../components/ui.tsx';
 import { apiCommand, apiRequest } from '../../lib/api.ts';
-import { formatFixtureDate } from '../../lib/format.ts';
+import { formatFixtureDate, romeDateTime, romeToIso } from '../../lib/format.ts';
 import { useAsync } from '../../lib/useAsync.ts';
 import { READ_ONLY_TEXT, useCanEdit } from '../../lib/useCanEdit.ts';
 import { ShareQr } from '../../qr/ShareQr.tsx';
@@ -61,17 +62,6 @@ export function fixtureChoiceText(f: ClubFixture): string {
   return `${opponent} (${where}) – ${formatFixtureDate(f.startsAt).date}`;
 }
 
-/** Pure: date and time (`YYYY-MM-DD`, `HH:MM`) of an instant on the clock of the browser, for the inputs. */
-export function localDateTime(iso: string | null): { date: string; time: string } {
-  const d = iso ? new Date(iso) : null;
-  if (!d || Number.isNaN(d.getTime())) return { date: '', time: '' };
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return {
-    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
-    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
-  };
-}
-
 function TeamCell({ team, our }: { team: ClubFixtureTeam; our: boolean }) {
   return (
     <span className="flex min-w-0 items-center gap-2">
@@ -96,7 +86,7 @@ function ManualFixtureForm({
   onCancel?: () => void;
 }) {
   const errorMessage = useApiError();
-  const start = localDateTime(initial?.startsAt ?? null);
+  const start = romeDateTime(initial?.startsAt ?? null);
   const opponentSide = initial?.ourSide === 'away' ? 'home' : 'away';
   const [kind, setKind] = useState<ManualFixtureKind>(initial?.kind ?? 'friendly');
   const [date, setDate] = useState(start.date);
@@ -112,14 +102,14 @@ function ManualFixtureForm({
   const submit = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
     setError(null);
-    const when = new Date(`${date}T${time}`);
-    if (!date || !time || Number.isNaN(when.getTime())) {
+    const startsAt = romeToIso(date, time);
+    if (!startsAt) {
       setError('Scegli data e ora della partita.');
       return;
     }
     const body = ManualFixtureRequestSchema.safeParse({
       kind,
-      startsAt: when.toISOString(),
+      startsAt,
       opponent: opponent.trim(),
       opponentLogo: opponentLogo?.id ?? null,
       ourSide,
@@ -227,12 +217,68 @@ function ManualFixtureForm({
   );
 }
 
+/** Date and time of a downloaded match changed by hand (Italian time); the update of the calendar leaves it alone. */
+function FixtureDateForm({ f, onSaved, onCancel }: { f: ClubFixture; onSaved: () => void; onCancel: () => void }) {
+  const errorMessage = useApiError();
+  const start = romeDateTime(f.startsAt);
+  const [date, setDate] = useState(start.date);
+  const [time, setTime] = useState(start.time || '18:00');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submit = async (e: FormEvent): Promise<void> => {
+    e.preventDefault();
+    setError(null);
+    const iso = romeToIso(date, time);
+    const body = FixtureDateRequestSchema.safeParse({ startsAt: iso });
+    if (!iso || !body.success) {
+      setError('Scegli data e ora della partita.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await apiCommand(`/api/admin/calendar/fixtures/${encodeURIComponent(f.id)}/date`, {
+        method: 'PUT',
+        body: body.data,
+      });
+      onSaved();
+    } catch (err) {
+      setError(errorMessage(err));
+      setBusy(false);
+    }
+  };
+  return (
+    <form onSubmit={(e) => void submit(e)} className="space-y-3" noValidate aria-label="Data e ora della partita">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Data (ora italiana)">
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputClass} required />
+        </Field>
+        <Field label="Ora (ora italiana)">
+          <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputClass} required />
+        </Field>
+      </div>
+      <p className="text-xs text-muted">
+        Una data cambiata a mano non si aggiorna più da sola con il calendario della Lega; risultato e stato sì.
+      </p>
+      {error && <ErrorBox>{error}</ErrorBox>}
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" variant="primary" disabled={busy}>
+          {busy ? 'Salvataggio…' : 'Salva data e ora'}
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
+          Annulla
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function FixtureItem({ f, onChanged }: { f: ClubFixture; onChanged: () => void }) {
   const errorMessage = useApiError();
   const canEdit = useCanEdit();
   const [qr, setQr] = useState(false);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [changingDate, setChangingDate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const when = formatFixtureDate(f.startsAt);
@@ -255,6 +301,14 @@ function FixtureItem({ f, onChanged }: { f: ClubFixture; onChanged: () => void }
       setBusy(false);
     }
   };
+  const backToOfficial = () =>
+    act(async () => {
+      await apiCommand(`/api/admin/calendar/fixtures/${encodeURIComponent(f.id)}/date`, {
+        method: 'PUT',
+        body: { startsAt: null },
+      });
+      onChanged();
+    });
   const remove = () =>
     act(async () => {
       await apiCommand(`/api/admin/calendar/fixtures/${encodeURIComponent(f.id)}`, { method: 'DELETE' });
@@ -270,6 +324,26 @@ function FixtureItem({ f, onChanged }: { f: ClubFixture; onChanged: () => void }
             {f.startsAt && ` · ore ${when.time}`}
             {manual && ' · aggiunta a mano'}
           </p>
+          {f.dateOverridden && (
+            <p className="flex flex-wrap items-center gap-2 text-xs" data-testid="date-overridden">
+              <span className="inline-flex items-center rounded-full border border-warn px-2 py-0.5 font-bold uppercase tracking-wider text-warn">
+                Modificata a mano
+              </span>
+              <span className="text-muted">
+                data ufficiale:{' '}
+                <s data-testid="official-date">
+                  {formatFixtureDate(f.officialStartsAt).date}
+                  {f.officialStartsAt && ` · ore ${formatFixtureDate(f.officialStartsAt).time}`}
+                </s>
+              </span>
+            </p>
+          )}
+          {f.movedByLeague && (
+            <p className="text-xs font-semibold text-warn" role="status" data-testid="moved-by-league">
+              La Lega ha spostato la partita al {formatFixtureDate(f.officialStartsAt).date}
+              {f.officialStartsAt && ` · ore ${formatFixtureDate(f.officialStartsAt).time}`}.
+            </p>
+          )}
           <div className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center sm:gap-3">
             <TeamCell team={f.home} our={f.ourSide === 'home'} />
             <span className="text-sm font-semibold text-muted">{sets ? `${sets.home} - ${sets.away}` : 'vs'}</span>
@@ -344,10 +418,32 @@ function FixtureItem({ f, onChanged }: { f: ClubFixture; onChanged: () => void }
               />
             </>
           ) : (
-            <Button variant="ghost" disabled={busy} onClick={() => void act(() => change({ hidden: !f.hidden }))}>
-              {f.hidden ? 'Mostra' : 'Nascondi'}
-            </Button>
+            <>
+              <Button variant="ghost" aria-expanded={changingDate} onClick={() => setChangingDate((c) => !c)}>
+                {changingDate ? 'Chiudi data e ora' : 'Cambia data e ora'}
+              </Button>
+              {f.dateOverridden && (
+                <Button variant="ghost" disabled={busy} onClick={() => void backToOfficial()}>
+                  Torna alla data ufficiale
+                </Button>
+              )}
+              <Button variant="ghost" disabled={busy} onClick={() => void act(() => change({ hidden: !f.hidden }))}>
+                {f.hidden ? 'Mostra' : 'Nascondi'}
+              </Button>
+            </>
           )}
+        </div>
+      )}
+      {canEdit && changingDate && !manual && (
+        <div className="rounded-card border border-border p-3">
+          <FixtureDateForm
+            f={f}
+            onSaved={() => {
+              setChangingDate(false);
+              onChanged();
+            }}
+            onCancel={() => setChangingDate(false)}
+          />
         </div>
       )}
       {canEdit && editing && manual && (

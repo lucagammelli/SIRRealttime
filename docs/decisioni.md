@@ -335,3 +335,11 @@ Una riga per decisione: data, scelta, motivo.
 - 2026-10-17: menu dell'area riservata in gruppi «Partite» (Partita live, Partite, Calendario) e «Pagina pubblica» (Studio
   grafico, Link pubblici, Simulazione); il viewer vede in «Pagina pubblica» solo Link pubblici, perché raggruppa ciò che
   vedono gli spettatori e il viewer non modifica nulla.
+- 2026-10-17: la data scelta a mano sta in colonne a parte (`override_*`) e non sovrascrive la data ufficiale, perché la
+  sincronizzazione del calendario continua ad aggiornare la Lega e si può avvisare se la sposta dopo la modifica.
+- 2026-10-17: `ClubFixture.startsAt` è la data effettiva (quella a mano, altrimenti l'ufficiale), così abbinamento `.dvw`,
+  prossima partita, canale e link usano una sola data; l'ufficiale è in `officialStartsAt`.
+- 2026-10-17: una data uguale all'ufficiale (o `null`) non crea nessuna modifica a mano, perché non c'è nulla da congelare
+  e la partita resta allineata agli spostamenti della Lega.
+- 2026-10-17: nel calendario date e ore sono sempre in ora di Roma, anche nei moduli, indipendentemente dal fuso del
+  browser, perché le partite si giocano in Italia.

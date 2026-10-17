@@ -71,6 +71,13 @@
       "when": 1792246271719,
       "tag": "0009_simulazione",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792254421448,
+      "tag": "0010_date_modificabili",
+      "breakpoints": true
     }
   ]
 }

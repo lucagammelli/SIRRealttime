@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { DASH, formatCount, formatMinutes, formatPct, playerName, teamName, teamShort, toPercent } from './format.ts';
+import {
+  DASH,
+  formatCount,
+  formatMinutes,
+  formatPct,
+  playerName,
+  romeDateTime,
+  romeToIso,
+  teamName,
+  teamShort,
+  toPercent,
+} from './format.ts';
 
 describe('formatPct', () => {
   it('shows ratios as percentages with one decimal', () => {
@@ -40,5 +51,18 @@ describe('other formats', () => {
     expect(playerName({ number: 7, firstName: 'Luca', lastName: 'Rossi', role: null, specialRole: null }, 7)).toBe(
       'Rossi L.',
     );
+  });
+});
+
+describe('date and time in Italian time for the inputs', () => {
+  it('reads and writes them across the summer time change', () => {
+    expect(romeDateTime('2026-10-18T16:00:00.000Z')).toEqual({ date: '2026-10-18', time: '18:00' });
+    expect(romeDateTime('2026-11-02T19:30:00.000Z')).toEqual({ date: '2026-11-02', time: '20:30' });
+    expect(romeDateTime(null)).toEqual({ date: '', time: '' });
+    expect(romeToIso('2026-10-18', '18:00')).toBe('2026-10-18T16:00:00.000Z');
+    expect(romeToIso('2026-11-02', '20:30')).toBe('2026-11-02T19:30:00.000Z');
+    expect(romeToIso('2026-10-25', '12:00')).toBe('2026-10-25T11:00:00.000Z');
+    expect(romeToIso('', '18:00')).toBeNull();
+    expect(romeToIso('2026-10-18', '')).toBeNull();
   });
 });

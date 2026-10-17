@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { CreatedFixtureResponse } from '@sir/shared';
 import {
+  FixtureDateRequestSchema,
   FixtureSettingsRequestSchema,
   IdParamSchema,
   MANUAL_FIXTURE_LABEL,
@@ -132,6 +133,54 @@ export function manualFixtureRoutes(app: FastifyInstance, ctx: AppContext): void
     await closeNotBroadcast(ctx, tenantId);
     await announceFixture(ctx, tenantId, id);
     request.log.info({ tenantId, clientFixtureId: id, userId: request.user?.id }, 'partita del calendario modificata');
+    return reply.code(204).send();
+  });
+
+  /**
+   * Date and time of any match. A downloaded match keeps its official date (`starts_at`, rewritten by the updates of
+   * the calendar) and gets the date chosen by hand beside it (`override_*`, never touched by the updates) with the
+   * official date of that moment, to tell if the league moves the match later; null goes back to the official date.
+   * A match added by hand has only its own date (null is not possible).
+   */
+  app.put('/api/admin/calendar/fixtures/:id/date', admin, async (request, reply) => {
+    const tenantId = adminTenantId(request);
+    const { id } = validate(IdParamSchema, request.params);
+    const body = validate(FixtureDateRequestSchema, request.body);
+    await ctx.db.transaction(async (tx) => {
+      await lockTenantMatches(tx, tenantId);
+      const row = await fixtureOf(tx, tenantId, id);
+      const now = ctx.now();
+      let values: Partial<FixtureRow>;
+      if (row.origin === 'manual') {
+        if (body.startsAt === null) throw badRequest('Una partita aggiunta a mano ha sempre una data');
+        values = { startsAt: new Date(body.startsAt) };
+      } else if (
+        body.startsAt === null ||
+        (row.startsAt && new Date(body.startsAt).getTime() === row.startsAt.getTime())
+      ) {
+        // Same as the official date: nothing to freeze, back to the automatic one.
+        values = { overrideStartsAt: null, overriddenAt: null, overrideOfficialStartsAt: null };
+      } else {
+        values = {
+          overrideStartsAt: new Date(body.startsAt),
+          overriddenAt: now,
+          overrideOfficialStartsAt: row.startsAt,
+        };
+      }
+      await tx
+        .update(clientFixtures)
+        .set({ ...values, updatedAt: now })
+        .where(tenantScope(clientFixtures, tenantId, eq(clientFixtures.id, id)));
+      await tx
+        .update(shareTokens)
+        .set({ label: fixtureLabel({ ...row, ...values }) })
+        .where(tenantScope(shareTokens, tenantId, eq(shareTokens.clientFixtureId, id)));
+    });
+    // The date decides which match a `.dvw` belongs to and which one is next: links and channel look again.
+    await refreshClub(ctx, tenantId);
+    await closeNotBroadcast(ctx, tenantId);
+    await announceFixture(ctx, tenantId, id);
+    request.log.info({ tenantId, clientFixtureId: id, userId: request.user?.id }, 'data della partita modificata');
     return reply.code(204).send();
   });
 

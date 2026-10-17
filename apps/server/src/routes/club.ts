@@ -14,6 +14,7 @@ import {
   clubFixtureState,
   IdParamSchema,
   LinkMatchFixtureRequestSchema,
+  movedByLeague,
   publicAssetPath,
   publicTeamLogoPath,
   resolveBranding,
@@ -24,7 +25,7 @@ import {
 } from '@sir/shared';
 import { and, asc, count, desc, eq, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { ADMIN_LOGOS, broadcastOf, clubLook, publicSchedule, upcomingOf } from '../club.js';
+import { ADMIN_LOGOS, broadcastOf, clubLook, effectiveStartSql, publicSchedule, upcomingOf } from '../club.js';
 import type { AppContext } from '../context.js';
 import { perMinute } from '../context.js';
 import {
@@ -290,7 +291,7 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
         .from(clientFixtures)
         .where(tenantScope(clientFixtures, tenantId))
         .orderBy(
-          sql`${clientFixtures.startsAt} asc nulls last`,
+          sql`${effectiveStartSql} asc nulls last`,
           // `n<official number>`: by number (shorter first), not as text.
           sql`length(${clientFixtures.fixtureExternalId})`,
           asc(clientFixtures.fixtureExternalId),
@@ -362,6 +363,10 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
         // The admin sees every logo, whatever «Loghi delle squadre».
         ...upcomingOf(r, { profileLogo: look.profileLogo, ...ADMIN_LOGOS }),
         id: r.id,
+        officialStartsAt: r.startsAt ? r.startsAt.toISOString() : null,
+        dateOverridden: r.overrideStartsAt !== null,
+        dateOverriddenAt: r.overriddenAt ? r.overriddenAt.toISOString() : null,
+        movedByLeague: movedByLeague(r),
         league: r.leagueId ? { id: r.leagueId, name: league?.name ?? r.leagueName, season: league?.season ?? 0 } : null,
         origin: r.origin,
         kind: r.manualKind,

@@ -210,6 +210,10 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
    una partita casuale o un file `.dvw` caricato nella stessa pipeline dell'ingest, con tempi a durata o a velocità,
    su un link a parte con QR e l'etichetta «Simulazione»; una per cliente, 5 nel server, cancellata 6 ore dopo la fine
    (`docs/server.md`, `docs/portale.md`, `docs/simulatore.md`, `docs/architettura.md`).
+8. `date-modificabili` (**fatto**, 2026-10-17): data e ora di ogni partita del calendario modificabili a mano («Cambia data e
+   ora», «Torna alla data ufficiale»), tenute accanto a quella ufficiale che la sincronizzazione continua ad aggiornare;
+   avviso «La Lega ha spostato la partita»; ora di Roma ovunque nel calendario (`docs/server.md`, `docs/portale.md`,
+   `docs/architettura.md`).
 **Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
 PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo
 mostra con «autore sconosciuto».

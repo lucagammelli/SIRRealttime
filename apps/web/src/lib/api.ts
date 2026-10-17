@@ -40,15 +40,6 @@ async function serverMessage(res: Response): Promise<string | null> {
   }
 }
 
-/** Server message of a 400 only when it asks to choose a client (the other 400s keep the generic text). */
-async function clientChoiceMessage(res: Response): Promise<string | null> {
-  const message = await serverMessage(res);
-  return message === NO_TENANT_MESSAGE ? message : null;
-}
-
-/** Answer of the admin routes to a superadmin that has no client to work on. */
-export const NO_TENANT_MESSAGE = 'Seleziona un cliente';
-
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
@@ -79,13 +70,9 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
     throw new ApiError(0, 'Server non raggiungibile: controlla la connessione e riprova.');
   }
   if (!res.ok) {
-    // 409 explains the conflict, 413 and 422 why an image was refused; 400 «Seleziona un cliente» (superadmin
-    // without client) is shown as it is.
-    const fromServer = EXPLAINED_STATUSES.has(res.status)
-      ? await serverMessage(res)
-      : res.status === 400
-        ? await clientChoiceMessage(res)
-        : null;
+    // 409 explains the conflict (also «Scegli prima un cliente», TENANT_REQUIRED_MESSAGE, to a superadmin outside
+    // any client), 413 and 422 why an image was refused.
+    const fromServer = EXPLAINED_STATUSES.has(res.status) ? await serverMessage(res) : null;
     const base =
       STATUS_MESSAGES[res.status] ??
       (res.status >= 500 ? 'Errore del server: riprova più tardi.' : 'Richiesta non riuscita.');

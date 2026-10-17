@@ -94,6 +94,8 @@ export async function channelMessage(ctx: AppContext, tenantId: string): Promise
         matches,
         tenantId,
         sql`${matches.state} is not null`,
+        // A simulated match is only for its own link.
+        eq(matches.simulated, false),
         or(isNull(matches.clientFixtureId), broadcastSql(look.coverage)),
       ),
     )
@@ -140,6 +142,7 @@ export async function currentMessage(ctx: AppContext, target: Target): Promise<S
       state: matches.state,
       live: matches.live,
       clientFixtureId: matches.clientFixtureId,
+      simulated: matches.simulated,
     })
     .from(matches)
     .where(tenantScope(matches, target.tenantId, whereOf(target), sql`${matches.state} is not null`))
@@ -152,7 +155,13 @@ export async function currentMessage(ctx: AppContext, target: Target): Promise<S
     ctx.hub.rememberScheduled(target.tenantId, target.clientFixtureId, scheduled);
     return scheduled;
   }
-  const state = { type: 'state', matchId: row.id, version: row.version, state: row.state } as const;
+  const state: StateMessage = {
+    type: 'state',
+    matchId: row.id,
+    version: row.version,
+    state: row.state,
+    ...(row.simulated ? { simulated: true as const } : {}),
+  };
   const message = await withLogos(ctx, target.tenantId, state, row.clientFixtureId);
   ctx.hub.remember(target.tenantId, message, row.live, row.clientFixtureId);
   return message;

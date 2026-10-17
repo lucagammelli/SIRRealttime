@@ -31,6 +31,7 @@
     "@fastify/rate-limit": "^11.2.1",
     "@fastify/websocket": "^11.3.4",
     "@sir/dvw-parser": "workspace:*",
+    "@sir/dvw-simulator": "workspace:*",
     "@sir/shared": "workspace:*",
     "@sir/volley-stats": "workspace:*",
     "argon2": "^0.45.1",
@@ -42,7 +43,6 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.9",
-    "@sir/dvw-simulator": "workspace:*",
     "@types/pg": "^8.23.1",
     "@types/ws": "^8.18.2",
     "drizzle-kit": "^0.31.11",

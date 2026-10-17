@@ -9,6 +9,7 @@ const ICONS = {
   matches: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
   calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2',
   club: 'M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6zM9 12l2 2 4-4',
+  simulation: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM10 8.5v7l5.5-3.5z',
   links: 'M10 14a4 4 0 0 0 5.7 0l3-3A4 4 0 0 0 13 5.3l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
   branding: 'M12 3a9 9 0 0 0 0 18c1.2 0 1.6-.9 1.4-1.8-.3-1.1.4-2.2 1.6-2.2H17a4 4 0 0 0 4-4c0-5-4-10-9-10z',
   agents: 'M4 5h16v11H4zM9 20h6M12 16v4',
@@ -49,14 +50,36 @@ export interface MenuGroup {
   items: MenuItem[];
 }
 
+/** Pages of the superadmin with no client entered: the only ones that are not of a client. */
+export const SUPERADMIN_MENU: readonly MenuGroup[] = [
+  {
+    label: 'Amministrazione',
+    items: [
+      { to: '/admin/clienti', label: 'Clienti', icon: 'tenants' },
+      { to: '/admin/campionati', label: 'Campionati', icon: 'leagues' },
+    ],
+  },
+];
+
 /**
- * Pure: the groups of the side menu for a role. A viewer (sola lettura) sees the matches, the calendar, the public
- * links, the club and the devices; an administrator also the public page (Studio grafico) and the users; the
- * superadmin also the clients and the championships. «Club» is a group of its own:
- * championships and team of the club are not graphics, they decide the calendar and the links of the matches.
- * Groups without items are left out.
+ * Pure: the groups of the side menu for a role. A viewer (sola lettura) sees the matches, the calendar, the club,
+ * the public links («Pagina pubblica») and the devices; an administrator also Studio grafico and Simulazione (in
+ * «Pagina pubblica», with the links) and the users. The superadmin with no client entered sees only its own pages (`SUPERADMIN_MENU`: clients and
+ * championships); inside a client (`inTenant`), the pages of an administrator of that client. «Club» is a group of
+ * its own: championships and team of the club are not graphics, they decide the calendar and the links of the
+ * matches. Groups without items are left out.
  */
-export function menuGroups({ isAdmin, isSuperadmin }: { isAdmin: boolean; isSuperadmin: boolean }): MenuGroup[] {
+export function menuGroups({
+  isAdmin,
+  isSuperadmin,
+  inTenant,
+}: {
+  isAdmin: boolean;
+  isSuperadmin: boolean;
+  /** A superadmin has entered a client (ignored for the other roles: they always work on their own). */
+  inTenant: boolean;
+}): MenuGroup[] {
+  if (isSuperadmin && !inTenant) return [...SUPERADMIN_MENU];
   const groups: MenuGroup[] = [
     {
       label: 'Partite',
@@ -64,26 +87,22 @@ export function menuGroups({ isAdmin, isSuperadmin }: { isAdmin: boolean; isSupe
         { to: '/admin/live', label: 'Partita live', icon: 'live' },
         { to: '/admin/partite', label: 'Partite', icon: 'matches' },
         { to: '/admin/calendario', label: 'Calendario', icon: 'calendar' },
-        { to: '/admin/link', label: 'Link pubblici', icon: 'links' },
       ],
     },
     { label: 'Club', items: [{ to: '/admin/club', label: 'Club', icon: 'club' }] },
     {
       label: 'Pagina pubblica',
-      items: isAdmin ? [{ to: '/admin/studio', label: 'Studio grafico', icon: 'branding' }] : [],
+      // Graphics, links and simulation: what the spectators see. A viewer reads the links only.
+      items: [
+        ...(isAdmin ? [{ to: '/admin/studio', label: 'Studio grafico', icon: 'branding' } as const] : []),
+        { to: '/admin/link', label: 'Link pubblici', icon: 'links' },
+        ...(isAdmin ? [{ to: '/admin/simulazione', label: 'Simulazione', icon: 'simulation' } as const] : []),
+      ],
     },
     { label: 'Dispositivi', items: [{ to: '/admin/agenti', label: 'Agenti', icon: 'agents' }] },
     {
       label: 'Amministrazione',
-      items: [
-        ...(isAdmin ? [{ to: '/admin/utenti', label: 'Utenti', icon: 'users' } as const] : []),
-        ...(isSuperadmin
-          ? ([
-              { to: '/admin/clienti', label: 'Clienti', icon: 'tenants' },
-              { to: '/admin/campionati', label: 'Campionati', icon: 'leagues' },
-            ] as const)
-          : []),
-      ],
+      items: isAdmin ? [{ to: '/admin/utenti', label: 'Utenti', icon: 'users' }] : [],
     },
   ];
   return groups.filter((g) => g.items.length > 0);
@@ -92,7 +111,8 @@ export function menuGroups({ isAdmin, isSuperadmin }: { isAdmin: boolean; isSupe
 /**
  * Side menu of the reserved area. Desktop and tablet (from 768 px): always on the left, 240 px wide or reduced to the
  * icons (`collapsed`, button at the bottom; the names stay for screen readers and as `title`). Phone: a drawer over the
- * page, opened by the ☰ button of the top bar (`open`): it takes the focus on its first item, Esc or a tap outside
+ * page, opened by the ☰ button of the top bar (`open`). From 768 px it stays under the bar of the client managed by
+ * the superadmin (`--sir-admin-bar`, height of that bar; 0 without it): it takes the focus on its first item, Esc or a tap outside
  * close it and give the focus back to the button. The active item has the colours of `--sir-nav-active` (red in
  * «SIR VOLLEY»).
  */
@@ -106,6 +126,7 @@ export function AdminSidebar({
   returnFocus,
   tenant,
   account,
+  home = '/admin/live',
 }: {
   id: string;
   groups: readonly MenuGroup[];
@@ -119,6 +140,8 @@ export function AdminSidebar({
   tenant: ReactNode;
   /** Bottom of the menu: user, theme, «Esci». */
   account: (collapsed: boolean) => ReactNode;
+  /** Target of the logo: the first page of the user. */
+  home?: string;
 }) {
   const panel = useRef<HTMLElement>(null);
   const headingId = useId();
@@ -158,7 +181,7 @@ export function AdminSidebar({
         aria-labelledby={headingId}
         data-collapsed={collapsed}
         data-open={open}
-        className={`sir-sidebar fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-border bg-surface transition-transform duration-200 motion-reduce:transition-none md:visible md:sticky md:top-0 md:z-auto md:h-dvh md:max-w-none md:translate-x-0 ${
+        className={`sir-sidebar fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-border bg-surface transition-transform duration-200 motion-reduce:transition-none md:visible md:sticky md:top-[var(--sir-admin-bar,0px)] md:z-auto md:h-[calc(100dvh-var(--sir-admin-bar,0px))] md:max-w-none md:translate-x-0 ${
           open ? 'translate-x-0' : 'max-md:invisible -translate-x-full'
         } ${collapsed ? 'md:w-[4.5rem]' : 'md:w-60'}`}
       >
@@ -169,7 +192,7 @@ export function AdminSidebar({
           className={`sir-navbar flex items-center border-b border-border px-4 ${collapsed ? 'md:justify-center md:px-2' : ''}`}
         >
           <div className={`min-w-0 flex-1 ${collapsed ? 'md:hidden' : ''}`}>
-            <BrandMark to="/admin/live" />
+            <BrandMark to={home} />
           </div>
           <button
             type="button"

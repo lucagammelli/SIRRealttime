@@ -10,7 +10,7 @@ import { verifyPassword } from '../lib/passwords.js';
 import { generateToken, hashToken } from '../lib/tokens.js';
 import { validate } from '../lib/validate.js';
 import { requireRole } from '../security.js';
-import { hostTenant, tenantRef } from '../tenancy.js';
+import { tenantRef } from '../tenancy.js';
 
 export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
   const cookieOptions = {
@@ -28,12 +28,10 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       const email = body.email.trim().toLowerCase();
       const [user] = await ctx.db.select().from(users).where(eq(users.email, email)).limit(1);
       const ok = await verifyPassword(user?.passwordHash, body.password);
-      // A user of a client logs in only on the hostnames of that client; a superadmin on any.
-      const host = await hostTenant(ctx, request);
-      const sameClient =
-        user?.role === 'superadmin' || (user !== undefined && user.tenantId !== null && user.tenantId === host?.id);
+      // Any hostname of the portal: a user of a client works on its own client, never on the one of the hostname.
+      const hasClient = user?.role === 'superadmin' || (user !== undefined && user.tenantId !== null);
       // A disabled user gets the same answer of a wrong password (nothing tells whether the account exists).
-      if (!user || !ok || !sameClient || user.disabled) {
+      if (!user || !ok || !hasClient || user.disabled) {
         if (user?.disabled && ok) request.log.warn({ userId: user.id }, 'login di un utente disattivato');
         else request.log.warn('login fallito');
         throw new HttpError(401, 'INVALID_CREDENTIALS', 'Credenziali non valide');
@@ -45,7 +43,8 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       await ctx.db.insert(sessions).values({ tokenHash: hashToken(token), userId: user.id, expiresAt });
       void reply.setCookie(SESSION_COOKIE, token, { ...cookieOptions, expires: expiresAt });
       request.log.info({ userId: user.id }, 'login');
-      const tenantId = user.role === 'superadmin' ? (host?.id ?? null) : user.tenantId;
+      // A new session of a superadmin has entered no client.
+      const tenantId = user.role === 'superadmin' ? null : user.tenantId;
       return { id: user.id, email: user.email, role: user.role, tenant: await tenantRef(ctx, tenantId) };
     },
   );

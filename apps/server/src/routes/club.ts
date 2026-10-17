@@ -401,7 +401,8 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
       const [m] = await tx
         .select({ id: matches.id, live: matches.live, clientFixtureId: matches.clientFixtureId })
         .from(matches)
-        .where(tenantScope(matches, tenantId, eq(matches.id, id)))
+        // A simulated match is never linked to the calendar.
+        .where(tenantScope(matches, tenantId, eq(matches.id, id), eq(matches.simulated, false)))
         .limit(1);
       if (!m) throw notFound();
       if (body.clientFixtureId) {

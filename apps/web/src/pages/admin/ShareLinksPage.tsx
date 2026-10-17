@@ -1,5 +1,7 @@
-import type { CreateShareTokenResponse, MatchSummary, ShareTokenSummary } from '@sir/shared';
+import type { ClubFixture, CreateShareTokenResponse, MatchSummary, ShareTokenSummary } from '@sir/shared';
 import {
+  CalendarResponseSchema,
+  ClubResponseSchema,
   CreateShareTokenRequestSchema,
   CreateShareTokenResponseSchema,
   formatShortCode,
@@ -9,7 +11,7 @@ import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { z } from 'zod';
-import { Button, Card, Empty, ErrorBox, SecretBox, Spinner } from '../../components/ui.tsx';
+import { Button, Card, CopyButton, Empty, ErrorBox, SecretBox, Spinner } from '../../components/ui.tsx';
 import { apiCommand, apiRequest } from '../../lib/api.ts';
 import { formatDateTime } from '../../lib/format.ts';
 import { useAsync } from '../../lib/useAsync.ts';
@@ -35,6 +37,66 @@ export function linkTargetText(s: Pick<ShareTokenSummary, 'clientFixtureId' | 'm
   return 'Canale del club: tutte le partite del calendario';
 }
 
+const shortWhen = new Intl.DateTimeFormat('it-IT', {
+  timeZone: 'Europe/Rome',
+  weekday: 'short',
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+/** Pure: a match of the calendar in the menu, «Perugia – Trento · sab 25/10, 18:00», our team with the club name. */
+export function fixtureOptionText(
+  f: Pick<ClubFixture, 'home' | 'away' | 'ourSide' | 'startsAt'>,
+  ourName: string | null,
+): string {
+  const name = (side: 'home' | 'away') => (side === f.ourSide && ourName ? ourName : f[side].name);
+  const when = f.startsAt ? shortWhen.format(new Date(f.startsAt)) : 'data da definire';
+  return `${name('home')} – ${name('away')} · ${when}`;
+}
+
+/** A choice of «Una partita fissa»: a match of the calendar (its own link) or a `.dvw` live outside the calendar. */
+export type FixedChoice =
+  | { key: string; kind: 'fixture'; text: string; fixture: ClubFixture }
+  | { key: string; kind: 'match'; text: string; matchId: string };
+
+/**
+ * Pure: what «Una partita fissa» offers. First what is live now (a match of the calendar being played, or a `.dvw`
+ * live outside the calendar), then the coming matches of the calendar (not hidden, broadcast, not over), in order of
+ * time; no past match. A match coming from «Partite» (`preset`) stays in the list.
+ */
+export function fixedChoices(input: {
+  fixtures: readonly ClubFixture[];
+  matches: readonly MatchSummary[];
+  ourName: string | null;
+  now: number;
+  preset?: string | null;
+}): FixedChoice[] {
+  const { fixtures, matches, ourName, now, preset } = input;
+  const visible = fixtures.filter((f) => !f.hidden && f.broadcasted && f.state !== 'removed' && f.state !== 'finished');
+  const inCalendar = new Set(fixtures.flatMap((f) => (f.match ? [f.match.id] : [])));
+  const out: FixedChoice[] = [];
+  for (const f of visible.filter((f) => f.state === 'live'))
+    out.push({ key: `f:${f.id}`, kind: 'fixture', text: `In diretta: ${fixtureOptionText(f, ourName)}`, fixture: f });
+  for (const m of matches.filter((m) => m.live && m.status !== 'finished' && !inCalendar.has(m.id)))
+    out.push({ key: `m:${m.id}`, kind: 'match', text: `In diretta: ${matchTitle(m)}`, matchId: m.id });
+  const coming = visible
+    .filter((f) => f.state !== 'live' && f.startsAt !== null && Date.parse(f.startsAt) > now)
+    .sort((a, b) => Date.parse(a.startsAt ?? '') - Date.parse(b.startsAt ?? ''));
+  for (const f of coming)
+    out.push({ key: `f:${f.id}`, kind: 'fixture', text: fixtureOptionText(f, ourName), fixture: f });
+  const presetMatch = preset ? matches.find((m) => m.id === preset) : undefined;
+  if (presetMatch && !out.some((c) => c.key === `m:${presetMatch.id}`))
+    out.push({
+      key: `m:${presetMatch.id}`,
+      kind: 'match',
+      text: `${matchTitle(presetMatch)} · ${formatDateTime(presetMatch.updatedAt)}`,
+      matchId: presetMatch.id,
+    });
+  return out;
+}
+
 /**
  * Public links: create (channel of the club or fixed match, optional expiry), long URL shown once with Copy, short link and QR code
  * of every active link (copy, PNG and SVG download), revoke.
@@ -51,12 +113,22 @@ export function ShareLinksPage() {
     (signal: AbortSignal) => apiRequest('/api/admin/matches', MatchListSchema, { signal }),
     [],
   );
+  const loadCalendar = useCallback(
+    (signal: AbortSignal) =>
+      Promise.all([
+        apiRequest('/api/admin/calendar', CalendarResponseSchema, { signal }),
+        apiRequest('/api/admin/club', ClubResponseSchema, { signal }),
+      ]).then(([calendar, club]) => ({ fixtures: calendar.fixtures, ourName: club.name })),
+    [],
+  );
   const links = useAsync(loadLinks);
   const matches = useAsync(loadMatches);
+  const calendar = useAsync(loadCalendar);
+  const [showRevoked, setShowRevoked] = useState(false);
   const [label, setLabel] = useState('');
   const canEdit = useCanEdit();
   const [mode, setMode] = useState<'channel' | 'match'>(preset ? 'match' : 'channel');
-  const [matchId, setMatchId] = useState(preset ?? '');
+  const [choiceKey, setChoiceKey] = useState(preset ? `m:${preset}` : '');
   const [expires, setExpires] = useState('');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -70,6 +142,19 @@ export function ShareLinksPage() {
   }, []);
 
   const matchById = new Map<string, MatchSummary>((matches.data ?? []).map((m) => [m.id, m]));
+  const choices = fixedChoices({
+    fixtures: calendar.data?.fixtures ?? [],
+    matches: matches.data ?? [],
+    ourName: calendar.data?.ourName ?? null,
+    now,
+    preset,
+  });
+  const choice = mode === 'match' ? choices.find((c) => c.key === choiceKey) : undefined;
+  // A match of the calendar has its own link already (made by the server, one per match): it is shown, never doubled.
+  const fixtureLink = choice?.kind === 'fixture' ? choice.fixture.link : undefined;
+  const loadingChoices = matches.loading || calendar.loading;
+  const revokedCount = (links.data ?? []).filter((s) => s.revoked).length;
+  const shownLinks = (links.data ?? []).filter((s) => showRevoked || !s.revoked);
 
   const submit = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
@@ -85,7 +170,7 @@ export function ShareLinksPage() {
     }
     const body = CreateShareTokenRequestSchema.safeParse({
       label: label.trim(),
-      matchId: mode === 'channel' ? null : matchId || undefined,
+      matchId: mode === 'channel' ? null : choice?.kind === 'match' ? choice.matchId : undefined,
       expiresAt,
     });
     if (!body.success) {
@@ -159,18 +244,30 @@ export function ShareLinksPage() {
               </label>
               {mode === 'match' && (
                 <select
-                  value={matchId}
-                  onChange={(e) => setMatchId(e.target.value)}
+                  value={choiceKey}
+                  onChange={(e) => setChoiceKey(e.target.value)}
                   className={inputClass}
                   aria-label="Partita"
                 >
-                  <option value="">{matches.loading ? 'Caricamento…' : 'Scegli la partita'}</option>
-                  {(matches.data ?? []).map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {matchTitle(m)} · {formatDateTime(m.updatedAt)}
+                  <option value="">
+                    {loadingChoices
+                      ? 'Caricamento…'
+                      : choices.length
+                        ? 'Scegli la partita'
+                        : 'Nessuna partita in programma'}
+                  </option>
+                  {choices.map((c) => (
+                    <option key={c.key} value={c.key}>
+                      {c.text}
                     </option>
                   ))}
                 </select>
+              )}
+              {mode === 'match' && (
+                <p className="text-xs text-muted">
+                  Le prossime partite del calendario e quella in diretta. Una partita del calendario ha già il suo link:
+                  prima della gara mostra «Prossima partita», poi la diretta.
+                </p>
               )}
             </fieldset>
             <Field label="Scadenza (facoltativa)" hint="Vuota: il link vale finché non lo revochi.">
@@ -182,9 +279,13 @@ export function ShareLinksPage() {
               />
             </Field>
             {formError && <ErrorBox>{formError}</ErrorBox>}
-            <Button type="submit" variant="primary" disabled={busy}>
-              {busy ? 'Creazione…' : 'Crea link'}
-            </Button>
+            {fixtureLink !== undefined ? (
+              <ExistingFixtureLink link={fixtureLink} />
+            ) : (
+              <Button type="submit" variant="primary" disabled={busy}>
+                {busy ? 'Creazione…' : 'Crea link'}
+              </Button>
+            )}
           </form>
           {created && (
             <div className="mt-4">
@@ -208,9 +309,14 @@ export function ShareLinksPage() {
         {links.error !== null && <ErrorBox onRetry={links.reload}>{errorMessage(links.error)}</ErrorBox>}
         {listError && <ErrorBox>{listError}</ErrorBox>}
         {links.data && links.data.length === 0 && <Empty>Nessun link creato.</Empty>}
-        {links.data && links.data.length > 0 && (
+        {revokedCount > 0 && (
+          <Button variant="ghost" onClick={() => setShowRevoked((v) => !v)} aria-pressed={showRevoked}>
+            {showRevoked ? `Nascondi revocati (${revokedCount})` : `Mostra revocati (${revokedCount})`}
+          </Button>
+        )}
+        {links.data && shownLinks.length > 0 && (
           <ul className="divide-y divide-grid">
-            {links.data.map((s) => {
+            {shownLinks.map((s) => {
               const st = linkState(s, now);
               const target = s.matchId ? matchById.get(s.matchId) : undefined;
               return (
@@ -250,6 +356,32 @@ export function ShareLinksPage() {
           </ul>
         )}
       </Card>
+    </div>
+  );
+}
+
+/** The link a match of the calendar already has (copy and QR), instead of a new one. */
+function ExistingFixtureLink({ link }: { link: ClubFixture['link'] }) {
+  if (!link)
+    return (
+      <p role="status" className="rounded-card bg-surface-2 px-3 py-2 text-sm text-text">
+        Il link di questa partita non è ancora pronto: si crea al prossimo aggiornamento del calendario.
+      </p>
+    );
+  if (link.revoked || !link.shortUrl || !link.shortCode)
+    return (
+      <p role="status" className="rounded-card bg-surface-2 px-3 py-2 text-sm text-text">
+        Il link di questa partita è stato revocato: non se ne crea un altro (vedi «Calendario»).
+      </p>
+    );
+  return (
+    <div role="status" className="space-y-2 rounded-card border border-live bg-success-soft p-3">
+      <p className="text-sm font-semibold text-text">Questa partita ha già il suo link</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="min-w-0 break-all font-mono text-sm text-text select-all">{link.shortUrl}</span>
+        <CopyButton text={link.shortUrl} label="Copia link" />
+      </div>
+      <ShareQr url={link.shortUrl} code={link.shortCode} actions={false} />
     </div>
   );
 }

@@ -64,6 +64,7 @@
   --color-live: var(--sir-live);
   --color-on-live: var(--sir-on-live);
   --color-warn: var(--sir-warn);
+  --color-on-warn: var(--sir-on-warn);
   --color-danger: var(--sir-danger);
   --color-danger-soft: var(--sir-danger-soft);
   --color-success-soft: var(--sir-success-soft);

@@ -46,7 +46,9 @@ function mockServer(role: 'admin' | 'superadmin', initial: ClubResponse) {
       const method = init?.method ?? 'GET';
       const body: unknown = typeof init?.body === 'string' ? JSON.parse(init.body) : null;
       calls.push({ url, method, body });
-      if (url === '/api/auth/me') return json({ id: USER_ID, email: 'a@b.it', role, tenant: null });
+      // A superadmin works on the club of the client it has entered.
+      const tenant = role === 'superadmin' ? { id: USER_ID, slug: 'sir', name: 'Sir' } : null;
+      if (url === '/api/auth/me') return json({ id: USER_ID, email: 'a@b.it', role, tenant });
       if (url === '/api/admin/club' && method === 'GET') return json(initial);
       if (url === '/api/admin/club' && method === 'PUT')
         return json(

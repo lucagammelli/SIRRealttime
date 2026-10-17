@@ -4,10 +4,18 @@
 #   ADMIN_PASSWORD=password-di-prova CORS_ORIGIN=http://localhost:5173 RATE_LIMIT_LOGIN=100000 \
 #   RATE_LIMIT_ADMIN=100000 RATE_LIMIT_PUBLIC=100000 RATE_LIMIT_INGEST=100000 \
 #   RATE_LIMIT_REGISTER=100000 pnpm dev
+# Utente della scansione: un admin del cliente «Predefinito» (SCAN_USERNAME/SCAN_PASSWORD), non il superadmin, che
+# fuori da un cliente riceve 409 TENANT_REQUIRED su ogni rotta admin e HawkScan non sa entrare in un cliente. Va
+# creato una volta, a server avviato, con il superadmin di ADMIN_EMAIL:
+#   SERVER="http://localhost:8090"; SUPER_EMAIL="admin@sir.local"; SUPER_PASSWORD="password-di-prova"
+#   SCAN_EMAIL="scan@sir.local"; SCAN_PASS="password-scansione-1"; JAR="/tmp/sir-scan.cookies"
+#   curl -s -c "$JAR" -H "Content-Type: application/json" -d "{\"email\":\"$SUPER_EMAIL\",\"password\":\"$SUPER_PASSWORD\"}" "$SERVER/api/auth/login"
+#   ID=$(curl -s -b "$JAR" "$SERVER/api/admin/tenants" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).find(t=>t.slug==='predefinito').id))")
+#   curl -s -b "$JAR" -H "Content-Type: application/json" -d "{\"tenantId\":\"$ID\"}" "$SERVER/api/admin/active-tenant"
+#   curl -s -b "$JAR" -H "Content-Type: application/json" -d "{\"email\":\"$SCAN_EMAIL\",\"password\":\"$SCAN_PASS\",\"role\":\"admin\"}" "$SERVER/api/admin/users"
 # Assunzioni (scansione non interattiva): specifica OpenAPI ricavata a mano dalle rotte (stackhawk/openapi.yaml);
-# utente di prova = ADMIN_EMAIL, quindi superadmin (raggiunge anche /api/admin/tenants e lavora sul cliente
-# «Predefinito», quello degli hostname sconosciuti come localhost); il logout è escluso per non chiudere la sessione;
-# i WebSocket non sono coperti.
+# le rotte del solo superadmin (/api/admin/tenants, /api/admin/leagues, /api/admin/active-tenant) rispondono 403;
+# il logout è escluso per non chiudere la sessione; i WebSocket non sono coperti.
 app:
   applicationId: ${APP_ID:f32f36a0-c2c0-4f08-b702-d7f354926012}
   env: ${APP_ENV:Development}
@@ -24,8 +32,8 @@ app:
       loginPath: /api/auth/login
       usernameField: email
       passwordField: password
-      scanUsername: ${SCAN_USERNAME:admin@sir.local}
-      scanPassword: ${SCAN_PASSWORD:password-di-prova}
+      scanUsername: ${SCAN_USERNAME:scan@sir.local}
+      scanPassword: ${SCAN_PASSWORD:password-scansione-1}
     cookieAuthorization:
       cookieNames:
         - sir_session

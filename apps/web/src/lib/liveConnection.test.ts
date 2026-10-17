@@ -104,6 +104,14 @@ describe('applyMessage', () => {
     expect(applyMessage(v5, { type: 'noMatch' })).toEqual({ kind: 'noMatch' });
   });
 
+  it('keeps the flag of a simulated match across the patches', () => {
+    const full = applyMessage(null, { ...stateMsg(MATCH_A, 1), simulated: true });
+    expect(full).toMatchObject({ kind: 'state', simulated: true });
+    const patched = applyPatchMessage(full, { type: 'patch', matchId: MATCH_A, baseVersion: 1, version: 2, ops: [] });
+    expect(patched).toMatchObject({ kind: 'state', version: 2, simulated: true });
+    expect(applyMessage(null, stateMsg(MATCH_A, 1))).not.toHaveProperty('simulated');
+  });
+
   it('keeps the logos of the full state across the patches', () => {
     const logos = { home: '/api/public/assets/a', away: null };
     const full = applyMessage(null, { ...stateMsg(MATCH_A, 1), logos });

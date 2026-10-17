@@ -1,5 +1,5 @@
 import type { TenantBranding, TenantRef } from '@sir/shared';
-import { DEFAULT_BRAND_NAME, DEFAULT_TENANT_SLUG, isValidHostname } from '@sir/shared';
+import { DEFAULT_BRAND_NAME, DEFAULT_TENANT_SLUG, isValidHostname, TENANT_REQUIRED_MESSAGE } from '@sir/shared';
 import type { SQL } from 'drizzle-orm';
 import { and, arrayContains, eq, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
@@ -120,10 +120,13 @@ export function tenantScope(
   return and(eq(table.tenantId, tenantId), ...conditions) ?? sql`false`;
 }
 
-/** Client of an admin route (set by `requireRole`); 400 for a superadmin with no client to work on. */
+/**
+ * Client of an admin route (set by `requireRole`): the client of the user, or the client a superadmin has entered.
+ * 409 TENANT_REQUIRED for a superadmin who has not entered a client (never the client of the hostname).
+ */
 export function adminTenantId(request: FastifyRequest): string {
   if (request.adminTenantId) return request.adminTenantId;
-  throw new HttpError(400, 'NO_TENANT', 'Seleziona un cliente');
+  throw new HttpError(409, 'TENANT_REQUIRED', TENANT_REQUIRED_MESSAGE);
 }
 
 export async function tenantRef(ctx: AppContext, id: string | null): Promise<TenantRef | null> {

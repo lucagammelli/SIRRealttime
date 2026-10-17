@@ -82,6 +82,20 @@ const big = (version: number, home: number): StateMessage =>
 const share = { kind: 'share', shareTokenId: 's1' } as const;
 
 describe('LiveHub', () => {
+  it('sends a simulated match (isolated) only to the clients of its own link', () => {
+    const live = add(share);
+    const channel = add(share, null, { kind: 'channel', tenantId: TENANT });
+    const own = add(share, null, { kind: 'match', tenantId: TENANT, matchId: 'm1' });
+    hub.publish(TENANT, state(1), { clientFixtureId: null, becameLive: false, channel: false, isolated: true });
+    expect(own.messages()).toHaveLength(1);
+    expect(live.sent).toEqual([]);
+    expect(channel.sent).toEqual([]);
+    // It never becomes the live match: the next real match does.
+    expect(hub.current({ kind: 'live', tenantId: TENANT })).toBeNull();
+    hub.forgetMatch('m1');
+    expect(hub.current({ kind: 'match', tenantId: TENANT, matchId: 'm1' })).toBeNull();
+  });
+
   it('disconnects a client with more than 1MB still to send', () => {
     const slow = add({ kind: 'share', shareTokenId: 's1' });
     const fast = add({ kind: 'share', shareTokenId: 's1' });

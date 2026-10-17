@@ -6,3 +6,5 @@ export { play } from './play.js';
 export type { PlayOptions } from './play.js';
 export { Rng } from './rng.js';
 export type * from './types.js';
+export { AVERAGE_GAP_SECONDS, MAX_REAL_GAP_SECONDS, matchSeconds, planPlayback, timeSeconds } from './schedule.js';
+export type { PlaybackLine, PlaybackPace, PlaybackPlan, PlaybackSet } from './schedule.js';

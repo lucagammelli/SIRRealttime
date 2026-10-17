@@ -183,6 +183,11 @@ export const matches = pgTable(
     fixtureLink: fixtureLink('fixture_link'),
     /** Candidates of a `pending` link, best first (the admin chooses among them in «Calendario»). */
     fixtureCandidates: jsonb('fixture_candidates').$type<FixtureCandidate[]>(),
+    /**
+     * Played by the simulation of the server (`src/simulation/`): never live, never linked to the calendar, out of the
+     * channel and of the lists; deleted 6 hours after its end.
+     */
+    simulated: boolean('simulated').notNull().default(false),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -196,6 +201,9 @@ export const matches = pgTable(
       .on(t.tenantId)
       .where(sql`${t.live} and ${t.clientFixtureId} is null`),
     index('matches_client_fixture_idx').on(t.clientFixtureId),
+    index('matches_simulated_idx')
+      .on(t.tenantId)
+      .where(sql`${t.simulated}`),
   ],
 );
 

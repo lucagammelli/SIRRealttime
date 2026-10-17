@@ -131,8 +131,8 @@ declare module 'fastify' {
     /** Expiry of that session (an admin WebSocket is closed when it passes). */
     sessionExpiresAt: Date | null;
     /**
-     * Client the admin routes work on: the user's own, or for a superadmin the active one of the session, otherwise
-     * the client of the hostname (null if none). Set by `requireRole`.
+     * Client the admin routes work on: the user's own, or for a superadmin the client it has entered (null if
+     * none: never the client of the hostname). Set by `requireRole`.
      */
     adminTenantId: string | null;
     /** Agent authenticated by its bearer token (`/api/ingest`). */

@@ -102,12 +102,22 @@ Fullscreen API non è disponibile o fallisce, «Schermo intero» attiva comunque
 
 ### Area riservata `/admin` (`src/pages/admin/`)
 Prima si verifica la sessione («Verifica della sessione…»); senza sessione compare il login «Area riservata»
-(email e password), se il server non risponde «Area riservata non disponibile» con «Riprova». Il **menu laterale**
-(`AdminSidebar.tsx`; `menuGroups` è pura e dà i gruppi in base al ruolo, quelli vuoti spariscono) sostituisce la barra
-a pillole. Gruppi: «Partite» (Partita live, Partite, Calendario, Link pubblici), «Club» (Club), «Pagina pubblica» (la sola voce
-«Studio grafico»), «Dispositivi» (Agenti), «Amministrazione» (Utenti; Clienti e Campionati solo superadmin):
+(email e password; si può accedere da **qualunque hostname** del portale e si lavora sempre sul cliente dell'utente), se il
+server non risponde «Area riservata non disponibile» con «Riprova». Il **menu laterale**
+(`AdminSidebar.tsx`; `menuGroups({ isAdmin, isSuperadmin, inTenant })` è pura e dà i gruppi in base al ruolo, quelli vuoti
+spariscono) sostituisce la barra a pillole. Gruppi di un cliente (admin e viewer, e il superadmin dentro un cliente):
 
-- in cima il logo (`BrandMark`), in fondo cliente (selettore per il superadmin), account, tema e «Esci»; la voce attiva è
+- «Partite»: Partita live, Partite, Calendario;
+- «Club»: Club;
+- «Pagina pubblica»: Studio grafico, Link pubblici, Simulazione. Il **viewer** ci vede solo Link pubblici (Studio grafico e
+  Simulazione sono dell'admin);
+- «Dispositivi»: Agenti;
+- «Amministrazione»: Utenti (solo admin).
+
+Il **superadmin fuori da un cliente** vede solo il suo menu (`SUPERADMIN_MENU`): il gruppo «Amministrazione» con Clienti e
+Campionati. Per lavorare su un cliente ci entra con «Entra nel cliente» (vedi «Più clienti»).
+
+- in cima il logo (`BrandMark`), in fondo il nome del cliente, account, tema e «Esci»; la voce attiva è
   evidenziata (`--sir-nav-active`, rosso in SIR VOLLEY);
 - tutta l'area, login compreso, è in **Inter** (classe `.sir-admin-font` in `AdminApp.tsx`, vedi «Tema e stile»), con
   cifre tabulari in tabelle e campi numerici; l'elenco delle voci scorre con una barra sottile (`.sir-thin-scroll`:
@@ -126,13 +136,14 @@ Le voci:
 | Partita live | `/admin/live` | admin e viewer | la partita live via `/ws/admin`, con gli stessi componenti della pagina pubblica |
 | Partite | `/admin/partite`, `/admin/partite/:id` | admin e viewer | elenco delle partite ricevute e dettaglio (`MatchDetailSchema`: «Stato», «Righe di scout», «Versione», «Aggiornata») |
 | Calendario | `/admin/calendario` | admin e viewer (il viewer in sola lettura) | le partite del club con link, QR e stato; partite aggiunte a mano, «Trasmessa»/«Non trasmessa»; «Da confermare»; «Aggiorna calendario», vedi «Club e Calendario» |
-| Club | `/admin/club` | admin e viewer (il superadmin lavora sul cliente scelto) | profilo del club, campionati e squadra, «Nostra squadra nei file .dvw», vedi «Club e Calendario» |
+| Club | `/admin/club` | admin e viewer (il superadmin dentro un cliente) | profilo del club, campionati e squadra, «Nostra squadra nei file .dvw», vedi «Club e Calendario» |
 | Campionati | `/admin/campionati` | solo superadmin | elenco dei campionati della Lega, «Nuovo campionato della Lega», «Aggiorna ora», vedi «Club e Calendario» |
-| Link pubblici | `/admin/link` | admin e viewer (il viewer in sola lettura) | «Nuovo link pubblico» (etichetta, «Cosa mostra»: «Tutte le partite del calendario (canale del club)» oppure «Una partita fissa», «Scadenza (facoltativa)»), «Link creati» (per i link attivi «Link breve», codice e QR, vedi «Link breve e QR»), «Revoca» |
+| Link pubblici | `/admin/link` | admin e viewer (il viewer in sola lettura) | «Nuovo link pubblico» (etichetta, «Cosa mostra»: «Tutte le partite del calendario (canale del club)» oppure «Una partita fissa», «Scadenza (facoltativa)»), «Link creati» (per i link attivi «Link breve», codice e QR, vedi «Link breve e QR»; i revocati stanno dietro «Mostra revocati (N)»), «Revoca» |
+| Simulazione | `/admin/simulazione` | solo admin (il superadmin dentro un cliente) | «Nuova simulazione», «Avanzamento», «Link della simulazione» (con QR): una partita giocata dal server su un link a parte, vedi «Simulazione» |
 | Agenti | `/admin/agenti` | admin e viewer (il viewer in sola lettura) | «Agente per Windows» (vedi sotto), «Nuovo agente» («Crea token», mostrato una sola volta con «Copia config.json»), «Richieste in attesa» (vedi sotto), «Agenti» (stato «Attivo»/«Scaduto»/«Revocato», «Prolunga» con «Salva validità», «Revoca»), con la riga «N di M agenti in uso (limite dato dal superadmin)» |
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, password di almeno 12 caratteri, «Ruolo»: «Lettura e scrittura» o «Sola lettura»; «Crea utente»), scheda «Ruoli» (cosa può fare ciascun ruolo), «Utenti» (per ognuno stato «Attivo»/«Disattivato», ruolo, data di creazione e i comandi descritti sotto), vedi «Utenti del cliente» |
-| Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`) | solo admin (il superadmin lavora sul cliente scelto) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
-| Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname, «Agenti» = limite di agenti, predefinito 1; «Crea cliente»), «Clienti» con «Modifica» (nome, hostname e limite di agenti, «Salva»; il limite è mostrato come «un agente» / «fino a N agenti») e «Utenti» (sceglie quel cliente e apre `/admin/utenti`); riquadro «Primo utente (facoltativo)» nel modulo (email e password; creato con il ruolo «Lettura e scrittura»); ogni cliente mostra «nessun utente», «1 utente» o «N utenti» |
+| Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`) | solo admin (il superadmin dentro un cliente) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
+| Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname, «Agenti» = limite di agenti, predefinito 1; «Crea cliente»), «Clienti» con «Entra nel cliente» (il superadmin entra in quel cliente e apre `/admin/live`, vedi «Più clienti») e «Modifica» (nome, hostname e limite di agenti, «Salva»; il limite è mostrato come «un agente» / «fino a N agenti»); riquadro «Primo utente (facoltativo)» nel modulo (email e password; creato con il ruolo «Lettura e scrittura»); ogni cliente mostra «nessun utente», «1 utente» o «N utenti» |
 | Esci | - | tutti | chiude la sessione |
 
 **Anteprima sempre visibile**: nello «Studio grafico» (vedi sotto) l'anteprima è la colonna destra della pagina, sempre in
@@ -141,12 +152,21 @@ vista, con la propria barra di dispositivo e scena. Il pulsante «Anteprima a tu
 o è rifiutata (iPhone), resta a finestra intera; si chiude con Esc o «Chiudi» e il focus torna al pulsante.
 `DevicePreview` (`studio/blockEditors.tsx`) ha la prop `fit` per riempire lo spazio.
 
-**Più clienti** (`docs/server.md`, «Clienti»). Nel menu compare il nome del cliente corrente (`user.tenant`). Il
-**superadmin** vede invece il selettore «Cliente» (`TenantSelector` in `src/pages/admin/TenantsPage.tsx`): la scelta va a
-`POST /api/admin/active-tenant`, resta nella sessione (vale anche per `/ws/admin`) e al cambio le pagine si ricaricano
-(`Routes` con `key` sul cliente). Finché non ne sceglie uno, le pagine che lavorano su un cliente mostrano l'errore
-«Seleziona un cliente». Un admin o un viewer vede solo il proprio cliente e non ha né selettore né voce «Clienti»; un
-utente di un cliente può accedere solo dagli hostname del proprio cliente.
+**Più clienti** (`docs/server.md`, «Clienti»). Nel menu compare il nome del cliente corrente (`user.tenant`). Un admin o
+un viewer vede solo il proprio cliente, senza voce «Clienti», e accede da qualunque hostname del portale. Il **superadmin**
+non ha più un selettore del cliente nella barra: lavora solo **dentro** un cliente in cui è entrato.
+- **Fuori da un cliente** (al login e dopo «Esci dal cliente») vede solo il suo menu, «Clienti» (la sua prima pagina) e
+  «Campionati»; le pagine di un cliente lo riportano a «Clienti». Se una chiamata arriva comunque senza cliente, il server
+  risponde 409 `TENANT_REQUIRED` e la pagina mostra «Scegli prima un cliente.» (`api.ts`).
+- **«Entra nel cliente»** (pulsante di ogni cliente nella pagina «Clienti», `TenantsPage.tsx`, `useChooseTenant`): invia
+  `POST /api/admin/active-tenant` con l'id, salva il cliente nella sessione (vale anche per `/ws/admin`), apre
+  `/admin/live` e le pagine si ricaricano (`Routes` con `key` sul cliente). Dentro il cliente il superadmin ha il menu e le
+  pagine di un admin di quel cliente (senza Clienti e Campionati), sotto una **barra gialla** (`ManagedTenantBar.tsx`,
+  colore `--sir-warn`) con «Stai gestendo «X» come superadmin» e il pulsante **«Esci dal cliente»**.
+- **Titolo della scheda**: dentro il cliente comincia con **«[X] »** (`useTitlePrefix`, `src/lib/titlePrefix.ts`; per
+  esempio «[Sir Safety] Link pubblici · Area riservata»), anche quando le pagine cambiano titolo; si toglie all'uscita.
+- **«Esci dal cliente»** invia `POST /api/admin/active-tenant` con `tenantId: null` e riporta a `/admin/clienti`.
+  Entrata e uscita finiscono nei log del server («superadmin entrato nel cliente», «superadmin uscito dal cliente»).
 
 ### Studio grafico (`src/pages/admin/studio/`, rotta `/admin/studio/:sezione`)
 Un'unica pagina, solo per l'admin (titolo scheda «Studio grafico · Area riservata»), al posto delle vecchie pagine
@@ -295,6 +315,57 @@ una sola volta), compare anche «Link breve (sempre disponibile nell’elenco, c
 «Partita del calendario (creato dal «Calendario»)»; il link di tutte le partite compare con «Canale del club: tutte le
 partite del calendario» (`docs/server.md`, «Profilo del club, partite del cliente e canale»). Per un viewer la pagina è in sola lettura.
 
+**Creazione** (`ShareLinksPage.tsx`, `fixedChoices`). «Una partita fissa» propone un menu «Partita» con, prima, ciò che è in
+diretta («In diretta: …», una partita del calendario o un `.dvw` live fuori calendario) e poi le **prossime partite
+trasmesse del calendario** (non nascoste né finite, per data; nessuna partita passata); una partita aperta da «Partite»
+(`?partita=`) resta nell'elenco. Se non c'è nulla: «Nessuna partita in programma». I link delle partite del calendario si
+creano da soli a ogni aggiornamento del calendario (`ensureFixtureLinks`, `docs/server.md`), quindi scegliendone una il
+pulsante «Crea link» è sostituito da **«Questa partita ha già il suo link»** con link breve, «Copia link» e QR (se il link
+è revocato: «Il link di questa partita è stato revocato: non se ne crea un altro (vedi «Calendario»).»). I link **revocati**
+sono nascosti: il pulsante «Mostra revocati (N)» (poi «Nascondi revocati (N)») li mostra, con N il loro numero. Il link
+della simulazione non è mai in questo elenco.
+
+### Simulazione (`pages/admin/SimulationPage.tsx`, rotta `/admin/simulazione`, solo admin; il superadmin dentro un cliente)
+Serve a provare il portale (TV, tablet, telefono) senza una partita vera né l'agente: il server gioca una partita riga
+per riga, come farebbe l'agente (`docs/server.md`, «Simulazione di una partita»). Titolo della scheda del browser:
+«Simulazione · Area riservata». Due colonne (una sola sul telefono).
+
+- **«Nuova simulazione»** (sottotitolo «Il server gioca la partita come farebbe l'agente, riga per riga.»):
+  - gruppo **«Partita»**, scelta tra due sorgenti: «Casuale» e «Importa file .dvw» (non ci sono partite di esempio già
+    pronte). *Casuale*: «Set da giocare» («3 set», «4 set», «5 set»), la casella «Usa le squadre del club» (acceso di
+    default; sotto, «squadra di casa – avversario» della prossima partita del calendario, se c'è) e «Seme (facoltativo)»
+    («Stesso seme, stessa partita; vuoto: una partita a caso.»). *Importa file .dvw*: campo «File .dvw» («Un file di
+    DataVolley, al massimo 2 MB. Le righe non riconosciute restano, come con l'agente.»);
+  - gruppo **«Tempi»**, scelta tra «Durata» e «Velocità». «Durata»: «Durata di un set (s)» (da 10 a 3600, predefinito 120)
+    e «Pausa tra i set (s)» (da 0 a 1800, predefinito 20). «Velocità»: «1×», «2×», «5×» (predefinita), «10×», con la nota
+    «Sul ritmo reale delle righe (gli orari del file); senza orari, un ritmo medio realistico.» (calcolo in
+    `docs/simulatore.md`);
+  - pulsante **«Avvia»**. Errori di compilazione: «Scegli un file .dvw.», «File troppo grande: al massimo 2 MB.»,
+    «Durata di un set tra 10 e 3600 secondi, pausa tra 0 e 1800.», «Il seme è un numero intero da 1 in su.», «Controlla la
+    partita scelta.». Con una simulazione in corso o in pausa il modulo è bloccato e compare «Una simulazione alla volta:
+    fermala per avviarne un'altra.».
+- **«Avanzamento»** (sottotitolo «La partita simulata non entra nel canale del club, nel calendario, tra le partite né
+  nella partita live.»; senza simulazione «Nessuna simulazione. Scegli la partita e i tempi, poi premi «Avvia».»): stato
+  («In corso», «In pausa», «Fermata», «Finita»), origine della partita, squadre, riquadri «Set», «Punteggio», «Set vinti»,
+  «Righe» (inviate / totali), barra «Righe inviate», «Trascorso m:ss · rimanente m:ss» con il ritmo scelto («Velocità N×
+  sul ritmo reale» oppure «Set da N s, pausa tra i set di N s»), l'avviso del server (per esempio dopo un riavvio: «La
+  simulazione si è interrotta con il riavvio del server: puoi ricominciarla da capo.») e, a simulazione ferma o in pausa,
+  «Partita e link si cancellano da soli il … (6 ore dopo la fine o la pausa).». Mentre è «In corso» la pagina rilegge
+  l'avanzamento ogni secondo (`SIMULATION_POLL_MS`).
+- **Comandi**: «Pausa» (se in corso), «Riprendi» (se in pausa), «Ferma» (se in corso o in pausa), «Ricomincia» (se i tempi
+  sono ancora noti: dopo un riavvio del server no) ed «Elimina» (con conferma «Elimina partita e link»: cancella partita e
+  link subito).
+- **«Link della simulazione»** (sottotitolo «Aprilo sulla TV, sul tablet o sul telefono.»): link breve `/l/<codice>` con
+  QR (`ShareQr`). Mostra la simulazione con la grafica del cliente (pause, avvisi, diapositive, punti in sequenza). Il
+  link resta lo stesso per le simulazioni successive del cliente e si cancella con la partita; non compare in «Link
+  pubblici».
+- **Etichetta sulla pagina pubblica**: sul link della simulazione, in basso a sinistra, sopra a tutto (pause e diapositive
+  a tutto schermo comprese), su TV, tablet e telefono, compare l'etichetta **«Simulazione»** (`SimulationLabel` in
+  `components/LiveMatch.tsx`, testo `SIMULATION_LABEL`, `data-testid="simulation-label"`), mostrata quando lo stato
+  ricevuto ha `simulated: true` (`liveConnection.ts` lo conserva anche nelle patch). Le partite vere non la hanno.
+
+Il viewer non vede la voce e `/admin/simulazione` lo riporta a `/admin/live`. Test: `SimulationPage.test.tsx`.
+
 ### Club e Calendario (`pages/admin/ClubPage.tsx`, `CalendarPage.tsx`)
 Server, abbinamento e rotte in `docs/server.md`, «Club, calendario e abbinamento»; contratti in `docs/architettura.md`.
 
@@ -384,7 +455,7 @@ token da solo entro pochi secondi e compare in «Agenti»; oltre il limite di ag
 richieste e agenti si aggiornano ogni 5 secondi (`AGENTS_REFRESH_MS`) e si fermano a scheda nascosta.
 
 Un **viewer** (ruolo «sola lettura») nel menu vede «Partita live», «Partite», «Calendario», «Link pubblici», «Club» e
-«Agenti»; «Studio grafico» e «Utenti» sono solo per l'admin, «Clienti» e «Campionati» solo per il superadmin (gli indirizzi
+«Agenti» (in «Pagina pubblica» solo Link pubblici); «Studio grafico», «Simulazione» e «Utenti» sono solo per l'admin, «Clienti» e «Campionati» solo per il superadmin (gli indirizzi
 non permessi lo riportano a `/admin/live`: `menuGroups` e `adminOnly`/`superadminOnly` in `AdminSidebar.tsx` e
 `AdminApp.tsx`). Il server fa leggere club, calendario, agenti e link al viewer (`docs/server.md`, «Ruoli»); `useCanEdit`
 (`lib/useCanEdit.ts`: vero per admin e superadmin) nasconde o disabilita i comandi che scrivono e mostra `READ_ONLY_TEXT`
@@ -392,8 +463,7 @@ non permessi lo riportano a `/admin/live`: `menuGroups` e `adminOnly`/`superadmi
 protezione è sempre nel server (`docs/server.md`).
 
 ### Utenti del cliente
-Pagina `UsersPage.tsx` (solo admin; il superadmin lavora sul cliente scelto nel menu o con «Utenti» della pagina
-«Clienti»). Scheda «Ruoli»: «Lettura e scrittura» (`admin`: gestisce tutto il cliente) e «Sola lettura» (`viewer`: vede
+Pagina `UsersPage.tsx` (solo admin; il superadmin dentro un cliente, dopo «Entra nel cliente» della pagina «Clienti»). Scheda «Ruoli»: «Lettura e scrittura» (`admin`: gestisce tutto il cliente) e «Sola lettura» (`viewer`: vede
 senza cambiare nulla); il cliente deve avere sempre almeno un utente attivo «Lettura e scrittura». Ogni utente mostra
 «Attivo» o «Disattivato» e ha i comandi «Cambia ruolo» (con «Salva ruolo»), «Reimposta password» (per sé «Cambia
 password»; con «Salva password»), «Disattiva» (conferma «Conferma disattivazione») o «Riattiva», «Elimina» (conferma
@@ -950,7 +1020,9 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
 
 ## Riferimenti
 - `apps/web/src/App.tsx` (rotte), `main.tsx` (zod jitless, tema), `pages/LivePage.tsx`, `pages/admin/*`
-  (`TenantsPage.tsx`: pagina «Clienti» e `TenantSelector`; `AdminApp.tsx`: barra e rotte)
+  (`TenantsPage.tsx`: pagina «Clienti» e `useChooseTenant`; `AdminApp.tsx`: rotte e barra; `ManagedTenantBar.tsx`;
+  `AdminSidebar.tsx`: `menuGroups`, `SUPERADMIN_MENU`; `ShareLinksPage.tsx`: `fixedChoices`; `SimulationPage.tsx`),
+  `lib/titlePrefix.ts` (`useTitlePrefix`)
 - `apps/web/src/lib/liveConnection.ts` (`LiveConnection`, `applyMessage`, `applyPatchMessage`, `backoffDelay`), `frames.ts`
   (`gunzipFrame`, `supportsGzip`, `withGzip`), `pages/LivePage.tsx` (`probeShareToken`, `retryAfterMs`), `useLiveSocket.ts`, `messages.ts`, `api.ts`, `theme.ts`, `iconv-browser.ts`
 - Grafica per cliente: `apps/web/src/lib/branding.ts` (`initBranding`, `writePalette`, `setTenantLook`, `useTenantLook`,
@@ -992,6 +1064,9 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
   (`docs/statistiche.md`), API in `docs/server.md`; test `Overlay.test.tsx`
 - Agente scaricabile: `apps/web/src/pages/admin/AgentsPage.tsx` (`AgentDownload`, `AGENT_DOWNLOAD_PATH`), test
   `AgentsPage.test.tsx`; `AgentDownloadInfoSchema` in `packages/shared/src/agentDownload.ts`; server in `docs/server.md`
+- Simulazione: `apps/web/src/pages/admin/SimulationPage.tsx` (`SimulationPage`, `formatClock`, `paceText`,
+  `SIMULATION_POLL_MS`), `components/LiveMatch.tsx` (`SimulationLabel`, `SIMULATION_LABEL`), `lib/liveConnection.ts`;
+  contratto in `packages/shared/src/simulation.ts` (`docs/architettura.md`), API in `docs/server.md`
 - Club e «Prossima partita»: `apps/web/src/pages/admin/ClubPage.tsx` (`ClubPage`, `leagueName`, `syncText`),
   `pages/admin/CalendarPage.tsx` (`CalendarPage`, `STATE_TEXT`, `fixtureChoiceText`), `pages/admin/AdminSidebar.tsx`
   (`menuGroups`), `components/NextMatch.tsx` (`NextMatch`, `countdownTo`, `teamInitials`), `components/LiveMatch.tsx`,

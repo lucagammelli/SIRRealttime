@@ -113,8 +113,9 @@ describe('layout of the public page', () => {
     expect((await putLayout(HOST_B, cookieB, sponsorLayout([sponsorB.id]))).statusCode).toBe(200);
     expect((await publicLayout(HOST_B)).tv[1]).toMatchObject({ options: { images: [sponsorB.id] } });
     expect((await publicLayout(HOST_A)).tv[1]).not.toMatchObject({ options: { images: [sponsorB.id] } });
-    // The cookie of A is not valid on the hostname of B.
-    expect((await putLayout(HOST_B, cookieA, {})).statusCode).toBe(401);
+    // On the hostname of B the cookie of A still works on A, never on B.
+    const onB = await call(HOST_B, cookieA, { url: '/api/admin/layout' });
+    expect(onB.json<LayoutResponse>().tenantName).toBe('LAYOUT-A');
   });
 
   it('keeps an image used by a sponsor block from being deleted', async () => {

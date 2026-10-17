@@ -155,8 +155,8 @@ describe('pauses of the public page', () => {
       options: { images: [sponsorB.id] },
     });
     expect(JSON.stringify(await publicPauses(HOST_A))).not.toContain(sponsorB.id);
-    // The cookie of A is not valid on the hostname of B.
-    expect((await putPauses(HOST_B, cookieA, {})).statusCode).toBe(401);
+    // On the hostname of B the cookie of A still works on A, never on B.
+    expect((await call(HOST_B, cookieA, { url: URL })).json<IntermissionsResponse>().tenantName).toBe('PAUSE-A');
   });
 
   it('keeps an image used by a sponsor slide from being deleted', async () => {

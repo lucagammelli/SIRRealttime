@@ -94,6 +94,7 @@ export function LiveMatch({
           Aggiornamento non disponibile: {error}
         </p>
       )}
+      {data.simulated && <SimulationLabel />}
       <div className={tv ? 'min-h-0 flex-1' : ''}>
         <MatchView
           state={data.state}
@@ -116,5 +117,23 @@ export function LiveMatch({
         />
       </div>
     </div>
+  );
+}
+
+/** Text of the label of a simulated match on the public page. */
+export const SIMULATION_LABEL = 'Simulazione';
+
+/**
+ * Label of a match played by the simulation of the server: small, in a corner, above everything (pauses, avvisi and
+ * full-screen slides included), on TV, tablet and phone.
+ */
+function SimulationLabel() {
+  return (
+    <p
+      data-testid="simulation-label"
+      className="pointer-events-none fixed bottom-2 left-2 z-[60] rounded-button border border-warn bg-surface px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-warn shadow-card"
+    >
+      {SIMULATION_LABEL}
+    </p>
   );
 }

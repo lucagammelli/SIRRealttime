@@ -375,3 +375,47 @@ describe('LivePage: punti arrivati insieme', () => {
     expectScoreOf(total);
   });
 });
+
+describe('LivePage of a simulated match', () => {
+  const simulated = (state = midMatchState()): LiveSnapshot => ({
+    ...snapshot,
+    data: { kind: 'state', matchId: '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11', version: 3, state, simulated: true },
+  });
+
+  it('shows the label «Simulazione» on phone, tablet and big screen; never on a real match', () => {
+    for (const width of [390, 1024, 1920]) {
+      setWidth(width);
+      socketSnapshot = simulated();
+      const view = renderAt();
+      expect(screen.getByTestId('simulation-label').textContent).toBe('Simulazione');
+      view.unmount();
+    }
+    socketSnapshot = snapshot;
+    renderAt();
+    expect(screen.queryByTestId('simulation-label')).toBeNull();
+  });
+
+  it('keeps the label above the full-screen pause between two sets', () => {
+    act(() =>
+      setTenantLook(
+        tenantLookOf({
+          name: 'Sir Safety',
+          branding: defaultBranding(),
+          images: { logoMain: null, logoMark: null, sponsorLogo: null },
+          layout: TenantLayoutSchema.parse({}),
+          intermissions: defaultIntermissions(),
+          overlays: defaultOverlays(),
+        }),
+      ),
+    );
+    socketSnapshot = simulated(previewState(midMatchState(), 'setBreak', 1));
+    setWidth(1024);
+    renderAt();
+    const dialog = screen.getByRole('dialog', { name: 'Fine 1° set' });
+    const label = screen.getByTestId('simulation-label');
+    expect(label.className).toContain('fixed');
+    // Over the pause (z-50) and the avvisi (z-45).
+    expect(label.className).toContain('z-[60]');
+    expect(dialog.className).toContain('z-50');
+  });
+});

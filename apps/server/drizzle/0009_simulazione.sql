@@ -1,0 +1,2 @@
+ALTER TABLE "matches" ADD COLUMN "simulated" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE INDEX "matches_simulated_idx" ON "matches" USING btree ("tenant_id") WHERE "matches"."simulated";

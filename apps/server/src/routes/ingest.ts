@@ -8,8 +8,8 @@ import type { AppContext } from '../context.js';
 import { perMinute } from '../context.js';
 import { payloadTooLarge, unauthorized, unsupportedMediaType } from '../lib/errors.js';
 import { validate } from '../lib/validate.js';
+import { applyIngest } from '../ingest.js';
 import { authenticateAgent } from '../security.js';
-import { channelAllowed, withLogos } from '../state.js';
 
 /**
  * preParsing of the ingest: at most INGEST_MAX_WIRE_BYTES on the wire, gzip decompressed on the fly;
@@ -49,15 +49,8 @@ export function ingestRoutes(app: FastifyInstance, ctx: AppContext): void {
       if (!agent) throw unauthorized();
       const body = validate(IngestRequestSchema, request.body);
       // The match belongs to the client of the agent, whatever the hostname.
-      const { response, published, route } = await ctx.ingest.ingest(agent, body);
-      if (published) {
-        const fixtureId = route?.clientFixtureId ?? null;
-        const message = await withLogos(ctx, agent.tenantId, published, fixtureId);
-        const channel = await channelAllowed(ctx, agent.tenantId, fixtureId);
-        ctx.publisher.publish(agent.tenantId, message, route ? { ...route, channel } : route);
-        // A match that starts or ends changes «Prossima partita»: the public schedule is read again.
-        if (route?.becameLive || published.state.status === 'finished') ctx.caches.schedule.delete(agent.tenantId);
-      }
+      const source = { tenantId: agent.tenantId, agentId: agent.id, simulated: false };
+      const { response } = await applyIngest(ctx, source, body);
       request.log.info(
         { matchKey: body.matchKey, seq: body.seq, kind: body.kind, lines: body.lines.length, status: response.status },
         'ingest',

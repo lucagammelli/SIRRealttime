@@ -256,8 +256,9 @@ describe('branding of the client', () => {
     ).toBe(404);
     const listB = (await call(server, HOST_B, cookieB, { url: '/api/admin/assets' })).json<AssetListResponse>();
     expect(listB.assets.map((a) => a.id)).not.toContain(logoA.id);
-    // The cookie of A is not valid on the hostname of B (and the other way round).
-    expect((await putBranding(HOST_B, cookieA, {})).statusCode).toBe(401);
+    // On the hostname of B the cookie of A still works on A, never on B.
+    const onB = await call(server, HOST_B, cookieA, { url: '/api/admin/branding' });
+    expect(onB.json<BrandingResponse>().tenantName).toBe('CLUB-A');
     expect((await call(server, HOST_A, cookieA, { url: logoA.url })).statusCode).toBe(200);
   });
 
@@ -286,8 +287,8 @@ describe('branding of the client', () => {
   it('works for a superadmin on its active client, and asks to choose one without', async () => {
     const superCookie = await login(server.app, SUPERADMIN, 'console.sir.test');
     const none = await putBranding('console.sir.test', superCookie, {});
-    // Unknown hostname: the default client is the active one.
-    expect(none.statusCode).toBe(200);
+    // No client entered: never the client of the hostname.
+    expect(none.statusCode).toBe(409);
     const choose = await call(server, 'console.sir.test', superCookie, {
       method: 'POST',
       url: '/api/admin/active-tenant',

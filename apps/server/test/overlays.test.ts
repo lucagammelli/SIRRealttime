@@ -92,9 +92,8 @@ describe('overlays of the public page', () => {
     expect((await publicOverlays(HOST_B)).tie.enabled).toBe(false);
     expect((await publicOverlays(HOST_A)).tie.enabled).toBe(true);
     expect((await publicOverlays(HOST_B)).ace.enabled).toBe(true);
-    // The cookie of A is not valid on the hostname of B.
-    expect((await putOverlays(HOST_B, cookieA, {})).statusCode).toBe(401);
-    expect((await call(HOST_B, cookieA, { url: URL })).statusCode).toBe(401);
+    // On the hostname of B the cookie of A still works on A, never on B.
+    expect((await call(HOST_B, cookieA, { url: URL })).json<OverlaysResponse>().tenantName).toBe('AVVISI-A');
   });
 
   it('is read-only for a viewer; a superadmin works on its active client', async () => {

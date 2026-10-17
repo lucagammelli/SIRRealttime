@@ -12,6 +12,7 @@ const TABLET_MIN = 768;
  * screen, scrolling inside if it is taller. Tablet and phone (the page is one column): the preview comes first, as a
  * sticky bar under the top bar, with a button that closes it (a phone starts with it closed) and a height limit.
  * The button «Anteprima a tutto schermo» opens `fullscreen` (the real, big view) in a `PreviewFullscreen`.
+ * Always below the bar of the client managed by the superadmin (`--sir-admin-bar`, set by the reserved area).
  * The parent must be `flex flex-col xl:grid`: a sticky grid item would not leave its row.
  */
 export function PreviewDock({
@@ -37,7 +38,7 @@ export function PreviewDock({
     <aside
       aria-label={title}
       data-testid="anteprima-fissa"
-      className="sticky top-[var(--sir-navbar-height,3.5rem)] z-20 order-first max-h-[60dvh] min-w-0 overflow-y-auto overscroll-contain rounded-panel md:top-0 xl:top-6 xl:order-none xl:max-h-[calc(100dvh-3rem)] xl:self-start"
+      className="sticky top-[calc(var(--sir-navbar-height,3.5rem)+var(--sir-admin-bar,0px))] z-20 order-first max-h-[60dvh] min-w-0 overflow-y-auto overscroll-contain rounded-panel md:top-[var(--sir-admin-bar,0px)] xl:top-[calc(var(--sir-admin-bar,0px)+1.5rem)] xl:order-none xl:max-h-[calc(100dvh-3rem-var(--sir-admin-bar,0px))] xl:self-start"
     >
       <section className="sir-surface sir-card flex min-w-0 flex-col rounded-panel border border-border shadow-card">
         {/* One compact row: title on the left, the two buttons on the right (a phone has little room). */}

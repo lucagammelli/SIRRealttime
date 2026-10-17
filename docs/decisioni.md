@@ -303,3 +303,35 @@ Una riga per decisione: data, scelta, motivo.
   cliente), perché un cliente senza admin non potrebbe più gestire i propri utenti.
 - 2026-10-17: il primo utente si crea con il cliente, nella stessa transazione (email già usata: nessun cliente), perché
   il superadmin non deve lasciare un cliente nel quale nessuno può accedere.
+- 2026-10-17: simulazione di una partita nel server, nella stessa pipeline dell'ingest (`applyIngest`) e senza agente,
+  perché così si prova il comportamento reale (patch, pause, avvisi, link) e non una copia che potrebbe divergere.
+- 2026-10-17: la partita simulata è isolata dalle vere (`matches.simulated`: mai live, mai nel canale, nel calendario,
+  nelle liste né nei link fissi; stato solo ai client del suo link), perché una prova non deve toccare ciò che il
+  pubblico vede.
+- 2026-10-17: una simulazione per cliente e al massimo 5 attive nel server (`SIMULATION_MAX_ACTIVE`), perché ogni
+  simulazione tiene timer e invii all'ingest e il carico deve restare limitato.
+- 2026-10-17: partita e link della simulazione cancellati 6 ore dopo la fine o la pausa (e riusati tra una simulazione e
+  l'altra), perché uno schermo di prova resti agganciato allo stesso link ma i dati finti non si accumulino.
+- 2026-10-17: la simulazione ha solo due sorgenti, «Casuale» (generata dal simulatore) e il file `.dvw` caricato; gli
+  esempi già pronti sono stati tolti, perché un file vero si carica e uno finto si genera, senza file da mantenere nel
+  repository (`docs/server.md`, `docs/portale.md`).
+- 2026-10-17: i tempi della simulazione sono a «durata» (secondi per set e pausa) o a «velocità» sul ritmo reale del file
+  (`planPlayback`, funzione pura nel simulatore), perché serve sia una prova di durata nota sia il ritmo vero di una partita.
+- 2026-10-17: l'etichetta «Simulazione» sulla pagina pubblica viene da `simulated: true` nello stato, perché chi guarda
+  il link di prova non deve scambiarlo per una partita vera.
+- 2026-10-17: il login vale da qualunque hostname e la sessione admin usa il cliente dell'utente, perché l'area riservata
+  non deve dipendere dall'hostname da cui si arriva (restano per hostname solo pagine pubbliche e registrazione agenti).
+- 2026-10-17: il superadmin lavora solo dentro un cliente in cui è entrato («Entra nel cliente»); fuori risponde 409
+  `TENANT_REQUIRED` «Scegli prima un cliente» e il menu ha solo Clienti e Campionati, perché un'azione non deve finire
+  per caso sul cliente dell'hostname. Barra gialla «Stai gestendo «X» come superadmin», prefisso «[X]» nel titolo della
+  scheda ed entrata e uscita nei log lo rendono sempre evidente e tracciato; il vecchio selettore del cliente è tolto.
+- 2026-10-17: la scansione DAST usa un admin del cliente «Predefinito» e non il superadmin (che fuori da un cliente ha 409
+  e HawkScan non sa entrarci); la prova di carico entra da sola nel cliente se l'utente è il superadmin
+  (`tenantForBase`), perché gli strumenti non devono dipendere dal vecchio cliente dell'hostname.
+- 2026-10-17: i link delle partite del calendario si creano da soli a ogni aggiornamento del calendario
+  (`ensureFixtureLinks`) e «Link pubblici» propone la partita live e le prossime trasmesse avvisando «Questa partita ha
+  già il suo link»; i revocati sono nascosti dietro «Mostra revocati (N)», perché l'elenco resti leggibile e non si
+  creino link doppi.
+- 2026-10-17: menu dell'area riservata in gruppi «Partite» (Partita live, Partite, Calendario) e «Pagina pubblica» (Studio
+  grafico, Link pubblici, Simulazione); il viewer vede in «Pagina pubblica» solo Link pubblici, perché raggruppa ciò che
+  vedono gli spettatori e il viewer non modifica nulla.

@@ -32,10 +32,13 @@ import { ingestRoutes } from './routes/ingest.js';
 import { leaguePublicRoutes, leagueRoutes } from './routes/leagues.js';
 import { publicRoutes } from './routes/public.js';
 import { registrationRoutes } from './routes/registration.js';
+import { simulationRoutes } from './routes/simulation.js';
 import { tenantRoutes } from './routes/tenants.js';
 import { userRoutes } from './routes/users.js';
 import { browserWriteGuard, rejectNulBody } from './security.js';
 import { tenantsOfLeague } from './club.js';
+import type { SimulationTimers } from './simulation/service.js';
+import { SimulationService } from './simulation/service.js';
 import { ChannelWatcher, refreshClub } from './state.js';
 
 export interface AppOptions {
@@ -50,6 +53,15 @@ export interface AppOptions {
   leagueFetcher?: Partial<Omit<LeagueFetcherOptions, 'userAgent'>>;
   /** Called for every route registered (tests: the list of the routes, e.g. every admin route that writes). */
   onRoute?: (route: { method: string; url: string }) => void;
+  /** Timers of the simulations (tests: a fake clock). */
+  simulationTimers?: SimulationTimers;
+}
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    /** Simulations of a match (`src/simulation/`), one per client. */
+    simulations: SimulationService;
+  }
 }
 
 type LoggerOption = Exclude<FastifyServerOptions['logger'], undefined>;
@@ -161,6 +173,9 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     now,
   };
 
+  const simulations = new SimulationService(ctx, app.log, options.simulationTimers);
+  app.decorate('simulations', simulations);
+
   const onRoute = options.onRoute;
   if (onRoute) {
     app.addHook('onRoute', (route) => {
@@ -220,6 +235,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     leagueRoutes(scope, ctx);
     clubRoutes(scope, ctx);
     manualFixtureRoutes(scope, ctx);
+    simulationRoutes(scope, ctx, simulations);
     done();
   });
 
@@ -230,9 +246,12 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   app.addHook('onReady', (done) => {
     scheduler?.start();
     channels.start();
+    simulations.open();
     done();
   });
   app.addHook('onClose', async () => {
+    // First the simulations: no send to the ingest after this point (lost after a restart).
+    await simulations.close();
     channels.stop();
     ctx.hub.closeAll();
     leagues.close();

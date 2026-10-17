@@ -16,23 +16,28 @@ appartiene a un cliente e nessuna query legge o cambia righe di un altro (filtro
 - **Cliente della richiesta** (`hostTenant`): quello che elenca nel suo `hostnames` l'hostname dell'header `Host`
   (porta, maiuscole e punto finale sono normalizzati da `hostnameFromHeader`); se nessuno lo elenca vale il cliente di
   `DEFAULT_TENANT_SLUG` (default `predefinito`). nginx imposta `Host` con `$host`; `X-Forwarded-Host` non è **mai** letto.
-  Con `DEFAULT_TENANT_SLUG` vuota un hostname sconosciuto dà 404 sulle rotte pubbliche e sulla registrazione degli agenti,
-  e il login è possibile solo al superadmin.
+  Con `DEFAULT_TENANT_SLUG` vuota un hostname sconosciuto dà 404 sulle rotte pubbliche e sulla registrazione degli agenti.
+  L'hostname non conta per l'area riservata (vedi «Ruoli» e «Cliente su cui lavora il superadmin»).
 - **Ruoli**: `superadmin` (senza cliente: crea i clienti e lavora su uno alla volta), `admin` e `viewer` (di un solo
-  cliente). Un utente di un cliente entra e resta valido solo dagli hostname del proprio cliente (al login e a ogni
-  richiesta); il superadmin da ogni hostname. Il superadmin nasce da `ADMIN_EMAIL`/`ADMIN_PASSWORD` (se l'utente esiste
+  cliente). Il login (`POST /api/auth/login`, `routes/auth.ts`) funziona da **qualunque hostname**, e la sessione admin
+  usa il cliente **dell'utente** (`session.tenantId` in `security.ts`), mai quello dell'hostname: un utente di un cliente
+  lavora sempre sul proprio, un superadmin su nessuno finché non entra in un cliente. Il superadmin nasce da `ADMIN_EMAIL`/`ADMIN_PASSWORD` (se l'utente esiste
   già viene promosso e tiene la password); la creazione utenti non accetta `superadmin` (`TenantUserRoleSchema`).
   L'email utente è unica su **tutti** i clienti (limite noto: il 409 rivela che esiste in un altro cliente).
-- **Cliente su cui lavora il superadmin**: `POST /api/admin/active-tenant` (`{ tenantId }`, `null` = torna al cliente
-  dell'hostname) lo salva nella sessione (`sessions.active_tenant_id`), quindi vale per ogni rotta admin e per
-  `/ws/admin`. Senza cliente le rotte admin rispondono 400 «Seleziona un cliente». Un admin su queste rotte: 403.
+- **Cliente su cui lavora il superadmin** («Entra nel cliente» / «Esci dal cliente» della pagina «Clienti»):
+  `POST /api/admin/active-tenant` (`{ tenantId }`, `null` = esce dal cliente) lo salva nella sessione
+  (`sessions.active_tenant_id`), quindi vale per ogni rotta admin e per `/ws/admin`; una sessione nuova non è in nessun
+  cliente. Fuori da un cliente le rotte con dati di un cliente (`adminTenantId`, `src/tenancy.ts`) rispondono **409**
+  `TENANT_REQUIRED` «Scegli prima un cliente» (`TENANT_REQUIRED_MESSAGE`), mai sul cliente dell'hostname. Ogni entrata e
+  uscita è nel log (`superadmin entrato nel cliente`, `superadmin uscito dal cliente`, con `userId` e `tenantId`). Un
+  cliente inesistente è 404; un admin su questa rotta: 403.
 - **Gestione clienti** (solo superadmin): `GET`/`POST /api/admin/tenants`, `PATCH /api/admin/tenants/:id` (nome e
   hostname; lo slug non cambia). L'unicità degli hostname fra tutti i clienti è controllata dal server sotto lock
   (`pg_advisory_xact_lock`), non da un vincolo del database (conflitto: 409). L'elenco riporta `userCount` (utenti del
   cliente, disattivati compresi). `POST` accetta `firstUser` (`email`, `password`): il primo utente è creato come `admin`
   nella stessa transazione del cliente; se l'email è già usata la risposta è 409 e non nasce nessun cliente. La quota
   agenti è letta con `clampAgentQuota` (valore fuori da 0-`AGENT_QUOTA_MAX` riportato al limite più vicino).
-- **Utenti del cliente** (`src/routes/users.ts`, ruolo `admin`; il superadmin lavora sul cliente scelto): `GET` e `POST
+- **Utenti del cliente** (`src/routes/users.ts`, ruolo `admin`; il superadmin lavora dentro il cliente in cui è entrato): `GET` e `POST
   /api/admin/users`, `PATCH /api/admin/users/:id` (`UpdateUserRequestSchema`: `role`, `password`, `disabled`, almeno un
   campo), `DELETE /api/admin/users/:id` (204). Un superadmin non è mai elencato né modificabile (404). Vincoli (409):
   nessuno cambia il proprio ruolo né disattiva o elimina se stesso (`SELF_CHANGE_MESSAGE`); il cliente deve avere
@@ -283,8 +288,9 @@ avviene al salvataggio delle scelte (`PUT /api/admin/club`), a «Aggiorna calend
 campionato (`onUpdated` di `LeagueService`, cablato in `app.ts` su `tenantsOfLeague`). È **idempotente**: una riga per
 partita (indice univoco su cliente, campionato e `fixture_external_id`), aggiornata sul posto con nomi, città, loghi,
 impianto, giornata, stato e set. Una partita che sparisce dal calendario non si cancella: prende `removed_at` e il suo
-link resta (altrimenti QR già stampati e `.dvw` abbinati si perderebbero). Ogni partita non rimossa senza link ne riceve uno
-(`ensureFixtureLinks`: indice univoco `share_tokens_client_fixture_idx`, un link per partita; etichetta «Avversario – data»,
+link resta (altrimenti QR già stampati e `.dvw` abbinati si perderebbero). I link delle partite del calendario si creano da
+soli a ogni aggiornamento del calendario, senza che l'admin faccia nulla: ogni partita non rimossa senza link ne riceve uno
+(`ensureFixtureLinks` in `apps/server/src/club.ts`, chiamata da `refreshClientFixtures` nella stessa transazione; indice univoco `share_tokens_client_fixture_idx`, un link per partita; etichetta «Avversario – data»,
 `fixtureLabel`; il token lungo è generato e scartato, si usano codice breve e QR). Ricopiare svuota anche la
 «Prossima partita» tenuta in memoria dall'hub (`forgetScheduled`), perché orari e impianti possono essere cambiati.
 
@@ -468,7 +474,10 @@ Esiti (`IngestResponse`: `status`, `seq`, `lineCount`, `contentHash` facoltativo
 | `duplicate` | `seq` minore o uguale all'ultimo accettato: nessuna modifica, la risposta descrive lo stato del server |
 | `needSnapshot` | `append` con `fromIndex` diverso da `lineCount`, header mai ricevuto, oppure `contentHash` diverso da quello calcolato dal server: l'agente deve rimandare uno `snapshot` |
 
-Passi (`apps/server/src/ingest.ts`, `IngestService.ingest`), tutti in una transazione:
+La pipeline è `applyIngest` (`apps/server/src/ingest.ts`), **una sola** per l'agente (`POST /api/ingest`) e per la
+simulazione del server (vedi «Simulazione di una partita»): chiama `IngestService.ingest(source, req)` con
+`IngestSource` (`tenantId`, `agentId`, `simulated`) e poi spinge lo stato ai client. Passi di `IngestService.ingest`, tutti
+in una transazione:
 
 1. lock avvisorio `pg_advisory_xact_lock` (`lockTenantMatches`: le ingest e ogni altra modifica alle partite live di un
    cliente sono serializzate, nessun deadlock);
@@ -494,8 +503,58 @@ richiesta; la fonte di verità resta il database.
 Corpo della richiesta: JSON, con `Content-Encoding: gzip` facoltativo (altri valori: 415). Limiti: 2 MB sul filo
 (`INGEST_MAX_WIRE_BYTES`), 8 MB dopo la decompressione (`INGEST_MAX_DECODED_BYTES`, contro le zip bomb), massimo 5000
 righe per richiesta (`INGEST_MAX_LINES`), 2000 caratteri per riga, header fino a 512 KB. Oltre il limite: 413.
-Tutte le altre rotte accettano al massimo 64 KB, tranne `POST /api/admin/assets` (testo base64 di 2 MB più il JSON). Una riga che apre una sezione DVW (`[3NOME]`) o contiene a capo è
+Tutte le altre rotte accettano al massimo 64 KB, tranne `POST /api/admin/assets` e `POST /api/admin/simulation` (testo base64 di 2 MB più il JSON). Una riga che apre una sezione DVW (`[3NOME]`) o contiene a capo è
 rifiutata dallo schema.
+
+### Simulazione di una partita (`src/simulation/`, `src/routes/simulation.ts`)
+Il server può giocare da solo una partita `.dvw` per provare portale, TV e grafica senza agente. Le righe passano per la
+stessa pipeline dell'ingest (`applyIngest`: `append`, `snapshot` quando il server lo chiede, `seq` e `contentHash`
+come l'agente), così il comportamento è quello vero; la partita però è **isolata** dalle partite vere. Pagina:
+`docs/portale.md`, «Simulazione»; tempi (`planPlayback`): `docs/simulatore.md`; contratti:
+`packages/shared/src/simulation.ts`.
+
+- **Sorgenti** (`source.ts`, `LoadedMatch`): solo due. `generated` («Casuale»: `generatedMatch`, una partita del
+  simulatore con 3, 4 o 5 set, `seed` facoltativo, altrimenti uno a caso; `clubTeams` per usare nostra squadra e
+  avversario della prossima partita del calendario, altrimenti la squadra di `ourTeamForManual` contro
+  `DEFAULT_AWAY_NAME`) e `upload` (un `.dvw` caricato dall'admin, in base64, `fileName` fino a 120 caratteri). Non ci sono
+  partite di esempio già pronte. `fileMatch` legge il file come l'agente (Windows-1252 o UTF-8), lo valida con lo schema
+  dell'ingest e al massimo `MATCH_MAX_LINES` righe; una riga malformata resta (il parser ne fa un'azione `unknown`).
+  Errori: file oltre `SIMULATION_UPLOAD_MAX_BYTES` (2 MB; la rotta lo controlla già sul testo base64) **413**
+  `DVW_TOO_LARGE`; file non leggibile (manca `[3SCOUT]`, nessuna riga di scout, troppe righe, righe non valide) **422**
+  `DVW_REJECTED` con il motivo in italiano.
+- **Servizio** (`service.ts`, `SimulationService`): una simulazione per cliente, in memoria; al massimo
+  `SIMULATION_MAX_ACTIVE` = 5 «in corso» o «in pausa» in tutto il server (costante nel codice, non una variabile
+  d'ambiente); un nuovo avvio con una simulazione attiva o oltre il limite è 409. Stati: `running`, `paused`, `stopped`,
+  `finished`. L'invio rispetta i tempi di `planPlayback` ma al massimo ogni `SIMULATION_MIN_SEND_MS` = 250 ms: le righe
+  maturate nel frattempo partono insieme (`append`, `fromIndex` = righe già inviate). Avvio e «Ricomincia» mandano uno
+  `snapshot` con l'header; se l'ingest risponde `needSnapshot` o `duplicate` il servizio manda uno `snapshot` di tutte le
+  righe, come l'agente. Un errore ferma la simulazione con l'avviso «La simulazione si è interrotta per un errore del
+  server.» (mai un crash). `SimulationTimers` permette ai test un orologio finto.
+- **Pulizia**: ogni `SIMULATION_SWEEP_MS` = 60 s (`sweep`) si cancellano partita e link delle simulazioni ferme o finite da
+  almeno `SIMULATION_RETENTION_MS` = 6 ore, di quelle in pausa da 6 ore, e delle partite simulate rimaste orfane dopo un
+  riavvio non toccate da altrettanto. «Elimina» (`DELETE`) le cancella subito. Alla cancellazione si scollegano gli
+  spettatori del link (`closeShareToken`) e l'hub dimentica la partita (`LiveHub.forgetMatch`).
+- **Riavvio del server**: la riproduzione è persa. La partita e il link restano nel database: `GET` risponde con stato
+  `stopped`, `pace` nullo e l'avviso «La simulazione si è interrotta con il riavvio del server: puoi ricominciarla da
+  capo.»; dall'avvio successivo la partita e il link vengono **riusati** (stessa `matchKey` e `seq` che continua), così uno
+  schermo rimasto sul link prosegue. Il link (etichetta «Simulazione», senza scadenza) si crea alla prima simulazione e
+  resta lo stesso per le successive, finché non si cancella la partita.
+- **Rotte** (`simulationRoutes`, solo admin, rate limit `admin`, il superadmin nel cliente in cui è entrato, il viewer 403):
+  `GET /api/admin/simulation` (simulazione e squadre del club: `SimulationResponse`), `POST /api/admin/simulation`
+  (avvia, 201; corpo fino a circa 2,7 MB: `SIMULATION_UPLOAD_MAX_BASE64_LENGTH` + 64 KB),
+  `POST /api/admin/simulation/:command` con `pause`, `resume`, `stop` o `restart` (`SIMULATION_COMMANDS`; 404 senza
+  simulazione, 409 se il comando non è ammesso nello stato), `DELETE /api/admin/simulation` (204).
+- **Isolamento** (colonna `matches.simulated`, migrazione `drizzle/0009_simulazione.sql`, indice parziale
+  `matches_simulated_idx`): una partita simulata non è mai `live` né ha `live_since`; non viene mai abbinata al calendario;
+  `switchOffOthers` non scatta e le partite live vere restano come sono; la rotta di pubblicazione è `isolated: true`
+  (`PublishRoute`): non diventa la partita live né quella del canale, e il suo stato arriva solo ai client collegati al
+  suo link (target `match`), con `simulated: true` nel `StateMessage` (da cui l'etichetta «Simulazione» del portale). Le
+  cache dello `schedule` pubblico non si toccano. È esclusa da: canale del club (`state.ts`), elenco `GET
+  /api/admin/matches` e dettaglio `GET /api/admin/matches/:id`, creazione di un link fisso su una partita
+  (`POST /api/admin/share-tokens`), elenco dei link (`GET /api/admin/share-tokens`: il link della simulazione è solo nella
+  pagina «Simulazione»), abbinamento manuale al calendario (`PUT /api/admin/matches/:id/fixture`, `routes/club.ts`) e abbinamento automatico (`ingest.ts`). Un
+  agente che invia su una `matchKey` di una simulazione, o la simulazione su una `matchKey` di un agente, riceve **409**
+  «Partita già usata da un'altra sorgente».
 
 ### Accessi
 - **Token agente**: segreto casuale da 256 bit (base64url) creato da un admin; si salva solo l'hash sha256. L'agente lo
@@ -589,7 +648,7 @@ rifiutata dallo schema.
 | GET | `/api/admin/tenants` | sessione | superadmin |
 | POST | `/api/admin/tenants` | sessione | superadmin |
 | PATCH | `/api/admin/tenants/:id` | sessione | superadmin |
-| POST | `/api/admin/active-tenant` | sessione | superadmin |
+| POST | `/api/admin/active-tenant` | sessione («Entra nel cliente» / «Esci dal cliente») | superadmin |
 | GET | `/api/public/tenant` | rate limit pubblico (grafica del cliente dell'hostname) | - |
 | GET | `/api/public/assets/:id` | rate limit pubblico (solo immagini del cliente dell'hostname) | - |
 | GET | `/api/public/:token/state` | link pubblico, `:token` è il token lungo o il codice breve (404 se non valido) | - |
@@ -636,6 +695,10 @@ rifiutata dallo schema.
 | POST | `/api/admin/share-tokens` | sessione | admin |
 | GET | `/api/admin/share-tokens` | sessione | viewer |
 | DELETE | `/api/admin/share-tokens/:id` | sessione | admin |
+| GET | `/api/admin/simulation` | sessione | admin |
+| POST | `/api/admin/simulation` | sessione (corpo fino a ~2,7 MB) | admin |
+| POST | `/api/admin/simulation/:command` | sessione (`pause`, `resume`, `stop`, `restart`) | admin |
+| DELETE | `/api/admin/simulation` | sessione | admin |
 | POST | `/api/admin/users` | sessione | admin |
 | GET | `/api/admin/users` | sessione | admin |
 | PATCH | `/api/admin/users/:id` | sessione | admin |
@@ -794,7 +857,7 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 |---|---|
 | `tenants` | `slug` (unico), `name`, `hostnames` (`text[]` con indice GIN, unici fra clienti per controllo del server), `branding`, `layout`, `intermissions`, `overlays` (jsonb, default `{}`), `created_at` (migrazione `0002_tenants.sql`) |
 | `users` | `tenant_id` (null solo per il superadmin; CHECK `superadmin` ⇔ `tenant_id` nullo), `email` (minuscola, unica su tutti i clienti), `password_hash` (argon2id), `role` (`superadmin`/`admin`/`viewer`), `disabled` (booleano, predefinito falso; migrazione `0008_utenti_clienti.sql`) |
-| `sessions` | `token_hash` (sha256 del cookie), `user_id`, `expires_at`, `active_tenant_id` (cliente scelto dal superadmin, `ON DELETE SET NULL`) |
+| `sessions` | `token_hash` (sha256 del cookie), `user_id`, `expires_at`, `active_tenant_id` (cliente in cui è entrato il superadmin, `ON DELETE SET NULL`) |
 | `agents` | `tenant_id`, `name`, `token_hash`, `revoked`, `last_seen_at` |
 | `matches` | `tenant_id`, `match_key` (unica per `tenant_id` + `match_key`), `header`, `line_count`, `content_hash`, `last_seq`, `agent_id`, `live` (una per partita del calendario più una tra le non abbinate: indici parziali `matches_one_live_per_fixture_idx` e `matches_one_live_unlinked_idx`), `live_since`, `state` (jsonb), `version`, `client_fixture_id` (→ `client_fixtures`, `ON DELETE SET NULL`), `fixture_link` (enum `fixture_link`: `auto`/`manual`/`pending`/`none`; nullo = non ancora valutato), `fixture_candidates` (jsonb: candidati con somiglianza; migrazione `0006_club.sql`) |
 | `scout_lines` | `match_id`, `idx`, `text` (chiave primaria `match_id` + `idx`) |
@@ -849,11 +912,17 @@ SERVER="http://127.0.0.1:8090"           # indirizzo del server (PORT di default
 ADMIN_EMAIL_DEV="admin@example.com"      # la stessa email usata all'avvio
 ADMIN_PASSWORD_DEV="password-di-prova-1" # la stessa password usata all'avvio
 COOKIE_JAR="/tmp/sir-cookie.txt"         # file dove curl salva il cookie di sessione
+TENANT_ID="<id>"                         # campo "id" del cliente in cui entrare, da GET /api/admin/tenants (il superadmin fuori da un cliente riceve 409)
 
 # --- comandi ---
 curl -s -c "$COOKIE_JAR" -H "Content-Type: application/json" \
   -d "{\"email\":\"$ADMIN_EMAIL_DEV\",\"password\":\"$ADMIN_PASSWORD_DEV\"}" \
   "$SERVER/api/auth/login"
+
+# elenco dei clienti (per leggere TENANT_ID) e ingresso nel cliente («Entra nel cliente»)
+curl -s -b "$COOKIE_JAR" "$SERVER/api/admin/tenants"
+curl -s -b "$COOKIE_JAR" -c "$COOKIE_JAR" -H "Content-Type: application/json" \
+  -d "{\"tenantId\":\"$TENANT_ID\"}" "$SERVER/api/admin/active-tenant"
 
 # token agente: la risposta contiene "token", mostrato una sola volta
 curl -s -b "$COOKIE_JAR" -H "Content-Type: application/json" \
@@ -967,7 +1036,10 @@ ambiente `Development` (`APP_ID`, `APP_ENV`, `APP_HOST` hanno un default nel fil
 
 - Target: server con PGlite in memoria e limiti `RATE_LIMIT_*` a 100000, per non falsare la scansione.
 - Autenticazione: login JSON su `/api/auth/login` (campi `email` e `password`), cookie `sir_session`, prova su
-  `/api/auth/me`; `/api/auth/logout` è escluso per non chiudere la sessione.
+  `/api/auth/me`; `/api/auth/logout` è escluso per non chiudere la sessione. L'utente è un **admin del cliente
+  «Predefinito»** (`stackhawk.yml` e `stackhawk-portale.yml`: `SCAN_USERNAME` `scan@sir.local`, `SCAN_PASSWORD`
+  `password-scansione-1`), non il superadmin, che fuori da un cliente avrebbe 409 su ogni rotta admin. Si crea una volta
+  con lo script sotto; le rotte del solo superadmin rispondono 403 alla scansione.
 - Token agente: creato con `POST /api/admin/agents` e passato in `AGENT_AUTH_HEADER` (`Bearer <token>`), che il
   replacer mette nell'intestazione `Authorization` per raggiungere `/api/ingest`.
 - I WebSocket (`/ws/public/:token`, `/ws/admin`) **non sono coperti** dalla scansione.
@@ -975,27 +1047,42 @@ ambiente `Development` (`APP_ID`, `APP_ENV`, `APP_HOST` hanno un default nel fil
 ```bash
 # --- variabili ---
 RADICE="/percorso/del/repository"        # radice del repository o del worktree del job
-ADMIN_EMAIL_SCAN="admin@sir.local"       # email dell'admin di prova (default di SCAN_USERNAME in stackhawk.yml)
-ADMIN_PASSWORD_SCAN="password-di-prova"  # password dell'admin di prova (default di SCAN_PASSWORD)
+SUPER_EMAIL="admin@sir.local"            # superadmin: la stessa ADMIN_EMAIL con cui parte il server (serve solo a creare l'utente di scansione)
+SUPER_PASSWORD="password-di-prova"       # password del superadmin (ADMIN_PASSWORD all'avvio)
+SCAN_EMAIL="scan@sir.local"              # utente di scansione, admin del cliente «Predefinito» (default di SCAN_USERNAME in stackhawk.yml)
+SCAN_PASSWORD="password-scansione-1"     # password dell'utente di scansione (default di SCAN_PASSWORD; almeno 12 caratteri)
+TENANT_SLUG="predefinito"                # identificativo del cliente in cui vive l'utente di scansione
 SERVER="http://localhost:8090"           # indirizzo del server (APP_HOST)
-COOKIE_JAR="/tmp/sir-scan-cookie.txt"    # file dove curl salva il cookie di sessione
+JAR_SUPER="/tmp/sir-scan-super.txt"      # cookie di sessione del superadmin
+JAR_SCAN="/tmp/sir-scan-cookie.txt"      # cookie di sessione dell'utente di scansione
 API_KEY="<chiave API>"                   # chiave API StackHawk dell'organizzazione, in HAWK_API_KEY
 
 # --- avvio del server in un altro terminale ---
 # cd "$RADICE/apps/server" && DATABASE_URL="pglite:memory" COOKIE_SECURE="false" \
-#   ADMIN_EMAIL="$ADMIN_EMAIL_SCAN" ADMIN_PASSWORD="$ADMIN_PASSWORD_SCAN" CORS_ORIGIN="http://localhost:5173" \
+#   ADMIN_EMAIL="$SUPER_EMAIL" ADMIN_PASSWORD="$SUPER_PASSWORD" CORS_ORIGIN="http://localhost:5173" \
 #   RATE_LIMIT_LOGIN=100000 RATE_LIMIT_ADMIN=100000 RATE_LIMIT_PUBLIC=100000 RATE_LIMIT_INGEST=100000 \
 #   RATE_LIMIT_REGISTER=100000 RATE_LIMIT_PUBLIC_WS=100000 RATE_LIMIT_PUBLIC_INVALID=100000 \
 #   RATE_LIMIT_LEAGUE_SYNC=100000 LEAGUE_SYNC=off pnpm dev   # LEAGUE_SYNC=off: la scansione non scarica da legavolley.it
 
 # --- comandi ---
 cd "$RADICE"
-curl -s -c "$COOKIE_JAR" -H "Content-Type: application/json" \
-  -d "{\"email\":\"$ADMIN_EMAIL_SCAN\",\"password\":\"$ADMIN_PASSWORD_SCAN\"}" "$SERVER/api/auth/login" > /dev/null
-TOKEN_AGENTE=$(curl -s -b "$COOKIE_JAR" -H "Content-Type: application/json" -d '{"name":"scansione"}' \
+# 1. il superadmin entra nel cliente e crea l'utente di scansione (se esiste già, la risposta è 409 e si prosegue)
+curl -s -c "$JAR_SUPER" -H "Content-Type: application/json" \
+  -d "{\"email\":\"$SUPER_EMAIL\",\"password\":\"$SUPER_PASSWORD\"}" "$SERVER/api/auth/login" > /dev/null
+TENANT_ID=$(curl -s -b "$JAR_SUPER" "$SERVER/api/admin/tenants" | TENANT_SLUG="$TENANT_SLUG" node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).find(t=>t.slug===process.env.TENANT_SLUG).id))")
+curl -s -b "$JAR_SUPER" -c "$JAR_SUPER" -H "Content-Type: application/json" \
+  -d "{\"tenantId\":\"$TENANT_ID\"}" "$SERVER/api/admin/active-tenant" > /dev/null
+curl -s -b "$JAR_SUPER" -H "Content-Type: application/json" \
+  -d "{\"email\":\"$SCAN_EMAIL\",\"password\":\"$SCAN_PASSWORD\",\"role\":\"admin\"}" "$SERVER/api/admin/users" > /dev/null
+# 2. l'utente di scansione (non il superadmin) crea il token agente per /api/ingest
+curl -s -c "$JAR_SCAN" -H "Content-Type: application/json" \
+  -d "{\"email\":\"$SCAN_EMAIL\",\"password\":\"$SCAN_PASSWORD\"}" "$SERVER/api/auth/login" > /dev/null
+TOKEN_AGENTE=$(curl -s -b "$JAR_SCAN" -H "Content-Type: application/json" -d '{"name":"scansione"}' \
   "$SERVER/api/admin/agents" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
 AGENT_AUTH_HEADER="Bearer $TOKEN_AGENTE"
+# 3. HawkScan fa il login da solo con SCAN_USERNAME e SCAN_PASSWORD
 docker run --rm --network host -v "$PWD:/hawk:rw" -e API_KEY="$API_KEY" -e AGENT_AUTH_HEADER="$AGENT_AUTH_HEADER" \
+  -e SCAN_USERNAME="$SCAN_EMAIL" -e SCAN_PASSWORD="$SCAN_PASSWORD" \
   stackhawk/hawkscan:latest scan --json-output stackhawk.yml
 ```
 
@@ -1054,6 +1141,12 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
   `CHANNEL_STALE_MS`, `ChannelWatcher`, `closeNotBroadcast`, `withLogos`), `src/club.ts` (`broadcastOf`,
   `ourTeamForManual`, `comingFixtures`), `drizzle/0007_ruoli_calendario.sql`, `packages/shared/src/club.ts`, `admin.ts`,
   `tenant.ts`, `manifest.ts`, `registration.ts`; test `apps/server/test/roles.test.ts`
+- Simulazione: `src/simulation/source.ts` (`fileMatch`, `generatedMatch`,
+  `dvwRejected`, `dvwTooLarge`), `src/simulation/service.ts` (`SimulationService`, `SIMULATION_MAX_ACTIVE`,
+  `SIMULATION_MIN_SEND_MS`, `SIMULATION_SWEEP_MS`), `src/routes/simulation.ts` (`simulationRoutes`), `src/ingest.ts`
+  (`applyIngest`, `IngestSource`), `src/hub.ts` (`PublishRoute.isolated`, `forgetMatch`), `src/db/schema.ts`
+  (`matches.simulated`), `drizzle/0009_simulazione.sql`, `packages/shared/src/simulation.ts`;
+  pagina in `docs/portale.md`, tempi in `docs/simulatore.md`; test `apps/server/test/simulation.test.ts`
 - Link brevi: `src/lib/shortCode.ts` (`deriveShortCode`, `shortCodeLookupHash`), `src/shareCodes.ts` (`insertShareToken`,
   `ensureShortCode`, `syncShortCodes`, `currentShortCode`), `src/lib/failureLimiter.ts` (`hasRecent`),
   `packages/shared/src/admin.ts` (`ShortCodeSchema`, `normalizeShortCode`, `formatShortCode`, `ShareTokenParamSchema`),

@@ -27,9 +27,11 @@ su `127.0.0.1`; anche l'agente invia a `<URL del portale>/api/ingest`.
 3. Il portale (`docs/portale.md`) riceve lo stato via WebSocket, applica i patch (`applyPatch`), con
    `GET /api/public/:token/state` come sonda del link, e lo disegna senza ricalcolare nulla.
 
-Il sistema è **multi-cliente**: ogni dato appartiene a un cliente, ricavato dall'hostname della richiesta (agenti e
-registrazioni, partite, link, utenti; una partita live per partita del calendario del club, più una tra le non abbinate)
-e il superadmin sceglie su quale lavorare (`docs/server.md`). Ogni cliente può scegliere il suo club (campionati comuni
+Il sistema è **multi-cliente**: ogni dato appartiene a un cliente (agenti e registrazioni, partite, link, utenti; una
+partita live per partita del calendario del club, più una tra le non abbinate). Le pagine pubbliche e la registrazione
+degli agenti ricavano il cliente dall'hostname; l'area riservata usa il cliente dell'utente (il login vale da qualunque
+hostname) e il superadmin lavora solo dentro un cliente in cui è entrato con «Entra nel cliente», altrimenti 409
+`TENANT_REQUIRED` (`docs/server.md`). Ogni cliente può scegliere il suo club (campionati comuni
 scaricati dai siti ufficiali): il server copia le sue partite dal calendario, dà a ognuna un link breve e abbina il `.dvw`
 alla partita giusta; prima del `.dvw` la pagina pubblica mostra la «Prossima partita» (`docs/server.md`, «Club, calendario
 e abbinamento»; `docs/portale.md`).
@@ -48,10 +50,18 @@ simulatore (`docs/agente.md`) o con i test del server (`apps/server/test/ingest.
 | `@sir/agent` | `apps/agent` | dvw-parser, shared | agente Windows (`docs/agente.md`); dev-dependency: dvw-simulator, server, volley-stats (per i test) |
 | `@sir/web` | `apps/web` | shared, volley-stats | portale: pagina pubblica `/live/:token` e `/l/:token` (codice breve) e area `/admin` (`docs/portale.md`); dev-dependency: agent, server, dvw-parser, dvw-simulator (solo per la demo) |
 | `@sir/carico` | `tools/carico` | dvw-parser, volley-stats, shared | prova di carico dei WebSocket pubblici (`docs/infrastruttura.md`) |
-| `@sir/dvw-simulator` | `tools/dvw-simulator` | dvw-parser | genera e "suona" file DVW sintetici; è anche dev-dependency di volley-stats, shared e server (per i test) |
+| `@sir/dvw-simulator` | `tools/dvw-simulator` | dvw-parser | genera e "suona" file DVW sintetici; è anche dev-dependency di volley-stats e shared (per i test); il server lo usa anche a runtime per la simulazione di una partita (`planPlayback`, `generateMatch`) |
 
 ### Contratti di `packages/shared`
-Esportati da `packages/shared/src/index.ts` (`admin.ts`, `assets.ts`, `colors.ts`, `ingest.ts`, `intermissions.ts`, `layout.ts`, `messages.ts`, `ourTeam.ts`, `overlays.ts`, `patch.ts`, `registration.ts`, `templates.ts`, `tenant.ts`).
+Esportati da `packages/shared/src/index.ts` (`admin.ts`, `assets.ts`, `colors.ts`, `ingest.ts`, `intermissions.ts`, `layout.ts`, `messages.ts`, `ourTeam.ts`, `overlays.ts`, `patch.ts`, `registration.ts`, `simulation.ts`, `templates.ts`, `tenant.ts`).
+
+Simulazione (`simulation.ts`, usata da server e portale, `docs/server.md` e `docs/portale.md`): `StartSimulationRequestSchema`
+(`source`: `generated` («Casuale») con `sets` 3, 4 o 5, `seed` facoltativo e `clubTeams`; `upload` con `fileName` e
+`data` base64 fino a `SIMULATION_UPLOAD_MAX_BYTES` = 2 MB; non ci sono altre sorgenti; `pace`: `duration` con
+`setSeconds` 10-3600 e `breakSeconds` 0-1800, oppure `speed` 1, 2, 5 o 10), `SIMULATION_COMMANDS` (`pause`, `resume`,
+`stop`, `restart`), `SimulationStatusSchema` (`running`, `paused`, `stopped`, `finished`), `SimulationSummarySchema`,
+`SimulationResponseSchema`, `SIMULATION_RETENTION_MS` (6 ore), `SIMULATION_TITLE` («Simulazione»). `StateMessage` ha il
+campo facoltativo `simulated: true` (partita simulata: il portale mostra l'etichetta «Simulazione»).
 
 Ingest (`ingest.ts`):
 
@@ -122,7 +132,8 @@ Clienti (`tenant.ts`): `DEFAULT_TENANT_SLUG` (`predefinito`), `TENANT_SLUG_PATTE
 `TENANT_MAX_HOSTNAMES` (20), `isValidHostname`, `HostnameSchema`, `HostnamesSchema`, `TENANT_CONFIG_VERSION` (1) e i
 quattro documenti di configurazione `TenantBrandingSchema`, `TenantLayoutSchema`, `TenantIntermissionsSchema`,
 `TenantOverlaysSchema` (strict, con `version`), `TenantRefSchema`, `TenantSummarySchema`,
-`CreateTenantRequestSchema`, `UpdateTenantRequestSchema`, `SetActiveTenantRequestSchema`. Regole di funzionamento in
+`CreateTenantRequestSchema`, `UpdateTenantRequestSchema`, `SetActiveTenantRequestSchema` (`tenantId` nullo = «Esci dal
+cliente»), `TENANT_REQUIRED_MESSAGE` («Scegli prima un cliente»). Regole di funzionamento in
 `docs/server.md` («Clienti»), pagine in `docs/portale.md`.
 
 Grafica per cliente (`tenant.ts`, `colors.ts`, `assets.ts`): `TenantBrandingSchema` / `TenantBranding` (`template`
@@ -326,7 +337,7 @@ pnpm --filter @sir/server test      # il flusso completo agente→server→WebSo
 ```
 
 ## Riferimenti
-- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `leagues.ts`, `club.ts`, `manifest.ts`, `index.ts`
+- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `leagues.ts`, `club.ts`, `manifest.ts`, `simulation.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
 - `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`, `apps/web/src/App.tsx`
 - `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/portale.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,

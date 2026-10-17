@@ -22,14 +22,14 @@ const BODY_METHODS = new Set(['POST', 'PUT', 'PATCH']);
 export interface Session {
   user: SessionUser;
   expiresAt: Date;
-  /** Client the admin routes work on (see `FastifyRequest.adminTenantId`). */
+  /** Client the admin routes work on (see `FastifyRequest.adminTenantId`); null: a superadmin with no client. */
   tenantId: string | null;
 }
 
 /**
- * Session of the cookie, if it exists, has not expired and its user is not disabled. The session of a user of a client is valid only on the
- * hostnames of that client (its cookie is not accepted on another client's portal); a superadmin works on the active
- * client of the session, otherwise on the client of the hostname.
+ * Session of the cookie, if it exists, has not expired and its user is not disabled. The hostname does not matter: a
+ * user of a client always works on its own client (`users.tenant_id`), a superadmin on the client it has entered
+ * (`sessions.active_tenant_id`), otherwise on none.
  */
 export async function sessionUser(ctx: AppContext, request: FastifyRequest): Promise<Session | null> {
   const token = request.cookies[SESSION_COOKIE];
@@ -49,12 +49,8 @@ export async function sessionUser(ctx: AppContext, request: FastifyRequest): Pro
     .limit(1);
   if (!row) return null;
   const { expiresAt, activeTenantId, ...user } = row;
-  const host = await hostTenant(ctx, request);
-  if (user.role !== 'superadmin') {
-    if (!user.tenantId || host?.id !== user.tenantId) return null;
-    return { user, expiresAt, tenantId: user.tenantId };
-  }
-  return { user, expiresAt, tenantId: activeTenantId ?? host?.id ?? null };
+  if (user.role !== 'superadmin') return user.tenantId ? { user, expiresAt, tenantId: user.tenantId } : null;
+  return { user, expiresAt, tenantId: activeTenantId };
 }
 
 const ROLE_RANK: Record<UserRole, number> = { viewer: 0, admin: 1, superadmin: 2 };

@@ -15,7 +15,8 @@ class SilentSocket {
   close(): void {}
 }
 
-function mockServer(role: 'superadmin' | 'admin' | 'viewer'): void {
+/** Fake server; a superadmin is inside the client «Sir Safety» unless `outside`. */
+function mockServer(role: 'superadmin' | 'admin' | 'viewer', outside = false): void {
   vi.stubGlobal('WebSocket', SilentSocket);
   vi.stubGlobal(
     'fetch',
@@ -24,7 +25,7 @@ function mockServer(role: 'superadmin' | 'admin' | 'viewer'): void {
       const tenant = { id: TENANT_ID, slug: 'sir', name: 'Sir Safety' };
       const body =
         url === '/api/auth/me'
-          ? { id: USER_ID, email: 'a@b.it', role, tenant: role === 'superadmin' ? tenant : null }
+          ? { id: USER_ID, email: 'a@b.it', role, tenant: role === 'superadmin' && !outside ? tenant : null }
           : url === '/api/admin/tenants'
             ? [{ ...tenant, hostnames: [], createdAt: '2026-01-01T00:00:00.000Z' }]
             : [];
@@ -94,7 +95,13 @@ describe('admin navigation', () => {
   });
 
   it('sends a viewer away from the admin-only pages (Studio, users, clients, championships)', async () => {
-    for (const path of ['/admin/studio/colori', '/admin/utenti', '/admin/clienti', '/admin/campionati']) {
+    for (const path of [
+      '/admin/studio/colori',
+      '/admin/utenti',
+      '/admin/clienti',
+      '/admin/campionati',
+      '/admin/simulazione',
+    ]) {
       mockServer('viewer');
       renderAt(path);
       const nav = await screen.findByRole('navigation', { name: 'Area riservata' });
@@ -128,9 +135,9 @@ describe('admin navigation', () => {
       within(within(nav).getByRole('region', { name }))
         .getAllByRole('link')
         .map((l) => l.textContent ?? '');
-    expect(names('Partite')).toEqual(['Partita live', 'Partite', 'Calendario', 'Link pubblici']);
+    expect(names('Partite')).toEqual(['Partita live', 'Partite', 'Calendario']);
     expect(names('Club')).toEqual(['Club']);
-    expect(names('Pagina pubblica')).toEqual(['Studio grafico']);
+    expect(names('Pagina pubblica')).toEqual(['Studio grafico', 'Link pubblici', 'Simulazione']);
     expect(names('Dispositivi')).toEqual(['Agenti']);
     expect(names('Amministrazione')).toEqual(['Utenti']);
     expect(within(nav).queryByRole('link', { name: 'Clienti' })).toBeNull();
@@ -142,19 +149,50 @@ describe('admin navigation', () => {
     expect(within(nav).getByRole('link', { name: 'Partite' }).className).not.toContain('bg-nav-active');
   });
 
-  it('shows clients and the selector of the client to the superadmin', async () => {
-    mockServer('superadmin');
-    renderAt('/admin/clienti');
+  it('gives the superadmin outside any client only its pages, starting from «Clienti», without the bar', async () => {
+    mockServer('superadmin', true);
+    renderAt('/admin');
     const nav = await screen.findByRole('navigation', { name: 'Area riservata' });
-    const admin = within(nav).getByRole('region', { name: 'Amministrazione' });
+    await waitFor(() => expect(where()).toBe('/admin/clienti'));
     expect(
-      within(admin)
+      within(nav)
+        .getAllByRole('region')
+        .map((g) => g.getAttribute('aria-label')),
+    ).toEqual(['Amministrazione']);
+    expect(
+      within(nav)
         .getAllByRole('link')
         .map((l) => l.textContent),
-    ).toEqual(['Utenti', 'Clienti', 'Campionati']);
+    ).toEqual(['Clienti', 'Campionati']);
     expect(within(nav).getByRole('link', { name: 'Clienti' }).getAttribute('aria-current')).toBe('page');
     expect(within(nav).getByRole('link', { name: 'Campionati' }).getAttribute('href')).toBe('/admin/campionati');
-    expect(screen.getByLabelText('Cliente').tagName).toBe('SELECT');
+    expect(screen.queryByTestId('barra-cliente')).toBeNull();
+    expect(screen.queryByLabelText('Cliente')).toBeNull();
+    // Nothing leads to the pages of a client, not even the logo.
+    expect(screen.getAllByRole('link').filter((l) => l.getAttribute('href') === '/admin/live')).toEqual([]);
+  });
+
+  it('gives the superadmin inside a client the pages of an administrator, under the bar of the client', async () => {
+    mockServer('superadmin');
+    renderAt('/admin/live');
+    const nav = await screen.findByRole('navigation', { name: 'Area riservata' });
+    expect(
+      within(nav)
+        .getAllByRole('region')
+        .map((g) => g.getAttribute('aria-label')),
+    ).toEqual(['Partite', 'Club', 'Pagina pubblica', 'Dispositivi', 'Amministrazione']);
+    expect(
+      within(within(nav).getByRole('region', { name: 'Amministrazione' }))
+        .getAllByRole('link')
+        .map((l) => l.textContent),
+    ).toEqual(['Utenti']);
+    const bar = screen.getByRole('region', { name: 'Cliente gestito dal superadmin' });
+    expect(bar.textContent).toContain('Stai gestendo «Sir Safety» come superadmin');
+    expect(within(bar).getByRole('button', { name: 'Esci dal cliente' })).toBeTruthy();
+    // The bar is at the top of the page, before the menu, and stays in view (sticky container).
+    expect(bar.parentElement?.className).toContain('sticky');
+    expect(bar.parentElement?.className).toContain('top-0');
+    expect(screen.queryByLabelText('Cliente')).toBeNull();
   });
 
   it('gives a viewer the pages to read, without Studio, users, clients and championships', async () => {
@@ -165,12 +203,12 @@ describe('admin navigation', () => {
       within(nav)
         .getAllByRole('region')
         .map((g) => g.getAttribute('aria-label')),
-    ).toEqual(['Partite', 'Club', 'Dispositivi']);
+    ).toEqual(['Partite', 'Club', 'Pagina pubblica', 'Dispositivi']);
     expect(
       within(nav)
         .getAllByRole('link')
         .map((l) => l.textContent),
-    ).toEqual(['Partita live', 'Partite', 'Calendario', 'Link pubblici', 'Club', 'Agenti']);
+    ).toEqual(['Partita live', 'Partite', 'Calendario', 'Club', 'Link pubblici', 'Agenti']);
   });
 
   it('opens «Campionati» for the superadmin only', async () => {

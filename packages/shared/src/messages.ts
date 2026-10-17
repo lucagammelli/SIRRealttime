@@ -19,6 +19,11 @@ export const StateMessageSchema = z.object({
    * «Loghi delle squadre»; missing: no logos (older servers). A patch keeps the logos of the state it applies to.
    */
   logos: TeamLogoPairSchema.optional(),
+  /**
+   * true: a match played by the simulation of the server (page «Simulazione»): the public page shows the label
+   * «Simulazione». Missing for the real matches.
+   */
+  simulated: z.literal(true).optional(),
 });
 export type StateMessage = z.infer<typeof StateMessageSchema>;
 

@@ -23,6 +23,8 @@ export type LiveData =
       live?: boolean;
       /** Logos of the two sides, as chosen by the server («Loghi delle squadre»); missing: none. */
       logos?: TeamLogoPair;
+      /** A match of the simulation of the server: the page shows «Simulazione». */
+      simulated?: boolean;
     }
   | { kind: 'noMatch' }
   /** Link of a match of the calendar before its start: «Prossima partita». */
@@ -100,6 +102,7 @@ export function applyMessage(current: LiveData | null, message: ServerMessage): 
     version: message.version,
     state: message.state,
     ...(message.logos ? { logos: message.logos } : {}),
+    ...(message.simulated ? { simulated: true } : {}),
   };
 }
 
@@ -125,6 +128,7 @@ export function applyPatchMessage(current: LiveData | null, message: PatchMessag
     version: message.version,
     state: next,
     ...(current.logos ? { logos: current.logos } : {}),
+    ...(current.simulated ? { simulated: true } : {}),
   };
 }
 

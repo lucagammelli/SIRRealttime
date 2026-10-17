@@ -65,6 +65,8 @@
   /* Text on the «In diretta» badge (5.0:1 on --sir-live). */
   --sir-on-live: #ffffff;
   --sir-warn: #b45309;
+  /* Text on a --sir-warn background (bar of the client managed by the superadmin): 5.0:1. */
+  --sir-on-warn: #ffffff;
   --sir-danger: #b91c1c;
   --sir-danger-soft: #fde2e2;
   --sir-success-soft: #dcfce7;
@@ -158,6 +160,7 @@
   --sir-live: #4ade80;
   --sir-on-live: #052e16;
   --sir-warn: #fbbf24;
+  --sir-on-warn: #241500;
   --sir-danger: #f87171;
   --sir-danger-soft: #3d1414;
   --sir-success-soft: #0f2e1c;
@@ -209,6 +212,7 @@
     --sir-live: #4ade80;
     --sir-on-live: #052e16;
     --sir-warn: #fbbf24;
+    --sir-on-warn: #241500;
     --sir-danger: #f87171;
     --sir-danger-soft: #3d1414;
     --sir-success-soft: #0f2e1c;

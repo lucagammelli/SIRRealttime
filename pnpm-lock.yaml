@@ -239,6 +239,9 @@ importers:
       '@sir/dvw-parser':
         specifier: workspace:*
         version: link:../../packages/dvw-parser
+      '@sir/dvw-simulator':
+        specifier: workspace:*
+        version: link:../../tools/dvw-simulator
       '@sir/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -267,9 +270,6 @@ importers:
       '@electric-sql/pglite':
         specifier: ^0.5.9
         version: 0.5.9
-      '@sir/dvw-simulator':
-        specifier: workspace:*
-        version: link:../../tools/dvw-simulator
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1

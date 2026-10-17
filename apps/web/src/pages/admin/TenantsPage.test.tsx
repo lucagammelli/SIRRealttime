@@ -34,10 +34,13 @@ class SilentSocket {
   close(): void {}
 }
 
-/** Fake server for a user of `role`; the superadmin starts on client A. */
-function mockServer(role: MeResponse['role']): { calls: Call[] } {
+/**
+ * Fake server for a user of `role`: a user of a client works on A; a superadmin starts outside any client, or in
+ * `start`.
+ */
+function mockServer(role: MeResponse['role'], start: string | null = null): { calls: Call[] } {
   let tenants = [tenant(A, 'club-a', 'Club A', ['a.sir.it']), tenant(B, 'club-b', 'Club B', [])];
-  let active: string = A;
+  let active: string | null = role === 'superadmin' ? start : A;
   const calls: Call[] = [];
   const me = (): MeResponse => {
     const t = tenants.find((x) => x.id === active);
@@ -68,7 +71,7 @@ function mockServer(role: MeResponse['role']): { calls: Call[] } {
         return json(tenants.find((t) => t.id === patch[1]));
       }
       if (url === '/api/admin/active-tenant') {
-        active = (body as { tenantId: string }).tenantId;
+        active = (body as { tenantId: string | null }).tenantId;
         return json(me());
       }
       return json([]);
@@ -127,9 +130,8 @@ describe('«Clienti» page', () => {
       hostnames: ['live.club-c.it', 'c2.club-c.it'],
       agentQuota: 1,
     });
-    // The new client is in the list and in the selector.
-    const selector = screen.getByLabelText('Cliente');
-    await waitFor(() => expect(within(selector).getByRole('option', { name: 'Club C' })).toBeTruthy());
+    // The new client is in the list, ready to be entered.
+    expect(await screen.findByRole('button', { name: 'Entra nel cliente Club C' })).toBeTruthy();
   });
 
   it('refuses invalid hostnames before calling the server', async () => {
@@ -188,20 +190,60 @@ describe('«Clienti» page', () => {
     });
   });
 
-  it('shows the users of each client and opens them with «Utenti»', async () => {
+  it('enters a client with «Entra nel cliente»: its pages, the warning bar and the client in the tab title', async () => {
     const { calls } = mockServer('superadmin');
     renderAt('/admin/clienti');
     expect(await screen.findAllByText(/nessun utente/)).toHaveLength(2);
-    fireEvent.click(await screen.findByRole('button', { name: 'Utenti di Club B' }));
-    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/admin/utenti'));
+    expect(screen.queryByTestId('barra-cliente')).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: 'Entra nel cliente Club B' }));
+    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/admin/live'));
     expect(calls.find((c) => c.url === '/api/admin/active-tenant')).toMatchObject({
       method: 'POST',
       body: { tenantId: B },
     });
-    // The users page of Club B, also in the selector.
-    expect(await screen.findByText('Cliente: Club B')).toBeTruthy();
-    expect(screen.getByLabelText<HTMLSelectElement>('Cliente').value).toBe(B);
+    const bar = await screen.findByTestId('barra-cliente');
+    expect(bar.textContent).toContain('Stai gestendo «Club B» come superadmin');
+    expect(bar.className).toContain('bg-warn');
+    expect(within(bar).getByRole('button', { name: 'Esci dal cliente' })).toBeTruthy();
+    await waitFor(() => expect(document.title).toBe('[Club B] Partita live · Area riservata'));
+    // The pages of an administrator of Club B; the pages of the superadmin only after «Esci dal cliente».
+    const nav = screen.getByRole('navigation', { name: 'Area riservata' });
+    expect(within(nav).getByRole('link', { name: 'Utenti' })).toBeTruthy();
+    expect(within(nav).queryByRole('link', { name: 'Clienti' })).toBeNull();
+    fireEvent.click(within(nav).getByRole('link', { name: 'Utenti' }));
     await waitFor(() => expect(calls.some((c) => c.url === '/api/admin/users')).toBe(true));
+    await waitFor(() => expect(document.title).toBe('[Club B] Utenti · Area riservata'));
+  });
+
+  it('leaves the client with «Esci dal cliente»: back to «Clienti», without bar nor prefix', async () => {
+    const { calls } = mockServer('superadmin', B);
+    renderAt('/admin/partite');
+    const bar = await screen.findByTestId('barra-cliente');
+    await waitFor(() => expect(document.title).toBe('[Club B] Partite · Area riservata'));
+    fireEvent.click(within(bar).getByRole('button', { name: 'Esci dal cliente' }));
+    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/admin/clienti'));
+    expect(calls.find((c) => c.url === '/api/admin/active-tenant')).toMatchObject({
+      method: 'POST',
+      body: { tenantId: null },
+    });
+    await waitFor(() => expect(screen.queryByTestId('barra-cliente')).toBeNull());
+    await waitFor(() => expect(document.title).toBe('Clienti · Area riservata'));
+    const nav = screen.getByRole('navigation', { name: 'Area riservata' });
+    expect(
+      within(nav)
+        .getAllByRole('link')
+        .map((l) => l.textContent),
+    ).toEqual(['Clienti', 'Campionati']);
+  });
+
+  it('sends a superadmin outside any client from the pages of a client to «Clienti»', async () => {
+    const { calls } = mockServer('superadmin');
+    for (const path of ['/admin', '/admin/partite', '/admin/live', '/admin/utenti', '/admin/studio', '/admin/xyz']) {
+      renderAt(path);
+      await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/admin/clienti'));
+      cleanup();
+    }
+    expect(calls.some((c) => c.url === '/api/admin/matches' || c.url === '/api/admin/users')).toBe(false);
   });
 
   it('is not reachable by a normal admin', async () => {
@@ -210,32 +252,19 @@ describe('«Clienti» page', () => {
     const nav = await screen.findByRole('navigation', { name: 'Area riservata' });
     await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/admin/live'));
     expect(within(nav).queryByRole('link', { name: 'Clienti' })).toBeNull();
-    expect(screen.queryByLabelText('Cliente')).toBeNull();
   });
 });
 
-describe('client selector', () => {
-  it('sets the client of the session and reloads the pages on it', async () => {
-    const { calls } = mockServer('superadmin');
-    renderAt('/admin/partite');
-    const selector = await screen.findByLabelText<HTMLSelectElement>('Cliente');
-    await waitFor(() => expect(selector.value).toBe(A));
-    await waitFor(() => expect(within(selector).getByRole('option', { name: 'Club B' })).toBeTruthy());
-    const before = calls.filter((c) => c.url === '/api/admin/matches').length;
-    fireEvent.change(selector, { target: { value: B } });
-    await waitFor(() => expect(screen.getByLabelText<HTMLSelectElement>('Cliente').value).toBe(B));
-    expect(calls.find((c) => c.url === '/api/admin/active-tenant')).toMatchObject({
-      method: 'POST',
-      body: { tenantId: B },
-    });
-    // The matches page is mounted again and asks for the matches of B.
-    await waitFor(() => expect(calls.filter((c) => c.url === '/api/admin/matches').length).toBe(before + 1));
-  });
-
-  it('shows the client name, without selector, to the users of a client', async () => {
-    mockServer('admin');
-    renderAt('/admin/partite');
-    expect(await screen.findByText('Club A')).toBeTruthy();
-    expect(screen.queryByLabelText('Cliente')).toBeNull();
+describe('users of a client', () => {
+  it('see the name of their client, never the bar of the superadmin nor a prefix in the title', async () => {
+    for (const role of ['admin', 'viewer'] as const) {
+      mockServer(role);
+      renderAt('/admin/partite');
+      expect(await screen.findByText('Club A')).toBeTruthy();
+      expect(screen.queryByTestId('barra-cliente')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Esci dal cliente' })).toBeNull();
+      await waitFor(() => expect(document.title).toBe('Partite · Area riservata'));
+      cleanup();
+    }
   });
 });

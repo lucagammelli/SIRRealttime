@@ -5,12 +5,18 @@ import type {
   CreateShareTokenResponse,
   MatchSummary,
   MeResponse,
+  PublicTenantResponse,
   ServerMessage,
   ShareTokenSummary,
   TenantSummary,
   UserSummary,
 } from '@sir/shared';
-import { CreateRegistrationResponseSchema, RegistrationStatusResponseSchema } from '@sir/shared';
+import {
+  CreateRegistrationResponseSchema,
+  DEFAULT_BRAND_NAME,
+  RegistrationStatusResponseSchema,
+  TENANT_REQUIRED_MESSAGE,
+} from '@sir/shared';
 import { eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -132,20 +138,17 @@ describe('hostname resolution', () => {
     }
   });
 
+  /** Name of the client of the hostname, as the public pages see it. */
+  const publicName = async (host: string) =>
+    (await call(host, null, { url: '/api/public/tenant' })).json<PublicTenantResponse>().name;
+
   it('uses the client of a known hostname, also with upper case and port', async () => {
-    const superCookie = await login(server.app, SUPERADMIN, 'A.SIR.TEST:8080');
-    for (const host of [HOST_A, 'A.Sir.Test', `${HOST_A}:8080`]) {
-      const me = await call(host, superCookie, { url: '/api/auth/me' });
-      expect(me.json<MeResponse>().tenant).toMatchObject({ id: tenantA, slug: 'club-a' });
-    }
-    const second = await call('live.b.test', superCookie, { url: '/api/auth/me' });
-    expect(second.json<MeResponse>().tenant).toMatchObject({ id: tenantB });
+    for (const host of [HOST_A, 'A.Sir.Test', `${HOST_A}:8080`]) expect(await publicName(host)).toBe('CLUB-A');
+    expect(await publicName('live.b.test')).toBe('CLUB-B');
   });
 
   it('uses the default client for an unknown hostname', async () => {
-    const superCookie = await login(server.app, SUPERADMIN, 'sconosciuto.test');
-    const me = await call('sconosciuto.test', superCookie, { url: '/api/auth/me' });
-    expect(me.json<MeResponse>().tenant).toMatchObject({ id: server.tenantId, slug: 'predefinito' });
+    expect(await publicName('sconosciuto.test')).toBe(DEFAULT_BRAND_NAME);
   });
 
   it('answers 404 to an unknown hostname when DEFAULT_TENANT_SLUG is empty', async () => {
@@ -175,14 +178,15 @@ describe('hostname resolution', () => {
         payload: { name: 'pc' },
       });
       expect(register.statusCode).toBe(404);
-      // ADMIN of «Predefinito» cannot log in from a hostname without client.
-      const denied = await strict.app.inject({
+      // ADMIN of «Predefinito» logs in from a hostname without client too, and works on its own client.
+      const allowed = await strict.app.inject({
         method: 'POST',
         url: '/api/auth/login',
         headers: { host: 'x.test' },
         payload: ADMIN,
       });
-      expect(denied.statusCode).toBe(401);
+      expect(allowed.statusCode).toBe(200);
+      expect(allowed.json<MeResponse>().tenant?.slug).toBe('predefinito');
     } finally {
       await strict.close();
     }
@@ -197,15 +201,33 @@ describe('hostname resolution', () => {
 });
 
 describe('sessions and clients', () => {
-  it('refuses the login of a user on the hostname of another client', async () => {
-    const res = await call(HOST_B, null, { method: 'POST', url: '/api/auth/login', payload: ADMIN_A });
-    expect(res.statusCode).toBe(401);
-    expect(res.json()).toEqual({ error: 'Credenziali non valide' });
+  it('logs in a user of a client from any hostname, always on its own client', async () => {
+    for (const host of [HOST_B, '192.168.104.102', 'sconosciuto.test']) {
+      const res = await call(host, null, { method: 'POST', url: '/api/auth/login', payload: ADMIN_A });
+      expect(res.statusCode).toBe(200);
+      expect(res.json<MeResponse>().tenant).toMatchObject({ id: tenantA, slug: 'club-a' });
+    }
+    // A wrong password keeps the same answer on every hostname (nothing tells whether the account exists).
+    const wrong = await call(HOST_B, null, {
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { ...ADMIN_A, password: 'password-sbagliata' },
+    });
+    expect(wrong.statusCode).toBe(401);
+    expect(wrong.json()).toEqual({ error: 'Credenziali non valide' });
   });
 
-  it('does not accept the session of a client on the hostname of another', async () => {
-    expect((await call(HOST_A, cookieA, { url: '/api/admin/agents' })).statusCode).toBe(200);
-    expect((await call(HOST_B, cookieA, { url: '/api/admin/agents' })).statusCode).toBe(401);
+  it('keeps the session of a client on its own client on the hostname of another', async () => {
+    const onB = await call(HOST_B, cookieA, { url: '/api/admin/agents' });
+    expect(onB.statusCode).toBe(200);
+    expect(onB.json<AgentSummary[]>().map((a) => a.id)).toEqual([await agentIdOf(tenantA)]);
+    const matchesOnB = (await call(HOST_B, cookieA, { url: '/api/admin/matches' })).json<MatchSummary[]>();
+    expect(matchesOnB.map((m) => m.matchKey)).toEqual(['gara']);
+    const idB = await matchId(tenantB, 'gara');
+    expect((await call(HOST_B, cookieA, { url: `/api/admin/matches/${idB}` })).statusCode).toBe(404);
+    expect((await call(HOST_B, cookieA, { url: '/api/admin/tenants' })).statusCode).toBe(403);
+    const me = await call(HOST_B, cookieA, { url: '/api/auth/me' });
+    expect(me.json<MeResponse>().tenant?.id).toBe(tenantA);
   });
 
   it('tells the user its client', async () => {
@@ -441,8 +463,9 @@ describe('superadmin', () => {
       payload: { name: 'Club C nuovo', hostnames: ['c.sir.test', 'c2.sir.test'] },
     });
     expect(updated.json()).toMatchObject({ name: 'Club C nuovo', hostnames: ['c.sir.test', 'c2.sir.test'] });
+    // The hostname never chooses the client of the superadmin.
     const me = await call('c2.sir.test', superCookie, { url: '/api/auth/me' });
-    expect(me.json<MeResponse>().tenant?.id).toBe(c.id);
+    expect(me.json<MeResponse>().tenant).toBeNull();
   });
 
   it('refuses duplicate slugs and hostnames of another client', async () => {
@@ -486,13 +509,13 @@ describe('superadmin', () => {
     expect(missing.statusCode).toBe(404);
   });
 
-  it('works on any client with the selector, starting from the client of the hostname', async () => {
+  it('enters a client explicitly and leaves it, never working on the client of the hostname', async () => {
     const keys = async () =>
       (await call(HOST_A, superCookie, { url: '/api/admin/matches' }))
         .json<MatchSummary[]>()
         .map((m) => m.matchKey)
         .sort();
-    expect(await keys()).toEqual(['gara']);
+    expect((await call(HOST_A, superCookie, { url: '/api/admin/matches' })).statusCode).toBe(409);
     const select = await call(HOST_A, superCookie, {
       method: 'POST',
       url: '/api/admin/active-tenant',
@@ -519,21 +542,54 @@ describe('superadmin', () => {
       url: '/api/admin/active-tenant',
       payload: { tenantId: null },
     });
-    expect(back.json<MeResponse>().tenant?.id).toBe(tenantA);
+    expect(back.json<MeResponse>().tenant).toBeNull();
+    expect((await call(HOST_A, superCookie, { url: '/api/admin/matches' })).statusCode).toBe(409);
+    // Entered from one hostname, the client is the same on every other.
+    await call(HOST_B, superCookie, {
+      method: 'POST',
+      url: '/api/admin/active-tenant',
+      payload: { tenantId: tenantA },
+    });
     expect(await keys()).toEqual(['gara']);
+    await call(HOST_A, superCookie, { method: 'POST', url: '/api/admin/active-tenant', payload: { tenantId: null } });
   });
 
-  it('asks to choose a client when the hostname has none', async () => {
-    const strict = await startServer({}, { DEFAULT_TENANT_SLUG: '' });
-    try {
-      const cookie = await login(strict.app, SUPERADMIN, 'x.test');
-      const me = await strict.app.inject({ url: '/api/auth/me', headers: { host: 'x.test', cookie } });
-      expect(me.json<MeResponse>().tenant).toBeNull();
-      const res = await strict.app.inject({ url: '/api/admin/matches', headers: { host: 'x.test', cookie } });
-      expect(res.statusCode).toBe(400);
-      expect(res.json()).toEqual({ error: 'Seleziona un cliente' });
-    } finally {
-      await strict.close();
+  it('asks to choose a client on every route with data of a client, on any hostname', async () => {
+    const cookie = await login(server.app, SUPERADMIN, HOST_B);
+    const me = await call(HOST_B, cookie, { url: '/api/auth/me' });
+    expect(me.json<MeResponse>().tenant).toBeNull();
+    for (const url of [
+      '/api/admin/matches',
+      '/api/admin/agents',
+      '/api/admin/agent-quota',
+      '/api/admin/agent-registrations',
+      '/api/admin/agent/info',
+      '/api/admin/share-tokens',
+      '/api/admin/users',
+      '/api/admin/club',
+      '/api/admin/calendar',
+      '/api/admin/simulation',
+      '/api/admin/branding',
+      '/api/admin/layout',
+      '/api/admin/intermissions',
+      '/api/admin/overlays',
+      '/api/admin/assets',
+    ]) {
+      const res = await call(HOST_B, cookie, { url });
+      expect({ url, status: res.statusCode, body: res.json<unknown>() }).toEqual({
+        url,
+        status: 409,
+        body: { error: TENANT_REQUIRED_MESSAGE },
+      });
     }
+    const create = await call(HOST_B, cookie, { method: 'POST', url: '/api/admin/agents', payload: { name: 'pc' } });
+    expect(create.statusCode).toBe(409);
+    // The pages of the superadmin work without a client.
+    expect((await call(HOST_B, cookie, { url: '/api/admin/tenants' })).statusCode).toBe(200);
+    expect((await call(HOST_B, cookie, { url: '/api/admin/leagues' })).statusCode).toBe(200);
+    // The admin WebSocket has no live match to follow: closed.
+    const ws = await server.app.injectWS('/ws/admin', { headers: { host: HOST_B, cookie } });
+    const code = await new Promise<number>((resolve) => ws.on('close', (c: number) => resolve(c)));
+    expect(code).toBe(1008);
   });
 });

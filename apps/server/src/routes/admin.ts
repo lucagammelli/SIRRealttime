@@ -14,7 +14,7 @@ import {
   CreateShareTokenRequestSchema,
   IdParamSchema,
 } from '@sir/shared';
-import { desc, eq, gt } from 'drizzle-orm';
+import { and, desc, eq, gt, notExists } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { agentQuotaOf, agentsInUse, lockTenantAgents, requireAgentSlot } from '../agentQuota.js';
 import type { AppContext } from '../context.js';
@@ -99,7 +99,8 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
     const rows = await ctx.db
       .select()
       .from(matches)
-      .where(tenantScope(matches, tenantId))
+      // A simulated match is not a match of the client: it is on the page «Simulazione» only.
+      .where(tenantScope(matches, tenantId, eq(matches.simulated, false)))
       .orderBy(desc(matches.updatedAt))
       .limit(MATCH_LIST_LIMIT);
     return rows.map(matchSummary);
@@ -111,7 +112,7 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
     const [m] = await ctx.db
       .select()
       .from(matches)
-      .where(tenantScope(matches, tenantId, eq(matches.id, id)))
+      .where(tenantScope(matches, tenantId, eq(matches.id, id), eq(matches.simulated, false)))
       .limit(1);
     if (!m) throw notFound();
     return { ...matchSummary(m), lastSeq: m.lastSeq, contentHash: m.contentHash, state: m.state };
@@ -269,7 +270,7 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
       const [m] = await ctx.db
         .select({ id: matches.id })
         .from(matches)
-        .where(tenantScope(matches, tenantId, eq(matches.id, body.matchId)))
+        .where(tenantScope(matches, tenantId, eq(matches.id, body.matchId), eq(matches.simulated, false)))
         .limit(1);
       if (!m) throw badRequest('Richiesta non valida: matchId');
     }
@@ -297,7 +298,19 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
     const rows = await ctx.db
       .select()
       .from(shareTokens)
-      .where(tenantScope(shareTokens, tenantId))
+      // The link of a simulation is on the page «Simulazione» only (deleted with it).
+      .where(
+        tenantScope(
+          shareTokens,
+          tenantId,
+          notExists(
+            ctx.db
+              .select({ id: matches.id })
+              .from(matches)
+              .where(and(eq(matches.id, shareTokens.matchId), eq(matches.simulated, true))),
+          ),
+        ),
+      )
       .orderBy(desc(shareTokens.createdAt));
     const summaries: ShareTokenSummary[] = [];
     for (const row of rows) {

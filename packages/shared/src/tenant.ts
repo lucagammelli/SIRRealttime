@@ -172,6 +172,12 @@ export const UpdateTenantRequestSchema = z
   });
 export type UpdateTenantRequest = z.infer<typeof UpdateTenantRequestSchema>;
 
-/** Client on which a superadmin works (`POST /api/admin/active-tenant`); null: the client of the hostname. */
+/**
+ * Client on which a superadmin works (`POST /api/admin/active-tenant`): an id enters that client, null leaves it
+ * (back to the pages of the superadmin, with no client: never the client of the hostname).
+ */
 export const SetActiveTenantRequestSchema = z.object({ tenantId: z.uuid().nullable() });
 export type SetActiveTenantRequest = z.infer<typeof SetActiveTenantRequestSchema>;
+
+/** Error (409 TENANT_REQUIRED) of every route with data of a client called by a superadmin with no client chosen. */
+export const TENANT_REQUIRED_MESSAGE = 'Scegli prima un cliente';

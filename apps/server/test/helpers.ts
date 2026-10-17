@@ -46,7 +46,7 @@ export interface TestServer {
 export async function startServer(
   rateLimits: Partial<RateLimits> = {},
   env: Record<string, string> = {},
-  appOptions: Pick<AppOptions, 'leagueFetcher' | 'onRoute'> = {},
+  appOptions: Pick<AppOptions, 'leagueFetcher' | 'onRoute' | 'simulationTimers'> = {},
 ): Promise<TestServer> {
   const database = createPgliteDatabase();
   await database.migrate();
@@ -88,6 +88,7 @@ export async function startServer(
       ...appOptions.leagueFetcher,
     },
     ...(appOptions.onRoute ? { onRoute: appOptions.onRoute } : {}),
+    ...(appOptions.simulationTimers ? { simulationTimers: appOptions.simulationTimers } : {}),
   });
   const [tenant] = await database.db
     .select({ id: tenants.id })

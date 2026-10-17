@@ -8,11 +8,19 @@ import { parseArgs } from 'node:util';
 import { gzipSync } from 'node:zlib';
 import { decodeDvw, parseDvw } from '@sir/dvw-parser';
 import type { IngestRequest, JsonValue } from '@sir/shared';
-import { buildDvwText, diffJson, hashScoutLines, splitDvwText } from '@sir/shared';
+import {
+  buildDvwText,
+  diffJson,
+  hashScoutLines,
+  MeResponseSchema,
+  splitDvwText,
+  TenantSummarySchema,
+} from '@sir/shared';
 import { computeMatchState } from '@sir/volley-stats';
 import { canonicalJson, stepCounts, summarize } from './metrics.js';
 import type { ChildEvent, ParentCommand, ReadyEvent, ResultEvent } from './spectators.js';
 import { runSpectatorProcess } from './spectators.js';
+import { tenantForBase } from './tenant.js';
 
 export const HELP = `carico: prova di carico dei WebSocket pubblici di SIRRealtime
 
@@ -60,11 +68,27 @@ async function api(base: string, path: string, init: RequestInit & { cookie?: st
   return fetch(new URL(path, base), { ...init, headers });
 }
 
-/** Agent and live link created with the admin account (the client of the hostname of `base`). */
+/**
+ * Agent and live link created with the account given: an admin of a client works on its own client; a superadmin
+ * first enters a client (`POST /api/admin/active-tenant`, see `tenantForBase`), otherwise every admin route is a 409.
+ */
 async function setup(base: string, email: string, password: string): Promise<{ agent: string; share: string }> {
   const login = await api(base, '/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
   if (!login.ok) throw new Error(`login fallito: ${login.status}`);
   const cookie = (login.headers.get('set-cookie') ?? '').split(';')[0] ?? '';
+  const me = MeResponseSchema.parse(await login.json());
+  if (me.role === 'superadmin') {
+    const list = await api(base, '/api/admin/tenants', { cookie });
+    if (!list.ok) throw new Error(`elenco dei clienti fallito: ${list.status}`);
+    const tenant = tenantForBase(TenantSummarySchema.array().parse(await list.json()), base);
+    if (!tenant) throw new Error('nessun cliente in cui entrare: usa un admin di un cliente');
+    const enter = await api(base, '/api/admin/active-tenant', {
+      method: 'POST',
+      cookie,
+      body: JSON.stringify({ tenantId: tenant.id }),
+    });
+    if (!enter.ok) throw new Error(`ingresso nel cliente fallito: ${enter.status}`);
+  }
   const agentRes = await api(base, '/api/admin/agents', {
     method: 'POST',
     cookie,

@@ -26,15 +26,23 @@ describe('PreviewDock: always in view', () => {
   it('is sticky: a column under the page top on desktop, a bar under the top bar on the phone, first on small screens', () => {
     dock();
     const aside = screen.getByTestId('anteprima-fissa');
-    for (const c of ['sticky', 'order-first', 'xl:order-none', 'xl:self-start', 'xl:top-6', 'md:top-0']) {
+    // Under the bar of the client managed by the superadmin too (`--sir-admin-bar`, 0 without it).
+    for (const c of [
+      'sticky',
+      'order-first',
+      'xl:order-none',
+      'xl:self-start',
+      'xl:top-[calc(var(--sir-admin-bar,0px)+1.5rem)]',
+      'md:top-[var(--sir-admin-bar,0px)]',
+    ]) {
       expect(aside.className).toContain(c);
     }
     // never taller than the screen: scrolls inside
     expect(aside.className).toContain('max-h-[60dvh]');
-    expect(aside.className).toContain('xl:max-h-[calc(100dvh-3rem)]');
+    expect(aside.className).toContain('xl:max-h-[calc(100dvh-3rem-var(--sir-admin-bar,0px))]');
     expect(aside.className).toContain('overflow-y-auto');
     // phone: under the sticky top bar (z-30), above the page
-    expect(aside.className).toContain('top-[var(--sir-navbar-height,3.5rem)]');
+    expect(aside.className).toContain('top-[calc(var(--sir-navbar-height,3.5rem)+var(--sir-admin-bar,0px))]');
   });
 
   it('a tablet starts with the preview open, a phone with it closed; the button opens and closes it', () => {

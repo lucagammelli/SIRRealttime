@@ -9,13 +9,15 @@ import type {
 import {
   AgentRegistrationSummarySchema,
   CreateRegistrationResponseSchema,
+  DEFAULT_TENANT_SLUG,
   RegistrationStatusResponseSchema,
 } from '@sir/shared';
+import { eq } from 'drizzle-orm';
 import type { LightMyRequestResponse } from 'fastify';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { buildApp, loggerOptions } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
-import { agentRegistrations, users } from '../src/db/index.js';
+import { agentRegistrations, tenants, users } from '../src/db/index.js';
 import { createPgliteDatabase } from '../src/db/pglite.js';
 import { hashPassword } from '../src/lib/passwords.js';
 import { MAX_PENDING_REGISTRATIONS, REGISTRATION_TTL_MS } from '../src/routes/registration.js';
@@ -342,7 +344,7 @@ describe('logs', () => {
     await database.migrate();
     await database.db
       .insert(users)
-      // A superadmin without client: it works on the client of the hostname («Predefinito», the default).
+      // A superadmin: it enters the client «Predefinito» (the one of the registration) to approve it.
       .values({ email: ADMIN.email, passwordHash: await hashPassword(ADMIN.password), role: 'superadmin' });
     const options = loggerOptions('info');
     if (typeof options !== 'object') throw new Error('logger options expected');
@@ -355,6 +357,13 @@ describe('logs', () => {
       const created = await app.inject({ method: 'POST', url: '/api/agents/registrations', payload: { name: 'pc' } });
       const reg = CreateRegistrationResponseSchema.parse(created.json());
       const cookie = await login(app, ADMIN);
+      const [tenant] = await database.db
+        .select({ id: tenants.id })
+        .from(tenants)
+        .where(eq(tenants.slug, DEFAULT_TENANT_SLUG));
+      const enter = (tenantId: string | null) =>
+        app.inject({ method: 'POST', url: '/api/admin/active-tenant', headers: { cookie }, payload: { tenantId } });
+      expect((await enter(tenant?.id ?? null)).statusCode).toBe(200);
       await app.inject({
         method: 'POST',
         url: `/api/admin/agent-registrations/${reg.registrationId}/approve`,
@@ -369,8 +378,16 @@ describe('logs', () => {
       });
       const answer = RegistrationStatusResponseSchema.parse(res.json());
       if (answer.status !== 'approved') throw new Error('not approved');
+      expect((await enter(null)).statusCode).toBe(200);
       const all = lines.join('');
       expect(all).toContain('agente registrato: token consegnato');
+      // Entering and leaving a client are in the log, with the user and the client.
+      const entries = lines.map((l) => JSON.parse(l) as { msg?: string; userId?: string; tenantId?: string });
+      for (const msg of ['superadmin entrato nel cliente', 'superadmin uscito dal cliente']) {
+        const entry = entries.find((e) => e.msg === msg);
+        expect(entry?.tenantId).toBe(tenant?.id);
+        expect(entry?.userId).toMatch(/^[0-9a-f-]{36}$/);
+      }
       expect(all).not.toContain(reg.secret);
       expect(all).not.toContain(answer.token);
     } finally {

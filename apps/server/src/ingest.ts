@@ -4,13 +4,14 @@ import { buildDvwText, hashScoutLines } from '@sir/shared';
 import { computeMatchState } from '@sir/volley-stats';
 import { and, asc, eq, gte } from 'drizzle-orm';
 import { evaluateFixtureLink } from './club.js';
-import type { AuthenticatedAgent } from './context.js';
+import type { AppContext } from './context.js';
 import type { Db } from './db/index.js';
 import { matches, scoutLines } from './db/index.js';
 import type { PublishRoute } from './hub.js';
-import { HttpError } from './lib/errors.js';
+import { conflict, HttpError } from './lib/errors.js';
 import type { Tx } from './matchLock.js';
 import { lockTenantMatches, switchOffOthers } from './matchLock.js';
+import { channelAllowed, withLogos } from './state.js';
 import { tenantScope } from './tenancy.js';
 
 const INSERT_CHUNK = 1000;
@@ -21,6 +22,16 @@ interface CacheEntry {
   matchId: string;
   version: number;
   lines: string[];
+}
+
+/**
+ * Who sends the lines: an agent of the client (`agentId`), or the simulation of the server (`simulated`: no agent;
+ * the match is never live nor linked to the calendar, see `src/simulation/`).
+ */
+export interface IngestSource {
+  tenantId: string;
+  agentId: string | null;
+  simulated: boolean;
 }
 
 export interface IngestOutcome {
@@ -60,17 +71,19 @@ export class IngestService {
     private readonly maxLines: number,
   ) {}
 
-  /** The match is `req.matchKey` of the client of the agent: agents of other clients never touch it. */
-  async ingest(agent: AuthenticatedAgent, req: IngestRequest): Promise<IngestOutcome> {
-    const { tenantId } = agent;
-    const agentId = agent.id;
+  /**
+   * The match is `req.matchKey` of the client of the source: agents of other clients never touch it, and an agent
+   * never touches a simulated match (nor the simulation a match of an agent): 409.
+   */
+  async ingest(source: IngestSource, req: IngestRequest): Promise<IngestOutcome> {
+    const { tenantId, agentId, simulated } = source;
     let result: { outcome: IngestOutcome; cache?: CacheEntry };
     try {
       result = await this.db.transaction(async (tx): Promise<{ outcome: IngestOutcome; cache?: CacheEntry }> => {
         await lockTenantMatches(tx, tenantId);
         await tx
           .insert(matches)
-          .values({ tenantId, matchKey: req.matchKey })
+          .values({ tenantId, matchKey: req.matchKey, simulated })
           .onConflictDoNothing({ target: [matches.tenantId, matches.matchKey] });
         const [row] = await tx
           .select()
@@ -78,6 +91,7 @@ export class IngestService {
           .where(tenantScope(matches, tenantId, eq(matches.matchKey, req.matchKey)))
           .for('update');
         if (!row) throw new Error('match row not found after insert');
+        if (row.simulated !== simulated) throw conflict('Partita già usata da un’altra sorgente');
 
         if (req.seq <= row.lastSeq) return { outcome: { response: describe(row, 'duplicate'), published: null } };
         if (req.kind === 'append' && req.fromIndex !== row.lineCount)
@@ -91,7 +105,8 @@ export class IngestService {
         const contentHash = await hashScoutLines(lines);
         if (contentHash !== req.contentHash) throw new NeedSnapshot(describe(row, 'needSnapshot'));
 
-        const unchanged = contentHash === row.contentHash && header === row.header && row.live && row.state !== null;
+        const unchanged =
+          contentHash === row.contentHash && header === row.header && (row.live || simulated) && row.state !== null;
         if (unchanged) {
           await tx.update(matches).set({ lastSeq: req.seq, agentId }).where(eq(matches.id, row.id));
           const response: IngestResponse = { status: 'ok', seq: req.seq, lineCount: lines.length, contentHash };
@@ -108,11 +123,12 @@ export class IngestService {
           fixtureLink: row.fixtureLink,
           fixtureCandidates: row.fixtureCandidates,
         };
-        if (header !== row.header && (row.fixtureLink === null || row.fixtureLink === 'pending')) {
+        // A simulated match is never linked to the calendar and never live: the live matches stay as they are.
+        if (!simulated && header !== row.header && (row.fixtureLink === null || row.fixtureLink === 'pending')) {
           link = (await evaluateFixtureLink(tx, tenantId, parsed)) ?? link;
         }
         const now = new Date();
-        await switchOffOthers(tx, tenantId, row.id, link.clientFixtureId);
+        if (!simulated) await switchOffOthers(tx, tenantId, row.id, link.clientFixtureId);
         await tx
           .update(matches)
           .set({
@@ -121,8 +137,8 @@ export class IngestService {
             contentHash,
             lastSeq: req.seq,
             agentId,
-            live: true,
-            liveSince: row.live ? row.liveSince : now,
+            live: !simulated,
+            liveSince: simulated ? null : row.live ? row.liveSince : now,
             state,
             version,
             ...link,
@@ -132,8 +148,10 @@ export class IngestService {
         return {
           outcome: {
             response: { status: 'ok', seq: req.seq, lineCount: lines.length, contentHash },
-            published: { type: 'state', matchId: row.id, version, state },
-            route: { clientFixtureId: link.clientFixtureId, becameLive: !row.live },
+            published: { type: 'state', matchId: row.id, version, state, ...(simulated ? { simulated: true } : {}) },
+            route: simulated
+              ? { clientFixtureId: null, becameLive: false, channel: false, isolated: true }
+              : { clientFixtureId: link.clientFixtureId, becameLive: !row.live },
           },
           cache: { matchId: row.id, version, lines },
         };
@@ -188,4 +206,23 @@ export class IngestService {
       this.cache.delete(oldest.value);
     }
   }
+}
+
+/**
+ * The pipeline of the ingest, the same for `POST /api/ingest` and for the simulation of the server: applies the
+ * request (`IngestService.ingest`) and pushes the new state to the WebSocket clients (logos, channel, route). A match
+ * that starts or ends changes «Prossima partita»: the public schedule is read again (not for a simulated match).
+ */
+export async function applyIngest(ctx: AppContext, source: IngestSource, req: IngestRequest): Promise<IngestOutcome> {
+  const outcome = await ctx.ingest.ingest(source, req);
+  const { published, route } = outcome;
+  if (published) {
+    const fixtureId = route?.clientFixtureId ?? null;
+    const message = await withLogos(ctx, source.tenantId, published, fixtureId);
+    const channel = source.simulated ? false : await channelAllowed(ctx, source.tenantId, fixtureId);
+    ctx.publisher.publish(source.tenantId, message, route ? { ...route, channel } : route);
+    if (!source.simulated && (route?.becameLive || published.state.status === 'finished'))
+      ctx.caches.schedule.delete(source.tenantId);
+  }
+  return outcome;
 }

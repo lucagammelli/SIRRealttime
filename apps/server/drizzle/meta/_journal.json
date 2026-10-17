@@ -64,6 +64,13 @@
       "when": 1792243222596,
       "tag": "0008_utenti_clienti",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792246271719,
+      "tag": "0009_simulazione",
+      "breakpoints": true
     }
   ]
 }

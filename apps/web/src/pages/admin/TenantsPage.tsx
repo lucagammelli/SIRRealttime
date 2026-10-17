@@ -53,11 +53,11 @@ export const quotaText = (n: number): string => (n === 1 ? 'un agente' : `fino a
 export const userCountText = (n: number): string => (n === 0 ? 'nessun utente' : n === 1 ? '1 utente' : `${n} utenti`);
 
 /**
- * Chooses the client the admin pages of the superadmin work on (`POST /api/admin/active-tenant`, kept in the
- * session): used by the selector of the menu and by «Utenti» of the «Clienti» page. True when it worked.
+ * «Entra nel cliente» (an id) and «Esci dal cliente» (null) of the superadmin (`POST /api/admin/active-tenant`, kept
+ * in the session): the pages are mounted again on the new client. True when it worked.
  */
 export function useChooseTenant(): {
-  choose: (tenantId: string) => Promise<boolean>;
+  choose: (tenantId: string | null) => Promise<boolean>;
   busy: boolean;
   error: string | null;
 } {
@@ -66,7 +66,7 @@ export function useChooseTenant(): {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const choose = useCallback(
-    async (tenantId: string): Promise<boolean> => {
+    async (tenantId: string | null): Promise<boolean> => {
       setError(null);
       setBusy(true);
       try {
@@ -109,9 +109,9 @@ function QuotaField({ value, onChange }: { value: string; onChange: (v: string) 
 }
 
 /**
- * Clients (superadmin only): list with the number of users and «Utenti» (works on that client and opens its users),
- * new client with an optional first user («Lettura e scrittura»), change of name, hostnames and quota of agents.
- * `tenants` is shared with the selector.
+ * Clients (superadmin only, its first page): list with the number of users and «Entra nel cliente» (the superadmin
+ * manages that client, with all its pages, until «Esci dal cliente»), new client with an optional first user
+ * («Lettura e scrittura»), change of name, hostnames and quota of agents.
  */
 export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> }) {
   const errorMessage = useApiError();
@@ -129,12 +129,12 @@ export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> 
   const [done, setDone] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
 
-  /** Works on the client and opens its users (the pages are mounted again on it). */
-  const openUsers = async (tenantId: string): Promise<void> => {
+  /** Enters the client and opens its live match (the pages are mounted again on it). */
+  const enter = async (tenantId: string): Promise<void> => {
     setOpening(tenantId);
     const ok = await chooser.choose(tenantId);
     setOpening(null);
-    if (ok) void navigate('/admin/utenti');
+    if (ok) void navigate('/admin/live');
   };
 
   useEffect(() => {
@@ -276,12 +276,12 @@ export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> 
                   </div>
                   <span className="inline-flex flex-wrap gap-2">
                     <Button
-                      variant="ghost"
+                      variant="primary"
                       disabled={chooser.busy}
-                      onClick={() => void openUsers(t.id)}
-                      aria-label={`Utenti di ${t.name}`}
+                      onClick={() => void enter(t.id)}
+                      aria-label={`Entra nel cliente ${t.name}`}
                     >
-                      {opening === t.id ? 'Apertura…' : 'Utenti'}
+                      {opening === t.id ? 'Ingresso…' : 'Entra nel cliente'}
                     </Button>
                     <Button variant="ghost" onClick={() => setEditing(t.id)} aria-label={`Modifica ${t.name}`}>
                       Modifica
@@ -366,56 +366,5 @@ function TenantEditor({
         </Button>
       </div>
     </form>
-  );
-}
-
-/** Client the admin pages work on (superadmin only), in the bar of the reserved area. */
-export function TenantSelector({
-  tenants,
-  stacked = false,
-}: {
-  tenants: AsyncState<TenantSummary[]>;
-  /** Label over a full width select (side menu of the reserved area); otherwise on one line. */
-  stacked?: boolean;
-}) {
-  const { user } = useAuth();
-  const { choose, busy, error } = useChooseTenant();
-  const current = user.tenant?.id ?? '';
-
-  const list =
-    tenants.data ??
-    (user.tenant
-      ? [{ ...user.tenant, hostnames: [], createdAt: '', agentQuota: DEFAULT_AGENT_QUOTA, userCount: 0 }]
-      : []);
-  return (
-    <span className={stacked ? 'flex flex-col gap-1' : 'inline-flex items-center gap-2'}>
-      <label className={`text-xs text-muted ${stacked ? 'flex flex-col gap-1' : 'inline-flex items-center gap-2'}`}>
-        Cliente
-        <select
-          value={current}
-          disabled={busy}
-          onChange={(e) => void choose(e.target.value)}
-          className={`rounded-card border border-border bg-surface-2 px-2 py-1 text-sm text-text focus:border-focus ${
-            stacked ? 'min-h-9 w-full min-w-0 pointer-coarse:min-h-11' : ''
-          }`}
-        >
-          {current === '' && (
-            <option value="" disabled>
-              Scegli un cliente
-            </option>
-          )}
-          {list.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      {error && (
-        <span role="alert" className="text-xs text-danger">
-          {error}
-        </span>
-      )}
-    </span>
   );
 }

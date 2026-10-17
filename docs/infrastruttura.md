@@ -235,7 +235,7 @@ Una prova da migliaia di client da una sola macchina va fatta con `ulimit -n` al
 RADICE="/percorso/del/repository"        # radice del repository o del worktree del job
 DVW="samples/partita-sintetica.dvw"      # partita da riprodurre (percorso dalla radice)
 SERVER="http://127.0.0.1:8090"           # indirizzo del server già avviato
-ADMIN_EMAIL_PROVA="admin@example.com"    # superadmin/admin del cliente dell'hostname (crea agente e link)
+ADMIN_EMAIL_PROVA="admin@example.com"    # admin di un cliente o superadmin (crea agente e link); il superadmin entra prima nel cliente con l’hostname di SERVER, altrimenti in quello predefinito
 ADMIN_PASSWORD_PROVA="<password>"        # password di quell'utente
 SERVER_PID="<pid>"                       # pid del processo del server (es. pgrep -f "dist/main.js"); solo Linux
 CLIENTI="1000"                           # spettatori simultanei

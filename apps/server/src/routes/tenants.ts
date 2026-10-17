@@ -16,7 +16,7 @@ import { hashPassword } from '../lib/passwords.js';
 import { hashToken } from '../lib/tokens.js';
 import { validate } from '../lib/validate.js';
 import { requireRole } from '../security.js';
-import { findTenant, forgetTenants, hostTenant, tenantRef } from '../tenancy.js';
+import { findTenant, forgetTenants, tenantRef } from '../tenancy.js';
 import { insertTenantUser } from '../users.js';
 
 type TenantRow = typeof tenants.$inferSelect;
@@ -124,8 +124,9 @@ export function tenantRoutes(app: FastifyInstance, ctx: AppContext): void {
   });
 
   /**
-   * Client of the admin pages of a superadmin, kept in its session (so the WebSocket and every page use it);
-   * null: back to the client of the hostname. Another role gets 403.
+   * «Entra nel cliente» / «Esci dal cliente» of a superadmin: the client of its admin pages, kept in its session (so
+   * the WebSocket and every page use it); null: no client (only the pages of the superadmin). Every change is in the
+   * log (user, client left, client entered). Another role gets 403.
    */
   app.post('/api/admin/active-tenant', superadmin, async (request): Promise<MeResponse> => {
     const body = validate(SetActiveTenantRequestSchema, request.body);
@@ -137,8 +138,13 @@ export function tenantRoutes(app: FastifyInstance, ctx: AppContext): void {
       .update(sessions)
       .set({ activeTenantId: body.tenantId })
       .where(and(eq(sessions.tokenHash, hashToken(token)), eq(sessions.userId, user.id)));
-    const tenantId = body.tenantId ?? (await hostTenant(ctx, request))?.id ?? null;
-    request.log.info({ userId: user.id, tenantId }, 'cliente attivo del superadmin');
-    return { id: user.id, email: user.email, role: user.role, tenant: await tenantRef(ctx, tenantId) };
+    const previous = request.adminTenantId;
+    if (previous && previous !== body.tenantId) {
+      request.log.info({ userId: user.id, tenantId: previous }, 'superadmin uscito dal cliente');
+    }
+    if (body.tenantId && previous !== body.tenantId) {
+      request.log.info({ userId: user.id, tenantId: body.tenantId }, 'superadmin entrato nel cliente');
+    }
+    return { id: user.id, email: user.email, role: user.role, tenant: await tenantRef(ctx, body.tenantId) };
   });
 }

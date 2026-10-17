@@ -108,7 +108,8 @@ Più società sportive (clienti) sulla stessa installazione, con dati separati e
 dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in quest'ordine:
 
 1. `clienti-base` (**fatto**): tabella `tenants`, `tenant_id` su tutti i dati, ruolo superadmin, pagina «Clienti» e
-   selettore del cliente, una partita live per cliente.
+   una partita live per cliente. Il selettore del cliente iniziale è stato sostituito (2026-10-17, job
+   `simulatore-partita`) da «Entra nel cliente» / «Esci dal cliente»; il login vale da qualunque hostname.
 2. `scalabilita` (punti 1-5 **fatti**, 6 da fare solo se servirà): migliaia di spettatori. (1) aggiornamenti
    differenziali sul WebSocket con stato intero di riserva e `resync`; (2) compressione gzip fatta una volta per
    messaggio; (3) limiti adatti al pubblico in palestra; (4) riconnessioni senza valanghe; (5) cache di link e hostname,
@@ -203,6 +204,12 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
    riattiva, elimina) con ruoli «Lettura e scrittura» e «Sola lettura», almeno un admin attivo per cliente, sessioni
    chiuse ai cambi; pagina «Clienti» con numero di utenti, «Utenti» e primo utente alla creazione (`docs/server.md`,
    `docs/portale.md`, `docs/architettura.md`).
+7. `simulatore-partita` (**fatto**, 2026-10-17): menu a gruppi «Partite» e «Pagina pubblica», superadmin solo dentro un
+   cliente («Entra nel cliente», barra gialla, 409 `TENANT_REQUIRED`), link del calendario creati da soli, «Link
+   pubblici» con la partita live e le prossime trasmesse; pagina «Simulazione» (`/admin/simulazione`, solo admin): il server gioca
+   una partita casuale o un file `.dvw` caricato nella stessa pipeline dell'ingest, con tempi a durata o a velocità,
+   su un link a parte con QR e l'etichetta «Simulazione»; una per cliente, 5 nel server, cancellata 6 ore dopo la fine
+   (`docs/server.md`, `docs/portale.md`, `docs/simulatore.md`, `docs/architettura.md`).
 **Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
 PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo
 mostra con «autore sconosciuto».

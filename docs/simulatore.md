@@ -21,6 +21,25 @@ scout. Il formato scritto è quello letto da `docs/dvw-parser.md`.
 - **Correzioni** (`applyCorrection`, e `corrections` in `play`): con probabilità 5% a ogni riga (dopo la quinta) cambia
   la valutazione di una riga d'azione già scritta (ricezione, alzata o difesa), così si prova lo snapshot dell'agente.
   La riga corretta è sempre tra quelle già visibili. Il file finale converge alla partita corretta.
+- **Tempi di una riproduzione** (`src/schedule.ts`, funzioni pure: niente I/O né ora corrente): `planPlayback(righe, ritmo)`
+  dice a che millisecondo, dall'avvio, va inviata ogni riga di scout. Restituisce `{ offsetsMs, totalMs, sets }`: gli
+  scarti non diminuiscono mai, il primo è 0, `totalMs` è lo scarto dell'ultima riga e `sets` elenca i set con almeno un
+  punto (`startMs`, `endMs`). Le righe sono `PlaybackLine` (`kind`, `time?`: basta una `ScoutEntry` del parser). Due ritmi
+  (`PlaybackPace`):
+  - `{ kind: 'duration', setSeconds, breakSeconds }` («durata»): ogni set dura `setSeconds` e ogni pausa tra due set
+    `breakSeconds`; le righe di un set si distribuiscono nel suo tempo seguendo il proprio ritmo. Le righe fuori da un
+    set (dopo l'ultimo, o file senza punti) seguono subito quelle prima;
+  - `{ kind: 'speed', speed }` («velocità»): il ritmo reale delle righe diviso `speed`.
+  Il «ritmo reale» (`matchSeconds`) usa gli orari `HH.MM.SS` scritti da DataVolley (`timeSeconds`: secondi dalla
+  mezzanotte, `null` se manca o non è un orario valido): lo scarto dalla riga con orario precedente; oltre la mezzanotte
+  continua (uno scarto negativo oltre mezza giornata aggiunge 24 h), una riga indietro nel tempo non fa tornare l'orologio,
+  uno scarto sopra `MAX_REAL_GAP_SECONDS` (600 s) è tagliato a 600 s. Una riga senza orario valido, e tutte le righe di un
+  file con orari su meno della metà delle righe, usano il **ritmo medio** (`AVERAGE_GAP_SECONDS`) dopo la riga
+  precedente: 3 s dopo un tocco (`action`), 20 s dopo un punto (`point`), 60 s dopo un time-out (`timeout`), 300 s dopo la
+  fine di un set (`setEnd`). Lo usa il server (`apps/server/src/simulation/`, `docs/server.md`) come dipendenza
+  `@sir/dvw-simulator`: `planPlayback` per i tempi di ogni partita (anche di un `.dvw` caricato) e, per la sorgente
+  «Casuale» della pagina «Simulazione», `generateMatch`, `renderDvw` e `DEFAULT_AWAY_NAME`. Non ci sono partite di
+  esempio già pronte: le sorgenti sono solo «Casuale» e il file `.dvw` caricato.
 - Il test di andata e ritorno (`src/roundtrip.test.ts`) genera partite con 3, 4 e 5 set, le scrive, le rilegge con
   `parseDvw` e verifica: nessun avviso né `unknown`, righe e codici identici, punteggi, set, squadre e giocatori.
 - Il campione `samples/partita-sintetica.dvw` è `generateMatch({ seed: 1 })` con 3 set: 982 righe di scout.
@@ -35,6 +54,8 @@ scout. Il formato scritto è quello letto da `docs/dvw-parser.md`.
 - `play(match, { out, speed, mode, corrections, signal?, seed?, onWrite? }): Promise<void>`. `speed` accelera il tempo,
   `mode` è `'atomic'` o `'direct'`, `signal` (`AbortSignal`) interrompe, `seed` governa le correzioni (default 1),
   `onWrite(righeVisibili)` è chiamata dopo ogni riscrittura.
+- `planPlayback(righe, ritmo): PlaybackPlan`, `matchSeconds`, `timeSeconds`, `AVERAGE_GAP_SECONDS`,
+  `MAX_REAL_GAP_SECONDS` (`src/schedule.ts`, vedi sopra).
 - Anche `scoutLineText`, `Rng` e i tipi (`src/types.ts`).
 
 ## Configurazione
@@ -75,7 +96,9 @@ Test: `pnpm --filter @sir/dvw-simulator test`.
 
 ## Riferimenti
 - `tools/dvw-simulator/src/generate.ts` (`generateMatch`), `render.ts` (`renderDvw`, `scoutLineText`),
-  `correction.ts` (`applyCorrection`), `play.ts` (`play`), `rng.ts` (`Rng`), `cli.ts`, `types.ts`, `names.ts`
-- Test: `src/simulator.test.ts`, `src/roundtrip.test.ts`
+  `correction.ts` (`applyCorrection`), `play.ts` (`play`), `rng.ts` (`Rng`), `cli.ts`, `types.ts`, `names.ts`,
+  `schedule.ts` (`planPlayback`)
+- Simulazione nel server: `docs/server.md` («Simulazione di una partita»), pagina `docs/portale.md` («Simulazione»)
+- Test: `src/simulator.test.ts`, `src/roundtrip.test.ts`, `src/schedule.test.ts`
 - Campione: `samples/partita-sintetica.dvw`
 - Parser: `docs/dvw-parser.md`; regole del formato: `docs/regole/dvw.md`; strumenti: `docs/infrastruttura.md`

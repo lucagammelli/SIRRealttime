@@ -3,7 +3,8 @@
 # vanno alzati (es. 100000) e il servizio server ricreato.
 # Assunzioni (scansione non interattiva): stessa specifica OpenAPI del server (le rotte /api passano da nginx);
 # Ajax Spider per la SPA a partire da /admin e dalla pagina pubblica di un link valido (LIVE_PATH);
-# utente admin di prova; logout escluso; WebSocket non coperti.
+# utente admin di prova = admin del cliente «Predefinito» (SCAN_USERNAME), creato come spiegato in stackhawk.yml: il
+# superadmin fuori da un cliente riceve 409 TENANT_REQUIRED; logout escluso; WebSocket non coperti.
 app:
   applicationId: ${APP_ID:f32f36a0-c2c0-4f08-b702-d7f354926012}
   env: ${APP_ENV:Development}
@@ -20,8 +21,8 @@ app:
       loginPath: /api/auth/login
       usernameField: email
       passwordField: password
-      scanUsername: ${SCAN_USERNAME:admin@sir.local}
-      scanPassword: ${SCAN_PASSWORD:password-compose-1}
+      scanUsername: ${SCAN_USERNAME:scan@sir.local}
+      scanPassword: ${SCAN_PASSWORD:password-scansione-1}
     cookieAuthorization:
       cookieNames:
         - sir_session

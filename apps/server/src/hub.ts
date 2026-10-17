@@ -48,6 +48,11 @@ export interface PublishRoute {
   becameLive: boolean;
   /** false: linked to a match not broadcast, the channel of the club does not show it (missing: shown). */
   channel?: boolean;
+  /**
+   * true: a simulated match (`src/simulation/`), only for the clients of its own link: it never becomes the live match
+   * nor the match of the channel, and it changes nothing of what the channel shows.
+   */
+  isolated?: boolean;
 }
 
 /** Without a route (older callers): not linked to the calendar, and the live match of the client. */
@@ -285,11 +290,13 @@ export class LiveHub implements StatePublisher {
     if (previous && previous.message.version >= message.version) return;
     const text = JSON.stringify(message);
     const snap = this.store(tenantId, message, text);
-    if (route.becameLive || !this.liveMatch.has(tenantId)) this.liveMatch.set(tenantId, message.matchId);
-    if (route.channel !== false && (route.becameLive || !this.channelMatch.has(tenantId)))
-      this.channelMatch.set(tenantId, message.matchId);
-    // A match that starts or ends changes what the channel shows when nothing is played.
-    if (route.becameLive || message.state.status === 'finished') this.channel.delete(tenantId);
+    if (!route.isolated) {
+      if (route.becameLive || !this.liveMatch.has(tenantId)) this.liveMatch.set(tenantId, message.matchId);
+      if (route.channel !== false && (route.becameLive || !this.channelMatch.has(tenantId)))
+        this.channelMatch.set(tenantId, message.matchId);
+      // A match that starts or ends changes what the channel shows when nothing is played.
+      if (route.becameLive || message.state.status === 'finished') this.channel.delete(tenantId);
+    }
     if (route.clientFixtureId) {
       this.fixtureMatch.set(route.clientFixtureId, message.matchId);
       this.scheduled.delete(route.clientFixtureId);
@@ -312,6 +319,7 @@ export class LiveHub implements StatePublisher {
     for (const entry of this.entries.values()) {
       if (entry.target.tenantId !== tenantId) continue;
       if (entry.target.kind === 'channel' && route.channel === false) continue;
+      if (route.isolated && entry.target.kind !== 'match') continue;
       if (this.matchOf(entry.target) === message.matchId) this.deliver(entry, message, snap.frame, patch);
     }
   }
@@ -340,6 +348,11 @@ export class LiveHub implements StatePublisher {
     if (target.kind === 'live') return this.liveMatch.get(target.tenantId) ?? null;
     if (target.kind === 'channel') return this.channelMatch.get(target.tenantId) ?? null;
     return this.fixtureMatch.get(target.clientFixtureId) ?? null;
+  }
+
+  /** Forgets the last state of a match (deleted): its clients are closed with its link (`closeShareToken`). */
+  forgetMatch(matchId: string): void {
+    this.snapshots.delete(matchId);
   }
 
   /** Closes the clients connected with a share token (revocation). */

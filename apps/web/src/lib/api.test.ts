@@ -1,4 +1,4 @@
-import { MeResponseSchema } from '@sir/shared';
+import { MeResponseSchema, TENANT_REQUIRED_MESSAGE } from '@sir/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError, apiCommand, apiRequest, errorText } from './api.ts';
 
@@ -45,9 +45,9 @@ describe('apiRequest', () => {
     expect(init?.body).toBe('{"name":"A"}');
   });
 
-  it('shows the server text of a 400 only when it asks to choose a client', async () => {
-    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValueOnce(json(400, { error: 'Seleziona un cliente' }));
-    await expect(apiCommand('/api/admin/matches', { fetch })).rejects.toThrow('Seleziona un cliente.');
+  it('shows «Scegli prima un cliente» (409) as it is, never the server text of a 400', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValueOnce(json(409, { error: TENANT_REQUIRED_MESSAGE }));
+    await expect(apiCommand('/api/admin/matches', { fetch })).rejects.toThrow('Scegli prima un cliente.');
     fetch.mockResolvedValueOnce(json(400, { error: 'Richiesta non valida: name' }));
     await expect(apiCommand('/api/admin/agents', { fetch })).rejects.toThrow('Dati non validi: controlla i campi.');
   });

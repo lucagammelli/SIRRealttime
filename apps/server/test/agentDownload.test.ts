@@ -286,6 +286,19 @@ describe('agente scaricabile: lo zip del cliente', () => {
     expect(b.colors.primary).not.toBe('#ffeb3b');
   });
 
+  it('branding.json: i colori mancanti vengono dal template del cliente (SIR VOLLEY: finestra scura e rossa)', async () => {
+    await publish();
+    const put = await call(HOST_B, cookieB, {
+      method: 'PUT',
+      url: '/api/admin/branding',
+      payload: { template: 'sir-volley', colors: {} },
+    });
+    expect(put.statusCode).toBe(200);
+    const b = AgentBrandingSchema.parse(jsonOf(await downloadItems(HOST_B, cookieB), 'branding.json'));
+    expect(b.colors).toMatchObject({ primary: '#e30613', background: '#0b0b0d', onBackground: '#ffffff' });
+    await call(HOST_B, cookieB, { method: 'PUT', url: '/api/admin/branding', payload: {} });
+  });
+
   it('logo: PNG o JPEG incluso col suo nome; SVG, WebP o troppo grande no', async () => {
     await publish();
     const logo = png(240, 80);

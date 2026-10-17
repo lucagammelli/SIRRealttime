@@ -276,3 +276,10 @@ Una riga per decisione: data, scelta, motivo.
   partita non trasmessa no), perché un'amichevole fuori calendario va comunque in onda (`docs/server.md`).
 - 2026-10-17: nel canale la partita finita resta fino alle 00:00 (Roma) del giorno della successiva, perché il pubblico
   vede il risultato per giorni e il conto alla rovescia parte solo nel giorno della gara (`docs/server.md`).
+- 2026-10-17: punti in sequenza (600 ms l'uno, al massimo 5) solo come presentazione nel portale, con gli stati intermedi
+  da `matchStateUntilPoint` e lo stato che resta del server, perché due punteggi che saltano insieme sembrano un errore
+  ma il server non deve conoscere il ritmo di chi guarda (`docs/portale.md`).
+- 2026-10-17: salto alla fine se l'ultimo punto cadrebbe oltre 3 s e con `prefers-reduced-motion`, perché una pagina
+  non deve restare indietro sulla partita e chi riduce il movimento non vuole attese (`docs/portale.md`).
+- 2026-10-17: attesa massima di 2 s (`maxWaitMs`) per un file che cambia di continuo, perché un punto non resti fermo
+  finché DataVolley scrive; polling non ridotto, perché a ritmo reale arriva già un punto per invio (`docs/agente.md`).

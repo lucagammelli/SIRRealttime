@@ -14,6 +14,7 @@ import { useIdle, useTvRootClass, useWakeLock } from '../lib/tvScreen.ts';
 import { tvModeOf } from '../lib/layout.ts';
 import { useDevice } from '../lib/useLayout.ts';
 import { socketUrl, useLiveSocket } from '../lib/useLiveSocket.ts';
+import { usePointSequence } from '../lib/pointSequence.ts';
 import {
   useBrandName,
   useTemplate,
@@ -82,7 +83,23 @@ export function LivePage() {
     void registerServiceWorker();
   }, []);
   const probe = useCallback(() => probeShareToken(token), [token]);
-  const snapshot = useLiveSocket(valid ? socketUrl(`/ws/public/${encodeURIComponent(token)}`) : null, { probe });
+  const received = useLiveSocket(valid ? socketUrl(`/ws/public/${encodeURIComponent(token)}`) : null, { probe });
+  // Several new points in one update are shown one at a time (scoreboard, momentum, last point, overlays and pauses
+  // all read the same state): only presentation, it always ends on the state of the server.
+  const receivedData = received.data;
+  const receivedMatch = receivedData?.kind === 'state' ? receivedData : null;
+  const shownState = usePointSequence(
+    receivedMatch?.state ?? null,
+    receivedMatch?.live === true,
+    receivedMatch?.matchId ?? '',
+  );
+  const snapshot = useMemo(
+    () =>
+      receivedData?.kind === 'state' && shownState !== null && shownState !== receivedData.state
+        ? { ...received, data: { ...receivedData, state: shownState } }
+        : received,
+    [received, receivedData, shownState],
+  );
 
   useEffect(() => {
     const onChange = (): void => setFullscreen(document.fullscreenElement !== null);

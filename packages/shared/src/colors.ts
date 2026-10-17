@@ -104,9 +104,9 @@ export const DARK_SURFACE = '#0f1729';
 /** Default body text of the light theme (`--sir-text`): checked against a client background. */
 export const LIGHT_TEXT = '#0f172a';
 
-/** Pure: every colour of the client, the defaults in place of the missing ones. */
-export function resolveBrandColors(colors: BrandColorChoice): BrandColors {
-  const all = { ...DEFAULT_BRAND_COLORS };
+/** Pure: every colour of the client, those of its template (standard: the defaults) in place of the missing ones. */
+export function resolveBrandColors(colors: BrandColorChoice, template: TemplateId = 'standard'): BrandColors {
+  const all = { ...templateOf(template).colors };
   for (const key of BRAND_COLOR_KEYS) {
     const value = colors[key];
     if (value !== undefined) all[key] = value;
@@ -175,13 +175,13 @@ export interface ContrastIssue {
 }
 
 /**
- * Pure: colours under 4.5:1 on the background of the client (both resolved with the defaults): the team and brand
+ * Pure: colours under 4.5:1 on the background of the client (both resolved with those of its template): the team and brand
  * colours are written as text on it, and the page text (dark in the light theme) must stay readable on it. None for
  * a template that is always dark: there `brandPalette` corrects every colour itself.
  */
 export function brandContrastIssues(colors: BrandColorChoice, template: TemplateId = 'standard'): ContrastIssue[] {
   if (templateOf(template).forcedTheme === 'dark') return [];
-  const all = resolveBrandColors(colors);
+  const all = resolveBrandColors(colors, template);
   const issues: ContrastIssue[] = [];
   for (const key of ['primary', 'accent', 'home', 'away'] as const) {
     const ratio = contrastRatio(all[key], all.background);

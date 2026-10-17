@@ -6,7 +6,9 @@ import { createTenant, createUser, login, startServer } from './helpers.js';
 import { png } from './imageFixtures.js';
 
 const HOST = 'manifest.test';
+const HOST_SIR = 'manifest-sir.test';
 const ADMIN_M = { email: 'admin-manifest@sir.test', password: 'password-admin-mf' };
+const ADMIN_S = { email: 'admin-manifest-sir@sir.test', password: 'password-admin-ms' };
 
 let server: TestServer;
 beforeAll(async () => {
@@ -57,5 +59,18 @@ describe('manifest of the installable app', () => {
     expect(body.icons[0]).toEqual({ src: logo.url, sizes: '256x256', type: 'image/png', purpose: 'any' });
     // Another client keeps its own.
     expect((await manifest()).name).toBe('SIRRealtime');
+  });
+
+  it('uses the colours of the template where the client has chosen none (SIR VOLLEY: dark and red)', async () => {
+    const tenantId = await createTenant(server, 'manifest-sir', [HOST_SIR]);
+    await createUser(server, ADMIN_S, 'admin', tenantId);
+    const cookie = await login(server.app, ADMIN_S, HOST_SIR);
+    const put = (payload: object) =>
+      server.app.inject({ method: 'PUT', url: '/api/admin/branding', payload, headers: { cookie, host: HOST_SIR } });
+    expect((await put({ template: 'sir-volley', colors: {} })).statusCode).toBe(200);
+    expect(await manifest(HOST_SIR)).toMatchObject({ theme_color: '#e30613', background_color: '#0b0b0d' });
+    // A colour of the client goes over the template, the others stay those of the template.
+    expect((await put({ template: 'sir-volley', colors: { primary: '#b00010' } })).statusCode).toBe(200);
+    expect(await manifest(HOST_SIR)).toMatchObject({ theme_color: '#b00010', background_color: '#0b0b0d' });
   });
 });

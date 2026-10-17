@@ -11,33 +11,46 @@ export const effectiveServer = (p: PointEvent): Side => p.server ?? other(p.scor
 
 /** Andamento punto per punto e riepilogo per squadra. */
 export function computeMomentum(points: PointEvent[]): Momentum {
+  return summarizeMomentum(
+    points.map((p) => ({
+      set: p.set,
+      point: {
+        index: p.index,
+        homeScore: p.homeScore,
+        awayScore: p.awayScore,
+        scorer: p.scorer,
+        type: pointType(p),
+        ...(p.time ? { time: p.time } : {}),
+      },
+    })),
+  );
+}
+
+/**
+ * Andamento dai punti già classificati (break point / side-out), in ordine: serve anche a ricostruire l'andamento
+ * fino a un punto dato (`matchStateUntilPoint`). La squadra al servizio è chi segna nel break point, l'avversario nel
+ * side-out (stessa regola di `effectiveServer`).
+ */
+export function summarizeMomentum(points: readonly { set: number; point: MomentumPoint }[]): Momentum {
   const sets = new Map<number, MomentumPoint[]>();
   const acc: Record<Side, MomentumTeam> = {
     home: emptyTeam(),
     away: emptyTeam(),
   };
   let run: { set: number; team: Side; length: number } | null = null;
-  for (const p of points) {
-    const type = pointType(p);
-    const list = sets.get(p.set) ?? [];
-    sets.set(p.set, list);
-    list.push({
-      index: p.index,
-      homeScore: p.homeScore,
-      awayScore: p.awayScore,
-      scorer: p.scorer,
-      type,
-      ...(p.time ? { time: p.time } : {}),
-    });
-    const team = acc[p.scorer];
-    if (type === 'breakPoint') team.breakPoints++;
+  for (const { set, point } of points) {
+    const list = sets.get(set) ?? [];
+    sets.set(set, list);
+    list.push(point);
+    const team = acc[point.scorer];
+    if (point.type === 'breakPoint') team.breakPoints++;
     else team.sideOuts++;
-    const server = effectiveServer(p);
+    const server = point.type === 'breakPoint' ? point.scorer : other(point.scorer);
     acc[server].servedRallies++;
     acc[other(server)].receivedRallies++;
-    if (run !== null && run.set === p.set && run.team === p.scorer) run.length++;
-    else run = { set: p.set, team: p.scorer, length: 1 };
-    const key = String(p.set);
+    if (run !== null && run.set === set && run.team === point.scorer) run.length++;
+    else run = { set, team: point.scorer, length: 1 };
+    const key = String(set);
     if (run.length > (team.longestRunBySet[key] ?? 0)) team.longestRunBySet[key] = run.length;
     if (run.length > team.longestRun) team.longestRun = run.length;
   }

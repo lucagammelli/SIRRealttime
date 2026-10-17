@@ -44,9 +44,11 @@ describe('momentum', () => {
   it('produces an ECharts option with the break points as dots', () => {
     const data = momentumSeries(final, 1);
     const option = momentumOption(data, DEFAULT_PALETTE, { home: 'PAL', away: 'VOL' }) as {
-      series: { data: unknown[] }[];
+      series: { id: string; data: unknown[] }[];
     };
     expect(option.series).toHaveLength(3);
+    // Stable ids: a new point updates the series (replaceMerge) instead of drawing it again from the left.
+    expect(option.series.map((s) => s.id)).toEqual(['lead-home', 'lead-away', 'break-point']);
     expect(option.series[0]?.data).toHaveLength(data.length + 1);
     expect(option.series[2]?.data).toHaveLength(data.filter((d) => d.breakPoint).length);
   });

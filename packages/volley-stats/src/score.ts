@@ -13,7 +13,10 @@ const SKILL_LABEL: Record<Skill, string> = {
   freeball: 'free ball',
 };
 
-const SETS_TO_WIN = 3;
+/** Set da vincere per chiudere la partita. */
+export const SETS_TO_WIN = 3;
+/** Punti descritti in `LiveState.recentPoints`. */
+export const RECENT_POINTS_LIMIT = 6;
 /** Un passo indietro dell'ora più lungo di 12 ore è il passaggio della mezzanotte. */
 const MIDNIGHT_GAP = 12 * 3600;
 
@@ -39,7 +42,18 @@ export function computeSets(parsed: ParsedMatch, tl: Timeline): SetSummary[] {
   const active = new Set<number>();
   const times = new Map<number, number[]>();
   const rawTimes = new Map<number, { first?: string; last?: string }>();
+  const calls = new Map<number, { timeouts: Record<Side, number>; substitutions: Record<Side, number> }>();
+  const callsOf = (set: number) => {
+    let c = calls.get(set);
+    if (!c) {
+      c = { timeouts: { home: 0, away: 0 }, substitutions: { home: 0, away: 0 } };
+      calls.set(set, c);
+    }
+    return c;
+  };
   for (const { entry, set } of tl.resolved) {
+    if (entry.kind === 'timeout') callsOf(set).timeouts[entry.team]++;
+    if (entry.kind === 'substitution') callsOf(set).substitutions[entry.team]++;
     if (entry.kind === 'action' || entry.kind === 'point' || entry.kind === 'setEnd') active.add(set);
     if (entry.time) {
       const sec = timeToSeconds(entry.time);
@@ -79,6 +93,7 @@ export function computeSets(parsed: ParsedMatch, tl: Timeline): SetSummary[] {
       endTime: raw?.last ?? null,
       // Set chiuso: vale la durata ufficiale di DataVolley ([3SET]), che non conta le pause; altrimenti dalle ore.
       durationMinutes: finished && header !== undefined ? header : fromTimes,
+      ...callsOf(number),
     };
   });
 }
@@ -205,6 +220,7 @@ export function computeLive(tl: Timeline): LiveState {
     timeouts,
     substitutions,
     lastPoint: last ? describePoint(last) : null,
+    recentPoints: tl.points.slice(-RECENT_POINTS_LIMIT).map(describePoint),
     run,
   };
 }

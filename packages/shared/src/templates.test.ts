@@ -13,6 +13,7 @@ import {
   LAYOUT_DEVICES,
   MIN_TEXT_CONTRAST,
   PublicTenantResponseSchema,
+  resolveBrandColors,
   resolveBranding,
   resolveLayout,
   TEMPLATE_IDS,
@@ -20,6 +21,7 @@ import {
   TemplateIdSchema,
   templateOf,
   TenantBrandingSchema,
+  webManifest,
 } from './index.js';
 
 describe('graphic templates', () => {
@@ -92,6 +94,32 @@ describe('colours of the client over a template', () => {
   it('has no contrast warnings in a template that is always dark (the palette corrects them)', () => {
     expect(brandContrastIssues({ home: '#ffff00', background: '#ffffff' })).not.toHaveLength(0);
     expect(brandContrastIssues({ home: '#ffff00', background: '#ffffff' }, 'sir-volley')).toEqual([]);
+  });
+});
+
+describe('colours of a template where the client has chosen none', () => {
+  it('fills the missing colours from the template, the client colours go over them', () => {
+    expect(resolveBrandColors({}, 'sir-volley')).toEqual(TEMPLATES['sir-volley'].colors);
+    expect(resolveBrandColors({ primary: '#b00010' }, 'sir-volley')).toEqual({
+      ...TEMPLATES['sir-volley'].colors,
+      primary: '#b00010',
+    });
+    expect(resolveBrandColors({}, 'standard')).toEqual(DEFAULT_BRAND_COLORS);
+  });
+
+  it('checks the contrast on the colours resolved with the template', () => {
+    // Standard: the missing background is the one of the template (light), a yellow on it is flagged.
+    expect(brandContrastIssues({ home: '#ffff00' }, 'standard').map((i) => i.color)).toEqual(['home']);
+    expect(brandContrastIssues({}, 'standard')).toEqual([]);
+    // Always dark: the palette corrects every colour against the dark surface, nothing to flag.
+    expect(brandContrastIssues({ home: '#000000' }, 'sir-volley')).toEqual([]);
+  });
+
+  it('gives the manifest of a SIR VOLLEY client its dark background and red theme', () => {
+    const sir = webManifest({ name: 'SIR', colors: {}, template: 'sir-volley', logo: null });
+    expect([sir.background_color, sir.theme_color]).toEqual(['#0b0b0d', '#e30613']);
+    const standard = webManifest({ name: 'SIR', colors: {}, logo: null });
+    expect([standard.background_color, standard.theme_color]).toEqual(['#eef2f7', '#1d4ed8']);
   });
 });
 

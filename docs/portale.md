@@ -31,6 +31,26 @@ Nell'intestazione ci sono il pulsante «Schermo intero» (diventa «Esci da sche
 «App installabile») e il cambio tema.
 La pagina pubblica non ha nessun collegamento all'area riservata.
 
+**Punti in sequenza** (`src/lib/pointSequence.ts`, usata da `LivePage` con `usePointSequence`). Quando un solo
+aggiornamento porta più punti (il simulatore veloce, oppure la coda dell'agente che si svuota dopo un'interruzione,
+vedi `docs/agente.md`), tabellone, andamento, «Ultimo punto», avvisi e pause li mostrano **uno alla volta**, perché i due
+punteggi non saltino insieme. È solo presentazione: lo stato resta quello del server e la sequenza finisce sempre su di
+esso; gli stati intermedi vengono da `matchStateUntilPoint` di `@sir/volley-stats` (`docs/statistiche.md`), il portale
+non calcola nulla.
+- `planPointSequence(mostrato, nuovo, { live, reducedMotion })` decide i passi (uno per punto nuovo, l'ultimo è lo stato
+  del server); `PointSequencer` li riproduce: ogni punto resta a video `POINT_STEP_MS` (600 ms) prima del successivo,
+  anche tra aggiornamenti diversi, e un nuovo stato in arrivo riparte da quello a video.
+- Con più di `POINT_SEQUENCE_MAX_POINTS` (5) punti nuovi in un aggiornamento, oppure se l'ultimo punto cadrebbe oltre
+  `POINT_SEQUENCE_MAX_MS` (3 s) da adesso, si salta subito alla fine.
+- **Subito la fine, senza attesa**: primo stato dopo il caricamento, riconnessione o `resync` (`live` falso), scout che
+  ha riscritto o tolto punti (`pointsExtend` falso), nessun punto nuovo, `prefers-reduced-motion` (`useReducedMotion`),
+  cambio di partita (`resetKey` = `matchId`).
+- La pausa di fine set (o di fine partita) arriva dopo l'ultimo punto: gli stati intermedi hanno fase `rally`, la fase
+  vera arriva con lo stato finale.
+- L'andamento cresce dal punto precedente, non si ridisegna: le serie hanno id fissi (`lead-home`, `lead-away`,
+  `break-point` in `src/charts/options.ts`).
+- Prova: `src/lib/pointSequence.test.tsx`, `src/pages/LivePage.test.tsx`.
+
 **Dispositivi e impaginazione** (`src/lib/layout.ts`, `useLayout.ts`, `components/BlockLayout.tsx`). `deviceFor` sceglie
 tra tre impaginazioni, con gli stessi blocchi della tabella sopra:
 

@@ -1,5 +1,6 @@
 import type { BrandColorChoice } from './colors.js';
 import { resolveBrandColors } from './colors.js';
+import type { TemplateId } from './templates.js';
 import { DEFAULT_BRAND_NAME } from './tenant.js';
 
 /**
@@ -40,15 +41,17 @@ export const DEFAULT_MANIFEST_ICONS: readonly WebManifestIcon[] = [
 export const MANIFEST_SHORT_NAME_MAX = 12;
 
 /**
- * Pure: the manifest of a client. `logo`: its square logo (public path, type and size of the image); an SVG has
+ * Pure: the manifest of a client, with its colours over those of its template. `logo`: its square logo (public path, type and size of the image); an SVG has
  * `sizes: any`. The portal icons stay after it (a launcher that wants a PNG of 192 or 512 px finds one).
  */
 export function webManifest(input: {
   name: string;
   colors: BrandColorChoice;
+  /** Template of the client: its colours where the client has chosen none (missing: standard). */
+  template?: TemplateId;
   logo: { url: string; mime: string; width: number; height: number } | null;
 }): WebManifest {
-  const colors = resolveBrandColors(input.colors);
+  const colors = resolveBrandColors(input.colors, input.template);
   const name = input.name.trim() || DEFAULT_BRAND_NAME;
   const icons: WebManifestIcon[] = input.logo
     ? [

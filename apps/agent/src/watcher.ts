@@ -18,6 +18,13 @@ export interface WatcherOptions {
   stableMs: number;
   /** The file is read again after this long even if size and mtime did not change (FAT has a 2 s mtime). */
   rereadMs: number;
+  /**
+   * Longest wait for a stable file: changed since the last read and still changing after this long (DataVolley
+   * writing faster than `stableMs`, a scout catching up), it is read anyway, only if size and mtime stay the same
+   * while it is read. Without it a file rewritten every few hundred milliseconds is never read and many rallies
+   * reach the server in one message. Missing (or under `stableMs`): no limit.
+   */
+  maxWaitMs?: number;
 }
 
 const BUSY_CODES = new Set(['EBUSY', 'EPERM', 'EACCES']);
@@ -37,11 +44,13 @@ const ignoredName = (name: string): boolean => name.startsWith('.') || name.star
 /**
  * Polling watcher (plain `fs.stat`, reliable on USB/FAT where file system events are not): finds the `.dvw`
  * (the given file, or the most recently modified one in the folder) and returns its bytes once size and mtime
- * stayed the same for `stableMs`. Never throws for file system errors.
+ * stayed the same for `stableMs` (or, still changing, after `maxWaitMs`). Never throws for file system errors.
  */
 export class FileWatcher {
   private observed: Observed | null = null;
   private observedSince = 0;
+  /** First time a change since the last read was seen (null: none waiting). */
+  private changedSince: number | null = null;
   private lastRead: (Observed & { at: number }) | null = null;
   private rereadRequested = false;
 
@@ -58,6 +67,7 @@ export class FileWatcher {
   /** Forgets the last read: the next stable poll reads the file again. */
   reset(): void {
     this.lastRead = null;
+    this.changedSince = null;
   }
 
   async poll(now: number): Promise<WatchEvent> {
@@ -67,12 +77,19 @@ export class FileWatcher {
       return { type: 'missing', reason: located.reason };
     }
     const current = located;
+    const { stableMs, maxWaitMs } = this.options;
+    if (!sameFile(this.lastRead, current)) this.changedSince ??= now;
+    const overdue =
+      maxWaitMs !== undefined &&
+      maxWaitMs >= stableMs &&
+      this.changedSince !== null &&
+      now - this.changedSince >= maxWaitMs;
     if (!sameFile(this.observed, current)) {
       this.observed = current;
       this.observedSince = now;
-      if (this.options.stableMs > 0) return { type: 'idle' };
+      if (stableMs > 0 && !overdue) return { type: 'idle' };
     }
-    if (now - this.observedSince < this.options.stableMs) return { type: 'idle' };
+    if (now - this.observedSince < stableMs && !overdue) return { type: 'idle' };
 
     const last = this.lastRead;
     const due =
@@ -99,6 +116,7 @@ export class FileWatcher {
       return { type: 'idle' };
     }
     this.lastRead = { ...current, at: now };
+    this.changedSince = null;
     this.rereadRequested = false;
     return { type: 'read', path: current.path, bytes };
   }

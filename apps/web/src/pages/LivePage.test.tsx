@@ -6,6 +6,7 @@ import { initBranding, setTenantLook, tenantLookOf } from '../lib/branding.ts';
 import type { LiveSnapshot } from '../lib/liveConnection.ts';
 import { TV_ROOT_CLASS } from '../lib/tvScreen.ts';
 import { previewState } from '../lib/intermission.ts';
+import { matchPoints, matchStateUntilPoint } from '@sir/volley-stats';
 import { midMatchState } from '../test/fixtures.ts';
 import { LivePage } from './LivePage.tsx';
 
@@ -20,9 +21,11 @@ const snapshot: LiveSnapshot = {
   error: null,
   attempts: 0,
 };
+/** What the mocked socket gives (a test may change it and render again). */
+let socketSnapshot: LiveSnapshot = snapshot;
 vi.mock('../lib/useLiveSocket.ts', () => ({
   socketUrl: (path: string) => `ws://test${path}`,
-  useLiveSocket: () => snapshot,
+  useLiveSocket: () => socketSnapshot,
 }));
 
 const TOKEN = 'abcdefghijklmnopqrstuv12';
@@ -51,6 +54,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  socketSnapshot = snapshot;
   act(() => setTenantLook(null));
   vi.useRealTimers();
   vi.unstubAllGlobals();
@@ -324,5 +328,50 @@ describe('LivePage as an app', () => {
     expect(screen.getByText(/«Aggiungi a Home»/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Chiudi' }));
     expect(screen.queryByText(/Aggiungi a Home/)).toBeNull();
+  });
+});
+
+describe('LivePage: punti arrivati insieme', () => {
+  it('tre punti in un solo aggiornamento: il tabellone li mostra uno alla volta, poi lo stato del server', () => {
+    vi.useFakeTimers();
+    setWidth(1024);
+    const full = midMatchState();
+    const total = matchPoints(full).length;
+    const withState = (live: boolean, state = full) =>
+      ({ ...snapshot, data: { ...snapshot.data, live, state } }) as LiveSnapshot;
+    /** Text for screen readers of the scoreboard: «Punteggio del N° set: casa X, ospiti Y». */
+    const scoreLine = () =>
+      [...document.querySelectorAll('*')].find(
+        (el) => el.children.length === 0 && el.textContent?.startsWith('Punteggio del') === true,
+      )?.textContent ?? '';
+    const expectScoreOf = (n: number) => {
+      const { live } = n >= total ? full : matchStateUntilPoint(full, n);
+      expect(scoreLine()).toMatch(new RegExp(` ${live.homeScore}, .* ${live.awayScore}$`));
+    };
+    // A new element at every render (the same element would not render the page again).
+    const page = () => (
+      <MemoryRouter initialEntries={[`/live/${TOKEN}`]}>
+        <Routes>
+          <Route path="/live/:token" element={<LivePage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    socketSnapshot = withState(false, matchStateUntilPoint(full, total - 3));
+    const view = render(page());
+    expectScoreOf(total - 3);
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    socketSnapshot = withState(true);
+    view.rerender(page());
+    expectScoreOf(total - 2);
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expectScoreOf(total - 1);
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expectScoreOf(total);
   });
 });

@@ -43,7 +43,9 @@
       "finished": true,
       "startTime": "18.00.20",
       "endTime": "18.30.23",
-      "durationMinutes": 31
+      "durationMinutes": 31,
+      "timeouts": { "home": 0, "away": 0 },
+      "substitutions": { "home": 2, "away": 0 }
     },
     {
       "number": 2,
@@ -53,7 +55,9 @@
       "finished": false,
       "startTime": "18.35.23",
       "endTime": "19.05.42",
-      "durationMinutes": 30
+      "durationMinutes": 30,
+      "timeouts": { "home": 2, "away": 2 },
+      "substitutions": { "home": 1, "away": 0 }
     }
   ],
   "setsWon": { "home": 0, "away": 1 },
@@ -79,6 +83,80 @@
       "evaluation": "#",
       "label": "attacco #14"
     },
+    "recentPoints": [
+      {
+        "set": 2,
+        "team": "home",
+        "homeScore": 13,
+        "awayScore": 20,
+        "kind": "attack",
+        "skill": "attack",
+        "player": 3,
+        "playerTeam": "home",
+        "evaluation": "#",
+        "label": "attacco #3"
+      },
+      {
+        "set": 2,
+        "team": "home",
+        "homeScore": 14,
+        "awayScore": 20,
+        "kind": "opponentError",
+        "skill": "attack",
+        "player": 1,
+        "playerTeam": "away",
+        "evaluation": "=",
+        "label": "errore attacco #1"
+      },
+      {
+        "set": 2,
+        "team": "home",
+        "homeScore": 15,
+        "awayScore": 20,
+        "kind": "attack",
+        "skill": "attack",
+        "player": 20,
+        "playerTeam": "home",
+        "evaluation": "#",
+        "label": "attacco #20"
+      },
+      {
+        "set": 2,
+        "team": "home",
+        "homeScore": 16,
+        "awayScore": 20,
+        "kind": "opponentError",
+        "skill": "reception",
+        "player": 14,
+        "playerTeam": "away",
+        "evaluation": "=",
+        "label": "errore ricezione #14"
+      },
+      {
+        "set": 2,
+        "team": "home",
+        "homeScore": 17,
+        "awayScore": 20,
+        "kind": "attack",
+        "skill": "attack",
+        "player": 7,
+        "playerTeam": "home",
+        "evaluation": "#",
+        "label": "attacco #7"
+      },
+      {
+        "set": 2,
+        "team": "away",
+        "homeScore": 17,
+        "awayScore": 21,
+        "kind": "attack",
+        "skill": "attack",
+        "player": 14,
+        "playerTeam": "away",
+        "evaluation": "#",
+        "label": "attacco #14"
+      }
+    ],
     "run": { "team": "away", "length": 1 }
   },
   "stats": {

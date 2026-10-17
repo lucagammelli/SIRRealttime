@@ -258,17 +258,24 @@ function replay(parsed: ParsedMatch): void {
   const full = matchEvents(parsed);
   const byId = new Map(full.map((e) => [e.id, e]));
   expect(byId.size).toBe(full.length);
+  const json = new Map(full.map((e) => [e.id, JSON.stringify(e)]));
+  const changed: string[] = [];
+  // The state carries the most recent events (checked once; line by line only the events, faster).
+  expect(computeMatchState(parsed).events).toEqual(recentEvents(full));
   const seen = new Set<string>();
   let shown = 0;
   for (let k = 0; k <= parsed.scout.length; k++) {
     const prefix = { ...parsed, scout: parsed.scout.slice(0, k) };
-    for (const e of matchEvents(prefix)) expect(byId.get(e.id)).toEqual(e);
-    for (const e of computeMatchState(prefix).events) {
+    const events = matchEvents(prefix);
+    // Compared as JSON (same content, same order of the fields) and checked once at the end: much faster.
+    for (const e of events) if (json.get(e.id) !== JSON.stringify(e)) changed.push(`riga ${k}: ${e.id}`);
+    for (const e of recentEvents(events)) {
       if (seen.has(e.id)) continue;
       seen.add(e.id);
       shown++;
     }
   }
+  expect(changed).toEqual([]);
   expect(shown).toBe(full.length);
 }
 

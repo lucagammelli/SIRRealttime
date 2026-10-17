@@ -1,3 +1,4 @@
+import type { TemplateId } from './templates.js';
 import { z } from 'zod';
 import type { BrandColorChoice } from './colors.js';
 import { HexColorSchema, resolveBrandColors, textColorOn } from './colors.js';
@@ -65,8 +66,8 @@ export const AGENT_LOGO_MAX_SIDE = 1024;
 export const AGENT_LOGO_FILES = { 'image/png': 'logo.png', 'image/jpeg': 'logo.jpg' } as const;
 
 /**
- * `branding.json` next to `sir-agent.exe`: name of the client and its colours, already resolved (defaults of the
- * portal for the missing ones) with the colour of the text on each of them. Only `#rrggbb`.
+ * `branding.json` next to `sir-agent.exe`: name of the client and its colours, already resolved (those of its
+ * template for the missing ones) with the colour of the text on each of them. Only `#rrggbb`.
  */
 export const AgentBrandingSchema = z.strictObject({
   version: z.literal(AGENT_BRANDING_VERSION),
@@ -82,9 +83,9 @@ export const AgentBrandingSchema = z.strictObject({
 });
 export type AgentBranding = z.infer<typeof AgentBrandingSchema>;
 
-/** Pure: `branding.json` of a client from its display name and chosen colours. */
-export function agentBranding(name: string, colors: BrandColorChoice): AgentBranding {
-  const all = resolveBrandColors(colors);
+/** Pure: `branding.json` of a client from its display name, chosen colours and template (missing: standard). */
+export function agentBranding(name: string, colors: BrandColorChoice, template: TemplateId = 'standard'): AgentBranding {
+  const all = resolveBrandColors(colors, template);
   return AgentBrandingSchema.parse({
     version: AGENT_BRANDING_VERSION,
     name,

@@ -5,6 +5,9 @@ import { parseDvw } from '@sir/dvw-parser';
 import { generateMatch, renderDvw } from '@sir/dvw-simulator';
 import { describe, expect, it } from 'vitest';
 import { computeMatchState } from './index.js';
+import { computePhase } from './phase.js';
+import { computeSets, computeSetsWon, computeStatus } from './score.js';
+import { buildTimeline } from './timeline.js';
 import type { MatchPhase, MatchState } from './index.js';
 
 /** Riga scout minima: codice;fase;;;;;;ora;set;posizione palleggiatore casa;ospite. */
@@ -43,11 +46,21 @@ function label(p: MatchPhase): string {
   }
 }
 
+/** Only the phase of `computeMatchState` (same functions, without statistics and zones: fast line by line). */
+function phaseOnly(parsed: ParsedMatch): MatchPhase {
+  const tl = buildTimeline(parsed);
+  const sets = computeSets(parsed, tl);
+  const setsWon = computeSetsWon(sets);
+  return computePhase(tl, sets, computeStatus(tl, setsWon), setsWon);
+}
+
 /** Fasi attraversate leggendo le righe scout una alla volta (come l'agente che invia il file mentre cresce). */
 function phaseSequence(parsed: ParsedMatch): string[] {
+  // The full state has the same phase (checked once, for the whole file).
+  expect(computeMatchState(parsed).phase).toEqual(phaseOnly(parsed));
   const out: string[] = [];
   for (let k = 0; k <= parsed.scout.length; k++) {
-    const l = label(computeMatchState({ ...parsed, scout: parsed.scout.slice(0, k) }).phase);
+    const l = label(phaseOnly({ ...parsed, scout: parsed.scout.slice(0, k) }));
     if (out[out.length - 1] !== l) out.push(l);
   }
   return out;
@@ -174,8 +187,8 @@ describe('fase della partita: file interi', () => {
     ]);
   });
 
-  it('partite del simulatore: una pausa per ogni set chiuso, poi la fine partita', () => {
-    for (const sets of [3, 4, 5] as const) {
+  for (const sets of [3, 4, 5] as const) {
+    it(`partita del simulatore a ${sets} set: una pausa per ogni set chiuso, poi la fine partita`, () => {
       const match = generateMatch({ seed: 7, sets });
       const sequence = phaseSequence(parseDvw(renderDvw(match, match.lines.length)));
       expect(sequence[0]).toBe('preMatch');
@@ -183,6 +196,6 @@ describe('fase della partita: file interi', () => {
       expect(sequence.filter((l) => l.startsWith('setBreak'))).toEqual(
         Array.from({ length: sets - 1 }, (_, i) => `setBreak ${i + 1}`),
       );
-    }
-  });
+    });
+  }
 });

@@ -7,6 +7,7 @@ import {
   AgentReleaseSchema,
   DEFAULT_BRAND_COLORS,
   isPrivateIPv4,
+  TEMPLATES,
 } from './index.js';
 
 describe('private IPv4', () => {
@@ -53,6 +54,17 @@ describe('branding.json', () => {
         onBackground: '#000000',
       },
     });
+  });
+
+  it('takes the missing colours from the template of the client (SIR VOLLEY: dark and red window)', () => {
+    const sir = agentBranding('SIR', {}, 'sir-volley');
+    expect(sir.colors).toMatchObject({
+      primary: TEMPLATES['sir-volley'].colors.primary,
+      background: TEMPLATES['sir-volley'].colors.background,
+      onBackground: '#ffffff',
+    });
+    expect(agentBranding('SIR', { primary: '#003399' }, 'sir-volley').colors.primary).toBe('#003399');
+    expect(agentBranding('Club A', {}).colors.background).toBe(DEFAULT_BRAND_COLORS.background);
   });
 
   it('accepts only #rrggbb colours and no other field', () => {

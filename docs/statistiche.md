@@ -12,11 +12,13 @@ Il calcolo riparte da zero a ogni aggiornamento (nessuno stato conservato tra du
 ### Struttura di `MatchState`
 - `teams`: `{ home, away }` con `name`, `code`.
 - `players`: elenco per squadra (`number`, `firstName`, `lastName`, `role`, `specialRole`).
-- `sets[]`: `number`, `homeScore`, `awayScore`, `winner`, `finished`, `startTime`, `endTime`, `durationMinutes`.
+- `sets[]`: `number`, `homeScore`, `awayScore`, `winner`, `finished`, `startTime`, `endTime`, `durationMinutes`, `timeouts` e `substitutions` (per squadra, del set, ricavati dalla timeline in `score.ts`).
 - `setsWon`: set vinti per squadra.
 - `status`: `notStarted` | `inProgress` | `finished`.
 - `live`: set corrente, punteggio, `servingTeam`, `setterPosition`, `lineups`, `timeouts`, `substitutions`,
-  `lastPoint`, `run`.
+  `lastPoint`, `run`, `recentPoints` (gli ultimi punti descritti come `lastPoint`, dal più vecchio, al massimo
+  `RECENT_POINTS_LIMIT` = 6 in `score.ts`: servono a `matchStateUntilPoint` per ridare l'«Ultimo punto» dei punti
+  intermedi).
 - `stats`: per squadra `total`, `bySet`, `players` (righe `StatLine`).
 - `momentum`: `sets[]` punto per punto, più `home` e `away` (break point, side-out, serie più lunghe).
 - `rotations`: per squadra, 6 righe (posizione 1-6 del palleggiatore).
@@ -179,7 +181,18 @@ Verifiche fatte:
 - `packages/volley-stats/src/timeline.ts`: `buildTimeline` (set di riga, servizio, punti, rally).
 - `packages/volley-stats/src/score.ts`: `computeSets`, `computeSetsWon`, `computeStatus`, `computeLive`.
 - `packages/volley-stats/src/stats.ts`: `computeStats`.
-- `packages/volley-stats/src/momentum.ts`: `computeMomentum`, `pointType`, `effectiveServer`.
+- `packages/volley-stats/src/momentum.ts`: `computeMomentum`, `summarizeMomentum` (andamento da un elenco di punti, usata
+  anche da `matchStateUntilPoint`), `pointType`, `effectiveServer`.
+- `packages/volley-stats/src/replay.ts`: `matchPoints(stato)` (punti in ordine con il set), `pointsExtend(prima, dopo)`
+  (vero se `dopo` aggiunge solo punti in fondo, falso se ne ha tolti o cambiati), `matchStateUntilPoint(stato, n)`
+  (stato come appariva dopo i primi `n` punti, funzione pura: set e punteggi, set vinti, battuta, `lastPoint`,
+  `recentPoints`, serie, andamento, time-out e cambi, eventi; fase `rally`; statistiche, rotazioni, zone e formazioni
+  restano quelle di `stato`; time-out e cambi di un set già finito sono i totali di `SetSummary.timeouts`/`substitutions`
+  meno gli eventi scritti dopo il punto, anche quando la sequenza attraversa una fine set; per uno stato salvato prima di
+  quei campi si conta dagli eventi come prima; `n` oltre i punti: `stato`). Time-out, cambi ed eventi sono esatti solo
+  pochi punti indietro: finché gli eventi scritti dopo il punto restano tra gli ultimi `RECENT_EVENTS_LIMIT` (20) di
+  `stato`; con al massimo 5 punti per aggiornamento il portale resta nel limite. Servono al portale per mostrare i punti uno alla volta
+  (`docs/portale.md`, «Punti in sequenza»).
 - `packages/volley-stats/src/rotations.ts`: `computeRotations`.
 - `packages/volley-stats/src/zones.ts`: `computeZones`.
 - `packages/volley-stats/src/leaders.ts`: `topPlayers` (test in `leaders.test.ts`); blocco del portale in `docs/portale.md`.

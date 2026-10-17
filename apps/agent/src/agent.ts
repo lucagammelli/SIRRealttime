@@ -23,6 +23,8 @@ export interface AgentTiming {
   statusIntervalMs: number;
   /** Read the file again after this long even if size and mtime did not change. */
   rereadMs: number;
+  /** A file that keeps changing is read anyway after this long (see `WatcherOptions.maxWaitMs`). */
+  maxWaitMs: number;
   requestTimeoutMs: number;
   /** More queued messages than this for one match: the queue is replaced by a single snapshot. */
   compactThreshold: number;
@@ -34,6 +36,7 @@ export const DEFAULT_TIMING: AgentTiming = {
   authPauseMs: 60_000,
   statusIntervalMs: 60_000,
   rereadMs: 10_000,
+  maxWaitMs: 2000,
   requestTimeoutMs: 15_000,
   compactThreshold: 20,
 };
@@ -94,7 +97,11 @@ export class Agent {
     this.now = options.now ?? Date.now;
     this.random = options.random ?? Math.random;
     this.log = options.logger;
-    this.watcher = new FileWatcher(config.watchPath, { stableMs: config.stableMs, rereadMs: this.timing.rereadMs });
+    this.watcher = new FileWatcher(config.watchPath, {
+      stableMs: config.stableMs,
+      rereadMs: this.timing.rereadMs,
+      maxWaitMs: this.timing.maxWaitMs,
+    });
     this.sender = new Sender({
       serverUrl: config.serverUrl,
       agentToken: config.agentToken,

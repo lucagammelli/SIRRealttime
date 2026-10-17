@@ -156,7 +156,8 @@ clienti**, costruito da `scripts/costruisci-agente.sh` in `AGENT_DOWNLOAD_DIR` i
     cliente (`publicBaseUrlFor`), **mai ricavato dall'header `Host`**; `allowHttpPrivateNetwork: true` c'è solo per `http`
     verso un IPv4 privato (prove in LAN);
   - `branding.json` (`AgentBrandingSchema`, versione 1): nome visualizzato del cliente e sei colori `#rrggbb` già risolti
-    (`agentBranding`);
+    (`agentBranding`: i colori scelti dal cliente sopra quelli del suo template, `resolveBrandColors` in
+    `packages/shared/src/colors.ts`, la stessa funzione del manifest e degli avvisi di contrasto);
   - `logo.png` o `logo.jpg`: il logo orizzontale (`logoMain`), altrimenti quello quadrato (`logoMark`), solo se PNG o JPEG,
     fino a 2 MB e 1024×1024 px; SVG e WebP sono esclusi (WinForms non li legge). Senza un logo adatto non c'è;
   - `LEGGIMI.txt` (UTF-8 con BOM, fine riga CRLF): installazione in `C:\SIRAgent`, SmartScreen («Ulteriori informazioni» →
@@ -433,7 +434,7 @@ admin rifiuta il viewer con 403 prima di leggere il corpo; `apps/server/test/rol
 copre da solo quelle nuove.
 
 **Manifest dell'app** (`routes/manifest.ts`, `GET /api/public/manifest.webmanifest`, rate limit pubblico,
-`Cache-Control: public, max-age=300`): `webManifest` di `packages/shared/src/manifest.ts` con nome mostrato, colori e logo
+`Cache-Control: public, max-age=300`): `webManifest` di `packages/shared/src/manifest.ts` con nome mostrato, colori (risolti con `resolveBrandColors`: quelli del cliente sopra quelli del template) e logo
 quadrato (`logoMark`) del cliente dell'hostname; senza cliente quelli del portale («SIRRealtime»).
 
 ### Ingest (`POST /api/ingest`, protocollo 1)

@@ -129,7 +129,8 @@ Immagini (`assets.ts`): `AssetKindSchema` (`logo` | `sponsor`), `AssetMimeSchema
 `ASSET_MAX_BASE64_LENGTH`, `UploadAssetRequestSchema` (solo `kind` e `data` in base64), `AssetSummarySchema`,
 `AssetListResponseSchema`. Colori (`colors.ts`, funzioni pure): `HEX_COLOR_PATTERN`, `HexColorSchema`,
 `relativeLuminance`, `contrastRatio`, `textColorOn`, `mixColors`, `ensureContrast`, `MIN_TEXT_CONTRAST` (4,5),
-`BRAND_COLOR_KEYS`, `DEFAULT_BRAND_COLORS`, `brandPalette(colori, template)` (variabili CSS chiare e scure; per le squadre
+`BRAND_COLOR_KEYS`, `DEFAULT_BRAND_COLORS`, `resolveBrandColors(colori, template)` (i colori del cliente sopra quelli del
+template, standard: i predefiniti; usata da `webManifest`, `agentBranding` e `brandContrastIssues`), `brandPalette(colori, template)` (variabili CSS chiare e scure; per le squadre
 anche `-soft` e `-ink`, la variante per il testo piccolo con 4,5:1 sul pannello scuro più chiaro del modello, per esempio il
 rosso `#E30613` su `#151518` ha 3,7:1 e il testo piccolo usa `#eb515a`; inoltre `--sir-our*` e `--sir-opponent*`),
 `brandContrastIssues(colori, template)` (nessun avviso per un modello solo scuro). Il

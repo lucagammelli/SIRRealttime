@@ -16,7 +16,13 @@ dell'agente, cartella del `.dvw`, START e STOP, senza console. Il servizio NSSM 
 - **Quale file**: se `watchPath` è un file, quello; se è una cartella, il `.dvw` con la data di modifica più recente.
   Sono ignorati i nomi che iniziano con `.` o `~` e quelli che non finiscono in `.dvw` (quindi anche `*.tmp`).
 - **Stabilità**: il file si legge solo quando dimensione e data di modifica restano uguali per `stableMs` (700 ms).
-  Se cambia durante la lettura, si aspetta il poll stabile successivo.
+  Se cambia durante la lettura, si aspetta il poll stabile successivo. Un file che cambia di continuo è letto comunque
+  dopo un'**attesa massima di 2 s** (`maxWaitMs`, `DEFAULT_TIMING` in `src/agent.ts`, valore interno non presente in
+  `config.json`), così un punto non resta fermo finché DataVolley scrive.
+- **Ritmo misurato** (polling 1000 ms, stabilità 700 ms): a velocità reale c'è 1 punto per invio (22-32 s tra i punti;
+  121 punti, 121 invii), quindi il polling non è stato ridotto; a velocità 20 del simulatore al massimo 3 punti per
+  invio. Più punti in un solo aggiornamento arrivano dal simulatore veloce o da una coda che si svuota dopo
+  un'interruzione; il portale li mostra uno alla volta (`docs/portale.md`, «Punti in sequenza»).
 - **Rilettura**: anche senza modifiche il file è riletto ogni 10 s (la data di modifica di FAT32 ha risoluzione di 2 s).
 - **File bloccato** da DataVolley (`EBUSY`, `EPERM`, `EACCES`): nuovo tentativo al poll successivo; dopo 10 tentativi
   di fila una riga di avviso nel log.
@@ -142,7 +148,7 @@ visti come la **stessa partita**. L'agente si riallinea con uno snapshot (il ser
   del logo nel messaggio `init`; `window.ps1` (`Set-Branding`) mostra una testata col colore primario, il logo, il nome del
   cliente e il titolo «<Cliente> – Agente SIRRealtime», con START colorato. Senza `branding.json`, o se non è valido, la
   finestra ha la grafica predefinita; se è il logo a mancare o non essere valido (troppo grande, rotto, non PNG/JPEG) si
-  vedono i colori senza logo. Un file scartato è scritto nel log con il motivo e non ferma mai la finestra.
+  vedono i colori senza logo. I colori che il cliente non ha scelto vengono dal suo template (`resolveBrandColors`, via `agentBranding` nel server). Un file scartato è scritto nel log con il motivo e non ferma mai la finestra.
 - **Pennina intatta** (`assertNotOnStick`, `src/config.ts`): START, «Registra» e la ripresa dell'attesa sono rifiutati
   se `dataDir` o `logDir` stanno dentro `watchPath`. In modalità finestra, in quel caso, lo script e i log vanno in
   `%TEMP%\SIRAgent` (`data`, `logs`) e la finestra mostra l'errore. **Avvertenza**: non avviare l'agente dalla pennina:

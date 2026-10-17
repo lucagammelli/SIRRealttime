@@ -101,6 +101,8 @@ export function momentumOption(
     series: [
       {
         type: 'line',
+        // Same id at every update: the series is updated from the previous point, not drawn again from the left.
+        id: 'lead-home',
         name: 'lead-home',
         step: 'end',
         symbol: 'none',
@@ -118,6 +120,7 @@ export function momentumOption(
       },
       {
         type: 'line',
+        id: 'lead-away',
         name: 'lead-away',
         step: 'end',
         symbol: 'none',
@@ -129,6 +132,7 @@ export function momentumOption(
       },
       {
         type: 'scatter',
+        id: 'break-point',
         name: 'break-point',
         symbolSize: compact ? 6 : 9,
         data: data

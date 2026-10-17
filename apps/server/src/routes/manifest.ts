@@ -12,7 +12,8 @@ const MANIFEST_CACHE = 'public, max-age=300';
 
 /**
  * Manifest of the installable app of the client of the hostname (`webManifest` of `@sir/shared`): name shown, colours
- * and square logo of its graphics; without a client the one of the portal. No token: public graphics only.
+ * (those of the client over those of its template, as on the portal) and square logo of its graphics; without a client
+ * the one of the portal. No token: public graphics only.
  */
 export function manifestRoutes(app: FastifyInstance, ctx: AppContext): void {
   app.get(
@@ -38,6 +39,7 @@ export function manifestRoutes(app: FastifyInstance, ctx: AppContext): void {
       return webManifest({
         name: tenant ? tenantDisplayName(tenant, branding) : 'SIRRealtime',
         colors: branding.colors,
+        template: branding.template,
         logo,
       });
     },

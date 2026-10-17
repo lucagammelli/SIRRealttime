@@ -32,6 +32,9 @@ export interface SetSummary {
   endTime: string | null;
   /** Durata in minuti: set chiuso dalla sezione [3SET], altrimenti dalle ore delle righe; `null` se non ricavabile. */
   durationMinutes: number | null;
+  /** Time-out e cambi chiamati nel set (righe `T` e `c`). Mancano negli stati salvati prima che esistessero. */
+  timeouts: Record<Side, number>;
+  substitutions: Record<Side, number>;
 }
 
 export interface LastPoint {
@@ -64,6 +67,12 @@ export interface LiveState {
   timeouts: Record<Side, number>;
   substitutions: Record<Side, number>;
   lastPoint: LastPoint | null;
+  /**
+   * Ultimi punti della partita descritti come `lastPoint` (al massimo RECENT_POINTS_LIMIT, dal più vecchio, anche dei
+   * set precedenti): il portale li mostra uno alla volta quando un aggiornamento ne porta più d'uno. Manca negli
+   * stati salvati prima che esistesse.
+   */
+  recentPoints: LastPoint[];
   /** Serie in corso nel set corrente. */
   run: { team: Side; length: number } | null;
 }

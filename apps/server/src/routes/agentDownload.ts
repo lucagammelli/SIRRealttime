@@ -130,7 +130,7 @@ export function agentDownloadRoutes(app: FastifyInstance, ctx: AppContext): void
       const entries: ZipEntry[] = [
         { name: `${AGENT_ZIP_FOLDER}/sir-agent.exe`, file, size: opened.bytes, crc32: opened.crc32 },
         { name: `${AGENT_ZIP_FOLDER}/config.json`, data: json(agentDownloadConfig(serverUrl)) },
-        { name: `${AGENT_ZIP_FOLDER}/branding.json`, data: json(agentBranding(name, branding.colors)) },
+        { name: `${AGENT_ZIP_FOLDER}/branding.json`, data: json(agentBranding(name, branding.colors, branding.template)) },
         ...(logo ? [logo] : []),
         {
           name: `${AGENT_ZIP_FOLDER}/LEGGIMI.txt`,

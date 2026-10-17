@@ -119,7 +119,7 @@ describe('admin navigation', () => {
         .map((l) => l.textContent ?? '');
     expect(names('Partite')).toEqual(['Partita live', 'Partite', 'Calendario', 'Link pubblici']);
     expect(names('Club')).toEqual(['Club']);
-    expect(names('Pagina pubblica')).toEqual(['Grafica', 'Pagina pubblica', 'Pause', 'Avvisi']);
+    expect(names('Pagina pubblica')).toEqual(['Studio grafico']);
     expect(names('Dispositivi')).toEqual(['Agenti']);
     expect(names('Amministrazione')).toEqual(['Utenti']);
     expect(within(nav).queryByRole('link', { name: 'Clienti' })).toBeNull();
@@ -242,7 +242,7 @@ describe('admin look', () => {
     const nav = await screen.findByRole('navigation', { name: 'Area riservata' });
     expect(container.querySelector('.sir-admin-font')?.contains(nav)).toBe(true);
     expect(nav.className).toContain('sir-thin-scroll');
-    expect(within(nav).getByRole('link', { name: 'Pause' }).getAttribute('href')).toBe('/admin/pause');
+    expect(within(nav).getByRole('link', { name: 'Studio grafico' }).getAttribute('href')).toBe('/admin/studio');
     expect(within(nav).queryByText(/sponsor/i)).toBeNull();
   });
 

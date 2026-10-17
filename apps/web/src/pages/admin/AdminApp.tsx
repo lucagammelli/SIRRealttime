@@ -1,7 +1,7 @@
 import type { TenantSummary } from '@sir/shared';
 import type { ReactElement } from 'react';
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router';
+import { lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { BrandMark } from '../../components/BrandMark.tsx';
 import { MenuButton } from '../../components/MenuButton.tsx';
 import { StatusScreen } from '../../components/StatusScreen.tsx';
@@ -12,24 +12,26 @@ import { useAsync } from '../../lib/useAsync.ts';
 import { useViewportWidth } from '../../lib/useLayout.ts';
 import { AdminSidebar, Icon, menuGroups } from './AdminSidebar.tsx';
 import { AgentsPage } from './AgentsPage.tsx';
-import { BrandingPage } from './BrandingPage.tsx';
 import { CalendarPage } from './CalendarPage.tsx';
 import { ClubPage } from './ClubPage.tsx';
 import { useAuth, useSession } from './auth.tsx';
-import { IntermissionsPage } from './IntermissionsPage.tsx';
-import { LayoutPage } from './LayoutPage.tsx';
 import { LiveAdminPage } from './LiveAdminPage.tsx';
 import { LoginPage } from './LoginPage.tsx';
 import { MatchDetailPage } from './MatchDetailPage.tsx';
 import { MatchesPage } from './MatchesPage.tsx';
-import { OverlaysPage } from './OverlaysPage.tsx';
 import { ShareLinksPage } from './ShareLinksPage.tsx';
+import { LEGACY_PAGES, studioPath } from './studio/model.ts';
 import { loadTenants, TenantSelector, TenantsPage } from './TenantsPage.tsx';
 import { UsersPage } from './UsersPage.tsx';
+
+/** The «Studio grafico» (editors and previews of the graphics) in its own chunk, loaded when it is opened. */
+const StudioPage = lazy(() => import('./studio/StudioPage.tsx').then((m) => ({ default: m.StudioPage })));
 
 /** From this width the side menu is beside the page (below it is a drawer); from the second one it is full at first. */
 const PHONE_MAX = 768;
 const WIDE_MENU_MIN = 1200;
+/** The «Studio grafico» uses the whole width: below this one the menu is reduced to the icons when it opens. */
+const STUDIO_WIDE_MENU_MIN = 1600;
 
 const ROLE_TEXT = { superadmin: 'superadmin', admin: 'amministratore', viewer: 'sola lettura' } as const;
 
@@ -92,6 +94,11 @@ function AdminLayout() {
   useEffect(() => {
     if (width >= PHONE_MAX) setMenuOpen(false);
   }, [width]);
+  // Entering the Studio (three columns and a big preview) the menu makes room, once: it can be opened again.
+  const studio = useLocation().pathname.startsWith('/admin/studio');
+  useEffect(() => {
+    if (studio && window.innerWidth < STUDIO_WIDE_MENU_MIN) setCollapsed(true);
+  }, [studio]);
 
   const tenant = isSuperadmin ? (
     <TenantSelector tenants={tenants} stacked />
@@ -147,7 +154,7 @@ function AdminLayout() {
       />
       {/* With the drawer open (phone) the page under it is out of reach (`inert`). */}
       <main inert={menuOpen} className="sir-page min-w-0 flex-1 px-3 py-4 sm:px-5 lg:px-8 lg:py-6">
-        <div className="mx-auto w-full max-w-7xl">
+        <div className={`mx-auto w-full ${studio ? '' : 'max-w-7xl'}`}>
           {/* A new client remounts every page: data and the admin WebSocket follow the choice. */}
           <Routes key={user.tenant?.id ?? 'nessun-cliente'}>
             <Route index element={<Navigate to="/admin/live" replace />} />
@@ -159,10 +166,18 @@ function AdminLayout() {
             <Route path="link" element={adminOnly(<ShareLinksPage />)} />
             <Route path="agenti" element={adminOnly(<AgentsPage />)} />
             <Route path="utenti" element={adminOnly(<UsersPage />)} />
-            <Route path="grafica" element={adminOnly(<BrandingPage />)} />
-            <Route path="pagina" element={adminOnly(<LayoutPage />)} />
-            <Route path="pause" element={adminOnly(<IntermissionsPage />)} />
-            <Route path="avvisi" element={adminOnly(<OverlaysPage />)} />
+            <Route
+              path="studio/:section?"
+              element={adminOnly(
+                <Suspense fallback={<Spinner label="Caricamento dello Studio grafico…" />}>
+                  <StudioPage />
+                </Suspense>,
+              )}
+            />
+            {/* The old pages of the graphics are sections of the Studio now. */}
+            {Object.entries(LEGACY_PAGES).map(([path, section]) => (
+              <Route key={path} path={path} element={<Navigate to={studioPath(section)} replace />} />
+            ))}
             <Route path="clienti" element={superadminOnly(<TenantsPage tenants={tenants} />)} />
             <Route path="*" element={<Navigate to="/admin/live" replace />} />
           </Routes>

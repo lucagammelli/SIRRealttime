@@ -44,7 +44,7 @@ I breakpoint sono quelli delle specifiche grafiche (`docs/grafica/`) e valgono p
 desktop 4:3 o 16:10 basso resta quindi tablet/desktop e mantiene lo scorrimento. `defaultLayouts` è l'elenco predefinito dei
 blocchi per dispositivo del modello standard (da `defaultDeviceBlocks` di `@sir/shared`, larghezze 12/8/6/4 su 12
 colonne come prima); `templateLayouts` ha quelli di ogni modello e `blocksFor(layout, dispositivo, modello)` sceglie quello
-giusto quando il cliente non ha un layout. Il cliente può cambiarlo nella pagina «Pagina pubblica» (vedi «Pagina pubblica a blocchi»). Nell'area riservata `MatchView` usa al massimo l'impaginazione tablet.
+giusto quando il cliente non ha un layout. Il cliente può cambiarlo nella sezione «Pagina live» dello Studio (vedi «Pagina pubblica a blocchi»). Nell'area riservata `MatchView` usa al massimo l'impaginazione tablet.
 
 **Regole del telefono** (valgono per tutti i modelli): `PlayerTable` mostra le colonne essenziali (N., Giocatore, Punti,
 Attacco %, Ace, Muro, Errori) con il pulsante «Tutte le colonne», e il giocatore si può evidenziare; `Rotations` mostra
@@ -84,8 +84,8 @@ Fullscreen API non è disponibile o fallisce, «Schermo intero» attiva comunque
 Prima si verifica la sessione («Verifica della sessione…»); senza sessione compare il login «Area riservata»
 (email e password), se il server non risponde «Area riservata non disponibile» con «Riprova». Il **menu laterale**
 (`AdminSidebar.tsx`; `menuGroups` è pura e dà i gruppi in base al ruolo, quelli vuoti spariscono) sostituisce la barra
-a pillole. Gruppi: «Partite» (Partita live, Partite, Calendario, Link pubblici), «Club» (Club), «Pagina pubblica» (Grafica,
-Pagina pubblica, Pause, Avvisi), «Dispositivi» (Agenti), «Amministrazione» (Utenti; Clienti solo superadmin):
+a pillole. Gruppi: «Partite» (Partita live, Partite, Calendario, Link pubblici), «Club» (Club), «Pagina pubblica» (la sola voce
+«Studio grafico»), «Dispositivi» (Agenti), «Amministrazione» (Utenti; Clienti solo superadmin):
 
 - in cima il logo (`BrandMark`), in fondo cliente (selettore per il superadmin), account, tema e «Esci»; la voce attiva è
   evidenziata (`--sir-nav-active`, rosso in SIR VOLLEY);
@@ -110,22 +110,15 @@ Le voci:
 | Link pubblici | `/admin/link` | solo admin | «Nuovo link pubblico» (etichetta, partita o live, «Scadenza (facoltativa)»), «Link creati» (per i link attivi «Link breve», codice e QR, vedi «Link breve e QR»), «Revoca» |
 | Agenti | `/admin/agenti` | solo admin | «Agente per Windows» (vedi sotto), «Nuovo agente» («Crea token», mostrato una sola volta con «Copia config.json»), «Richieste in attesa» (vedi sotto), «Agenti», «Revoca» |
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, password di almeno 12 caratteri, ruolo), «Utenti» |
-| Grafica | `/admin/grafica` | solo admin (il superadmin lavora sul cliente scelto) | colori, nome e loghi del cliente, vedi «Grafica per cliente» |
-| Pagina pubblica | `/admin/pagina` | solo admin (il superadmin lavora sul cliente scelto) | blocchi della pagina della partita per TV, tablet e telefono, vedi «Pagina pubblica a blocchi» |
-| Pause | `/admin/pause` | solo admin (il superadmin lavora sul cliente scelto) | schermate di time-out, fine set, fine partita e «ogni N punti», vedi «Pause della partita» |
-| Avvisi | `/admin/avvisi` | solo admin (il superadmin lavora sul cliente scelto) | avvisi sugli eventi della partita, vedi «Avvisi sugli eventi» |
+| Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`) | solo admin (il superadmin lavora sul cliente scelto) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
 | Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname; «Crea cliente»), «Clienti» con «Modifica» (nome e hostname, «Salva») |
 | Esci | - | tutti | chiude la sessione |
 
-**Anteprima sempre visibile** (`components/PreviewDock.tsx`; «Grafica», «Pagina pubblica», «Pause» e «Avvisi»). Da 1280 px
-la scheda «Anteprima» è una colonna destra sticky, alta al massimo come lo schermo, con scorrimento interno. Sotto 1280 px
-è una barra compatta sticky in cima alla pagina, richiudibile con «Chiudi anteprima» / «Apri anteprima» (chiusa
-all'inizio sul telefono, sotto 768 px). Il pulsante «Anteprima a tutto schermo» (sul telefono «Schermo intero») apre
-`PreviewFullscreen`: un dialog modale (`role="dialog"`, `aria-modal`) che chiede la Fullscreen API e, se manca o è
-rifiutata (iPhone), resta a finestra intera; si chiude con Esc o «Chiudi» e il focus torna al pulsante. `DevicePreview`
-(`LayoutPage.tsx`) ha la prop `fit` per riempire lo spazio. **Limiti noti**: in «Grafica» l'anteprima a tutto schermo è il
-riquadro d'esempio ingrandito, nelle altre pagine è la pagina reale; sul telefono «Prova» negli Avvisi non apre
-l'anteprima se è chiusa.
+**Anteprima sempre visibile**: nello «Studio grafico» (vedi sotto) l'anteprima è la colonna destra della pagina, sempre in
+vista, con la propria barra di dispositivo e scena. Il pulsante «Anteprima a tutto schermo» apre `PreviewFullscreen`
+(`components/PreviewDock.tsx`): un dialog modale (`role="dialog"`, `aria-modal`) che chiede la Fullscreen API e, se manca
+o è rifiutata (iPhone), resta a finestra intera; si chiude con Esc o «Chiudi» e il focus torna al pulsante.
+`DevicePreview` (`studio/blockEditors.tsx`) ha la prop `fit` per riempire lo spazio.
 
 **Più clienti** (`docs/server.md`, «Clienti»). Nel menu compare il nome del cliente corrente (`user.tenant`). Il
 **superadmin** vede invece il selettore «Cliente» (`TenantSelector` in `src/pages/admin/TenantsPage.tsx`): la scelta va a
@@ -133,6 +126,144 @@ l'anteprima se è chiusa.
 (`Routes` con `key` sul cliente). Finché non ne sceglie uno, le pagine che lavorano su un cliente mostrano l'errore
 «Seleziona un cliente». Un admin o un viewer vede solo il proprio cliente e non ha né selettore né voce «Clienti»; un
 utente di un cliente può accedere solo dagli hostname del proprio cliente.
+
+### Studio grafico (`src/pages/admin/studio/`, rotta `/admin/studio/:sezione`)
+Un'unica pagina, solo per l'admin (titolo scheda «Studio grafico · Area riservata»), al posto delle vecchie pagine
+«Grafica», «Pagina pubblica», «Pause» e «Avvisi», che ora sono le sue quattro sezioni. Le rotte vecchie (`/admin/grafica`,
+`/admin/pagina`, `/admin/pause`, `/admin/avvisi`) rimandano alla sezione (`LEGACY_PAGES` in `model.ts`); `/admin/studio`
+senza sezione apre «Colori e loghi». Nell'area riservata, dentro lo Studio, il menu laterale parte ridotto alle icone sotto
+i 1600 px (`STUDIO_WIDE_MENU_MIN` in `AdminApp.tsx`) e si può riaprire. Dati e rotte del server non cambiano
+(`docs/server.md`): ogni sezione legge e scrive il suo documento.
+
+**Tre colonne** (da 768 px; `StudioPage.tsx`):
+- **Sezioni** (a sinistra): «Colori e loghi» (Aspetto di tutta la pagina), «Pagina live» (Blocchi di TV, tablet e
+  telefono), «Pause» (Fine set, time-out, sponsor), «Avvisi» (Ace, muro, set point). Un pallino ● segna le sezioni con
+  modifiche non salvate.
+- **Impostazioni** (al centro): a schede brevi; le impostazioni meno usate stanno in «Avanzate», chiuso all'inizio. Passando
+  il mouse (o il focus della tastiera) su un'impostazione, i suoi elementi sono evidenziati nell'anteprima; sotto ogni
+  impostazione compare dove e quando si vede.
+- **Anteprima** (a destra, grande, sempre in vista): barra «Dispositivo» (TV, Tablet, Telefono), barra «Scena» (In gioco,
+  Fine set, Time-out, Ogni N punti, Fine partita, Avviso «<nome dell'avviso>»), il pulsante «Allarga anteprima» (stringe le
+  sezioni a una colonna di nomi corti e le impostazioni; la scelta resta in `localStorage` con chiave
+  `sir-studio-anteprima-larga`; non sul telefono) e «Anteprima a tutto schermo». Sotto: «Dati della partita live.»
+  oppure «Partita d'esempio: nessuna partita live in questo momento.».
+
+**Anteprima** (`StudioPreview.tsx`). Disegna la pagina del dispositivo con i componenti veri della pagina pubblica
+(`MatchView` via `DevicePreview`, `Intermission`, `OverlayBanner`) e le bozze non salvate di **tutte** le sezioni.
+La partita è quella live del cliente (`/ws/admin`) o la «Partita d'esempio» (`sampleMatch.json`) con la **nostra squadra
+in casa** (`sampleWithOurTeam`: nome e codice di «nostra squadra»). I colori della bozza valgono anche per i grafici
+ECharts dell'anteprima: l'anteprima è un ambito di colori (`data-sir-scope`, palette e tema della bozza in `BrandScope`) e
+i grafici leggono la palette da lì (`PaletteScopeContext`, `usePalette` in `charts/usePalette.ts`) invece che da `<html>`.
+Le pause e le diapositive usano dati d'esempio del calendario (`SAMPLE_SCHEDULE`). Avvisi sotto la barra: «Pausa
+disattivata: gli spettatori non la vedono.», «Nessuna diapositiva da mostrare (uno sponsor senza immagini?): la pausa non
+compare.», «Avviso spento: gli spettatori non lo vedono.», «Su <dispositivo> questo avviso non compare.».
+
+- **Scena automatica e manuale** (`autoScene`): aprendo una sezione la scena si sceglie da sola (Colori e Pagina: «In
+  gioco»; Pause: la pausa aperta; Avvisi: «Avviso»); si può sempre cambiare a mano. Cambiando scheda di pausa o di set,
+  o scegliendo un avviso, la scena segue.
+- **Dall'impostazione all'elemento e viceversa**: l'elemento dell'impostazione è evidenziato (`outline`); se non si vede
+  nella scena corrente compare «Non si vede in questa scena. Mostra «<scena>»», un pulsante che porta alla scena giusta. Un
+  clic su un elemento dell'anteprima (`pickAt`: la scatola marcata più piccola sotto il puntatore) apre la sua
+  impostazione: cambia sezione e scheda se serve, la porta in vista, le dà il focus e la segna un attimo. Colori della
+  squadra: in «Colori e loghi» un clic su tabellone, confronto, andamento o sfida apre «Squadra di casa». Gli elementi si
+  trovano con marcatori inerti sui componenti pubblici (`data-studio-page`, `data-studio-block`, `data-studio-type`,
+  `data-studio-slide`, `data-intermission`, `data-overlay`; in `BlockLayout.tsx` e `Intermission.tsx`): non hanno effetto
+  sulla pagina pubblica.
+- **Riga «Compare: …»**: ogni impostazione dichiara dove compare (`blockWhere`, `pauseWhere`, `overlayWhere` in `model.ts`),
+  per esempio «TV, in gioco», «a tutto schermo su TV e tablet, banda in basso su telefono, a fine set», «TV e tablet, in
+  alto, medio, sopra la partita». La riga è cliccabile e porta nell'anteprima alla scena giusta.
+- **Un salvataggio per sezione**: «Salva» scrive solo la sezione aperta con le rotte di sempre (`PUT /api/admin/branding`,
+  `/layout`, `/intermissions`, `/overlays`) e poi rilegge la grafica (`initBranding({ fresh: true })`). Testi dopo il
+  salvataggio: «Grafica salvata: la pagina pubblica la usa da subito.» (Colori e loghi), «Pagina pubblica salvata: la
+  vedono da subito tutti gli spettatori.», «Pause salvate: valgono da subito per tutti gli spettatori.», «Avvisi
+  salvati: valgono da subito per tutti gli spettatori.». Con modifiche compare in basso la barra «N modifiche non
+  salvate» con «Vedi modifiche» (elenco `brandingChanges`, `layoutChanges`, `intermissionChanges`, `overlayChanges`: cosa
+  era e cosa diventa), «Annulla modifiche» (torna al salvato) e «Salva». «Salva» è disattivato se la sezione ha un valore
+  non valido (blocchi con opzioni non valide, pausa attiva senza diapositive o con testo vuoto, testo di un avviso
+  vuoto, troppo lungo o con segnaposto sconosciuti); il messaggio è nella barra.
+- **Non perdere lavoro**: cambiando sezione con modifiche compare «Modifiche non salvate» con «Salva e continua»,
+  «Continua senza salvare» (le modifiche restano in sospeso, segnate con ●) e «Resta qui» (Esc); uscendo dallo Studio da un
+  link dell'area riservata, stessa domanda con «Esci senza salvare» e «Resta qui». Chiudendo la scheda del browser,
+  `beforeunload` chiede conferma.
+- **Telefono** (sotto 768 px, `STUDIO_PHONE_MAX`): la pagina è a passi, «Sezioni» → «Impostazioni» → «Anteprima» («←
+  Indietro», pulsante «Vedi anteprima»); aprendo l'indirizzo di una sezione si parte dalle impostazioni. Le **pause** sul
+  telefono sono a **banda** in basso (è il predefinito del telefono; resta modificabile per dispositivo).
+- **Configurazione guidata** (`StudioWizard.tsx`): finestra a 4 passi con l'anteprima TV accanto: «Logo e colori» (3
+  colori, logo orizzontale, nome visualizzato), «La tua squadra» (nostra squadra e colori delle due squadre), «La pagina»
+  (quali blocchi mostrare, su tutti i dispositivi) e «Le pause» (modello e pausa a fine set). Si apre da sola al **primo
+  accesso**, quando i quattro documenti sono ancora quelli predefiniti (`isFirstAccess`), e **non si riapre** dopo la
+  chiusura (`localStorage`, chiave `sir-studio-guidata:<idCliente>`); si riapre sempre da «Configurazione guidata».
+  Pulsanti «Indietro», «Avanti», «Chiudi» (le modifiche restano nelle bozze, non salvate) e, all'ultimo passo, «Fine e
+  salva» (salva Colori, Pagina e Pause cambiati).
+- **Modelli pronti** (`model.ts`, `applyPauseModel`, `applyOverlayModel`): in «Pause» e «Avvisi» tre modelli, «Essenziale»,
+  «Completo» e «Sponsor in evidenza»; dopo un ritocco il modello attivo diventa «Personalizzato» (`activePauseModel`,
+  `activeOverlayModel`). I modelli delle pause tengono le immagini sponsor e la regola «ogni N punti» e tolgono le pause
+  proprie dei set; quelli degli avvisi tengono testi, dispositivi, priorità, posizione e dimensione di ogni avviso.
+
+#### Sezione «Colori e loghi»
+Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome», «Squadra», «Immagini».
+- «Colori»: i cinque colori («Colore principale», «Colore di risalto», «Squadra di casa», «Squadra ospite», «Sfondo
+  della pagina»), ciascuno con selettore e campo esadecimale `#rrggbb` e «Predefinito»; i colori vanno sopra quelli del
+  modello. Avvisi di contrasto (`brandContrastIssues`, sotto 4,5:1), per esempio «Lo sfondo è troppo scuro per il testo
+  della pagina…» o «“Colore di risalto” ha contrasto …:1 sullo sfondo (minimo 4,5:1): i testi in questo colore si
+  leggono male.». In «Avanzate»: «Modello grafico» (vedi «Modelli grafici») e «Ripristina predefiniti» (colori, modello,
+  nome, nostra squadra e loghi tornano quelli del portale; le immagini restano caricate).
+- «Loghi e nome»: «Nome visualizzato» (facoltativo) e le tre immagini («Logo orizzontale», «Logo quadrato», «Logo dello
+  sponsor») con «Carica immagine» (PNG, JPEG, WebP o SVG, al massimo 2 MB) e «Togli».
+- «Squadra»: «Nostra squadra» («Codice squadra», es. PER, e «Testo nel nome della squadra», es. Perugia, entrambi
+  facoltativi).
+- «Immagini»: scheda «Immagini caricate» (sottotitolo «Spazio usato: … MB di … MB») con l'elenco, «in uso» e «Elimina» /
+  «Conferma eliminazione»; vuota: «Nessuna immagine caricata.». Il caricamento invia il file in base64 (`fileToBase64`,
+  `src/lib/base64.ts`) a `POST /api/admin/assets`; il salvataggio è `PUT /api/admin/branding`.
+
+#### Sezione «Pagina live»
+Ex pagina «Pagina pubblica» (`PageSection.tsx`, vedi «Pagina pubblica a blocchi»). Tre schede «TV», «Tablet», «Telefono»
+(le stesse del dispositivo dell'anteprima: cambiare l'una cambia l'altra). Per ogni blocco: maniglia ⠿ (trascinamento),
+↑ e ↓ («Sposta su», «Sposta giù»), interruttore «Visibile», e sotto «Opzioni» (con la larghezza): «Larghezza» (non sul
+telefono; i valori ammessi dipendono dal tipo, per esempio «Metà (6/12)»), «Chiuso all'apertura» (solo telefono, non per
+il tabellone), le opzioni del tipo (per lo sponsor anche «Carica immagine sponsor») e «Rimuovi». In fondo «Tipo di
+blocco» con «Aggiungi blocco» (in coda; il tabellone solo se manca; al massimo 24 blocchi, contatore «N di al massimo 24
+blocchi.»). In «Avanzate»: «Ripristina predefinito», che rimette i blocchi predefiniti **solo del dispositivo aperto**
+(quelli del modello grafico). I blocchi con opzioni non valide (per esempio testo vuoto) sono evidenziati e «Salva»
+resta disattivato. Logica pura in `layoutEditor.ts` (`moveBlock`, `updateBlock`, `removeBlock`, `addBlock`,
+`resetDevice`, `layoutProblems`); le opzioni dei 21 tipi di blocco sono in `studio/blockEditors.tsx`
+(`BlockOptionsEditor`). Accessibilità: spostamenti, aggiunte e rimozioni sono annunciati in una regione `aria-live`
+(«Messaggio in posizione 2 di 6.», «Messaggio rimosso.»); dopo uno spostamento da tastiera il focus resta sul
+pulsante usato. Il trascinamento è un'aggiunta: tutto si fa anche con ↑ ↓.
+
+#### Sezione «Pause»
+Ex pagina «Pause» (`PausesSection.tsx`, vedi «Pause della partita»). In alto i «Modelli pronti»; poi le schede
+«Time-out», «Fine set», «Fine partita», «Ogni N punti». Per «Fine set» una seconda fila «Tutti i set», «1° set»…«4° set»
+con la casella «Pausa propria per la fine del N° set» (senza, quel set usa «Tutti i set»). «Ogni N punti» ha la scheda
+«Regola» con «Ogni quanti punti» (4-25) e «Non negli ultimi punti del set» (`stopBeforeEnd`, con il traguardo da
+`setTarget` di volley-stats). Per ogni pausa, «Quando e come»: «Pausa attiva» e «Come si mostra» (per TV, tablet e
+telefono «Tutto schermo» o «Banda in basso»); «Diapositive»: elenco riordinabile con «Sposta su» e «Sposta giù» (niente
+trascinamento), «Secondi sullo schermo», le opzioni del tipo (come nei blocchi, anche «Carica immagine sponsor») e
+«Rimuovi»; in fondo «Tipo di diapositiva» con «Aggiungi diapositiva» (al massimo 12). In «Avanzate»: «Ritardo prima della
+pausa (secondi)» e «Ripristina predefinito» (solo della pausa aperta). «Salva» è disattivato se una pausa attiva non ha
+diapositive o un testo è vuoto. Logica pura in `intermissionEditor.ts` (`moveSlide`, `addSlide`, `removeSlide`,
+`updateSlide`, `setOwnPause`, `resetPause`, `pauseProblems`); le opzioni delle statistiche in `StatOptionsFields.tsx`.
+Nell'anteprima la pausa è mostrata subito con le bozze (`previewState` mette nello stato la fase della pausa aperta).
+
+#### Sezione «Avvisi»
+Ex pagina «Avvisi» (`OverlaysSection.tsx`, vedi «Avvisi sugli eventi»). In alto i «Modelli pronti»; due schede: «Quali
+avvisi» e «Posizione e dimensione». «Quali avvisi» (scheda «Eventi») elenca i 12 eventi (Fine partita, Match point, Fine
+set, Set point, Ace, Muro punto, Sorpasso, Pareggio, Break, Time-out, Scambio lungo, Cambio), ognuno con interruttore e
+pulsante «Modifica» («In modifica» sull'avviso aperto). L'avviso aperto mostra: «Testo» (il risultato con i dati
+d'esempio compare sotto, «Risultato: …», oppure il problema: vuoto, oltre 80 caratteri, segnaposto sconosciuto, `<` o
+`>`), i «Segnaposto» ammessi (`{giocatore}`, `{numero}`, `{squadra}`, `{punteggio}`, `{set}`, `{serie}`, `{attacchi}`),
+«Secondi» (2-8), i dispositivi (TV, tablet, telefono), «Posizione» e «Dimensione» (In alto / Al centro / In basso;
+Piccolo / Medio / Grande; oppure «Come tutti gli avvisi»), «Prova» (lo mostra nell'anteprima con le modifiche non salvate,
+per i suoi secondi, con l'animazione; la scena passa ad «Avviso»), e in «Avanzate» «Priorità» (1-10) e «Ripristina
+predefinito» (solo di quell'evento). «Posizione e dimensione» è il riquadro «Posizione e dimensione di tutti gli avvisi»
+(impostazioni generali). «Salva» è disattivato con un testo non valido. Logica pura: `lib/overlay.ts` (`overlayValues`,
+`overlayText`, `overlayFor`, `unseenEvents`, `enqueue`, `nextOverlay`, `sampleEvent`).
+
+**Limiti noti dello Studio**: i valori da provare su dispositivi veri sono quelli di sempre (TV a 4-5 m, telefono con la
+banda); un'immagine usata in un blocco o in una diapositiva sponsor non si può eliminare da «Immagini» finché non viene
+tolta da lì; un layout salvato e poi non più valido si legge come predefinito; dopo il primo salvataggio il layout del
+cliente resta fisso anche se cambia modello (va reimpostato con «Ripristina predefinito» per dispositivo). Test:
+`studio/model.test.ts`, `studio/StudioPage.test.tsx`.
 
 ### Link breve e QR (`src/qr/`, `pages/admin/ShareLinksPage.tsx`)
 Ogni link attivo ha un link breve `<base>/l/<codice>` (codice di 8 lettere, mostrato `K7M2-QX9P`; server in
@@ -145,8 +276,8 @@ una sola volta), compare anche «Link breve (sempre disponibile nell’elenco, c
 ### Club e Calendario (`pages/admin/ClubPage.tsx`, `CalendarPage.tsx`)
 Server, abbinamento e rotte in `docs/server.md`, «Club, calendario e abbinamento»; contratti in `docs/architettura.md`.
 
-**«Club»** (`/admin/club`): a sinistra la scheda «Club» con nome e logo (si cambiano in «Grafica», con il pulsante
-«Apri «Grafica»») e «Nostra squadra nei file .dvw» (codice e/o testo del nome; «non impostata: si imposta da sola quando
+**«Club»** (`/admin/club`): a sinistra la scheda «Club» con nome e logo (si cambiano in «Colori e loghi» dello Studio, con il pulsante
+«Apri «Grafica»», che passa dalla vecchia rotta `/admin/grafica` e arriva lì) e «Nostra squadra nei file .dvw» (codice e/o testo del nome; «non impostata: si imposta da sola quando
 scegli la squadra del club»). A destra la scheda «Campionati»: per ogni campionato un menu «Campionato» (nome e stagione,
 con lo stato dell'ultimo aggiornamento: «Mai scaricato», «Aggiornamento in corso…», «aggiornato …») e un menu «Squadra
 del club»; «Togli», «Aggiungi campionato» (al massimo 8), «Salva» (attivo solo se c'è una modifica) e «Aggiorna calendario».
@@ -267,7 +398,7 @@ grafico (vedi «Modelli grafici») può forzare il tema: con SIR VOLLEY il tema 
 `forcedTheme`, `useForcedTheme`) e il pulsante del tema non compare.
 
 ### Modelli grafici (template)
-Il cliente sceglie il **modello grafico** nella pagina «Grafica» («Modello grafico»); l'elenco è chiuso in `@sir/shared`
+Il cliente sceglie il **modello grafico** nella sezione «Colori e loghi» dello Studio («Modello grafico», in «Avanzate»); l'elenco è chiuso in `@sir/shared`
 (`TEMPLATES`, `docs/architettura.md`): «Standard» (l'aspetto di prima) e «SIR VOLLEY». I colori scelti dal cliente
 valgono sopra quelli del modello. Specifiche e originali dei loghi: `docs/grafica/` (non si modificano).
 
@@ -275,7 +406,7 @@ valgono sopra quelli del modello. Specifiche e originali dei loghi: `docs/grafic
   standard) e imposta il tema forzato; `initTemplate` lo fa all'avvio leggendo la voce `localStorage` `sir-template`, così
   la pagina non mostra per un attimo l'aspetto standard; appena arriva `GET /api/public/tenant` il modello vero la
   riallinea. `useTemplate` dà la definizione del modello ai componenti. I token del modello stanno in `tokens.css` nel
-  blocco `[data-template='sir-volley']` (palette e misure delle specifiche); l'anteprima di «Grafica» lo usa con
+  blocco `[data-template='sir-volley']` (palette e misure delle specifiche); l'anteprima dello Studio lo usa con
   `data-sir-scope`.
 - **Font**: Google Sans Code self-hosted, `src/styles/fonts.css` (importato da `index.css`) con i file in
   `src/styles/fonts/google-sans-code/` (woff2 `latin` e `latin-ext`, variabile 400-700, `font-display: swap`, licenza
@@ -305,7 +436,7 @@ valgono sopra quelli del modello. Specifiche e originali dei loghi: `docs/grafic
   Argomenti: `<input> <output> [larghezza=1200] [margine=0] [all|top|bottom]` (`top`: il logo senza la riga di testo
   sotto; `bottom`: solo la riga).
 - **Nostra squadra** (`lib/branding.ts` `useOurTeamColors`, `lib/teamColors.ts` `teamColorVars`): con il codice e/o il testo
-  nel nome scelti in «Grafica» (`ourTeamSide`, `docs/architettura.md`) i colori «casa» e «ospite» del portale sono puntati
+  nel nome scelti in «Colori e loghi» (scheda «Squadra»; `ourTeamSide`, `docs/architettura.md`) i colori «casa» e «ospite» del portale sono puntati
   sulla **nostra** squadra (colore di casa nello standard, colore di risalto in SIR VOLLEY) e sull'avversaria (colore ospite)
   anche quando giochiamo in trasferta; vale per punteggio, grafici, mappe, tabelle, avvisi e pause. Senza corrispondenza
   (o con due) restano i colori casa/ospite del file.
@@ -327,10 +458,10 @@ valgono sopra quelli del modello. Specifiche e originali dei loghi: `docs/grafic
   della larghezza e ai nomi fino a 3 righe; i titoli delle schede sono larghi almeno 12 rem, con i comandi sotto.
 - **Limiti noti**: nessun logo per squadra (scelta di Luca); il tema forzato non dà avvisi di contrasto (`brandContrastIssues`
   è vuoto); dopo il primo salvataggio il layout del cliente resta fisso anche se cambia modello (va reimpostato con
-  «Ripristina predefinito» in «Pagina pubblica»); l'anteprima tablet dell'editor è a 1024 px.
+  «Ripristina predefinito» in «Pagina live»); l'anteprima tablet dell'editor è a 1024 px.
 
 ### Grafica per cliente
-Ogni cliente ha i suoi colori e i suoi loghi, scelti nella pagina «Grafica» e mostrati sull'hostname del cliente (API e
+Ogni cliente ha i suoi colori e i suoi loghi, scelti nella sezione «Colori e loghi» dello «Studio grafico» e mostrati sull'hostname del cliente (API e
 controlli in `docs/server.md`, «Grafica per cliente»).
 
 - **Caricamento all'avvio** (`src/lib/branding.ts`, `initBranding` chiamata in `main.tsx`): `GET /api/public/tenant`
@@ -348,24 +479,13 @@ controlli in `docs/server.md`, «Grafica per cliente»).
   markup in linea), altrimenti il nome, altrimenti la scritta «SIRRealtime». Il cliente predefinito senza nome
   visualizzato è mostrato come «SIRRealtime». Il favicon è il logo quadrato. La CSP resta quella di prima
   (`img-src 'self' data:`, le immagini sono servite dalla stessa origine).
-- **Pagina «Grafica»** (`src/pages/admin/BrandingPage.tsx`, solo admin; titolo scheda «Grafica · Area riservata»). Scheda
-  «Grafica del cliente» (sottotitolo «Cliente: …»): «Modello grafico» (scelta fra i modelli, vedi «Modelli grafici»),
-  «Nostra squadra» («Codice squadra», es. PER, e «Testo nel nome della squadra», es. Perugia, entrambi facoltativi),
-  «Nome visualizzato» (facoltativo), cinque colori («Colore
-  principale», «Colore di risalto», «Squadra di casa», «Squadra ospite», «Sfondo della pagina»), ciascuno con selettore e
-  campo esadecimale `#rrggbb` e il pulsante «Predefinito»; tre immagini («Logo orizzontale», «Logo quadrato», «Logo dello
-  sponsor») con «Carica immagine» (PNG, JPEG, WebP o SVG, al massimo 2 MB) e «Togli». Avvisi di contrasto (`brandContrastIssues`,
-  sotto 4,5:1), per esempio «Lo sfondo è troppo scuro per il testo della pagina…» o «“Colore di risalto” ha contrasto
-  …:1 sullo sfondo (minimo 4,5:1): i testi in questo colore si leggono male.». Pulsanti «Salva» (dopo il salvataggio:
-  «Grafica salvata: la pagina pubblica la usa da subito.») e «Ripristina predefiniti», avviso «Modifiche non salvate.».
-  Scheda «Immagini caricate» (sottotitolo «Spazio usato: … MB di … MB») con l'elenco, «in uso» e «Elimina» /
-  «Conferma eliminazione»; vuota: «Nessuna immagine caricata.». Scheda «Anteprima» (`BrandingPreview.tsx`): pagina
-  pubblica con dati d'esempio e le modifiche non ancora salvate. Il caricamento invia il file in base64 (`fileToBase64`,
-  `src/lib/base64.ts`) a `POST /api/admin/assets`, poi `PUT /api/admin/branding` con «Salva».
+- **Editor**: sezione «Colori e loghi» dello «Studio grafico» (`studio/ColorsSection.tsx`; opzioni, testi e avvisi di
+  contrasto descritti lì). Lo Studio mostra la bozza nell'anteprima (che ha un proprio ambito di colori), senza cambiare
+  la grafica dell'area riservata finché non si salva.
 - **Limiti noti**: la testata dell'area riservata del superadmin ha la grafica del cliente dell'hostname, non quella del
   cliente attivo; un'immagine SVG non ammessa è rifiutata con un messaggio, non convertita.
 
-### Pagina pubblica a blocchi (editor «Pagina pubblica»)
+### Pagina pubblica a blocchi (sezione «Pagina live» dello Studio)
 Ogni cliente sceglie quali blocchi mostra la pagina della partita, in che ordine e con che larghezza, separatamente per
 TV, tablet e telefono. Il contratto (`TenantLayoutSchema`, `docs/architettura.md`) e le rotte (`GET`/`PUT
 /api/admin/layout`, `docs/server.md`) sono altrove; il layout arriva al portale in `GET /api/public/tenant` (`layout`,
@@ -399,7 +519,7 @@ Le sei viste statistiche (`blocks/StatSlides.tsx`) hanno tre misure: `full` (tut
 `card` (riquadro dentro la pagina, per i blocchi) e `compact` (una riga per la banda). Casa sempre a sinistra, colori secondo
 «nostra squadra»; barre e nomi entrano con un'animazione di 500 ms (`sir-enter-left`, `sir-enter-right`, `sir-grow`),
 spenta con `prefers-reduced-motion`. I testi (nomi dei giocatori) sono sempre testo React, mai HTML. Le opzioni si modificano con
-`pages/admin/StatOptionsFields.tsx`, usato sia da «Pagina pubblica» sia da «Pause». Il registro (`registry.tsx`) disegna
+`pages/admin/StatOptionsFields.tsx`, usato sia da «Pagina live» sia da «Pause». Il registro (`registry.tsx`) disegna
 queste viste anche come blocchi della pagina, con le stesse etichette di `SLIDE_LABELS`; la pagina usa il set in corso
 (`statPeriod`), il confronto di `charts/compare.ts` usa `teamDuel` di `@sir/volley-stats` (niente più calcoli copiati).
 
@@ -424,35 +544,25 @@ Sono blocchi della pagina (larghezze 4/6/8/12) e diapositive delle pause (stesse
   Pt, G, V, P, SV, SP (i nomi completi nel `title` dell'abbreviazione). Le righe sono quelle di `standingsRowsToShow`
   (`docs/architettura.md`); la nostra squadra è evidenziata (`aria-current`); sotto la tabella «Aggiornata al gg/mm/aaaa».
   Nella banda una riga con la posizione, i punti, le partite e i set della nostra squadra.
-- **Opzioni** (`pages/admin/CalendarOptionsFields.tsx`): in «Pagina pubblica» e in «Pause» (stesso componente).
+- **Opzioni** (`pages/admin/CalendarOptionsFields.tsx`): in «Pagina live» e in «Pause» (stesso componente).
   Le anteprime degli editor usano dati inventati (`blocks/sampleSchedule.ts`, `SAMPLE_SCHEDULE`), mai quelli veri.
 - **Predefiniti**: «Classifica» e poi «Prossima partita» stanno dopo le statistiche nelle pause di fine set e di fine
   partita. **Non** sono nel layout TV predefinito del modello `sir-volley` (la griglia è piena): si aggiungono da «Pagina
-  pubblica».
+  live».
 - **Limiti noti**: il flag live può essere in ritardo fino a 60 s; la partita senza orario non si vede; una partita iniziata
   da meno di 4 ore senza `.dvw` conta ancora come prossima.
 
-- **Pagina «Pagina pubblica»** (`src/pages/admin/LayoutPage.tsx`, rotta `/admin/pagina`, solo admin; titolo scheda
-  «Pagina pubblica · Area riservata»). Tre schede «TV», «Tablet», «Telefono». Per ogni blocco: maniglia ⠿ (trascinamento),
-  «Sposta su» e «Sposta giù», «Visibile», «Larghezza» (non sul telefono; i valori ammessi dipendono dal tipo, per esempio
-  «Metà (6/12)»), «Chiuso all'apertura» (solo telefono, non per il tabellone), le opzioni del tipo (per lo sponsor anche
-  «Carica immagine sponsor») e «Rimuovi». In fondo «Tipo di blocco» con «Aggiungi blocco» (in coda; il tabellone si può
-  aggiungere solo se manca; al massimo 24 blocchi, contatore «N di al massimo 24 blocchi.»), «Salva» (dopo il
-  salvataggio: «Pagina pubblica salvata: la vedono da subito tutti gli spettatori.») e «Ripristina predefinito», che
-  rimette i blocchi predefiniti **solo del dispositivo aperto**. I blocchi con opzioni non valide (per esempio testo
-  vuoto) sono evidenziati e «Salva» resta disattivato. Le modifiche sono logica pura in `layoutEditor.ts` (`moveBlock`,
-  `updateBlock`, `removeBlock`, `addBlock`, `resetDevice`, `layoutProblems`).
-- **Accessibilità**: spostamenti, aggiunte, rimozioni e ripristino sono annunciati in una regione `aria-live`
-  («Messaggio in posizione 2 di 6.», «Messaggio rimosso.»); dopo uno spostamento con la tastiera il focus resta sul
-  pulsante usato. Il trascinamento è un'aggiunta: tutto si fa anche con «Sposta su»/«Sposta giù».
-- **Anteprima**: scheda «Anteprima» con la pagina del dispositivo scelto, disegnata alla grandezza vera (1920×1080,
-  1024×768, 390×845) e ridotta, non interattiva, con le modifiche non ancora salvate. Usa la partita live del cliente
-  (`/ws/admin`: «Dati della partita live.») oppure, se non c'è, la «Partita d'esempio» (`src/blocks/sampleMatch.json`,
-  caricata solo dall'editor in un suo file separato; si rigenera con `pnpm --filter @sir/web sample-match`).
-- **Limiti noti**: l'avviso «Modifiche non salvate.» compare sempre, ma il browser chiede conferma solo alla chiusura della
-  scheda: cambiando voce del menu dell'area riservata le modifiche si perdono (come nella pagina «Grafica»). Una
-  immagine usata in un blocco sponsor non si può eliminare dalla pagina «Grafica» finché non viene tolta dal blocco.
-  Un layout salvato e poi non più valido (per esempio di versione futura) si legge come predefinito.
+- **Editor**: sezione «Pagina live» dello «Studio grafico» (`studio/PageSection.tsx`, `studio/blockEditors.tsx`; ordine,
+  visibilità, larghezza, opzioni, aggiunta, rimozione e ripristino descritti lì, insieme ad accessibilità e logica pura
+  `layoutEditor.ts`).
+- **Anteprima**: la pagina del dispositivo scelto è disegnata alla grandezza vera (`DevicePreview`: 1920×1080,
+  1024×768, 390×845) e ridotta, non interattiva (si può solo cliccare un elemento per aprirne l'impostazione), con le
+  modifiche non ancora salvate. Usa la partita live del cliente (`/ws/admin`: «Dati della partita live.») oppure, se non c'è,
+  la «Partita d'esempio» (`src/blocks/sampleMatch.json`, caricata solo dall'editor in un suo file separato; si rigenera con
+  `pnpm --filter @sir/web sample-match`).
+- **Limiti noti**: un'immagine usata in un blocco sponsor non si può eliminare da «Immagini» (in «Colori e loghi») finché non
+  viene tolta dal blocco. Un layout salvato e poi non più valido (per esempio di versione futura) si legge come
+  predefinito.
 
 ### Pause della partita (schermate di time-out, fine set e fine partita)
 Quando la partita ha una pausa il portale mostra una schermata con riepilogo e sponsor. Il portale non decide nulla: la
@@ -499,25 +609,12 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   default (solo sponsor) non compare se il cliente non ha né immagini sponsor né logo sponsor.
 - **Caricamento della grafica** (`useTenantIntermissions` in `lib/branding.ts`, stato caricamento/caricata/fallita):
   finché `GET /api/public/tenant` non risponde non si mostra nessuna pausa; se fallisce valgono i predefiniti.
-- **Pagina «Pause»** (già «Pause e sponsor»; `src/pages/admin/IntermissionsPage.tsx`, rotta `/admin/pause`, solo admin;
-  titolo scheda «Pause · Area riservata»). Schede «Time-out», «Fine set», «Fine partita», «Ogni N punti» (con «Ogni quanti punti»,
-  4-25, e il campo «Non negli ultimi punti del set» per `stopBeforeEnd`, con il traguardo da `setTarget` di volley-stats); per «Fine set» una seconda fila
-  «Tutti i set», «1° set»…«4° set» con la casella «Pausa propria per la fine del N° set» (senza, quel set usa «Tutti i
-  set»). Per ogni pausa: «Pausa attiva», «Come si mostra» (per TV, tablet e telefono «Tutto schermo» o «Banda in basso»),
-  «Ritardo prima della pausa (secondi)», elenco di diapositive riordinabili con «Sposta su» e «Sposta giù» (niente
-  trascinamento), «Secondi sullo schermo», le opzioni del tipo (come nell'editor a blocchi, anche «Carica immagine
-  sponsor») e «Rimuovi»; in fondo «Tipo di diapositiva» con «Aggiungi diapositiva» (al massimo 12). «Salva» (dopo:
-  «Pause salvate: valgono da subito per tutti gli spettatori.»), «Ripristina predefinito» (solo della pausa aperta),
-  avviso «Modifiche non salvate.»; «Salva» è disattivato se una pausa attiva non ha diapositive o un testo è vuoto. Le
-  modifiche sono logica pura in `intermissionEditor.ts` (`moveSlide`, `addSlide`, `removeSlide`, `updateSlide`,
-  `setOwnPause`, `resetPause`, `pauseProblems`). Spostamenti e aggiunte sono annunciati in una regione `aria-live`.
-- **Anteprima**: scheda «Anteprima» con la pagina del dispositivo scelto e la pausa mostrata subito, con le modifiche non
-  salvate (`previewState` mette nello stato la fase della pausa aperta). Usa la partita live del cliente o la «Partita
-  d'esempio» (`src/blocks/sampleMatch.json`, rigenerata con `pnpm --filter @sir/web sample-match`, ora in 2° set con un
-  set chiuso).
-- **Limiti noti**: come nella pagina «Grafica», cambiando voce del menu le modifiche non salvate si perdono (il browser
-  chiede conferma solo alla chiusura della scheda). Un'immagine usata in una diapositiva sponsor non si può eliminare dalla
-  pagina «Grafica» finché non viene tolta. Da provare su dispositivi veri (TV a 4-5 m, telefono con la banda).
+- **Editor**: sezione «Pause» dello «Studio grafico» (`studio/PausesSection.tsx`; schede, diapositive, regola «ogni N
+  punti», ritardo e ripristino descritti lì). La pausa è mostrata subito nell'anteprima, con le modifiche non salvate
+  (`previewState` mette nello stato la fase della pausa aperta). La «Partita d'esempio» (`src/blocks/sampleMatch.json`,
+  rigenerata con `pnpm --filter @sir/web sample-match`) è in 2° set con un set chiuso.
+- **Limiti noti**: un'immagine usata in una diapositiva sponsor non si può eliminare da «Immagini» (in «Colori e loghi»)
+  finché non viene tolta. Da provare su dispositivi veri (TV a 4-5 m, telefono con la banda).
 
 ### Avvisi sugli eventi (messaggi rapidi sopra la pagina)
 Quando succede qualcosa in partita (ace, set point, match point…) compare per pochi secondi un messaggio sopra la pagina.
@@ -548,20 +645,10 @@ configurazione del cliente da `overlays` di `GET /api/public/tenant` (`docs/arch
   spostare il focus.
 - **Caricamento della grafica** (`useTenantOverlays` in `lib/branding.ts`, stato caricamento/caricata/fallita): finché
   `GET /api/public/tenant` non risponde non si mostra nessun avviso; se fallisce valgono i predefiniti.
-- **Pagina «Avvisi»** (`src/pages/admin/OverlaysPage.tsx`, rotta `/admin/avvisi`, solo admin; titolo scheda «Avvisi · Area
-  riservata»). Scheda «Avvisi» (sottotitolo «Cliente: …») con l'elenco «Eventi» (Fine partita, Match point, Fine set, Set
-  point, Ace, Muro punto, Sorpasso, Pareggio, Break, Time-out, Scambio lungo, Cambio) e, in alto, i «Segnaposto ammessi nel
-  testo». Per ogni evento: interruttore acceso/spento, «Testo» (il risultato con i dati d'esempio compare sotto, «Risultato:
-  …», oppure il problema: vuoto, oltre 80 caratteri, segnaposto sconosciuto, `<` o `>`), «Secondi» (2-8), «Priorità» (1-10),
-  «Posizione» e «Dimensione» (In alto / Al centro / In basso; Piccolo / Medio / Grande; oppure «Come le impostazioni
-  generali»; sopra l'elenco il riquadro «Posizione e dimensione di tutti gli avvisi»),
-  i dispositivi (TV, tablet, telefono), «Prova» e «Ripristina predefinito» (solo di quell'evento). In fondo «Salva» (dopo:
-  «Avvisi salvati: valgono da subito per tutti gli spettatori.»), disattivato senza modifiche o con un testo non valido, e
-  l'avviso «Modifiche non salvate.». La scheda «Anteprima» mostra la pagina del dispositivo scelto (partita live del cliente
-  o «Partita d'esempio») e «Prova» ci fa comparire l'avviso con le modifiche non salvate, per i suoi secondi. Il browser
-  chiede conferma solo alla chiusura della scheda. Logica pura: `lib/overlay.ts` (`overlayValues`, `overlayText`,
-  `overlayFor`, `unseenEvents`, `enqueue`, `nextOverlay`, `sampleEvent`).
-- **Limiti noti**: come nelle altre pagine di configurazione, cambiando voce del menu le modifiche non salvate si perdono.
+- **Editor**: sezione «Avvisi» dello «Studio grafico» (`studio/OverlaysSection.tsx`; i 12 eventi, il testo con i
+  segnaposto, secondi, dispositivi, posizione e dimensione, «Prova», priorità e ripristino sono descritti lì). Nell'anteprima
+  «Prova» fa comparire l'avviso con le modifiche non salvate, per i suoi secondi. Logica pura: `lib/overlay.ts`
+  (`overlayValues`, `overlayText`, `overlayFor`, `unseenEvents`, `enqueue`, `nextOverlay`, `sampleEvent`).
 
 ### Grafica del portale
 Strisce nei colori delle squadre, cifre del punteggio con animazione `sir-pop`, «IN DIRETTA» pieno (testo
@@ -797,28 +884,37 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
 - `apps/web/src/lib/liveConnection.ts` (`LiveConnection`, `applyMessage`, `applyPatchMessage`, `backoffDelay`), `frames.ts`
   (`gunzipFrame`, `supportsGzip`, `withGzip`), `pages/LivePage.tsx` (`probeShareToken`, `retryAfterMs`), `useLiveSocket.ts`, `messages.ts`, `api.ts`, `theme.ts`, `iconv-browser.ts`
 - Grafica per cliente: `apps/web/src/lib/branding.ts` (`initBranding`, `writePalette`, `setTenantLook`, `useTenantLook`,
-  `useBrandingRevision`, `useBrandName`), `lib/base64.ts`, `components/BrandMark.tsx`, `components/BrandingPreview.tsx`,
-  `pages/admin/BrandingPage.tsx`; `packages/shared/src/colors.ts`, `assets.ts`, `tenant.ts`; API in `docs/server.md`
+  `useBrandingRevision`, `useBrandName`), `lib/base64.ts`, `components/BrandMark.tsx`,
+  `pages/admin/studio/ColorsSection.tsx`; `packages/shared/src/colors.ts`, `assets.ts`, `tenant.ts`; API in `docs/server.md`
 - Pagina pubblica a blocchi: `apps/web/src/blocks/` (`registry.tsx`: `BLOCKS`, `renderLayoutBlock`; `BrandBlocks.tsx`;
   `MatchBlocks.tsx`; `sampleMatch.ts`, `sampleMatch.json`, `env.ts`), `components/BlockLayout.tsx`,
-  `pages/admin/LayoutPage.tsx`, `pages/admin/layoutEditor.ts`, `scripts/sample-match.ts`; contratto in
+  `pages/admin/studio/PageSection.tsx`, `pages/admin/studio/blockEditors.tsx` (`BlockOptionsEditor`, `DevicePreview`), `pages/admin/layoutEditor.ts`, `scripts/sample-match.ts`; contratto in
   `packages/shared/src/layout.ts` (`docs/architettura.md`), API in `docs/server.md`, classifica in `docs/statistiche.md`
 - Pause della partita: `apps/web/src/components/Intermission.tsx` (`Intermission`), `blocks/IntermissionSlides.tsx`
   (`renderSlide`, `SLIDE_LABELS`), `lib/intermission.ts` (`phaseOf`, `describePause`, `activePause`, `visibleSlides`,
-  `pauseTitle`, `previewState`), `lib/branding.ts` (`useTenantIntermissions`), `pages/admin/IntermissionsPage.tsx`,
+  `pauseTitle`, `previewState`), `lib/branding.ts` (`useTenantIntermissions`), `pages/admin/studio/PausesSection.tsx`,
   `pages/admin/intermissionEditor.ts`, `pages/admin/StatOptionsFields.tsx`, `blocks/StatSlides.tsx`, `milestoneStep`,
   `milestonePause`, `statPeriod`, `duelRoles` in `lib/intermission.ts`; contratto in `packages/shared/src/intermissions.ts` (`docs/architettura.md`), fase e
   riepiloghi in `packages/volley-stats/src/phase.ts`, `recap.ts` (`docs/statistiche.md`), API in `docs/server.md`
-- Anteprima fissa, font e app: `apps/web/src/components/PreviewDock.tsx` (`PreviewDock`, `PreviewFullscreen`),
+- Studio grafico: `apps/web/src/pages/admin/studio/` (`StudioPage.tsx`: `StudioPage`, `wizardSeenKey`, `PREVIEW_WIDE_KEY`,
+  `STUDIO_PHONE_MAX`; `model.ts`: `STUDIO_SECTIONS`, `LEGACY_PAGES`, `studioPath`, `autoScene`, `isFirstAccess`,
+  `brandingChanges`, `layoutChanges`, `intermissionChanges`, `overlayChanges`, `applyPauseModel`, `applyOverlayModel`,
+  `activePauseModel`, `activeOverlayModel`, `pauseWhere`, `overlayWhere`, `blockWhere`, `pickAt`, `sampleWithOurTeam`;
+  `StudioPreview.tsx`; `ColorsSection.tsx`, `PageSection.tsx`, `PausesSection.tsx`, `OverlaysSection.tsx`;
+  `StudioWizard.tsx`; `StudioUi.tsx`: `Setting`, `Advanced`, `TabList`, `ModelPicker`; `blockEditors.tsx`),
+  `charts/usePalette.ts` (`PaletteScopeContext`, `usePalette`), `pages/admin/AdminApp.tsx` (rotte e menu ridotto),
+  marcatori `data-studio-*` in `components/BlockLayout.tsx` e `Intermission.tsx`; test `studio/model.test.ts`,
+  `studio/StudioPage.test.tsx`
+- Anteprima a tutto schermo, font e app: `apps/web/src/components/PreviewDock.tsx` (`PreviewDock`, `PreviewFullscreen`),
   `components/AppInstall.tsx` (`InstallButton`, `FullscreenHint`), `lib/pwa.ts` (`registerServiceWorker`, `useInstallApp`,
   `useFullscreenOnFirstTouch`), `public/manifest.webmanifest`, `public/sw.js`, `public/icons/`, `index.html`,
   `styles/fonts.css`, `styles/fonts/inter/`, `public/assets/inter-OFL.txt`, `styles/index.css` (`.sir-admin-font`,
   `.sir-thin-scroll`)
 - Avvisi sugli eventi: `apps/web/src/components/Overlay.tsx` (`Overlay`, `OverlayBanner`), `lib/overlay.ts`
   (`overlayFor`, `unseenEvents`, `enqueue`, `nextOverlay`, `sampleEvent`), `lib/branding.ts` (`useTenantOverlays`),
-  `lib/liveConnection.ts` (`live`), `pages/admin/OverlaysPage.tsx`, `styles/index.css` (`.sir-overlay`); contratto in
+  `lib/liveConnection.ts` (`live`), `pages/admin/studio/OverlaysSection.tsx`, `styles/index.css` (`.sir-overlay`); contratto in
   `packages/shared/src/overlays.ts` (`docs/architettura.md`), eventi in `packages/volley-stats/src/events.ts`
-  (`docs/statistiche.md`), API in `docs/server.md`; test `Overlay.test.tsx`, `OverlaysPage.test.tsx`
+  (`docs/statistiche.md`), API in `docs/server.md`; test `Overlay.test.tsx`
 - Agente scaricabile: `apps/web/src/pages/admin/AgentsPage.tsx` (`AgentDownload`, `AGENT_DOWNLOAD_PATH`), test
   `AgentsPage.test.tsx`; `AgentDownloadInfoSchema` in `packages/shared/src/agentDownload.ts`; server in `docs/server.md`
 - Club e «Prossima partita»: `apps/web/src/pages/admin/ClubPage.tsx` (`ClubPage`, `leagueName`, `syncText`),
@@ -832,7 +928,7 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
   `components/ui.tsx` (`CardCollapseContext`), `styles/index.css`
 - Modelli grafici: `apps/web/src/lib/branding.ts` (`applyTemplate`, `initTemplate`, `useTemplate`, `useOurTeamColors`),
   `lib/teamColors.ts` (`teamColorVars`), `lib/theme.ts` (`forcedTheme`, `useForcedTheme`), `lib/layout.ts` (`viewportClass`,
-  `templateLayouts`), `MenuButton.tsx`, `BrandMark.tsx`, `BrandingPreview.tsx`,
+  `templateLayouts`), `MenuButton.tsx`, `BrandMark.tsx`,
   `styles/tokens.css` (`[data-template='sir-volley']`), `styles/fonts.css`, `scripts/trim-logo.ts`, `public/templates/sir-volley/`;
   contratti in `packages/shared/src/templates.ts`, `ourTeam.ts` (`docs/architettura.md`); originali in `docs/grafica/`
 - Link breve e QR: `apps/web/src/qr/` (`qrImage.ts`, `qrCanvas.ts`, `ShareQr.tsx`), `pages/admin/ShareLinksPage.tsx`;

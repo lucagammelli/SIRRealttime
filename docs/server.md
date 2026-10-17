@@ -908,7 +908,7 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
   `src/routes/tenants.ts`, `packages/shared/src/tenant.ts`, `src/seed.ts`
 - Grafica: `src/routes/branding.ts` (`brandingPublicRoutes`, `brandingAdminRoutes`), `src/lib/images.ts` (`inspectImage`,
   `checkSvg`, `IMAGE_MAX_SIDE`), `src/assetStore.ts` (`writeAssetFile`, `readAssetFile`, `removeAssetFile`),
-  `packages/shared/src/assets.ts`, `colors.ts`, `tenant.ts`; pagina «Grafica» in `docs/portale.md`
+  `packages/shared/src/assets.ts`, `colors.ts`, `tenant.ts`; sezione «Colori e loghi» dello «Studio grafico» in `docs/portale.md`
 - Pagina pubblica a blocchi: `src/routes/branding.ts` (`GET`/`PUT /api/admin/layout`), `packages/shared/src/layout.ts`
   (`TenantLayoutSchema`, `resolveLayout`, `layoutImageIds`, `LayoutResponseSchema`); editor in `docs/portale.md`
 - Pause della partita: `src/routes/branding.ts` (`GET`/`PUT /api/admin/intermissions`, `GET /api/public/tenant`),

@@ -35,6 +35,7 @@ const FOCUSABLE = 'button:not([disabled]), [href], input, select, textarea, [tab
  * the first state, after a reconnection or a resync (`live` false), never over a time-out, an end of set or the end
  * of the match (they go first and close it); it shows its slides once and closes by itself.
  * `preview`: the pause of the editor, shown at once, never focused nor closed (in play: the «ogni N punti»).
+ * The slide on screen carries `data-studio-slide` (its id): an inert mark for the preview of the «Studio grafico».
  */
 export function Intermission({
   state,
@@ -295,7 +296,11 @@ function PauseView({
             <h2 id={titleId} className="font-display text-sm font-bold uppercase tracking-wide text-accent">
               {title}
             </h2>
-            <div key={`${slide.id}-${tick}`} className="sir-fade min-w-0 flex-1 basis-full sm:basis-48">
+            <div
+              key={`${slide.id}-${tick}`}
+              data-studio-slide={slide.id}
+              className="sir-fade min-w-0 flex-1 basis-full sm:basis-48"
+            >
               {renderSlide(slide, env, 'compact')}
             </div>
             <div className="flex items-center gap-2">
@@ -364,7 +369,11 @@ function PauseView({
         </div>
       </header>
       {/* Taller than the screen (many rows, small screen): the slide scrolls, it is never cut. */}
-      <div key={`${slide.id}-${tick}`} className="sir-fade min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div
+        key={`${slide.id}-${tick}`}
+        data-studio-slide={slide.id}
+        className="sir-fade min-h-0 flex-1 overflow-y-auto overscroll-contain"
+      >
         {renderSlide(slide, env, 'full')}
       </div>
       {dots}

@@ -11,9 +11,6 @@ const ICONS = {
   club: 'M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6zM9 12l2 2 4-4',
   links: 'M10 14a4 4 0 0 0 5.7 0l3-3A4 4 0 0 0 13 5.3l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
   branding: 'M12 3a9 9 0 0 0 0 18c1.2 0 1.6-.9 1.4-1.8-.3-1.1.4-2.2 1.6-2.2H17a4 4 0 0 0 4-4c0-5-4-10-9-10z',
-  page: 'M4 4h16v16H4zM4 9h16M10 9v11',
-  pauses: 'M9 5v14M15 5v14',
-  overlays: 'M6 16v-5a6 6 0 1 1 12 0v5l2 2H4zM10 21a2 2 0 0 0 4 0',
   agents: 'M4 5h16v11H4zM9 20h6M12 16v4',
   users: 'M16 20a4 4 0 0 0-8 0M12 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z',
   tenants: 'M4 20V7l8-4 8 4v13M9 20v-5h6v5M8.5 9.5h.01M12 9.5h.01M15.5 9.5h.01',
@@ -75,14 +72,7 @@ export function menuGroups({ isAdmin, isSuperadmin }: { isAdmin: boolean; isSupe
     { label: 'Club', items: isAdmin ? [{ to: '/admin/club', label: 'Club', icon: 'club' }] : [] },
     {
       label: 'Pagina pubblica',
-      items: isAdmin
-        ? [
-            { to: '/admin/grafica', label: 'Grafica', icon: 'branding' },
-            { to: '/admin/pagina', label: 'Pagina pubblica', icon: 'page' },
-            { to: '/admin/pause', label: 'Pause', icon: 'pauses' },
-            { to: '/admin/avvisi', label: 'Avvisi', icon: 'overlays' },
-          ]
-        : [],
+      items: isAdmin ? [{ to: '/admin/studio', label: 'Studio grafico', icon: 'branding' }] : [],
     },
     { label: 'Dispositivi', items: isAdmin ? [{ to: '/admin/agenti', label: 'Agenti', icon: 'agents' }] : [] },
     {

@@ -4,9 +4,9 @@ import type { EChartsCoreOption } from 'echarts/core';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { useEffect, useRef } from 'react';
-import { useBrandingRevision } from '../lib/branding.ts';
-import { useReducedMotion, useResolvedTheme } from '../lib/theme.ts';
+import { useReducedMotion } from '../lib/theme.ts';
 import { ANIMATION_MS, buildEchartsTheme, readPalette } from './theme.ts';
+import { usePaletteKey } from './usePalette.ts';
 
 // Only the pieces used by the portal (smaller bundle than the full `echarts` import).
 echarts.use([
@@ -39,16 +39,16 @@ export function EChart({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
-  const theme = useResolvedTheme();
-  // New graphics of the client (colours as CSS variables): the theme is built again, like for light/dark.
-  const revision = useBrandingRevision();
+  // New graphics of the client (colours as CSS variables), light/dark, or the colours of the scope around (preview of
+  // the Studio): the theme is built again.
+  const { key, root } = usePaletteKey();
   const reduced = useReducedMotion();
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const name = `sir-${theme}-${revision}`;
-    echarts.registerTheme(name, buildEchartsTheme(readPalette()));
+    const name = `sir-${key}`;
+    echarts.registerTheme(name, buildEchartsTheme(root ? readPalette(root) : readPalette()));
     const instance = echarts.init(el, name, { renderer: 'canvas' });
     chart.current = instance;
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(() => instance.resize()) : null;
@@ -58,7 +58,7 @@ export function EChart({
       instance.dispose();
       chart.current = null;
     };
-  }, [theme, revision]);
+  }, [key, root]);
 
   useEffect(() => {
     chart.current?.setOption(
@@ -71,7 +71,7 @@ export function EChart({
       },
       { replaceMerge: ['series'], lazyUpdate: true },
     );
-  }, [option, reduced, theme, revision]);
+  }, [option, reduced, key]);
 
   return <div ref={ref} role="img" aria-label={label} className={`w-full min-w-0 ${className}`} />;
 }

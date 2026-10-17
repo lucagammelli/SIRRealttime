@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Fragment, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTemplate } from '../lib/branding.ts';
 import type { Device, LayoutBlock } from '../lib/layout.ts';
 import type { MeasuredRem } from '../lib/layout.ts';
@@ -41,6 +41,15 @@ const NO_MEASURES: MeasuredRem = {};
 export type RenderBlock = (block: LayoutBlock, device: Device) => ReactNode;
 
 /**
+ * Inert marks of a block (id and type) on its cell: the «Studio grafico» of the reserved area finds the block in its
+ * preview with them (highlight, click to open its settings). No style and no behaviour on the public page.
+ */
+const studioAttrs = (block: LayoutBlock): Record<'data-studio-block' | 'data-studio-type', string> => ({
+  'data-studio-block': block.id,
+  'data-studio-type': block.type,
+});
+
+/**
  * Lays out the blocks of the match page in the given order for one device (the visible ones: see `blocksFor`):
  * - `phone`: one column, every block with a title but the scoreboard a collapsible section;
  * - `tablet`: 12-column grid; on the desktop each block as wide as its `width`, on a tablet in landscape the narrow
@@ -70,11 +79,15 @@ export function BlockLayout({
         <div className="sir-blocks flex flex-col gap-3" data-layout="phone">
           {blocks.map((block) =>
             block.type === 'scoreboard' ? (
-              <Fragment key={block.id}>{renderBlock(block, device)}</Fragment>
-            ) : (
-              <CardCollapseContext.Provider key={block.id} value={{ collapsible: true, defaultOpen: !block.collapsed }}>
+              <div key={block.id} className="contents" {...studioAttrs(block)}>
                 {renderBlock(block, device)}
-              </CardCollapseContext.Provider>
+              </div>
+            ) : (
+              <div key={block.id} className="contents" {...studioAttrs(block)}>
+                <CardCollapseContext.Provider value={{ collapsible: true, defaultOpen: !block.collapsed }}>
+                  {renderBlock(block, device)}
+                </CardCollapseContext.Provider>
+              </div>
             ),
           )}
         </div>
@@ -82,7 +95,11 @@ export function BlockLayout({
         <div className="@container">
           <div className={`sir-blocks grid grid-cols-12 gap-4 ${TABLET_GRID_FLOW}`} data-layout="tablet">
             {blocks.map((block) => (
-              <div key={block.id} className={`flex min-w-0 flex-col ${tabletSpan(block.width)}`}>
+              <div
+                key={block.id}
+                className={`flex min-w-0 flex-col ${tabletSpan(block.width)}`}
+                {...studioAttrs(block)}
+              >
                 {renderBlock(block, device)}
               </div>
             ))}
@@ -145,7 +162,11 @@ function TvLayout({
 
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4" data-layout="tv">
-      {scoreboard && renderBlock(scoreboard, 'tv')}
+      {scoreboard && (
+        <div className="contents" {...studioAttrs(scoreboard)}>
+          {renderBlock(scoreboard, 'tv')}
+        </div>
+      )}
       <div ref={area} className="relative min-h-0 overflow-hidden" data-tv-area="">
         <div key={index} ref={shown} className="sir-fade flex h-full min-h-0 flex-col gap-4">
           {group.map((row) => (
@@ -159,6 +180,7 @@ function TvLayout({
                 <div
                   key={block.id}
                   data-tv-block={block.id}
+                  {...studioAttrs(block)}
                   className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${span(block)}`}
                 >
                   {renderBlock(block, 'tv')}

@@ -184,6 +184,10 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
    (Grafica, Pagina pubblica, Pause, Avvisi), «Pause e sponsor» rinominata «Pause», avvisi con posizione e dimensione,
    nomi di «Prossima partita» nei colori delle squadre, app installabile (PWA), suggerimento di schermo intero e script
    kiosk per le TV (`docs/portale.md`, `docs/architettura.md`, `docs/infrastruttura.md`). Da provare su dispositivi veri.
+2. `studio-grafico` (**fatto**, 2026-10-17): le quattro pagine Grafica, Pagina pubblica, Pause e Avvisi diventano le
+   sezioni di un solo «Studio grafico» (`/admin/studio/:sezione`): impostazioni in schede brevi, anteprima grande
+   sempre visibile con dispositivo e scena, salvataggio per sezione, configurazione guidata al primo accesso
+   (`docs/portale.md`). Da provare su dispositivi veri.
 
 **Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
 PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo

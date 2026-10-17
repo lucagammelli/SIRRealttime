@@ -255,3 +255,14 @@ Una riga per decisione: data, scelta, motivo.
   cache vanno esclusi `/admin`, `/api` e `/ws` (`docs/portale.md`, `docs/infrastruttura.md`).
 - 2026-10-17: kiosk per le TV (script che avvia il browser con `--kiosk`), perché il browser non permette lo schermo intero
   automatico senza un gesto dell'utente (`docs/portale.md`).
+- 2026-10-17: «Studio grafico» unico (`/admin/studio/:sezione`) al posto delle quattro pagine Grafica, Pagina pubblica,
+  Pause e Avvisi, per richiesta di Luca: erano lunghe e non era chiaro cosa cambiasse ogni impostazione; le vecchie rotte
+  rimandano alla sezione dello Studio (`docs/portale.md`).
+- 2026-10-17: nello Studio la scena dell'anteprima è automatica per sezione ma sempre scelta a mano, la configurazione
+  guidata si apre al primo accesso, si salva una sezione per volta e sul telefono le pause sono a banda: decisioni di
+  Luca sul prototipo, perché chi configura veda subito l'effetto e non perda lavoro per un cambio di sezione
+  (`docs/portale.md`).
+- 2026-10-17: l'anteprima dello Studio usa i componenti veri della pagina pubblica (`MatchView`, `Intermission`,
+  `OverlayBanner`) con la bozza non salvata e marcatori inerti `data-studio-*`, perché un'anteprima separata si
+  scosterebbe dalla pagina reale e basta un attributo senza effetto sul pubblico per trovare l'elemento cliccato
+  (`docs/portale.md`).

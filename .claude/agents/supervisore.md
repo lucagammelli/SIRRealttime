@@ -28,8 +28,8 @@ Controlli, nell'ordine:
    chiaro, segreti nel codice, SQL composto a stringhe, `dangerouslySetInnerHTML`, CORS aperto, errori che espongono dettagli.
 5. **Test**: non rilanci i test che lo sviluppatore riporta come passati. Lanci un test mirato solo se il rapporto non
    ne riporta per il codice cambiato o se l'esito non ti convince. `scripts/ci_locale.sh` **non** lo lanci: la CI
-   completa la esegue l'operatore una volta sola, dopo l'allineamento.
-6. **Documentazione**: se ti viene passato anche il rapporto dell'agente documentazione, verifica che il documento
+   completa la esegue il coordinatore una volta sola, dopo l'allineamento.
+6. **Documentazione**: se il diff tocca `docs/` (scritto dallo sviluppatore o dall'agente documentazione), verifica che il documento
    di sezione descriva il comportamento attuale e che comandi, variabili e nomi citati esistano nel codice.
 
 Rapporto finale (in italiano, **al massimo 25 righe**), sempre così:
@@ -38,3 +38,5 @@ Rapporto finale (in italiano, **al massimo 25 righe**), sempre così:
 - **Osservazioni minori**: non bloccanti.
 - **Test**: test riportati dallo sviluppatore che hai controllato, e quelli che hai lanciato tu (comandi ed esito).
 Respingi solo per problemi reali e verificati, non per gusti di stile.
+Leggi il diff e solo gli intervalli di file che servono a capirlo, non i file interi. Se il coordinatore ti riscrive
+con `SendMessage` dopo una correzione, ricontrolla solo le parti cambiate.

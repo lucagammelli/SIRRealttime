@@ -421,9 +421,11 @@ ingest, cache `ctx.caches.broadcast` di 60 s, e il `where` di `channelMessage`).
 (avviato da `app.ts`) controlla ogni `CHANNEL_CHECK_MS` (60 s), **in ogni processo**, i clienti con almeno un socket sul
 canale e manda solo ciò che è cambiato, così la pagina passa alla partita successiva senza ricaricare. Il canale si
 svuota anche quando una partita inizia o finisce e a ogni modifica del calendario o del profilo (`forgetClubCaches`).
-**Da verificare**: nel codice letto, uno stato di partita tenuto in memoria dall'hub (`current`) viene confrontato con
-quello letto solo per la versione, non per le 6 ore; il riabbinamento immediato dopo un cambio di impostazioni non c'è
-(si rivalutano solo i `.dvw` `pending`, `relinkPending`, a ogni `refreshClub`).
+Il messaggio del canale tenuto dall'hub (`currentChannel`) vive al massimo 45 s (`SCHEDULED_TTL_MS`): poi `channelMessage`
+rilegge il database e applica `CHANNEL_STALE_MS` anche alla partita che l'hub aveva in memoria (`channelMatch`, scelta
+da `publish`/`setChannelMatch`; `publish` non la assegna ai `.dvw` di partite non trasmesse, `route.channel === false`).
+Dopo `PUT /api/admin/club/profile` e `PATCH …/settings` parte subito `refreshClub`, che rivaluta i `.dvw` in attesa
+(`relinkPending`) e annuncia quelli abbinati; poi `closeNotBroadcast` disconnette i link non più trasmessi.
 
 **Ruoli** (`requireRole`): il `viewer` legge club, calendario, agenti, quota agenti, link, grafica (`branding`, `layout`,
 `intermissions`, `overlays`, `assets`) e partite; non legge utenti né richieste di registrazione (admin). Ogni scrittura

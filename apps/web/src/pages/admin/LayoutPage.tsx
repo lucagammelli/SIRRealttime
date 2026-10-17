@@ -32,12 +32,13 @@ import { BLOCKS, REGISTRY_TYPES } from '../../blocks/registry.tsx';
 import { loadSampleMatch } from '../../blocks/sampleMatch.ts';
 import { SAMPLE_SCHEDULE } from '../../blocks/sampleSchedule.ts';
 import { MatchView } from '../../components/MatchView.tsx';
+import { PreviewDock } from '../../components/PreviewDock.tsx';
 import { Button, Card, ErrorBox, Spinner } from '../../components/ui.tsx';
 import { apiRequest } from '../../lib/api.ts';
 import { fileToBase64 } from '../../lib/base64.ts';
 import { initBranding } from '../../lib/branding.ts';
 import { useAsync } from '../../lib/useAsync.ts';
-import { LayoutScaleContext } from '../../lib/useLayout.ts';
+import { LayoutScaleContext, useElementSize } from '../../lib/useLayout.ts';
 import { socketUrl, useLiveSocket } from '../../lib/useLiveSocket.ts';
 import { useApiError } from './auth.tsx';
 import { inputClass } from './forms.tsx';
@@ -111,6 +112,7 @@ export function DevicePreview({
   state,
   look,
   source,
+  fit = false,
   children,
 }: {
   device: LayoutDevice;
@@ -118,45 +120,63 @@ export function DevicePreview({
   state: MatchState;
   look: BlockBrand | null;
   source: string;
+  /** Full screen view: the frame is as big as fits the parent (which must have a size), keeping the proportions. */
+  fit?: boolean;
   children?: ReactNode;
 }) {
   const frame = useRef<HTMLDivElement>(null);
+  const area = useRef<HTMLDivElement>(null);
   const measured = useElementWidth(frame);
+  const room = useElementSize(area);
   const size = VIRTUAL[device];
-  const scale = measured > 0 ? measured / size.width : 0.25;
+  // `fit`: the biggest scale at which the whole page fits the room (minus the 4 px border on each side).
+  const fitScale =
+    room.width > 0 && room.height > 0
+      ? Math.max(0.05, Math.min((room.width - 8) / size.width, (room.height - 8) / size.height))
+      : 0.25;
+  const scale = fit ? fitScale : measured > 0 ? measured / size.width : 0.25;
   const tv = device === 'tv';
   return (
-    <figure className="space-y-2" aria-label={`Anteprima ${DEVICE_LABELS[device]}`}>
-      <div
-        ref={frame}
-        data-testid={`anteprima-${device}`}
-        className={`relative mx-auto overflow-hidden rounded-panel border-4 border-border bg-bg ${size.frame}`}
-        style={{ aspectRatio: `${size.width} / ${size.height}` }}
-      >
+    <figure
+      className={fit ? 'flex h-full w-full flex-col' : 'space-y-2'}
+      aria-label={`Anteprima ${DEVICE_LABELS[device]}`}
+    >
+      <div ref={area} className={fit ? 'flex min-h-0 flex-1 items-center justify-center' : 'contents'}>
         <div
-          inert
-          className={`absolute left-0 top-0 border-t-4 border-accent bg-bg text-text ${
-            tv ? 'flex flex-col overflow-hidden p-5' : 'overflow-y-auto p-3'
-          }`}
-          style={{ width: size.width, height: size.height, transform: `scale(${scale})`, transformOrigin: '0 0' }}
+          ref={frame}
+          data-testid={`anteprima-${device}`}
+          className={`relative overflow-hidden rounded-panel border-4 border-border bg-bg ${fit ? 'shrink-0' : `mx-auto ${size.frame}`}`}
+          style={
+            fit
+              ? { width: size.width * scale + 8, height: size.height * scale + 8 }
+              : { aspectRatio: `${size.width} / ${size.height}` }
+          }
         >
-          <LayoutScaleContext.Provider value={scale}>
-            <div className={tv ? 'min-h-0 flex-1' : ''}>
-              <MatchView
-                state={state}
-                device={device}
-                brand={tv}
-                layout={layout}
-                look={look}
-                pageUrl={previewPageUrl()}
-                schedule={SAMPLE_SCHEDULE}
-              />
-            </div>
-            {children}
-          </LayoutScaleContext.Provider>
+          <div
+            inert
+            className={`absolute left-0 top-0 border-t-4 border-accent bg-bg text-text ${
+              tv ? 'flex flex-col overflow-hidden p-5' : 'overflow-y-auto p-3'
+            }`}
+            style={{ width: size.width, height: size.height, transform: `scale(${scale})`, transformOrigin: '0 0' }}
+          >
+            <LayoutScaleContext.Provider value={scale}>
+              <div className={tv ? 'min-h-0 flex-1' : ''}>
+                <MatchView
+                  state={state}
+                  device={device}
+                  brand={tv}
+                  layout={layout}
+                  look={look}
+                  pageUrl={previewPageUrl()}
+                  schedule={SAMPLE_SCHEDULE}
+                />
+              </div>
+              {children}
+            </LayoutScaleContext.Provider>
+          </div>
         </div>
       </div>
-      <figcaption className="text-center text-xs text-muted">{source}</figcaption>
+      {!fit && <figcaption className="text-center text-xs text-muted">{source}</figcaption>}
     </figure>
   );
 }
@@ -618,9 +638,19 @@ function LayoutEditor({
     }
   };
 
+  const preview = (shown: MatchState, fit: boolean) => (
+    <DevicePreview
+      device={device}
+      layout={draft}
+      state={shown}
+      look={look}
+      fit={fit}
+      source={liveState ? 'Dati della partita live.' : 'Partita d’esempio: nessuna partita live in questo momento.'}
+    />
+  );
   const panelId = 'pannello-dispositivo';
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,32rem)]">
+    <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,32rem)]">
       <Card
         title="Pagina pubblica"
         subtitle={`Cliente: ${tenantName}. Scegli i blocchi della pagina della partita per ogni tipo di schermo.`}
@@ -770,21 +800,12 @@ function LayoutEditor({
           </div>
         </div>
       </Card>
-      <Card title="Anteprima" subtitle={`${DEVICE_LABELS[device]}, con le modifiche non ancora salvate.`}>
-        {previewState ? (
-          <DevicePreview
-            device={device}
-            layout={draft}
-            state={previewState}
-            look={look}
-            source={
-              liveState ? 'Dati della partita live.' : 'Partita d’esempio: nessuna partita live in questo momento.'
-            }
-          />
-        ) : (
-          <Spinner label="Preparazione dell’anteprima…" />
-        )}
-      </Card>
+      <PreviewDock
+        subtitle={`${DEVICE_LABELS[device]}, con le modifiche non ancora salvate.`}
+        fullscreen={previewState ? preview(previewState, true) : null}
+      >
+        {previewState ? preview(previewState, false) : <Spinner label="Preparazione dell’anteprima…" />}
+      </PreviewDock>
     </div>
   );
 }

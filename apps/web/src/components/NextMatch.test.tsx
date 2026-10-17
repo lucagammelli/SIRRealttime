@@ -62,6 +62,19 @@ describe('«Prossima partita»', () => {
     expect(screen.getByText(/non più presente nel calendario ufficiale/)).toBeTruthy();
   });
 
+  it('writes each team name in its own colour: our team (away here) with the «nostra squadra» colour', () => {
+    const { container } = render(<NextMatch fixture={fixture({ ourSide: 'away' })} />);
+    const name = (side: string) => container.querySelector(`[data-team="${side}"]`);
+    expect(name('away')?.textContent).toBe('Sir Susa Scai Perugia');
+    expect(name('away')?.className).toContain('text-away-ink');
+    expect(name('home')?.className).toContain('text-home-ink');
+    expect(name('away')?.className).not.toContain('text-text');
+    // the section points away to the colour of our team (var --sir-our) and home to the opponent
+    const section = container.querySelector('section');
+    expect(section?.style.getPropertyValue('--sir-away')).toBe('var(--sir-our)');
+    expect(section?.style.getPropertyValue('--sir-home')).toBe('var(--sir-opponent)');
+  });
+
   it('is what a live link of a match of the calendar shows before the start', () => {
     render(
       <LiveMatch

@@ -27,15 +27,17 @@ import {
   TEMPLATES,
   templateOf,
 } from '@sir/shared';
-import type { ChangeEvent } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ChangeEvent, ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrandingPreview } from '../../components/BrandingPreview.tsx';
+import { PreviewDock } from '../../components/PreviewDock.tsx';
 import { Button, Card, Empty, ErrorBox, Spinner } from '../../components/ui.tsx';
 import { apiCommand, apiRequest } from '../../lib/api.ts';
 import { fileToBase64 } from '../../lib/base64.ts';
 import { initBranding } from '../../lib/branding.ts';
 import { megabytes } from '../../lib/format.ts';
 import { useAsync } from '../../lib/useAsync.ts';
+import { useElementSize } from '../../lib/useLayout.ts';
 import { useApiError } from './auth.tsx';
 import { ConfirmButton, Field, inputClass } from './forms.tsx';
 
@@ -371,8 +373,18 @@ function BrandingEditor({
   };
 
   const name = draft.displayName ?? tenantName;
+  const preview = (
+    <BrandingPreview
+      template={draft.template}
+      colors={draft.colors}
+      name={name}
+      logoMain={draft.logoMain ? publicAssetPath(draft.logoMain) : null}
+      logoMark={draft.logoMark ? publicAssetPath(draft.logoMark) : null}
+      sponsorLogo={draft.sponsorLogo ? publicAssetPath(draft.sponsorLogo) : null}
+    />
+  );
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+    <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
       <div className="space-y-4">
         <Card title="Grafica del cliente" subtitle={`Cliente: ${tenantName}`}>
           <div className="space-y-4">
@@ -479,16 +491,30 @@ function BrandingEditor({
           )}
         </Card>
       </div>
-      <Card title="Anteprima" subtitle="Pagina pubblica con dati d’esempio, con le modifiche non ancora salvate.">
-        <BrandingPreview
-          template={draft.template}
-          colors={draft.colors}
-          name={name}
-          logoMain={draft.logoMain ? publicAssetPath(draft.logoMain) : null}
-          logoMark={draft.logoMark ? publicAssetPath(draft.logoMark) : null}
-          sponsorLogo={draft.sponsorLogo ? publicAssetPath(draft.sponsorLogo) : null}
-        />
-      </Card>
+      <PreviewDock
+        subtitle="Pagina pubblica con dati d’esempio, con le modifiche non ancora salvate."
+        fullscreen={<ZoomToFit>{preview}</ZoomToFit>}
+      >
+        {preview}
+      </PreviewDock>
+    </div>
+  );
+}
+
+/** Width and height (CSS px) the example page of the preview has at zoom 1: the full screen view scales from them. */
+const PREVIEW_BASE = { width: 460, height: 400 };
+
+/** Centres `children` in the room of the parent, enlarged (CSS `zoom`) as much as fits, never smaller than 1. */
+function ZoomToFit({ children }: { children: ReactNode }) {
+  const area = useRef<HTMLDivElement>(null);
+  const room = useElementSize(area);
+  const zoom =
+    room.width > 0 ? Math.max(1, Math.min(room.width / PREVIEW_BASE.width, room.height / PREVIEW_BASE.height)) : 1;
+  return (
+    <div ref={area} className="flex h-full w-full items-center justify-center overflow-auto">
+      <div style={{ width: PREVIEW_BASE.width, zoom }} data-testid="anteprima-grafica-ingrandita">
+        {children}
+      </div>
     </div>
   );
 }

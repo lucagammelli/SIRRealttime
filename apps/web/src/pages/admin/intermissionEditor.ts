@@ -16,7 +16,7 @@ import {
 } from '@sir/shared';
 
 /**
- * Pure editing of the pauses (editor «Pause e sponsor»): every function returns a new value. A pause is addressed by
+ * Pure editing of the pauses (editor «Pause»): every function returns a new value. A pause is addressed by
  * its kind, or `setBreak-N` for the own end-of-set pause of the set N.
  */
 export type PauseTarget = IntermissionKind | `setBreak-${SetBreakSet}`;

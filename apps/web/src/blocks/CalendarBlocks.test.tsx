@@ -169,6 +169,14 @@ describe('slides «Prossima partita» and «Classifica»', () => {
     expect(screen.getByTestId('s').textContent).toContain('5° Nostra Squadra Volley');
   });
 
+  it('banner: the club in the colour of «nostra squadra», the opponent in its own (never plain white text)', () => {
+    render(<div data-testid="s">{renderSlide(slide('nextMatch'), envOf(SAMPLE_SCHEDULE), 'compact')}</div>);
+    expect(screen.getByText('Volley Torino').className).toContain('text-opponent-ink');
+    cleanup();
+    render(<div data-testid="s">{renderSlide(slide('standings'), envOf(SAMPLE_SCHEDULE), 'compact')}</div>);
+    expect(screen.getByText(/5° Nostra Squadra Volley/).className).toContain('text-our-ink');
+  });
+
   it('banner on the phone: no QR, the opponent is the link of the match, the venue on its own line', () => {
     const env = { ...envOf(SAMPLE_SCHEDULE), device: 'phone' as const };
     render(<div data-testid="s">{renderSlide(slide('nextMatch'), env, 'compact')}</div>);

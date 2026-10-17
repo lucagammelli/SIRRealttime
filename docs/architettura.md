@@ -219,7 +219,10 @@ caratteri `<` e `>`; `fillOverlayText(testo, valori)` li sostituisce (valore man
 i predefiniti (`defaultOverlays`, `defaultOverlay(kind)`, `defaultOverlayText`, `resolveOverlays`: un documento non valido
 vale i predefiniti), per esempio «ACE! {giocatore}», «Muro di {giocatore}», «Break di {serie} punti per {squadra}», «SET
 POINT {squadra}», «MATCH POINT {squadra}», «{squadra} vince il {set}° set {punteggio}», «{squadra} vince la partita!».
-Time-out spento (la pausa lo mostra già); cambio e scambio lungo non sul telefono. `OverlaysResponseSchema`
+Time-out spento (la pausa lo mostra già); cambio e scambio lungo non sul telefono. Posizione e dimensione: il documento ha
+`position` (`OVERLAY_POSITIONS`: `top`, `center`, `bottom`; predefinito `OVERLAY_DEFAULT_POSITION` `top`) e `size`
+(`OVERLAY_SIZES`: `small`, `medium`, `large`; predefinita `medium`) generali; ogni avviso può avere `position` e `size`
+propri (facoltativi) e `overlayPlacement(config, overlay)` dà i valori in uso. Un documento salvato prima resta valido. `OverlaysResponseSchema`
 (`GET`/`PUT /api/admin/overlays`); `PublicTenantResponseSchema` contiene anche `overlays`. `TENANT_CONFIG_VERSION` resta 1.
 Server in `docs/server.md` («Avvisi sugli eventi»), portale ed editor in `docs/portale.md`.
 

@@ -110,6 +110,45 @@
   }
 }
 
+/*
+ * Reserved area (`/admin`): always Inter, whatever the graphic template of the client (the public page keeps the font
+ * of its template, e.g. Google Sans Code in «SIR VOLLEY»). The tokens are redefined on this element and below it;
+ * the previews have their own scope (`data-sir-scope`) and keep the font of their template. Numbers in tables and
+ * forms have tabular digits.
+ */
+.sir-admin-font {
+  --sir-font-sans:
+    'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Roboto, 'Noto Sans', Arial, sans-serif;
+  --sir-font-display: var(--sir-font-sans);
+  --sir-font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-family: var(--sir-font-sans);
+}
+.sir-admin-font table,
+.sir-admin-font input[type='number'],
+.sir-admin-font input[type='date'],
+.sir-admin-font input[type='time'] {
+  font-variant-numeric: tabular-nums;
+}
+/* Thin, quiet scrollbar (side menu): 6 px, the colours of the tokens. */
+.sir-thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sir-border) transparent;
+}
+.sir-thin-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.sir-thin-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sir-thin-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--sir-border);
+  border-radius: 3px;
+}
+.sir-thin-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--sir-text-muted);
+}
+
 /* Surfaces: light gradient of the brand colour from the top (the tokens keep the text contrast). */
 .sir-surface {
   background-color: var(--sir-surface);

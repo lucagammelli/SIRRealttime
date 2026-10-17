@@ -1,4 +1,4 @@
-import type { TenantOverlays } from '@sir/shared';
+import type { OverlayPosition, OverlaySize, TenantOverlays } from '@sir/shared';
 import type { MatchState, Side } from '@sir/volley-stats';
 import { useEffect, useRef, useState } from 'react';
 import type { Device } from '../lib/layout.ts';
@@ -12,21 +12,48 @@ const TONE: Record<Side | 'neutral', string> = {
   neutral: 'bg-primary text-on-primary',
 };
 
-/** Where the overlays appear: centred near the top, over the page and the pause banner, under a full screen pause. */
-export const OVERLAY_REGION_CLASS = 'pointer-events-none fixed inset-x-0 top-[12%] z-45 flex justify-center px-3';
+/**
+ * Where the overlays appear, over the page and the pause banner, under a full screen pause. Always `pointer-events-none`
+ * (taps and clicks go through to the page) and never over the essential controls: near the top, below the scoreboard
+ * fixed on the phone; near the bottom, above the banner of a pause; in the middle only the box itself covers the page.
+ */
+const OVERLAY_REGION_BASE = 'pointer-events-none fixed inset-x-0 z-45 flex justify-center px-3';
+export const OVERLAY_REGION_CLASSES: Record<OverlayPosition, string> = {
+  top: `${OVERLAY_REGION_BASE} top-[12%]`,
+  center: `${OVERLAY_REGION_BASE} inset-y-0 items-center`,
+  bottom: `${OVERLAY_REGION_BASE} bottom-[14%]`,
+};
+/** Default region (near the top). */
+export const OVERLAY_REGION_CLASS = OVERLAY_REGION_CLASSES.top;
+
+/** Padding and text size of the box, by device and size (medium is the look from before the setting existed). */
+const BOX_SIZE: Record<Device, Record<OverlaySize, string>> = {
+  tv: { small: 'px-6 py-3 text-2xl', medium: 'px-8 py-4 text-4xl', large: 'px-12 py-6 text-6xl' },
+  tablet: { small: 'px-4 py-2 text-xl', medium: 'px-6 py-3 text-2xl', large: 'px-8 py-4 text-4xl' },
+  phone: { small: 'px-3 py-1.5 text-base', medium: 'px-4 py-2 text-lg', large: 'px-5 py-3 text-2xl' },
+};
 
 /**
  * The box of an overlay: plain text (never HTML) in the colour of the team of the event, entering with a short
  * animation (none with reduced motion). Also the «Prova» of the editor.
  */
-export function OverlayBanner({ text, team, device }: { text: string; team: Side | null; device: Device }) {
+export function OverlayBanner({
+  text,
+  team,
+  device,
+  size = 'medium',
+}: {
+  text: string;
+  team: Side | null;
+  device: Device;
+  size?: OverlaySize;
+}) {
   const reduced = useReducedMotion();
-  const size =
-    device === 'tv' ? 'px-8 py-4 text-4xl' : device === 'tablet' ? 'px-6 py-3 text-2xl' : 'px-4 py-2 text-lg';
   return (
     <div
       data-overlay={team ?? 'neutral'}
-      className={`${reduced ? '' : 'sir-overlay'} max-w-[90%] rounded-panel font-display font-bold uppercase tracking-wide shadow-card ${size} ${TONE[team ?? 'neutral']}`}
+      data-size={size}
+      className={`${reduced ? '' : 'sir-overlay'} max-w-[90%] rounded-panel text-center font-display font-bold uppercase tracking-wide shadow-card ${BOX_SIZE[device][size]} ${TONE[team ?? 'neutral']}`}
     >
       {text}
     </div>
@@ -109,8 +136,15 @@ export function Overlay({
   }, [current]);
 
   return (
-    <div aria-live="polite" aria-atomic="true" data-overlay-region="" className={OVERLAY_REGION_CLASS}>
-      {current && <OverlayBanner key={current.id} text={current.text} team={current.team} device={device} />}
+    <div
+      aria-live="polite"
+      aria-atomic="true"
+      data-overlay-region={current?.position ?? 'top'}
+      className={OVERLAY_REGION_CLASSES[current?.position ?? 'top']}
+    >
+      {current && (
+        <OverlayBanner key={current.id} text={current.text} team={current.team} device={device} size={current.size} />
+      )}
     </div>
   );
 }

@@ -178,11 +178,11 @@ describe('editing helpers of the pauses', () => {
   });
 });
 
-describe('«Pause e sponsor» page', () => {
+describe('«Pause» page', () => {
   it('is in the menu of an admin, with the three pauses, the sets and the preview of the end of set', async () => {
     mockServer();
     renderAt('/admin/pause');
-    expect(await screen.findByRole('link', { name: 'Pause e sponsor' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: 'Pause' })).toBeTruthy();
     const pauses = within(await screen.findByRole('tablist', { name: 'Pausa' })).getAllByRole('tab');
     expect(pauses.map((t) => t.textContent)).toEqual(['Time-out', 'Fine set', 'Fine partita', 'Ogni N punti']);
     expect(pauses[1]?.getAttribute('aria-selected')).toBe('true');

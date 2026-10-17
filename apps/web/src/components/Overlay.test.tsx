@@ -238,6 +238,8 @@ describe('overlays: pure functions', () => {
       text: id,
       team: null,
       seconds: 4,
+      position: 'top' as const,
+      size: 'medium' as const,
       priority,
       receivedAt,
       index,
@@ -278,5 +280,43 @@ describe('overlays: pure functions', () => {
     }
     expect(expected).toBeGreaterThan(0);
     expect(count).toBe(expected);
+  });
+});
+
+describe('Overlay: position and size', () => {
+  const showAce = (config: TenantOverlaysInput, device: Device = 'tv') => {
+    const first = [event('block')];
+    const view = setup(withEvents(first), { config, device });
+    view.update(withEvents([...first, event('ace')]));
+  };
+  const box = () => document.querySelector('[data-overlay]') as HTMLElement;
+
+  it('default: near the top and medium, as before the setting existed', () => {
+    showAce({});
+    expect(region()?.className).toContain('top-[12%]');
+    expect(box().dataset.size).toBe('medium');
+    expect(box().className).toContain('text-4xl');
+  });
+
+  it('general setting: centre and large; the region never takes clicks', () => {
+    showAce({ position: 'center', size: 'large' });
+    expect(region()?.getAttribute('data-overlay-region')).toBe('center');
+    expect(region()?.className).toContain('items-center');
+    expect(region()?.className).toContain('pointer-events-none');
+    expect(box().className).toContain('text-6xl');
+  });
+
+  it('own value of an overlay beats the general setting; bottom stays above the pause banner', () => {
+    showAce({ position: 'center', size: 'large', ace: { position: 'bottom', size: 'small' } }, 'phone');
+    expect(region()?.className).toContain('bottom-[14%]');
+    expect(region()?.className).toContain('pointer-events-none');
+    expect(box().className).toContain('text-base');
+  });
+
+  it('the queued overlay carries the placement of its configuration', () => {
+    const parsed = TenantOverlaysSchema.parse({ size: 'small', matchEnd: { position: 'center' } });
+    const state = withEvents([]);
+    const queued = overlayFor(event('matchEnd'), state, parsed, 'tv', 0);
+    expect(queued).toMatchObject({ position: 'center', size: 'small' });
   });
 });

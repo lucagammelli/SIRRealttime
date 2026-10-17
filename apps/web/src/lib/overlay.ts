@@ -3,8 +3,15 @@
  * configuration of the client (`TenantOverlays` of @sir/shared), their text and the order of the queue. The events
  * and every number come from @sir/volley-stats (`MatchState.events`): nothing is computed here.
  */
-import type { LayoutDevice, Overlay, OverlayPlaceholder, TenantOverlays } from '@sir/shared';
-import { fillOverlayText } from '@sir/shared';
+import type {
+  LayoutDevice,
+  Overlay,
+  OverlayPlaceholder,
+  OverlayPosition,
+  OverlaySize,
+  TenantOverlays,
+} from '@sir/shared';
+import { fillOverlayText, overlayPlacement } from '@sir/shared';
 import type { MatchEvent, MatchState, Side } from '@sir/volley-stats';
 import { playerName, teamName } from './format.ts';
 
@@ -16,6 +23,9 @@ export interface QueuedOverlay {
   /** Colour of the overlay: the team of the event, `null` neutral. */
   team: Side | null;
   seconds: number;
+  /** Where on the page and how big (own value of the overlay or general setting). */
+  position: OverlayPosition;
+  size: OverlaySize;
   priority: number;
   /** When it arrived (ms, clock of the page): too old ones are dropped. */
   receivedAt: number;
@@ -71,11 +81,14 @@ export function overlayFor(
   if (!overlay || !overlay.enabled || !overlay.devices[device]) return null;
   const text = overlayText(event, state, overlay);
   if (text === '') return null;
+  const { position, size } = overlayPlacement(config, overlay);
   return {
     id: event.id,
     text,
     team: event.team,
     seconds: overlay.seconds,
+    position,
+    size,
     priority: overlay.priority,
     receivedAt: now,
     index: event.index,

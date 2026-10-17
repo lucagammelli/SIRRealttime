@@ -123,11 +123,11 @@ export function NextMatchView({
         <p className="min-w-48 flex-1 text-sm text-text">
           <span className="font-semibold">Prossima partita: </span>
           {phone && showQr && fixture.shortUrl ? (
-            <a href={fixture.shortUrl} className="font-display font-bold uppercase underline">
+            <a href={fixture.shortUrl} className="font-display font-bold uppercase text-opponent-ink underline">
               {opponent.name}
             </a>
           ) : (
-            <span className="font-display font-bold uppercase">{opponent.name}</span>
+            <span className="font-display font-bold uppercase text-opponent-ink">{opponent.name}</span>
           )}
           <span className="text-muted">
             {' '}
@@ -267,7 +267,7 @@ export function StandingsView({
     return (
       <p className="text-sm text-text">
         <span className="font-semibold">Classifica: </span>
-        <span className="font-display font-bold uppercase">
+        <span className="font-display font-bold uppercase text-our-ink">
           {ordinal(ours)} {ours.teamName}
         </span>
         <span className="tabular text-muted">

@@ -2,12 +2,14 @@ import { SHARE_TOKEN_PATTERN } from '@sir/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { BrandMark } from '../components/BrandMark.tsx';
+import { FullscreenHint, InstallButton } from '../components/AppInstall.tsx';
 import { Intermission } from '../components/Intermission.tsx';
 import { LiveMatch } from '../components/LiveMatch.tsx';
 import { Overlay } from '../components/Overlay.tsx';
 import { StatusScreen } from '../components/StatusScreen.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import type { ProbeResult } from '../lib/liveConnection.ts';
+import { registerServiceWorker, useFullscreenOnFirstTouch, useInstallApp } from '../lib/pwa.ts';
 import { useIdle, useTvRootClass, useWakeLock } from '../lib/tvScreen.ts';
 import { tvModeOf } from '../lib/layout.ts';
 import { useDevice } from '../lib/useLayout.ts';
@@ -57,7 +59,7 @@ export async function probeShareToken(token: string, fetchImpl: typeof fetch = f
  * with `?tv=0`): no scrolling, text scaled with the screen, pointer hidden after 3 s, screen kept on, rotation of the
  * groups that the viewer can stop. The blocks are the ones chosen by the client for the device (page «Pagina pubblica»
  * of the reserved area), the defaults until its graphics are loaded. In the pauses of the match (time-out, end of set,
- * end of match) the pause chosen by the client (page «Pause e sponsor») goes over the page or at its bottom: none while
+ * end of match) the pause chosen by the client (page «Pause») goes over the page or at its bottom: none while
  * its graphics are loading, the default pauses when they cannot be loaded. The events of the match that arrive live
  * (ace, set point, ...) show an overlay for a few seconds as chosen by the client (page «Avvisi»), never over a full
  * screen pause. During the set the «ogni N punti» pause opens with the live updates only.
@@ -73,6 +75,12 @@ export function LivePage() {
   useTvRootClass(tv);
   useWakeLock(tv);
   const idle = useIdle(tv);
+  // App: minimal service worker (only for the installation), «Installa come app», full screen at the first touch.
+  const app = useInstallApp();
+  const fullscreenHint = useFullscreenOnFirstTouch(valid && !fullscreen);
+  useEffect(() => {
+    void registerServiceWorker();
+  }, []);
   const probe = useCallback(() => probeShareToken(token), [token]);
   const snapshot = useLiveSocket(valid ? socketUrl(`/ws/public/${encodeURIComponent(token)}`) : null, { probe });
 
@@ -147,6 +155,7 @@ export function LivePage() {
           </svg>
         </button>
       )}
+      {!tv && <InstallButton app={app} />}
       <button
         type="button"
         onClick={toggleFullscreen}
@@ -205,6 +214,7 @@ export function LivePage() {
           {...(inScoreboard ? { controls } : {})}
         />
       </main>
+      <FullscreenHint visible={fullscreenHint} />
       {data?.kind === 'state' && (
         <Overlay
           key={`avvisi-${data.matchId}`}

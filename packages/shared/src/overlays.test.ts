@@ -6,6 +6,7 @@ import {
   defaultOverlayText,
   fillOverlayText,
   OVERLAY_KINDS,
+  overlayPlacement,
   OVERLAY_MAX_SECONDS,
   OVERLAY_MIN_SECONDS,
   OVERLAY_PLACEHOLDERS,
@@ -71,6 +72,40 @@ describe('overlays: defaults', () => {
     expect(resolveOverlays(null)).toEqual(defaultOverlays());
     expect(resolveOverlays({ ace: { text: '{nome}' } })).toEqual(defaultOverlays());
     expect(resolveOverlays({ ace: { enabled: false } }).ace.enabled).toBe(false);
+  });
+});
+
+describe('overlays: position and size', () => {
+  it('defaults are the look before the setting: top, medium; no own value on the single overlays', () => {
+    const config = defaultOverlays();
+    expect(config.position).toBe('top');
+    expect(config.size).toBe('medium');
+    expect(config.ace.position).toBeUndefined();
+    expect(config.ace.size).toBeUndefined();
+    expect(overlayPlacement(config, config.ace)).toEqual({ position: 'top', size: 'medium' });
+  });
+
+  it('a stored document without the new fields stays valid and reads as the defaults', () => {
+    const old = { version: 1, ace: { enabled: false, text: 'ACE', seconds: 3, devices: {}, priority: 4 } };
+    const config = TenantOverlaysSchema.parse(old);
+    expect(config.position).toBe('top');
+    expect(config.size).toBe('medium');
+    expect(config.ace.enabled).toBe(false);
+  });
+
+  it('the general setting and the own override of an overlay', () => {
+    const config = TenantOverlaysSchema.parse({ position: 'center', size: 'large', ace: { position: 'bottom' } });
+    expect(overlayPlacement(config, config.ace)).toEqual({ position: 'bottom', size: 'large' });
+    expect(overlayPlacement(config, config.block)).toEqual({ position: 'center', size: 'large' });
+    const sized = TenantOverlaysSchema.parse({ ace: { size: 'small' } });
+    expect(overlayPlacement(sized, sized.ace)).toEqual({ position: 'top', size: 'small' });
+  });
+
+  it('refuses unknown positions and sizes', () => {
+    expect(TenantOverlaysSchema.safeParse({ position: 'left' }).success).toBe(false);
+    expect(TenantOverlaysSchema.safeParse({ size: 'huge' }).success).toBe(false);
+    expect(TenantOverlaysSchema.safeParse({ ace: { position: 'middle' } }).success).toBe(false);
+    expect(TenantOverlaysSchema.safeParse({ ace: { size: 'xl' } }).success).toBe(false);
   });
 });
 

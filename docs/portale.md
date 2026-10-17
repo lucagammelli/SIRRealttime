@@ -27,7 +27,8 @@ Questi sei sono i blocchi predefiniti; il cliente può nasconderli, riordinarli 
 Messaggio, Codice QR, Ultimo punto, Parziali dei set, Migliori giocatori) per ogni dispositivo, vedi «Pagina pubblica a
 blocchi».
 
-Nell'intestazione ci sono il pulsante «Schermo intero» (diventa «Esci da schermo intero») e il cambio tema.
+Nell'intestazione ci sono il pulsante «Schermo intero» (diventa «Esci da schermo intero»), «Installa come app» (vedi
+«App installabile») e il cambio tema.
 La pagina pubblica non ha nessun collegamento all'area riservata.
 
 **Dispositivi e impaginazione** (`src/lib/layout.ts`, `useLayout.ts`, `components/BlockLayout.tsx`). `deviceFor` sceglie
@@ -84,10 +85,13 @@ Prima si verifica la sessione («Verifica della sessione…»); senza sessione c
 (email e password), se il server non risponde «Area riservata non disponibile» con «Riprova». Il **menu laterale**
 (`AdminSidebar.tsx`; `menuGroups` è pura e dà i gruppi in base al ruolo, quelli vuoti spariscono) sostituisce la barra
 a pillole. Gruppi: «Partite» (Partita live, Partite, Calendario, Link pubblici), «Club» (Club), «Pagina pubblica» (Grafica,
-Pagina pubblica, Pause e sponsor, Avvisi), «Dispositivi» (Agenti), «Amministrazione» (Utenti; Clienti solo superadmin):
+Pagina pubblica, Pause, Avvisi), «Dispositivi» (Agenti), «Amministrazione» (Utenti; Clienti solo superadmin):
 
 - in cima il logo (`BrandMark`), in fondo cliente (selettore per il superadmin), account, tema e «Esci»; la voce attiva è
   evidenziata (`--sir-nav-active`, rosso in SIR VOLLEY);
+- tutta l'area, login compreso, è in **Inter** (classe `.sir-admin-font` in `AdminApp.tsx`, vedi «Tema e stile»), con
+  cifre tabulari in tabelle e campi numerici; l'elenco delle voci scorre con una barra sottile (`.sir-thin-scroll`:
+  `scrollbar-width: thin` e `::-webkit-scrollbar` di 6 px, colori dei token);
 - da 1200 px (`WIDE_MENU_MIN`) il menu è largo 240 px; tra 768 e 1199 px parte ridotto alle icone (nomi nel `title` e per
   i lettori di schermo) e il pulsante «Riduci il menu» / «Espandi il menu» lo allarga o lo riduce; lo stato non è
   ricordato tra le visite;
@@ -108,10 +112,20 @@ Le voci:
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, password di almeno 12 caratteri, ruolo), «Utenti» |
 | Grafica | `/admin/grafica` | solo admin (il superadmin lavora sul cliente scelto) | colori, nome e loghi del cliente, vedi «Grafica per cliente» |
 | Pagina pubblica | `/admin/pagina` | solo admin (il superadmin lavora sul cliente scelto) | blocchi della pagina della partita per TV, tablet e telefono, vedi «Pagina pubblica a blocchi» |
-| Pause e sponsor | `/admin/pause` | solo admin (il superadmin lavora sul cliente scelto) | schermate di time-out, fine set, fine partita e «ogni N punti», vedi «Pause della partita» |
+| Pause | `/admin/pause` | solo admin (il superadmin lavora sul cliente scelto) | schermate di time-out, fine set, fine partita e «ogni N punti», vedi «Pause della partita» |
 | Avvisi | `/admin/avvisi` | solo admin (il superadmin lavora sul cliente scelto) | avvisi sugli eventi della partita, vedi «Avvisi sugli eventi» |
 | Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname; «Crea cliente»), «Clienti» con «Modifica» (nome e hostname, «Salva») |
 | Esci | - | tutti | chiude la sessione |
+
+**Anteprima sempre visibile** (`components/PreviewDock.tsx`; «Grafica», «Pagina pubblica», «Pause» e «Avvisi»). Da 1280 px
+la scheda «Anteprima» è una colonna destra sticky, alta al massimo come lo schermo, con scorrimento interno. Sotto 1280 px
+è una barra compatta sticky in cima alla pagina, richiudibile con «Chiudi anteprima» / «Apri anteprima» (chiusa
+all'inizio sul telefono, sotto 768 px). Il pulsante «Anteprima a tutto schermo» (sul telefono «Schermo intero») apre
+`PreviewFullscreen`: un dialog modale (`role="dialog"`, `aria-modal`) che chiede la Fullscreen API e, se manca o è
+rifiutata (iPhone), resta a finestra intera; si chiude con Esc o «Chiudi» e il focus torna al pulsante. `DevicePreview`
+(`LayoutPage.tsx`) ha la prop `fit` per riempire lo spazio. **Limiti noti**: in «Grafica» l'anteprima a tutto schermo è il
+riquadro d'esempio ingrandito, nelle altre pagine è la pagina reale; sul telefono «Prova» negli Avvisi non apre
+l'anteprima se è chiusa.
 
 **Più clienti** (`docs/server.md`, «Clienti»). Nel menu compare il nome del cliente corrente (`user.tenant`). Il
 **superadmin** vede invece il selettore «Cliente» (`TenantSelector` in `src/pages/admin/TenantsPage.tsx`): la scelta va a
@@ -190,6 +204,27 @@ Un **viewer** (ruolo «sola lettura») vede solo «Partita live» e «Partite»;
 riportano a `/admin/live`. Il ruolo è mostrato accanto all'email («superadmin», «amministratore» o «sola lettura», `ROLE_TEXT` in `AdminApp.tsx`); la vera
 protezione è sempre nel server (`docs/server.md`).
 
+### App installabile e schermo intero (`lib/pwa.ts`, `components/AppInstall.tsx`)
+La pagina pubblica si può installare come app (PWA) e chiede lo schermo intero al primo tocco. Tutto è facoltativo: dove
+il browser non ha l'API non succede nulla.
+
+- **Manifest** (`public/manifest.webmanifest`): `display` `fullscreen` con `display_override` `fullscreen` e `standalone`,
+  `scope` `/`, icone di `public/icons/` generate dal favicon. Nome e icona sono per ora generici («SIRRealtime»): quelli del
+  cliente arriveranno con una rotta del server in un lavoro successivo. Non c'è `start_url`, così Chrome riapre il link da
+  cui si installa. `index.html` ha il manifest, `apple-touch-icon` e i meta.
+- **Service worker** (`public/sw.js`, registrato da `registerServiceWorker`): minimo, solo perché il browser consideri la
+  pagina installabile. **Nessuna cache e nessuna intercettazione delle richieste**: pagine, dati e WebSocket passano sempre
+  dalla rete. Se un giorno si aggiunge una cache vanno esclusi `/admin`, `/api` e `/ws`. La CSP è cambiata solo in
+  `worker-src 'none'` → `worker-src 'self'` (`docker/web.security-headers.conf`).
+- **«Installa come app»** (`InstallButton`, `useInstallApp`): compare quando il browser offre l'installazione
+  (`beforeinstallprompt`) e non sulla TV; su iPhone e iPad (senza richiesta) mostra le istruzioni «Per installare l’app tocca
+  Condividi, poi «Aggiungi a Home».» con «Chiudi». Non compare già installata o a schermo intero.
+- **«Tocca per lo schermo intero»** (`FullscreenHint`, `useFullscreenOnFirstTouch`): suggerimento discreto per 8 secondi
+  (`FULLSCREEN_HINT_SECONDS`); il primo tocco o tasto sulla pagina (non su pulsanti, link o campi; non Maiusc, Ctrl, Alt,
+  Tab, Esc…) chiede lo schermo intero. Il suggerimento non intercetta i clic. Il pulsante «Schermo intero» resta.
+- **Kiosk per le TV**: il browser non permette lo schermo intero automatico senza un gesto, quindi per una TV fissa si
+  avvia il browser in modalità kiosk (script in «Come si usa / si prova»).
+
 ### Connessione WebSocket (`src/lib/liveConnection.ts`, `useLiveSocket.ts`)
 - `LiveConnection` tiene aperto il socket e, a ogni (ri)connessione, il server rimanda lo stato intero.
 - **Patch**: dopo lo stato intero arrivano messaggi `patch`. `applyPatchMessage` li applica con `applyPatch`
@@ -244,7 +279,11 @@ valgono sopra quelli del modello. Specifiche e originali dei loghi: `docs/grafic
   `data-sir-scope`.
 - **Font**: Google Sans Code self-hosted, `src/styles/fonts.css` (importato da `index.css`) con i file in
   `src/styles/fonts/google-sans-code/` (woff2 `latin` e `latin-ext`, variabile 400-700, `font-display: swap`, licenza
-  `OFL.txt`). La CSP è invariata (`font-src 'self'`).
+  `OFL.txt`). La CSP è invariata (`font-src 'self'`). Resta il font della pagina pubblica SIR VOLLEY.
+- **Inter** (`src/styles/fonts.css`, file in `src/styles/fonts/inter/`: `inter-latin.woff2` e `inter-latin-ext.woff2`,
+  variabile 400-700 da Google Fonts, licenza `OFL.txt` accanto e copia in `public/assets/inter-OFL.txt`): font di tutta
+  l'area riservata, login compreso, qualunque sia il modello del cliente (`.sir-admin-font`, `styles/index.css`). Anche la
+  pagina pubblica del modello standard, che in `tokens.css` nominava già Inter, ora lo scarica davvero.
 - **Colori**: la palette si calcola con `brandPalette(colori, modello)`. Il rosso `#E30613` su `#151518` ha solo 3,7:1: il
   testo piccolo usa la variante `-ink` (`#eb515a`), il rosso pieno resta per sfondi, pulsanti e testo grande.
 - **Logo** (`public/templates/sir-volley/`): `logo-sir-realtime.png` (1200×269, senza la riga «Powered by Istante»),
@@ -360,7 +399,7 @@ Le sei viste statistiche (`blocks/StatSlides.tsx`) hanno tre misure: `full` (tut
 `card` (riquadro dentro la pagina, per i blocchi) e `compact` (una riga per la banda). Casa sempre a sinistra, colori secondo
 «nostra squadra»; barre e nomi entrano con un'animazione di 500 ms (`sir-enter-left`, `sir-enter-right`, `sir-grow`),
 spenta con `prefers-reduced-motion`. I testi (nomi dei giocatori) sono sempre testo React, mai HTML. Le opzioni si modificano con
-`pages/admin/StatOptionsFields.tsx`, usato sia da «Pagina pubblica» sia da «Pause e sponsor». Il registro (`registry.tsx`) disegna
+`pages/admin/StatOptionsFields.tsx`, usato sia da «Pagina pubblica» sia da «Pause». Il registro (`registry.tsx`) disegna
 queste viste anche come blocchi della pagina, con le stesse etichette di `SLIDE_LABELS`; la pagina usa il set in corso
 (`statPeriod`), il confronto di `charts/compare.ts` usa `teamDuel` di `@sir/volley-stats` (niente più calcoli copiati).
 
@@ -379,12 +418,13 @@ Sono blocchi della pagina (larghezze 4/6/8/12) e diapositive delle pause (stesse
   «nostra squadra» e dell'avversario. Con l'opzione QR e un link non revocato: il QR del link breve della partita
   (`ShareQr`, con il logo quadrato del cliente) e il testo «Inquadra il codice per seguire la partita» (a tutto schermo:
   «Inquadra il codice per seguire la partita sul telefono»). Nella banda: «Prossima partita: <avversario> · In casa/In
-  trasferta · data»; **sul telefono la banda non ha il QR**, il nome dell'avversario è un link alla partita.
+  trasferta · data»; **sul telefono la banda non ha il QR**, il nome dell'avversario è un link alla partita. I nomi delle
+  due squadre (`NextMatch.tsx`, `CalendarBlocks.tsx`) hanno il colore di «nostra squadra» e dell'avversaria.
 - **Classifica** (`StandingsView`): tabella a colonne fisse (`table-fixed`) per leggersi bene in TV: posizione, logo, squadra,
   Pt, G, V, P, SV, SP (i nomi completi nel `title` dell'abbreviazione). Le righe sono quelle di `standingsRowsToShow`
   (`docs/architettura.md`); la nostra squadra è evidenziata (`aria-current`); sotto la tabella «Aggiornata al gg/mm/aaaa».
   Nella banda una riga con la posizione, i punti, le partite e i set della nostra squadra.
-- **Opzioni** (`pages/admin/CalendarOptionsFields.tsx`): in «Pagina pubblica» e in «Pause e sponsor» (stesso componente).
+- **Opzioni** (`pages/admin/CalendarOptionsFields.tsx`): in «Pagina pubblica» e in «Pause» (stesso componente).
   Le anteprime degli editor usano dati inventati (`blocks/sampleSchedule.ts`, `SAMPLE_SCHEDULE`), mai quelli veri.
 - **Predefiniti**: «Classifica» e poi «Prossima partita» stanno dopo le statistiche nelle pause di fine set e di fine
   partita. **Non** sono nel layout TV predefinito del modello `sir-volley` (la griglia è piena): si aggiungono da «Pagina
@@ -426,7 +466,7 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   (che hanno la precedenza e la chiudono), né vicino al traguardo del set: con `stopBeforeEnd` K (predefinito 5) niente pausa
   se una squadra è a K punti dal traguardo (25, 15 al tie-break; il traguardo viene da `@sir/volley-stats`). Mostra le sue
   diapositive una volta e si chiude da sola; se time-out e fine set sono disattivati resta fino al suo timer. Titolo
-  (`pauseTitle`): «2° set: 9-7». È attiva di default per tutti i clienti e si spegne da «Pause e sponsor».
+  (`pauseTitle`): «2° set: 9-7». È attiva di default per tutti i clienti e si spegne da «Pause».
 - **Quando compare** (`components/Intermission.tsx`, montato da `LivePage.tsx` sotto la pagina): per `timeout`, `setBreak` e
   `matchEnd`, se la pausa è attiva (`intermissionFor`) e ha almeno una diapositiva da mostrare. Parte dopo il ritardo
   `delaySeconds` della pausa (il tabellone mostra prima la fine del set); **non si applica a chi apre la pagina durante
@@ -459,8 +499,8 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   default (solo sponsor) non compare se il cliente non ha né immagini sponsor né logo sponsor.
 - **Caricamento della grafica** (`useTenantIntermissions` in `lib/branding.ts`, stato caricamento/caricata/fallita):
   finché `GET /api/public/tenant` non risponde non si mostra nessuna pausa; se fallisce valgono i predefiniti.
-- **Pagina «Pause e sponsor»** (`src/pages/admin/IntermissionsPage.tsx`, rotta `/admin/pause`, solo admin; titolo scheda
-  «Pause e sponsor · Area riservata»). Schede «Time-out», «Fine set», «Fine partita», «Ogni N punti» (con «Ogni quanti punti»,
+- **Pagina «Pause»** (già «Pause e sponsor»; `src/pages/admin/IntermissionsPage.tsx`, rotta `/admin/pause`, solo admin;
+  titolo scheda «Pause · Area riservata»). Schede «Time-out», «Fine set», «Fine partita», «Ogni N punti» (con «Ogni quanti punti»,
   4-25, e il campo «Non negli ultimi punti del set» per `stopBeforeEnd`, con il traguardo da `setTarget` di volley-stats); per «Fine set» una seconda fila
   «Tutti i set», «1° set»…«4° set» con la casella «Pausa propria per la fine del N° set» (senza, quel set usa «Tutti i
   set»). Per ogni pausa: «Pausa attiva», «Come si mostra» (per TV, tablet e telefono «Tutto schermo» o «Banda in basso»),
@@ -489,6 +529,10 @@ configurazione del cliente da `overlays` di `GET /api/public/tenant` (`docs/arch
   il cui avviso è acceso e ammesso sul dispositivo; testo da `overlayText` (`fillOverlayText` di `@sir/shared`), sempre testo
   semplice, mai HTML. Il riquadro ha il colore della squadra dell'evento (neutro senza squadra), cade dall'alto con
   l'animazione `.sir-overlay` (450 ms, spenta con `prefers-reduced-motion`) e resta per i secondi scelti.
+- **Posizione e dimensione** (`position`: `top`, `center`, `bottom`, predefinito `top`; `size`: `small`, `medium`,
+  `large`, predefinita `medium`; `overlayPlacement` di `@sir/shared`): impostazioni generali del documento e override
+  facoltativo per ogni avviso. In alto al 12 % dal bordo, al centro, in basso al 14 % sopra la banda delle pause; tre
+  dimensioni per dispositivo. L'avviso non intercetta mai i clic (`pointer-events-none`).
 - **Nessun avviso per ciò che è già successo**: non compaiono all'apertura della pagina, dopo una riconnessione né dopo un
   `resync`, perché lo stato in arrivo in quei casi non è un aggiornamento dal vivo (`LiveData.live`, `liveConnection.ts`: falso
   per il primo stato di ogni socket e per la risposta a un `resync`). Un rally passato corretto dallo scout cambia il
@@ -509,6 +553,8 @@ configurazione del cliente da `overlays` di `GET /api/public/tenant` (`docs/arch
   point, Ace, Muro punto, Sorpasso, Pareggio, Break, Time-out, Scambio lungo, Cambio) e, in alto, i «Segnaposto ammessi nel
   testo». Per ogni evento: interruttore acceso/spento, «Testo» (il risultato con i dati d'esempio compare sotto, «Risultato:
   …», oppure il problema: vuoto, oltre 80 caratteri, segnaposto sconosciuto, `<` o `>`), «Secondi» (2-8), «Priorità» (1-10),
+  «Posizione» e «Dimensione» (In alto / Al centro / In basso; Piccolo / Medio / Grande; oppure «Come le impostazioni
+  generali»; sopra l'elenco il riquadro «Posizione e dimensione di tutti gli avvisi»),
   i dispositivi (TV, tablet, telefono), «Prova» e «Ripristina predefinito» (solo di quell'evento). In fondo «Salva» (dopo:
   «Avvisi salvati: valgono da subito per tutti gli spettatori.»), disattivato senza modifiche o con un testo non valido, e
   l'avviso «Modifiche non salvate.». La scheda «Anteprima» mostra la pagina del dispositivo scelto (partita live del cliente
@@ -532,7 +578,7 @@ inline. Ogni testo che vi entra (nomi di squadre e giocatori) passa da `richSafe
 
 ### CSP rigida
 `docker/web.security-headers.conf` imposta `Content-Security-Policy` **senza `unsafe-inline` e senza `unsafe-eval`**
-(`script-src 'self'; style-src 'self'`), più `X-Content-Type-Options`, `Referrer-Policy: no-referrer` (il token è
+(`script-src 'self'; style-src 'self'; worker-src 'self'`, il service worker minimo di «App installabile e schermo intero»), più `X-Content-Type-Options`, `Referrer-Policy: no-referrer` (il token è
 nell'URL), `X-Frame-Options: DENY`, `Cross-Origin-Opener-Policy` e `Permissions-Policy`. Per rispettarla:
 - zod gira in modalità `jitless` (`z.config({ jitless: true })` in `src/main.tsx`), perché la modalità normale prova
   `new Function`, che sarebbe una violazione `unsafe-eval`;
@@ -654,6 +700,34 @@ Variabili e comandi di `docker compose` sono in `docs/server.md`; il portale è 
 | `pnpm --filter @sir/web test` | `vitest run` (jsdom) |
 | `pnpm --filter @sir/web sample-match` | rigenera `src/blocks/sampleMatch.json` (partita d'esempio dell'anteprima); un test ne verifica la coerenza |
 
+### Kiosk per le TV (Windows)
+Crea nella cartella «Esecuzione automatica» di Windows un collegamento che apre il browser a schermo intero sul link
+pubblico, a ogni accensione del PC. Va eseguito in PowerShell sul PC della TV, dopo aver copiato il link da «Link pubblici».
+
+```powershell
+# ---- VARIABILI (compila solo questo blocco) ----
+$Browser          = "C:\Program Files\Google\Chrome\Application\chrome.exe"   # percorso di chrome.exe; per Edge: "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+$Url              = "<link pubblico del canale o della partita, da «Link pubblici»>"
+$NomeCollegamento = "SIRRealtime TV"                                          # nome del collegamento nella cartella Esecuzione automatica
+# ---- FINE VARIABILI ----
+
+$Argomenti = "--kiosk `"$Url`" --noerrdialogs --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required"
+$Cartella  = [Environment]::GetFolderPath("Startup")
+$Percorso  = Join-Path $Cartella "$NomeCollegamento.lnk"
+
+if (-not (Test-Path $Browser)) {
+    Write-Host "Browser non trovato: $Browser"
+} else {
+    $Shell = New-Object -ComObject WScript.Shell
+    $Link  = $Shell.CreateShortcut($Percorso)
+    $Link.TargetPath       = $Browser
+    $Link.Arguments        = $Argomenti
+    $Link.WorkingDirectory = Split-Path $Browser
+    $Link.Save()
+    Write-Host "Collegamento creato: $Percorso"
+}
+```
+
 ### Verifica visiva
 Screenshot di una pagina con un Chrome headless senza installazione: `chrome-headless-shell` in una cartella temporanea
 (il disco del server è quasi pieno), con le librerie mancanti estratte nella stessa cartella. Il portale deve già
@@ -735,6 +809,11 @@ login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti
   `pages/admin/intermissionEditor.ts`, `pages/admin/StatOptionsFields.tsx`, `blocks/StatSlides.tsx`, `milestoneStep`,
   `milestonePause`, `statPeriod`, `duelRoles` in `lib/intermission.ts`; contratto in `packages/shared/src/intermissions.ts` (`docs/architettura.md`), fase e
   riepiloghi in `packages/volley-stats/src/phase.ts`, `recap.ts` (`docs/statistiche.md`), API in `docs/server.md`
+- Anteprima fissa, font e app: `apps/web/src/components/PreviewDock.tsx` (`PreviewDock`, `PreviewFullscreen`),
+  `components/AppInstall.tsx` (`InstallButton`, `FullscreenHint`), `lib/pwa.ts` (`registerServiceWorker`, `useInstallApp`,
+  `useFullscreenOnFirstTouch`), `public/manifest.webmanifest`, `public/sw.js`, `public/icons/`, `index.html`,
+  `styles/fonts.css`, `styles/fonts/inter/`, `public/assets/inter-OFL.txt`, `styles/index.css` (`.sir-admin-font`,
+  `.sir-thin-scroll`)
 - Avvisi sugli eventi: `apps/web/src/components/Overlay.tsx` (`Overlay`, `OverlayBanner`), `lib/overlay.ts`
   (`overlayFor`, `unseenEvents`, `enqueue`, `nextOverlay`, `sampleEvent`), `lib/branding.ts` (`useTenantOverlays`),
   `lib/liveConnection.ts` (`live`), `pages/admin/OverlaysPage.tsx`, `styles/index.css` (`.sir-overlay`); contratto in

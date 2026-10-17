@@ -241,3 +241,17 @@ Una riga per decisione: data, scelta, motivo.
   saltati invece di mostrare una card vuota, perché una pausa o una pagina pubblica non devono mai mostrare vuoti.
 - 2026-10-16: la classifica è una tabella a colonne fisse (`table-fixed`: posizione, logo, squadra, Pt, G, V, P, SV, SP),
   perché a distanza, in TV, le colonne devono restare allineate e leggibili con nomi di squadra di lunghezza diversa.
+- 2026-10-17: la voce «Pause e sponsor» si chiama «Pause» (sidebar, titoli, titolo della scheda); le righe del 2026-10-16
+  restano com'erano scritte (`docs/portale.md`).
+- 2026-10-17: Inter (self-hosted, variabile 400-700) per tutta l'area riservata e cifre tabulari, perché l'admin deve
+  leggersi uguale con ogni modello grafico del cliente; la pagina pubblica SIR VOLLEY resta Google Sans Code
+  (`docs/portale.md`).
+- 2026-10-17: anteprima fissa (`PreviewDock`) in Grafica, Pagina pubblica, Pause e Avvisi, perché chi modifica deve vedere
+  il risultato senza scorrere fino in fondo alla pagina (`docs/portale.md`).
+- 2026-10-17: avvisi posizionabili (in alto, al centro, in basso; tre dimensioni, generali e per avviso), perché il
+  punto migliore dipende dalla grafica e dallo schermo del cliente, e deve poterlo scegliere lui (`docs/architettura.md`).
+- 2026-10-17: app installabile (PWA) con service worker minimo senza cache e CSP `worker-src 'self'` (era `'none'`), perché
+  il browser lo richiede per l'installazione e nessuna cache evita dati vecchi in partita; se un giorno si aggiunge una
+  cache vanno esclusi `/admin`, `/api` e `/ws` (`docs/portale.md`, `docs/infrastruttura.md`).
+- 2026-10-17: kiosk per le TV (script che avvia il browser con `--kiosk`), perché il browser non permette lo schermo intero
+  automatico senza un gesto dell'utente (`docs/portale.md`).

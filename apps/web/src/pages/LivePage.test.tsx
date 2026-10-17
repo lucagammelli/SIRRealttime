@@ -265,3 +265,64 @@ describe('LivePage pauses without the graphics of the client', () => {
     });
   });
 });
+
+describe('LivePage as an app', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(HTMLElement.prototype, 'requestFullscreen');
+  });
+
+  it('shows the discreet hint and the first tap on the page asks for full screen, once', () => {
+    const request = vi.fn(() => Promise.resolve());
+    HTMLElement.prototype.requestFullscreen = request;
+    renderAt();
+    expect(screen.getByTestId('suggerimento-schermo-intero').textContent).toBe('Tocca per lo schermo intero');
+    // a tap on a button is for the button: nothing yet
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Schermo intero' }));
+    expect(request).not.toHaveBeenCalled();
+    fireEvent.pointerDown(document.body);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('suggerimento-schermo-intero')).toBeNull();
+    fireEvent.pointerDown(document.body);
+    expect(request).toHaveBeenCalledTimes(1);
+    // the button «Schermo intero» is still there
+    expect(screen.getByRole('button', { name: 'Schermo intero' })).toBeTruthy();
+  });
+
+  it('no hint without the Fullscreen API', () => {
+    renderAt();
+    expect(screen.queryByTestId('suggerimento-schermo-intero')).toBeNull();
+  });
+
+  it('registers the service worker where it is supported; the install button only when the browser offers it', async () => {
+    const register = vi.fn(() => Promise.resolve({}));
+    vi.stubGlobal('navigator', { ...navigator, serviceWorker: { register }, wakeLock: { request } });
+    renderAt();
+    await act(() => Promise.resolve());
+    expect(register).toHaveBeenCalledWith('/sw.js', { scope: '/' });
+    expect(screen.queryByRole('button', { name: 'Installa come app' })).toBeNull();
+    const prompt = vi.fn(() => Promise.resolve());
+    const event = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), {
+      prompt,
+      userChoice: Promise.resolve({ outcome: 'accepted' as const }),
+    });
+    act(() => {
+      window.dispatchEvent(event);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Installa come app' }));
+    expect(prompt).toHaveBeenCalledTimes(1);
+  });
+
+  it('on iPhone, which has no prompt, «Installa come app» shows the short instructions', () => {
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1',
+      wakeLock: { request },
+    });
+    renderAt();
+    fireEvent.click(screen.getByRole('button', { name: 'Installa come app' }));
+    expect(screen.getByText(/tocca Condividi/)).toBeTruthy();
+    expect(screen.getByText(/«Aggiungi a Home»/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Chiudi' }));
+    expect(screen.queryByText(/Aggiungi a Home/)).toBeNull();
+  });
+});

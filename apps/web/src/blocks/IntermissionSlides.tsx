@@ -33,7 +33,7 @@ export interface SlideEnv extends BlockEnv {
   sponsorLogo: string | null;
 }
 
-/** Names of the slides in the editor «Pause e sponsor». */
+/** Names of the slides in the editor «Pause». */
 export const SLIDE_LABELS: Record<SlideType, { label: string; description: string }> = {
   setSummary: {
     label: 'Riepilogo del set',

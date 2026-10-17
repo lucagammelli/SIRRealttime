@@ -126,7 +126,7 @@ dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in q
 6. `layout-blocchi` (**fatto**): editor «Pagina pubblica» a blocchi per TV, tablet e telefono (13 tipi, larghezze su 12
    colonne, anteprima, `GET`/`PUT /api/admin/layout`); `docs/portale.md`, `docs/server.md`, `docs/architettura.md`.
 7. `pause-partita` (**fatto**): schermate di time-out, fine set e fine partita con riepilogo, MVP e sponsor, a tutto
-   schermo o a banda per dispositivo; pausa propria per i set 1-4, pagina «Pause e sponsor», `GET`/`PUT
+   schermo o a banda per dispositivo; pausa propria per i set 1-4, pagina «Pause» (già «Pause e sponsor»), `GET`/`PUT
    /api/admin/intermissions`, fase della partita in `volley-stats` (`docs/statistiche.md`, `docs/architettura.md`,
    `docs/server.md`, `docs/portale.md`).
 8. `avvisi-eventi` (**fatto**): messaggi rapidi sopra la pagina per 12 eventi (ace, muro punto, break, scambio lungo, set
@@ -178,6 +178,12 @@ campionati), con lo stesso schema di dati comuni a tutti i clienti.
 
 Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`IdCampionato` cambia ogni stagione
 (SuperLega 2025/26 = 974, 2026/27 = 999): a ogni stagione il campionato si aggiunge di nuovo.
+
+## Area riservata: usabilità (dal 2026-10-17)
+1. `admin-ux` (**fatto**, 2026-10-17): font Inter in tutta l'area riservata, anteprime sempre visibili con schermo intero
+   (Grafica, Pagina pubblica, Pause, Avvisi), «Pause e sponsor» rinominata «Pause», avvisi con posizione e dimensione,
+   nomi di «Prossima partita» nei colori delle squadre, app installabile (PWA), suggerimento di schermo intero e script
+   kiosk per le TV (`docs/portale.md`, `docs/architettura.md`, `docs/infrastruttura.md`). Da provare su dispositivi veri.
 
 **Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
 PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo

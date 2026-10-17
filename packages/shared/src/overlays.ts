@@ -43,6 +43,15 @@ export const OVERLAY_MAX_PRIORITY = 10;
 /** Longest overlay text (placeholders included). */
 export const OVERLAY_TEXT_MAX = 80;
 
+/** Where an overlay appears on the page and how big it is (general setting, optional override for each overlay). */
+export const OVERLAY_POSITIONS = ['top', 'center', 'bottom'] as const;
+export type OverlayPosition = (typeof OVERLAY_POSITIONS)[number];
+export const OVERLAY_SIZES = ['small', 'medium', 'large'] as const;
+export type OverlaySize = (typeof OVERLAY_SIZES)[number];
+/** Defaults: the look before the setting existed (near the top, medium). */
+export const OVERLAY_DEFAULT_POSITION: OverlayPosition = 'top';
+export const OVERLAY_DEFAULT_SIZE: OverlaySize = 'medium';
+
 const PLACEHOLDER = /\{([^{}]*)\}/g;
 
 /**
@@ -125,6 +134,9 @@ const overlaySchema = (kind: OverlayKind) => {
       })
       .prefault({}),
     priority: z.int().min(OVERLAY_MIN_PRIORITY).max(OVERLAY_MAX_PRIORITY).default(MATCH_EVENT_PRIORITY[kind]),
+    /** Own position / size of this overlay; missing: the general setting of the document. */
+    position: z.enum(OVERLAY_POSITIONS).optional(),
+    size: z.enum(OVERLAY_SIZES).optional(),
   });
 };
 export type Overlay = z.output<ReturnType<typeof overlaySchema>>;
@@ -137,10 +149,24 @@ const overlayShape = Object.fromEntries(OVERLAY_KINDS.map((kind) => [kind, overl
 /** Overlays document of a client: `{}` (the database default) reads as the defaults of every event. */
 export const TenantOverlaysSchema = z.strictObject({
   version: z.literal(TENANT_CONFIG_VERSION).default(TENANT_CONFIG_VERSION),
+  /** General position and size of the overlays (an older document without them reads as the defaults). */
+  position: z.enum(OVERLAY_POSITIONS).default(OVERLAY_DEFAULT_POSITION),
+  size: z.enum(OVERLAY_SIZES).default(OVERLAY_DEFAULT_SIZE),
   ...overlayShape,
 });
 export type TenantOverlays = z.output<typeof TenantOverlaysSchema>;
 export type TenantOverlaysInput = z.input<typeof TenantOverlaysSchema>;
+
+/** Pure: position and size of `overlay`: its own when set, else the general ones of the document. */
+export function overlayPlacement(
+  config: Pick<TenantOverlays, 'position' | 'size'>,
+  overlay: Pick<Overlay, 'position' | 'size'>,
+): { position: OverlayPosition; size: OverlaySize } {
+  return {
+    position: overlay.position ?? config.position ?? OVERLAY_DEFAULT_POSITION,
+    size: overlay.size ?? config.size ?? OVERLAY_DEFAULT_SIZE,
+  };
+}
 
 /** Pure: the default overlays. */
 export function defaultOverlays(): TenantOverlays {

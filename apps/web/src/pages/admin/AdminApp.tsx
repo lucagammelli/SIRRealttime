@@ -33,8 +33,19 @@ const WIDE_MENU_MIN = 1200;
 
 const ROLE_TEXT = { superadmin: 'superadmin', admin: 'amministratore', viewer: 'sola lettura' } as const;
 
-/** Reserved area `/admin/*`: login, then pages by role (a viewer sees only the matches). */
+/**
+ * Reserved area `/admin/*`: login, then pages by role (a viewer sees only the matches). All of it, login included, in
+ * Inter (`sir-admin-font`), whatever the template of the client.
+ */
 export function AdminApp() {
+  return (
+    <div className="sir-admin-font contents">
+      <AdminGate />
+    </div>
+  );
+}
+
+function AdminGate() {
   const { session, setUser, retry, provide } = useSession();
   if (session.kind === 'loading') {
     return (

@@ -2,7 +2,7 @@ import type { ScheduleResponse } from '@sir/shared';
 import { ScheduleResponseSchema } from '@sir/shared';
 
 /**
- * Example schedule of the previews in the editors «Pagina pubblica» and «Pause e sponsor»: invented teams, a fixed
+ * Example schedule of the previews in the editors «Pagina pubblica» and «Pause»: invented teams, a fixed
  * date, no logos (initials), a link that goes nowhere. Static: the editor never asks the league data.
  */
 const NAMES = [

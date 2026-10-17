@@ -54,6 +54,25 @@ export function useElementHeight(ref: RefObject<HTMLElement | null>, watch: unkn
   return height;
 }
 
+/** Width and height (px) of an element, followed with ResizeObserver; 0 × 0 before the first measure or without the API. */
+export function useElementSize(ref: RefObject<HTMLElement | null>): { width: number; height: number } {
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = (): void => {
+      const { width, height } = el.getBoundingClientRect();
+      setSize((old) => (old.width === width && old.height === height ? old : { width, height }));
+    };
+    measure();
+    if (typeof ResizeObserver !== 'function') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return size;
+}
+
 /** Font size of <html> in px (1 rem): the big screen scales it with the viewport. */
 export function rootFontPx(): number {
   const size = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);

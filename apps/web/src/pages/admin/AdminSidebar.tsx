@@ -79,7 +79,7 @@ export function menuGroups({ isAdmin, isSuperadmin }: { isAdmin: boolean; isSupe
         ? [
             { to: '/admin/grafica', label: 'Grafica', icon: 'branding' },
             { to: '/admin/pagina', label: 'Pagina pubblica', icon: 'page' },
-            { to: '/admin/pause', label: 'Pause e sponsor', icon: 'pauses' },
+            { to: '/admin/pause', label: 'Pause', icon: 'pauses' },
             { to: '/admin/avvisi', label: 'Avvisi', icon: 'overlays' },
           ]
         : [],
@@ -198,7 +198,10 @@ export function AdminSidebar({
             <Icon name={collapsed ? 'expand' : 'collapse'} />
           </button>
         </div>
-        <nav aria-label="Area riservata" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3">
+        <nav
+          aria-label="Area riservata"
+          className="sir-thin-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3"
+        >
           {groups.map((group) => (
             <section key={group.label} aria-label={group.label} className="mb-3 last:mb-0">
               <h3

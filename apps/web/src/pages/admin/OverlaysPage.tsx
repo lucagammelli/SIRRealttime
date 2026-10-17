@@ -1,4 +1,12 @@
-import type { LayoutDevice, Overlay, OverlayKind, OverlayPlaceholder, TenantOverlays } from '@sir/shared';
+import type {
+  LayoutDevice,
+  Overlay,
+  OverlayKind,
+  OverlayPlaceholder,
+  OverlayPosition,
+  OverlaySize,
+  TenantOverlays,
+} from '@sir/shared';
 import {
   BrandingResponseSchema,
   defaultOverlay,
@@ -9,8 +17,11 @@ import {
   OVERLAY_MIN_PRIORITY,
   OVERLAY_MIN_SECONDS,
   OVERLAY_PLACEHOLDERS,
+  OVERLAY_POSITIONS,
+  OVERLAY_SIZES,
   OVERLAY_TEXT_MAX,
   OverlaysResponseSchema,
+  overlayPlacement,
   OverlayTextSchema,
 } from '@sir/shared';
 import type { MatchState, Side } from '@sir/volley-stats';
@@ -18,7 +29,8 @@ import { COMEBACK_MIN_POINTS, LONG_RALLY_MIN_ATTACKS, RUN_MIN_POINTS } from '@si
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import type { BlockBrand } from '../../blocks/env.ts';
 import { loadSampleMatch } from '../../blocks/sampleMatch.ts';
-import { OVERLAY_REGION_CLASS, OverlayBanner } from '../../components/Overlay.tsx';
+import { OVERLAY_REGION_CLASSES, OverlayBanner } from '../../components/Overlay.tsx';
+import { PreviewDock } from '../../components/PreviewDock.tsx';
 import { Button, Card, ErrorBox, Spinner } from '../../components/ui.tsx';
 import { apiRequest } from '../../lib/api.ts';
 import { initBranding } from '../../lib/branding.ts';
@@ -64,6 +76,24 @@ const PLACEHOLDER_LABELS: Record<OverlayPlaceholder, string> = {
   attacchi: 'attacchi dello scambio',
 };
 
+const POSITION_LABELS: Record<OverlayPosition, string> = { top: 'In alto', center: 'Al centro', bottom: 'In basso' };
+const SIZE_LABELS: Record<OverlaySize, string> = { small: 'Piccolo', medium: 'Medio', large: 'Grande' };
+/** Value of the «Come le impostazioni generali» option of the own position / size of an overlay. */
+const GENERAL = '';
+
+const isPosition = (v: string): v is OverlayPosition => (OVERLAY_POSITIONS as readonly string[]).includes(v);
+const isSize = (v: string): v is OverlaySize => (OVERLAY_SIZES as readonly string[]).includes(v);
+
+/** The overlay with its own position (or, for GENERAL / unknown values, without it: the general one applies). */
+function withPosition(overlay: Overlay, value: string): Overlay {
+  const { position: _old, ...rest } = overlay;
+  return isPosition(value) ? { ...rest, position: value } : rest;
+}
+function withSize(overlay: Overlay, value: string): Overlay {
+  const { size: _old, ...rest } = overlay;
+  return isSize(value) ? { ...rest, size: value } : rest;
+}
+
 const SECONDS = Array.from(
   { length: OVERLAY_MAX_SECONDS - OVERLAY_MIN_SECONDS + 1 },
   (_, i) => OVERLAY_MIN_SECONDS + i,
@@ -89,9 +119,11 @@ interface Trial {
   text: string;
   team: Side | null;
   seconds: number;
+  position: OverlayPosition;
+  size: OverlaySize;
 }
 
-/** Settings of the overlay of one event: on/off, text, duration, priority, devices, test, default. */
+/** Settings of the overlay of one event: on/off, text, duration, priority, position, size, devices, test, default. */
 function OverlayRow({
   kind,
   overlay,
@@ -177,6 +209,38 @@ function OverlayRow({
             ))}
           </select>
         </label>
+        <label className="flex items-center gap-2 text-sm text-text">
+          Posizione
+          <select
+            className={selectClass}
+            aria-label={`Posizione: ${label}`}
+            value={overlay.position ?? GENERAL}
+            onChange={(e) => onChange(withPosition(overlay, e.target.value))}
+          >
+            <option value={GENERAL}>Come le impostazioni generali</option>
+            {OVERLAY_POSITIONS.map((p) => (
+              <option key={p} value={p}>
+                {POSITION_LABELS[p]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-sm text-text">
+          Dimensione
+          <select
+            className={selectClass}
+            aria-label={`Dimensione: ${label}`}
+            value={overlay.size ?? GENERAL}
+            onChange={(e) => onChange(withSize(overlay, e.target.value))}
+          >
+            <option value={GENERAL}>Come le impostazioni generali</option>
+            {OVERLAY_SIZES.map((z) => (
+              <option key={z} value={z}>
+                {SIZE_LABELS[z]}
+              </option>
+            ))}
+          </select>
+        </label>
         <fieldset className="flex flex-wrap items-center gap-3">
           <legend className="sr-only">Dispositivi: {label}</legend>
           {LAYOUT_DEVICES.map((device) => (
@@ -249,7 +313,8 @@ function OverlaysEditor({ tenantName, saved, look }: { tenantName: string; saved
     const overlay = draft[kind];
     const event = sampleEvent(kind, state);
     const text = overlayText(event, state, overlay);
-    setTrial((t) => ({ key: (t?.key ?? 0) + 1, text, team: event.team, seconds: overlay.seconds }));
+    const { position, size } = overlayPlacement(draft, overlay);
+    setTrial((t) => ({ key: (t?.key ?? 0) + 1, text, team: event.team, seconds: overlay.seconds, position, size }));
     setAnnounce(`Prova di «${OVERLAY_LABELS[kind].label}» nell’anteprima: ${text}`);
   };
 
@@ -270,8 +335,25 @@ function OverlaysEditor({ tenantName, saved, look }: { tenantName: string; saved
     }
   };
 
+  const preview = (shown: MatchState, fit: boolean) => (
+    <DevicePreview
+      device={device}
+      layout={null}
+      state={shown}
+      look={look}
+      fit={fit}
+      source={liveState ? 'Dati della partita live.' : 'Partita d’esempio: nessuna partita live in questo momento.'}
+    >
+      <div className={OVERLAY_REGION_CLASSES[trial?.position ?? draft.position]} data-testid="prova-avviso">
+        {trial && (
+          <OverlayBanner key={trial.key} text={trial.text} team={trial.team} device={device} size={trial.size} />
+        )}
+      </div>
+    </DevicePreview>
+  );
+
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,32rem)]">
+    <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,32rem)]">
       <Card
         title="Avvisi"
         subtitle={`Cliente: ${tenantName}. Messaggi brevi sopra la pagina pubblica quando succede qualcosa in partita.`}
@@ -291,6 +373,49 @@ function OverlaysEditor({ tenantName, saved, look }: { tenantName: string; saved
               resta vuoto. Con più avvisi insieme si mostra prima quello con la priorità più alta.
             </p>
           </div>
+          <fieldset className="flex flex-wrap items-center gap-3 rounded-card border border-border bg-surface p-3">
+            <legend className="px-1 text-sm font-medium text-text">Posizione e dimensione di tutti gli avvisi</legend>
+            <label className="flex items-center gap-2 text-sm text-text">
+              Posizione
+              <select
+                className={selectClass}
+                value={draft.position}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (isPosition(value)) setDraft((d) => ({ ...d, position: value }));
+                  setDone(null);
+                }}
+              >
+                {OVERLAY_POSITIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {POSITION_LABELS[p]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-text">
+              Dimensione
+              <select
+                className={selectClass}
+                value={draft.size}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (isSize(value)) setDraft((d) => ({ ...d, size: value }));
+                  setDone(null);
+                }}
+              >
+                {OVERLAY_SIZES.map((z) => (
+                  <option key={z} value={z}>
+                    {SIZE_LABELS[z]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="basis-full text-xs text-muted">
+              Valgono per tutti gli avvisi; ogni avviso può avere la sua. Al centro l’avviso non blocca i tocchi sulla
+              pagina; in alto sta sotto il tabellone, in basso sopra il banner delle pause.
+            </p>
+          </fieldset>
           <p aria-live="polite" className="sr-only">
             {announce}
           </p>
@@ -334,7 +459,10 @@ function OverlaysEditor({ tenantName, saved, look }: { tenantName: string; saved
           </div>
         </div>
       </Card>
-      <Card title="Anteprima" subtitle="«Prova» mostra qui l’avviso, con le modifiche non ancora salvate.">
+      <PreviewDock
+        subtitle="«Prova» mostra qui l’avviso, con le modifiche non ancora salvate."
+        fullscreen={state ? preview(state, true) : null}
+      >
         <div className="space-y-3">
           <TabList
             label="Dispositivo dell’anteprima"
@@ -345,26 +473,10 @@ function OverlaysEditor({ tenantName, saved, look }: { tenantName: string; saved
             panelId="pannello-anteprima-avvisi"
           />
           <div id="pannello-anteprima-avvisi" role="tabpanel" aria-labelledby={`anteprima-avvisi-${device}`}>
-            {state ? (
-              <DevicePreview
-                device={device}
-                layout={null}
-                state={state}
-                look={look}
-                source={
-                  liveState ? 'Dati della partita live.' : 'Partita d’esempio: nessuna partita live in questo momento.'
-                }
-              >
-                <div className={OVERLAY_REGION_CLASS} data-testid="prova-avviso">
-                  {trial && <OverlayBanner key={trial.key} text={trial.text} team={trial.team} device={device} />}
-                </div>
-              </DevicePreview>
-            ) : (
-              <Spinner label="Preparazione dell’anteprima…" />
-            )}
+            {state ? preview(state, false) : <Spinner label="Preparazione dell’anteprima…" />}
           </div>
         </div>
-      </Card>
+      </PreviewDock>
     </div>
   );
 }

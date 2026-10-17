@@ -69,8 +69,12 @@ function TeamBadge({ team, side, big }: { team: ClubFixtureTeam; side: 'home' | 
           {teamInitials(team.name)}
         </span>
       )}
+      {/* The name in the colour of its team: ours / the opponent (`teamColorVars` points home and away to them). */}
       <p
-        className={`font-display font-bold uppercase leading-tight tracking-wide break-words text-text ${big ? 'text-3xl lg:text-4xl' : 'text-base sm:text-xl'}`}
+        data-team={side}
+        className={`font-display font-bold uppercase leading-tight tracking-wide break-words ${
+          side === 'home' ? 'text-home-ink' : 'text-away-ink'
+        } ${big ? 'text-3xl lg:text-4xl' : 'text-base sm:text-xl'}`}
       >
         {team.name}
       </p>

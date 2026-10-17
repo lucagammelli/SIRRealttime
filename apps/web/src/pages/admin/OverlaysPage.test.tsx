@@ -169,4 +169,61 @@ describe('page «Avvisi»', () => {
     });
     expect(trial.textContent).toBe('');
   });
+
+  it('general position and size, own ones per overlay (as default: the general ones), saved with PUT', async () => {
+    const { calls } = mockServer();
+    renderAt('/admin/avvisi');
+    const ace = await row('ace');
+    const general = screen.getByRole('group', { name: 'Posizione e dimensione di tutti gli avvisi' });
+    expect(within(general).getByRole('combobox', { name: 'Posizione' })).toHaveProperty('value', 'top');
+    expect(within(general).getByRole('combobox', { name: 'Dimensione' })).toHaveProperty('value', 'medium');
+    expect(within(ace).getByRole('combobox', { name: 'Posizione: Ace' })).toHaveProperty('value', '');
+    fireEvent.change(within(general).getByRole('combobox', { name: 'Posizione' }), { target: { value: 'center' } });
+    fireEvent.change(within(general).getByRole('combobox', { name: 'Dimensione' }), { target: { value: 'large' } });
+    fireEvent.change(within(ace).getByRole('combobox', { name: 'Posizione: Ace' }), { target: { value: 'bottom' } });
+    fireEvent.change(within(ace).getByRole('combobox', { name: 'Dimensione: Ace' }), { target: { value: 'small' } });
+    // an own value removed again: the overlay follows the general setting
+    fireEvent.change(within(ace).getByRole('combobox', { name: 'Dimensione: Ace' }), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salva' }));
+    expect(await screen.findByText(/Avvisi salvati/)).toBeTruthy();
+    const saved = lastPut(calls)?.body as TenantOverlays;
+    expect(saved.position).toBe('center');
+    expect(saved.size).toBe('large');
+    expect(saved.ace.position).toBe('bottom');
+    expect('size' in saved.ace).toBe(false);
+    expect('position' in saved.block).toBe(false);
+  });
+
+  it('«Prova» shows the overlay where and how big the settings say', async () => {
+    mockServer();
+    renderAt('/admin/avvisi');
+    const mp = await row('matchPoint');
+    const trial = await screen.findByTestId('prova-avviso');
+    expect(trial.className).toContain('top-[12%]');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Posizione' }), { target: { value: 'center' } });
+    fireEvent.change(within(mp).getByRole('combobox', { name: 'Dimensione: Match point' }), {
+      target: { value: 'large' },
+    });
+    await waitFor(() =>
+      expect(within(mp).getByRole('button', { name: 'Prova Match point' })).toHaveProperty('disabled', false),
+    );
+    expect(screen.getByTestId('prova-avviso').className).toContain('items-center');
+    fireEvent.click(within(mp).getByRole('button', { name: 'Prova Match point' }));
+    expect(screen.getByTestId('prova-avviso').querySelector('[data-size="large"]')).toBeTruthy();
+    expect(screen.getByTestId('prova-avviso').className).toContain('pointer-events-none');
+  });
+
+  it('«Anteprima a tutto schermo» opens the real view with the overlay of the trial and closes with Esc', async () => {
+    mockServer();
+    renderAt('/admin/avvisi');
+    await row('ace');
+    const open = await screen.findByRole('button', { name: 'Anteprima a tutto schermo' });
+    fireEvent.click(open);
+    const dialog = await screen.findByRole('dialog', { name: 'Anteprima a tutto schermo' });
+    expect(within(dialog).getByTestId('anteprima-tv')).toBeTruthy();
+    expect(within(dialog).getByTestId('prova-avviso')).toBeTruthy();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Anteprima a tutto schermo' })).toBeNull();
+    expect(document.activeElement).toBe(open);
+  });
 });

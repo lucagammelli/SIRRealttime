@@ -37,6 +37,7 @@ import { SLIDE_LABELS } from '../../blocks/IntermissionSlides.tsx';
 import { loadSampleMatch } from '../../blocks/sampleMatch.ts';
 import { SAMPLE_SCHEDULE } from '../../blocks/sampleSchedule.ts';
 import { Intermission } from '../../components/Intermission.tsx';
+import { PreviewDock } from '../../components/PreviewDock.tsx';
 import { Button, Card, ErrorBox, Spinner } from '../../components/ui.tsx';
 import { apiRequest } from '../../lib/api.ts';
 import { initBranding } from '../../lib/branding.ts';
@@ -624,10 +625,33 @@ function IntermissionsEditor({
     />
   ) : null;
 
+  const preview = (state: MatchState, fit: boolean) => (
+    <DevicePreview
+      device={device}
+      layout={null}
+      state={state}
+      look={look}
+      fit={fit}
+      source={liveState ? 'Dati della partita live.' : 'Partita d’esempio: nessuna partita live in questo momento.'}
+    >
+      <Intermission
+        key={`${target}-${device}`}
+        state={state}
+        config={null}
+        device={device}
+        paused={false}
+        look={look}
+        sponsorLogo={sponsorLogo}
+        pageUrl={previewPageUrl()}
+        schedule={SAMPLE_SCHEDULE}
+        preview={effective}
+      />
+    </DevicePreview>
+  );
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,32rem)]">
+    <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,32rem)]">
       <Card
-        title="Pause e sponsor"
+        title="Pause"
         subtitle={`Cliente: ${tenantName}. Cosa vedono gli spettatori durante i time-out, tra un set e l’altro, a fine partita e ogni N punti durante il set.`}
       >
         <div className="space-y-4">
@@ -733,7 +757,10 @@ function IntermissionsEditor({
           </div>
         </div>
       </Card>
-      <Card title="Anteprima" subtitle={`${title}, con le modifiche non ancora salvate.`}>
+      <PreviewDock
+        subtitle={`${title}, con le modifiche non ancora salvate.`}
+        fullscreen={shown ? preview(shown, true) : null}
+      >
         <div className="space-y-3">
           <TabList
             label="Dispositivo dell’anteprima"
@@ -747,40 +774,15 @@ function IntermissionsEditor({
             {!effective.enabled && (
               <p className="mb-2 text-sm text-warn">Pausa disattivata: gli spettatori non la vedono.</p>
             )}
-            {shown ? (
-              <DevicePreview
-                device={device}
-                layout={null}
-                state={shown}
-                look={look}
-                source={
-                  liveState ? 'Dati della partita live.' : 'Partita d’esempio: nessuna partita live in questo momento.'
-                }
-              >
-                <Intermission
-                  key={`${target}-${device}`}
-                  state={shown}
-                  config={null}
-                  device={device}
-                  paused={false}
-                  look={look}
-                  sponsorLogo={sponsorLogo}
-                  pageUrl={previewPageUrl()}
-                  schedule={SAMPLE_SCHEDULE}
-                  preview={effective}
-                />
-              </DevicePreview>
-            ) : (
-              <Spinner label="Preparazione dell’anteprima…" />
-            )}
+            {shown ? preview(shown, false) : <Spinner label="Preparazione dell’anteprima…" />}
           </div>
         </div>
-      </Card>
+      </PreviewDock>
     </div>
   );
 }
 
-/** Page «Pause e sponsor» (admin): the pauses of the public match page of the client. */
+/** Page «Pause» (admin): the pauses of the public match page of the client. */
 export function IntermissionsPage() {
   const errorMessage = useApiError();
   const loadPauses = useCallback(
@@ -800,7 +802,7 @@ export function IntermissionsPage() {
   const branding = useAsync(loadBranding);
 
   useEffect(() => {
-    document.title = 'Pause e sponsor · Area riservata';
+    document.title = 'Pause · Area riservata';
   }, []);
 
   const look = useMemo(() => (branding.data ? blockBrandOf(branding.data) : null), [branding.data]);

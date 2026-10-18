@@ -244,7 +244,7 @@ compare.», «Avviso spento: gli spettatori non lo vedono.», «Su <dispositivo>
   proprie dei set; quelli degli avvisi tengono testi, dispositivi, priorità, posizione e dimensione di ogni avviso.
 
 #### Sezione «Colori e loghi»
-Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome», «Squadra», «Immagini».
+Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome», «Squadra», «Immagini», «Esporta / Importa».
 - «Colori»: i cinque colori («Colore principale», «Colore di risalto», «Squadra di casa», «Squadra ospite», «Sfondo
   della pagina»), ciascuno con selettore e campo esadecimale `#rrggbb` e «Predefinito»; i colori vanno sopra quelli del
   modello. Avvisi di contrasto (`brandContrastIssues`, sotto 4,5:1), per esempio «Lo sfondo è troppo scuro per il testo
@@ -258,6 +258,13 @@ Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome»
 - «Immagini»: scheda «Immagini caricate» (sottotitolo «Spazio usato: … MB di … MB») con l'elenco, «in uso» e «Elimina» /
   «Conferma eliminazione»; vuota: «Nessuna immagine caricata.». Il caricamento invia il file in base64 (`fileToBase64`,
   `src/lib/base64.ts`) a `POST /api/admin/assets`; il salvataggio è `PUT /api/admin/branding`.
+- «Esporta / Importa» (`GraphicsTransfer.tsx`): «Esporta configurazione» scarica `grafica-<slug>-<data>.json`
+  (`GET /api/admin/branding/export`). «File della configurazione (.json)» legge il file (`readPackage`: messaggi per file
+  illeggibile, non nostro, versione non supportata o danneggiato), mostra il «Riepilogo del file» (club di origine,
+  esportata il, numero di immagini, modello grafico) e l'avviso «la grafica attuale … verrà sostituita»; «Sostituisci la
+  grafica» invia `POST /api/admin/branding/import` e ricarica lo Studio, «Annulla» scarta il file. Con un tema
+  personalizzato che il club non ha già salvato (`templateChoices`, come sceglie il server) e senza essere superadmin il
+  pulsante è disabilitato con il motivo.
 
 #### Sezione «Pagina live»
 Ex pagina «Pagina pubblica» (`PageSection.tsx`, vedi «Pagina pubblica a blocchi»). Tre schede «TV», «Tablet», «Telefono»

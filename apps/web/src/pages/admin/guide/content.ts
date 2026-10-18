@@ -147,6 +147,10 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
         kind: 'text',
         text: 'A lato c’è sempre l’anteprima. Puoi sceglierla per TV, tablet o telefono, e aprirla a tutto schermo con «Anteprima a tutto schermo». Quello che vedi lì è quello che vedranno i tifosi.',
       },
+      {
+        kind: 'text',
+        text: 'Per portare tutta la grafica da un portale a un altro (colori, loghi, pagina live, pause, avvisi e immagini) apri «Colori e loghi», scheda «Esporta / Importa». Con «Esporta configurazione» scarichi un file; con «Importa configurazione» scegli il file, controlli il riepilogo (club di origine, data, immagini, modello grafico) e confermi: la grafica attuale viene sostituita. Il file non contiene partite, utenti né link. Un tema personalizzato lo può importare solo il superadmin.',
+      },
     ],
     links: [{ label: 'Vai a Studio grafico', to: '/admin/studio/colori' }],
   },

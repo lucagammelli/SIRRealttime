@@ -53,7 +53,7 @@ simulatore (`docs/agente.md`) o con i test del server (`apps/server/test/ingest.
 | `@sir/dvw-simulator` | `tools/dvw-simulator` | dvw-parser | genera e "suona" file DVW sintetici; è anche dev-dependency di volley-stats e shared (per i test); il server lo usa anche a runtime per la simulazione di una partita (`planPlayback`, `generateMatch`) |
 
 ### Contratti di `packages/shared`
-Esportati da `packages/shared/src/index.ts` (`admin.ts`, `assets.ts`, `colors.ts`, `ingest.ts`, `intermissions.ts`, `layout.ts`, `messages.ts`, `ourTeam.ts`, `overlays.ts`, `patch.ts`, `registration.ts`, `simulation.ts`, `templates.ts`, `tenant.ts`).
+Esportati da `packages/shared/src/index.ts` (`admin.ts`, `assets.ts`, `colors.ts`, `ingest.ts`, `intermissions.ts`, `layout.ts`, `messages.ts`, `ourTeam.ts`, `overlays.ts`, `patch.ts`, `registration.ts`, `simulation.ts`, `templates.ts`, `tenant.ts`, `graphicsExport.ts`).
 
 Simulazione (`simulation.ts`, usata da server e portale, `docs/server.md` e `docs/portale.md`): `StartSimulationRequestSchema`
 (`source`: `generated` («Casuale») con `sets` 3, 4 o 5, `seed` facoltativo e `clubTeams`; `upload` con `fileName` e
@@ -156,6 +156,11 @@ predefinito `standard`, `ourTeam` predefinito `{ code: null, name: null }`, `dis
 `sponsorLogo`; `TENANT_CONFIG_VERSION` resta 1 perché ogni campo è facoltativo e `{}` è valido), `BrandColorsSchema`,
 `BRANDING_IMAGE_SLOTS`, `defaultBranding`, `resolveBranding`, `publicAssetPath`, `DEFAULT_BRAND_NAME` («SIRRealtime»),
 `PublicTenantResponseSchema` (`GET /api/public/tenant`), `BrandingResponseSchema` (`GET`/`PUT /api/admin/branding`).
+Pacchetto di esportazione della grafica (`graphicsExport.ts`): `GraphicsExportSchema` (`format: "sirrealtime-grafica"`, `version: 1`,
+`exportedAt`, `sourceName`, `branding`, `layout`, `intermissions`, `overlays`, `images` con id, tipo, mime e base64; nessun dato di
+partite, utenti, agenti, link o hostname), `GraphicsImportResponseSchema`, i limiti `GRAPHICS_EXPORT_MAX_IMAGES`,
+`GRAPHICS_IMPORT_BODY_LIMIT`, `GRAPHICS_EXPORT_MAX_BASE64` e le funzioni pure `graphicsImageIds` e `remapGraphicsImageIds`.
+
 Immagini (`assets.ts`): `AssetKindSchema` (`logo` | `sponsor`), `AssetMimeSchema`, `ASSET_MAX_BYTES` (2 MB),
 `ASSET_MAX_BASE64_LENGTH`, `UploadAssetRequestSchema` (solo `kind` e `data` in base64), `AssetSummarySchema`,
 `AssetListResponseSchema`. Colori (`colors.ts`, funzioni pure): `HEX_COLOR_PATTERN`, `HexColorSchema`,
@@ -401,7 +406,7 @@ pnpm --filter @sir/server test      # il flusso completo agente→server→WebSo
 ```
 
 ## Riferimenti
-- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `credentials.ts`, `mail.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `leagues.ts`, `club.ts`, `onboarding.ts`, `manifest.ts`, `simulation.ts`, `index.ts`
+- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `credentials.ts`, `mail.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `leagues.ts`, `club.ts`, `onboarding.ts`, `manifest.ts`, `simulation.ts`, `graphicsExport.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
 - `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`, `apps/web/src/App.tsx`
 - `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/portale.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,

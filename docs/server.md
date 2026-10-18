@@ -112,6 +112,20 @@ resta 1.
   `sir-volley`; `docs/architettura.md`) risponde **403** «Accesso negato» se chi scrive non è superadmin e il cliente non ha
   già quel tema salvato (chi lo ha può risalvare la grafica senza cambiarlo). Il controllo è nella stessa transazione del
   salvataggio.
+- **Esporta / importa la grafica** (`src/routes/graphicsTransfer.ts`, contratto `GraphicsExportSchema` in
+  `packages/shared/src/graphicsExport.ts`): `GET /api/admin/branding/export` (admin) scarica un pacchetto JSON
+  (`Content-Disposition: attachment; filename="grafica-<slug>-<data>.json"`) con `format: "sirrealtime-grafica"`,
+  `version: 1`, `exportedAt`, `sourceName` (nome del cliente), `branding`, `layout`, `intermissions`, `overlays` e le
+  immagini usate (loghi del branding e immagini dei blocchi/diapositive sponsor: id originale, tipo, mime, base64).
+  Niente partite, utenti, agenti, link né hostname. `POST /api/admin/branding/import` (admin, corpo fino a 24 MB, solo su
+  questa rotta) valida il pacchetto (versione o formato sconosciuti: 400 «Versione della configurazione non supportata»),
+  controlla ogni immagine come un caricamento (`inspectImage`: byte iniziali, SVG controllato, 2 MB; il mime dichiarato
+  deve coincidere: 422), le salva nel cliente con id nuovi (`storeAsset`, la stessa funzione del caricamento: un file
+  uguale già presente si riusa; quota rispettata, 409), rimappa gli id (`remapGraphicsImageIds`) e sostituisce branding,
+  layout, pause e avvisi in un'unica transazione sotto il blocco del cliente. **Tema personalizzato**: lo stesso limite di
+  `PUT /api/admin/branding`; un admin che importa un pacchetto con un tema personalizzato che il cliente non ha riceve
+  **403** con il messaggio «…può essere assegnato solo dal superadmin» (scelta: errore chiaro, senza importare
+  parzialmente con un altro tema, che cambierebbe l'aspetto in silenzio). Risposta: `{ images, template }`. L'export risponde **409** con un messaggio in italiano se la grafica usa più di 30 immagini (`GRAPHICS_EXPORT_MAX_IMAGES`) o se il base64 supera `GRAPHICS_EXPORT_MAX_BASE64` (23 MB), perché l'import rifiuterebbe il file.
 - **Rotte pubbliche** (senza token, stesso rate limit `RATE_LIMIT_PUBLIC`): `GET /api/public/tenant` dà nome, grafica e
   percorsi delle immagini del cliente dell'hostname (`Cache-Control: public, max-age=30`; 404 se nessun cliente); `GET
   /api/public/assets/:id` dà il file di un'immagine **solo** se è del cliente dell'hostname (altrimenti 404). Il tipo
@@ -809,6 +823,8 @@ della sessione, il superadmin su quello scelto):
 | GET | `/api/public/manifest.webmanifest` | rate limit pubblico (manifest dell'app del cliente dell'hostname) | - |
 | GET | `/api/admin/branding` | sessione | viewer |
 | PUT | `/api/admin/branding` | sessione | admin |
+| GET | `/api/admin/branding/export` | sessione | admin |
+| POST | `/api/admin/branding/import` | sessione | admin |
 | GET | `/api/admin/layout` | sessione | viewer |
 | PUT | `/api/admin/layout` | sessione | admin |
 | GET | `/api/admin/intermissions` | sessione | viewer |

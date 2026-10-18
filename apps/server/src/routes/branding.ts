@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import type {
+  AssetKind,
   AssetListResponse,
+  AssetMime,
   AssetSummary,
   BrandingImageSlot,
   BrandingResponse,
@@ -86,6 +88,38 @@ async function usedBytes(tx: Tx | AppContext['db'], tenantId: string): Promise<n
     .from(assets)
     .where(tenantScope(assets, tenantId));
   return Number(row?.total ?? 0);
+}
+
+/**
+ * Under the lock of the client: stores an inspected image (file named after its sha256, row of `assets`); the same
+ * file of the same kind again returns the row already stored. 409 when the quota of the client would be exceeded.
+ */
+export async function storeAsset(
+  ctx: AppContext,
+  tx: Tx,
+  tenantId: string,
+  kind: AssetKind,
+  data: Buffer,
+  info: { mime: AssetMime; width: number; height: number },
+): Promise<{ row: AssetRow; created: boolean }> {
+  const sha256 = createHash('sha256').update(data).digest('hex');
+  const [existing] = await tx
+    .select()
+    .from(assets)
+    .where(tenantScope(assets, tenantId, eq(assets.sha256, sha256), eq(assets.kind, kind)))
+    .limit(1);
+  if (existing) return { row: existing, created: false };
+  if ((await usedBytes(tx, tenantId)) + data.length > ctx.config.assetsQuotaBytes) {
+    const mb = Math.round(ctx.config.assetsQuotaBytes / (1024 * 1024));
+    throw conflict(`Spazio per le immagini esaurito (${mb} MB): elimina quelle che non usi`);
+  }
+  await writeAssetFile(ctx.config.assetsDir, tenantId, sha256, data);
+  const [inserted] = await tx
+    .insert(assets)
+    .values({ tenantId, kind, sha256, mime: info.mime, width: info.width, height: info.height, bytes: data.length })
+    .returning();
+  if (!inserted) throw new Error('asset not inserted');
+  return { row: inserted, created: true };
 }
 
 const SLOTS = Object.keys(BRANDING_IMAGE_SLOTS) as BrandingImageSlot[];
@@ -344,34 +378,9 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
         }
         throw err;
       }
-      const sha256 = createHash('sha256').update(data).digest('hex');
       const { row, created } = await ctx.db.transaction(async (tx) => {
         await lockClientAssets(tx, tenantId);
-        const [existing] = await tx
-          .select()
-          .from(assets)
-          .where(tenantScope(assets, tenantId, eq(assets.sha256, sha256), eq(assets.kind, body.kind)))
-          .limit(1);
-        if (existing) return { row: existing, created: false };
-        if ((await usedBytes(tx, tenantId)) + data.length > ctx.config.assetsQuotaBytes) {
-          const mb = Math.round(ctx.config.assetsQuotaBytes / (1024 * 1024));
-          throw conflict(`Spazio per le immagini esaurito (${mb} MB): elimina quelle che non usi`);
-        }
-        await writeAssetFile(ctx.config.assetsDir, tenantId, sha256, data);
-        const [inserted] = await tx
-          .insert(assets)
-          .values({
-            tenantId,
-            kind: body.kind,
-            sha256,
-            mime: info.mime,
-            width: info.width,
-            height: info.height,
-            bytes: data.length,
-          })
-          .returning();
-        if (!inserted) throw new Error('asset not inserted');
-        return { row: inserted, created: true };
+        return storeAsset(ctx, tx, tenantId, body.kind, data, info);
       });
       if (created) request.log.info({ assetId: row.id, mime: row.mime, bytes: row.bytes }, 'immagine caricata');
       void reply.code(created ? 201 : 200);

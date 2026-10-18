@@ -185,6 +185,7 @@ function AdminLayout() {
           tenant={tenant}
           account={account}
           home={home}
+          showCommit={isSuperadmin}
         />
         {/* With the drawer open (phone) the page under it is out of reach (`inert`). */}
         <main inert={menuOpen} className="sir-page min-w-0 flex-1 px-3 py-4 sm:px-5 lg:px-8 lg:py-6">

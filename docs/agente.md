@@ -473,6 +473,12 @@ log («errore nel nuovo tentativo dello snapshot», «errore nella gestione dell
   @sir/shared schemi:agente»); `SchemaTests.cs` valida i messaggi del C# con JsonSchema.Net. `docs/architettura.md`.
 
 ### Costruzione e prova
+**Versione**: è quella del `package.json` alla radice (la stessa del rilascio). `scripts/costruisci-agente-dotnet.sh` la passa
+a `dotnet publish` come `Version` (`a.b.c`), `FileVersion` (`a.b.c.0`) e `InformationalVersion` (`a.b.c+commit`): compaiono nelle
+Proprietà → Dettagli dell'exe di Windows (`Directory.Build.props` ha solo i valori di ripiego per build a mano). La finestra
+la mostra nel titolo («SIRRealtime – Agente 1.0.0 (85952d0)», con la grafica del cliente «<Cliente> – Agente SIRRealtime 1.0.0 (…)»;
+`AppVersion.cs`, test `AppVersionTests.cs`). Lo zip scaricato dal portale ha già la versione nel nome
+(`SIRRealtime-agente-<cliente>-<versione>.zip`, da `sir-agent.json`).
 L'exe si costruisce da Linux con `scripts/costruisci-agente-dotnet.sh` (test xUnit + `dotnet publish` in un container,
 `docs/infrastruttura.md`) e finisce in `dist/sir-agent-<versione>.exe`. Su Windows: rinominarlo `sir-agent.exe` in
 `C:\SIRAgent` con `config.json`, poi doppio clic (finestra) o `installa-servizio.ps1` (copiato accanto all'exe).
@@ -481,7 +487,7 @@ servizio come LocalSystem e visibilità di `E:\`, `logs\servizio-errori.log`, Sm
 
 ## Riferimenti
 - Agente C#: `apps/agent-dotnet/src/SirAgent.Core/` (`Cli.cs`, `Agent.cs`, `FileWatcher.cs`, `Dvw.cs`, `MatchStore.cs`,
-  `Ingest.cs`, `Registration.cs`, `Branding.cs`), `src/SirAgent.App/` (`Program.cs`, `MainForm.cs`),
+  `Ingest.cs`, `Registration.cs`, `Branding.cs`, `AppVersion.cs`), `src/SirAgent.App/` (`Program.cs`, `MainForm.cs`),
   `scripts/installa-servizio.ps1`, `riferimento/genera-riferimento.ts`, `schemas/`, `packages/shared/scripts/agent-schemas.ts`,
   `packages/shared/scripts/genera-schemi-agente.ts`
 - `apps/agent/src/`: `main.ts` (ingresso), `cli.ts` (`runCli`), `config.ts` (`parseConfig`, `loadConfig`),

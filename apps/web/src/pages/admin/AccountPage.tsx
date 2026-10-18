@@ -1,7 +1,13 @@
-import { ChangeOwnPasswordRequestSchema, PASSWORD_MIN_LENGTH, PasswordResetAnswerSchema } from '@sir/shared';
+import {
+  ChangeOwnPasswordRequestSchema,
+  formatBuildVersion,
+  PASSWORD_MIN_LENGTH,
+  PasswordResetAnswerSchema,
+} from '@sir/shared';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { Button, Card, ErrorBox } from '../../components/ui.tsx';
+import { APP_COMMIT, APP_VERSION } from '../../lib/version.ts';
 import { apiRequest } from '../../lib/api.ts';
 import { useApiError, useAuth } from './auth.tsx';
 import { Field, inputClass } from './forms.tsx';
@@ -13,7 +19,7 @@ import { ROLE_LABEL } from './UsersPage.tsx';
  * of the user are closed, this one stays.
  */
 export function AccountPage() {
-  const { user } = useAuth();
+  const { user, isSuperadmin } = useAuth();
   const errorMessage = useApiError();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -68,6 +74,8 @@ export function AccountPage() {
               <dd className="text-text">{user.tenant.name}</dd>
             </>
           )}
+          <dt className="text-muted">Versione</dt>
+          <dd className="text-text">{formatBuildVersion(APP_VERSION, isSuperadmin ? APP_COMMIT : '')}</dd>
         </dl>
       </Card>
       <Card

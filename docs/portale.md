@@ -368,6 +368,11 @@ Lavoro «guida-utente». Le due voci stanno nel gruppo di menu «Account e aiuto
   «Password attuale», «Nuova password» (almeno `PASSWORD_MIN_LENGTH` caratteri), «Ripeti la nuova password»; i controlli
   locali usano `ChangeOwnPasswordRequestSchema`, poi `POST /api/auth/password`. Dopo il cambio gli altri dispositivi
   devono accedere di nuovo; «Password cambiata.» conferma. Password attuale sbagliata: errore `WRONG_PASSWORD` mostrato.
+- **Versione**: «Versione» in «Chi sei» (`1.0.0`; al superadmin anche il commit, `1.0.0 (85952d0)`) e, in piccolo in fondo
+  al menu laterale, «SIRRealtime 1.0.0» (`data-testid="app-version"`, nascosto con il menu ridotto alle icone; il commit
+  sta nel `title` solo per il superadmin). Viene dal `package.json` alla radice: Vite lo inserisce al build
+  (`define` `__SIR_VERSION__`/`__SIR_COMMIT__` in `vite.config.ts`, `src/lib/version.ts`); il commit è `SIR_COMMIT` nei
+  build Docker o git.
 - Rotta del server: `docs/server.md`, «Endpoint». Test: `GuidePage.test.tsx`, `AccountPage.test.tsx`, `AdminApp.test.tsx`.
 
 ### Link breve e QR (`src/qr/`, `pages/admin/ShareLinksPage.tsx`)
@@ -1007,6 +1012,7 @@ bundle i pacchetti del monorepo non usati.
 - Proxy verso il server: `/api` e `/ws` (con WebSocket) vanno a `SIR_SERVER_URL`, default `http://localhost:8090`. Il
   browser vede una sola origine, quindi cookie di sessione e controllo `Origin` funzionano con `CORS_ORIGIN` e
   `PUBLIC_BASE_URL` = `http://localhost:5173` (default del server, `docs/server.md`).
+- `define`: `__SIR_VERSION__` e `__SIR_COMMIT__` (versione del `package.json` alla radice e commit corto, vuoto se ignoto).
 - Build: `pnpm --filter @sir/web build` scrive in `apps/web/dist`; ECharts ha un chunk a parte (`echarts`).
 
 ### Demo (`apps/web/scripts/demo.ts`)
@@ -1026,7 +1032,7 @@ L'admin di prova (`admin@sir.local` / `password-demo-sir`) esiste solo nel datab
 usa `COOKIE_SECURE=false`, `CORS_ORIGIN` e `PUBLIC_BASE_URL` = `http://localhost:5173` e limiti di richieste molto alti.
 
 ### Docker
-- `docker/web.Dockerfile`: stadio `build` (Node 24, `pnpm install --frozen-lockfile`, `pnpm --filter @sir/web build`),
+- `docker/web.Dockerfile`: build arg `SIR_COMMIT` (commit corto per la versione; il contesto non ha `.git`), stadio `build` (Node 24, `pnpm install --frozen-lockfile`, `pnpm --filter @sir/web build`),
   stadio `runtime` `nginxinc/nginx-unprivileged` (utente 101, porta 8080 nel container, healthcheck su `/healthz`).
 - `docker/web.nginx.main.conf`: `nginx.conf` principale, copiata da `docker/web.Dockerfile` in `/etc/nginx/nginx.conf`.
   Come quella di nginx-unprivileged (pid e file temporanei in `/tmp`, utente non root) ma con `worker_processes auto`,

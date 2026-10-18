@@ -23,6 +23,9 @@ services:
     build:
       context: .
       dockerfile: docker/server.Dockerfile
+      # Commit corto mostrato con la versione (le build Docker non vedono .git): lo passano gli script di produzione.
+      args:
+        SIR_COMMIT: ${SIR_COMMIT:-}
     restart: unless-stopped
     depends_on:
       postgres:
@@ -95,6 +98,9 @@ services:
     build:
       context: .
       dockerfile: docker/web.Dockerfile
+      # Commit corto mostrato con la versione (le build Docker non vedono .git): lo passano gli script di produzione.
+      args:
+        SIR_COMMIT: ${SIR_COMMIT:-}
     restart: unless-stopped
     # Descrittori di file per nginx (worker_rlimit_nofile in docker/web.nginx.main.conf): ogni WebSocket ne usa 2.
     ulimits:

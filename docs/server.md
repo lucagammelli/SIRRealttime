@@ -797,11 +797,17 @@ della sessione, il superadmin su quello scelto):
   `ADMIN_EMAIL` / `ADMIN_PASSWORD`, solo se non esiste già un superadmin.
 - Risposte d'errore: `{ "error": "<testo>" }` (`ApiErrorSchema`), mai stack trace.
 
+### Versione (`src/buildInfo.ts`)
+La versione è il campo `version` del `package.json` alla radice (unica fonte, `docs/regole/test-job-rilasci.md`). Il build del
+server scrive `dist/build-info.json` (`version` e `commit` corto, da `SIR_COMMIT` o da git: `scripts/scrivi-versione.mjs`);
+`buildInfo()` lo legge, altrimenti (test, `pnpm dev`) legge il `package.json` alla radice, altrimenti `0.0.0`. La usano
+`GET /api/health` e lo User-Agent dei download dei campionati (`SIRRealtime/<versione>`).
+
 ### Endpoint
 
 | Metodo | Percorso | Protezione | Ruolo |
 |---|---|---|---|
-| GET | `/api/health` | nessuna (verifica il database; 503 se non raggiungibile) | - |
+| GET | `/api/health` | nessuna (verifica il database; 503 se non raggiungibile). Risposta `HealthResponseSchema`: `status`, `version` e, se nota, `commit`; niente altro | - |
 | POST | `/api/ingest` | rate limit, poi token agente | agente |
 | POST | `/api/agents/registrations` | rate limit registrazione, `Origin` | - (pubblica) |
 | POST | `/api/agents/registrations/status` | rate limit ingest, `Origin`, segreto di registrazione | agente in registrazione |

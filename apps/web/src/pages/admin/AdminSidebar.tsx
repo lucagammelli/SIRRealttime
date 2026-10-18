@@ -2,6 +2,7 @@ import type { ReactNode, RefObject } from 'react';
 import { useEffect, useId, useRef } from 'react';
 import { NavLink } from 'react-router';
 import { BrandMark } from '../../components/BrandMark.tsx';
+import { APP_COMMIT, APP_VERSION, versionLabel } from '../../lib/version.ts';
 
 /** Icons of the side menu: simple inline SVG strokes (24 × 24), no icon library. */
 const ICONS = {
@@ -144,6 +145,7 @@ export function AdminSidebar({
   tenant,
   account,
   home = '/admin/live',
+  showCommit = false,
 }: {
   id: string;
   groups: readonly MenuGroup[];
@@ -159,6 +161,8 @@ export function AdminSidebar({
   account: (collapsed: boolean) => ReactNode;
   /** Target of the logo: the first page of the user. */
   home?: string;
+  /** The commit of the build goes in the `title` of the version (superadmin only). */
+  showCommit?: boolean;
 }) {
   const panel = useRef<HTMLElement>(null);
   const headingId = useId();
@@ -267,6 +271,14 @@ export function AdminSidebar({
         <div className="space-y-2 border-t border-border px-3 py-3">
           <div className={collapsed ? 'md:hidden' : ''}>{tenant}</div>
           {account(collapsed)}
+          {/* Discreet: not shown on the menu reduced to the icons (tablet and desktop). */}
+          <p
+            data-testid="app-version"
+            title={showCommit && APP_COMMIT ? `Commit ${APP_COMMIT}` : undefined}
+            className={`px-1 text-xs text-muted ${collapsed ? 'md:hidden' : ''}`}
+          >
+            {versionLabel(APP_VERSION, APP_COMMIT, false)}
+          </p>
         </div>
       </aside>
     </>

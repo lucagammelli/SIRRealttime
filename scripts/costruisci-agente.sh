@@ -62,7 +62,7 @@ cp "$TEMP/node.exe" "$TEMP/sir-agent.exe"
 npx --yes "$POSTJECT" "$TEMP/sir-agent.exe" "$RISORSA" "$TEMP/sir-agent.blob" --sentinel-fuse "$SENTINELLA"
 
 echo "6/6 Pubblicazione in $USCITA"
-base="$(node -p "require('./apps/agent/package.json').version")"
+base="$(node scripts/versione.mjs)"   # versione del package.json alla radice (unica fonte)
 commit="$(git rev-parse --short HEAD 2>/dev/null || echo locale)"
 versione="$base-$commit"
 sha="$(sha256sum "$TEMP/sir-agent.exe" | awk '{ print $1 }')"

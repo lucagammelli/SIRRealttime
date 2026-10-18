@@ -32,6 +32,20 @@ scripts/job.sh chiudi <ramo>              # toglie worktree e ramo dopo il merge
 - Mai push forzati. Su `main` solo push fast-forward dal worktree del job dopo la CI verde, come ha scelto Luca
   (2026-10-15), seguito da `job.sh chiudi`; PR e `job.sh unisci` quando li chiede.
 
-## Rilasci
-- Il deploy (hosting ancora da decidere) e la distribuzione dell'eseguibile dell'agente li esegue Luca;
-  Claude prepara gli script completi con le variabili in alto.
+## Versioni e rilasci
+- **Versione unica** (semver `X.Y.Z`): il campo `version` del `package.json` **alla radice**. Conta solo quello: i
+  `package.json` dei workspace restano a `0.0.0` (pacchetti privati, mai pubblicati; tenerli allineati sarebbe solo un
+  secondo posto da dimenticare). Server (`dist/build-info.json`), portale (Vite), agente Node e agente C# la leggono da lì
+  al build (`scripts/versione.mjs`), con il commit corto: `SIR_COMMIT` nei build Docker (non hanno `.git`) o `git`.
+- **Ogni rilascio ha un tag annotato `vX.Y.Z` su `main`** e una release GitHub con le note del `CHANGELOG.md`; la
+  produzione si aggiorna al tag (`scripts/aggiorna-produzione.sh vX.Y.Z`). Si sale di **patch** per correzioni, di
+  **minor** per funzioni nuove compatibili, di **major** per cambi che rompono (contratti con gli agenti già installati,
+  migrazioni non reversibili). Il lavoro di tutti i giorni non cambia versione: la cambia solo il rilascio.
+- **Flusso**: job → `scripts/job.sh unisci` su `main` (come sopra) → quando si decide di rilasciare, da `main` pulito e
+  allineato: `scripts/rilascia.sh X.Y.Z` (ramo `rilascio-X.Y.Z` in un worktree, versione, sezione del `CHANGELOG.md` con i
+  titoli dei commit dal tag precedente, commit, push e PR) → merge della PR di rilascio (lo decide Luca) → `scripts/rilascia.sh --tagga X.Y.Z` (tag,
+  push del tag, release GitHub) → aggiornamento della produzione. `--prova` mostra i controlli e i passi senza cambiare nulla.
+  I controlli rifiutano un formato diverso da `X.Y.Z`, una versione non maggiore dell'ultimo tag, un `main` sporco o non
+  allineato a `origin`.
+- Il deploy e la distribuzione dell'eseguibile dell'agente li esegue Luca; Claude prepara gli script completi con le
+  variabili in alto.

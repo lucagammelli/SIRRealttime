@@ -5,13 +5,14 @@
 # rimossi, per non riempire il disco.
 #
 # Uso: scripts/costruisci-agente-dotnet.sh            (variabili qui sotto; VERSIONE, USCITA e RIMUOVI_IMMAGINE si
-#      VERSIONE=0.2.0 scripts/costruisci-agente-dotnet.sh   possono passare anche dall'ambiente)
+#      VERSIONE=1.2.3 scripts/costruisci-agente-dotnet.sh   possono passare anche dall'ambiente)
+# Senza VERSIONE usa la versione del package.json alla radice (unica fonte della versione, docs/regole/test-job-rilasci.md).
 # Serve: Docker (utente nel gruppo docker), circa 5 GB liberi su / durante la build (immagine SDK ~1 GB, pacchetti
 # NuGet e runtime Windows ~1 GB, compilazione). Scarica circa 1,5 GB alla prima esecuzione.
 
 # --- variabili ---
 RADICE="$(realpath "$(dirname "${BASH_SOURCE[0]}")/..")"            # radice del repository (percorso reale)
-VERSIONE="${VERSIONE:-0.1.0}"                                         # versione dell'agente: numeri a.b.c (finisce nelle proprietà dell'exe e nel nome del file)
+VERSIONE="${VERSIONE:-$(node "$RADICE/scripts/versione.mjs")}"           # versione dell'agente: a.b.c, di norma quella del package.json alla radice (finisce nelle proprietà dell'exe e nel nome del file)
 USCITA="${USCITA:-$RADICE/dist}"                                      # cartella dell'exe prodotto (dist/ è esclusa da git)
 IMMAGINE="mcr.microsoft.com/dotnet/sdk:10.0"                          # SDK .NET 10 LTS ufficiale Microsoft (mcr.microsoft.com)
 RIMUOVI_IMMAGINE="${RIMUOVI_IMMAGINE:-1}"                             # 1 = alla fine rimuove l'immagine SDK se l'ha scaricata questa build (spazio disco); 0 = la tiene sempre
@@ -34,7 +35,7 @@ if (( libero_kb < SPAZIO_MINIMO_GB * 1024 * 1024 )); then
     echo "Spazio libero su / insufficiente: $((libero_kb / 1024 / 1024)) GB, ne servono almeno $SPAZIO_MINIMO_GB (df -h /)" >&2
     exit 1
 fi
-commit="$(git rev-parse --short HEAD 2>/dev/null || echo locale)"
+commit="${SIR_COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo locale)}"
 # L'immagine si rimuove alla fine solo se non c'era già prima della build (non si tolgono immagini di altri).
 immagine_presente=0
 docker image inspect "$IMMAGINE" >/dev/null 2>&1 && immagine_presente=1

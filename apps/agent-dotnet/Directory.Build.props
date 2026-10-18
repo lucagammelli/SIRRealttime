@@ -1,5 +1,6 @@
 <Project>
-  <!-- Comune a tutti i progetti dell'agente C#. Version si passa dallo script di build (-p:Version=...). -->
+  <!-- Comune a tutti i progetti dell'agente C#. La versione è quella del package.json alla radice: la passa scripts/costruisci-agente-dotnet.sh
+       (-p:Version, -p:FileVersion, -p:InformationalVersion); i valori qui sotto servono solo per build a mano. -->
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
@@ -8,7 +9,10 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
     <InvariantGlobalization>false</InvariantGlobalization>
-    <Version Condition="'$(Version)' == ''">0.1.0</Version>
+    <Version Condition="'$(Version)' == ''">0.0.0</Version>
+    <!-- Proprietà dell'exe di Windows: «Versione file» e «Versione prodotto» (a.b.c+commit). -->
+    <FileVersion Condition="'$(FileVersion)' == ''">$(Version).0</FileVersion>
+    <InformationalVersion Condition="'$(InformationalVersion)' == ''">$(Version)</InformationalVersion>
     <Company>SIRRealtime</Company>
     <Product>SIRRealtime Agent</Product>
     <Authors>SIRRealtime</Authors>

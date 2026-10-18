@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { mockApi, renderAs } from '../../test/adminPage.tsx';
+import { APP_VERSION } from '../../lib/version.ts';
 import { AccountPage } from './AccountPage.tsx';
 
 afterEach(cleanup);
@@ -13,6 +14,12 @@ const fill = (current: string, next: string, again: string): void => {
 };
 
 describe('AccountPage', () => {
+  it('shows the version of the portal', () => {
+    mockApi(() => ({ body: {} }));
+    renderAs('admin', <AccountPage />);
+    expect(screen.getByText('Versione').nextElementSibling?.textContent).toBe(APP_VERSION);
+  });
+
   it('lets a superadmin outside any client change its password', async () => {
     const calls = mockApi(() => ({ body: { ok: true } }));
     renderAs('superadmin', <AccountPage />);

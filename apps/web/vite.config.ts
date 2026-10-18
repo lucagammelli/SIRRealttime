@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defaultClientConditions, defineConfig } from 'vite';
+import { leggiCommit, leggiVersione } from '../../scripts/versione.mjs';
 
 /** Export condition of the workspace packages pointing to their TypeScript sources (as in vitest.shared.ts). */
 const SOURCE_CONDITION = '@sir/source';
@@ -16,6 +17,8 @@ const SERVER = process.env.SIR_SERVER_URL ?? 'http://localhost:8090';
 // with CORS_ORIGIN=http://localhost:5173 on the server.
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Version of the root package.json (single source) and short commit (SIR_COMMIT in Docker builds, else git).
+  define: { __SIR_VERSION__: JSON.stringify(leggiVersione()), __SIR_COMMIT__: JSON.stringify(leggiCommit()) },
   resolve: {
     conditions: [SOURCE_CONDITION, ...defaultClientConditions],
     alias: { 'iconv-lite': fileURLToPath(new URL('./src/lib/iconv-browser.ts', import.meta.url)) },

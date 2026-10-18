@@ -7,7 +7,7 @@
 # --- variabili ---
 CONFIG_SISTEMA="${CONFIG_SISTEMA:-/etc/sir-realtime/produzione.conf}"  # scritta da installa-produzione.sh
 CARTELLA_INSTALLAZIONE="${CARTELLA_INSTALLAZIONE:-/opt/sir-realtime}"  # dove sta il codice (di norma da CONFIG_SISTEMA)
-FILE_VERSIONE="apps/agent-dotnet/Directory.Build.props"                # unica fonte della versione dell'agente (elemento <Version>)
+FILE_VERSIONE="package.json"                                           # unica fonte della versione (anche dell'agente): campo "version" alla radice
 FORZA="${1:-}"                                                         # --forza: ricostruisce anche con versione invariata
 
 # --- codice ---
@@ -25,7 +25,7 @@ principale() {
     local uscita versione attuale
     uscita="$(grep -E '^AGENT_DOWNLOAD_HOST_DIR=' .env | tail -n 1 | cut -d= -f2-)"
     [[ "$uscita" =~ ^/[A-Za-z0-9._/-]+$ ]] || { echo "ERRORE: AGENT_DOWNLOAD_HOST_DIR mancante o non valido nel .env" >&2; exit 1; }
-    versione="$(sed -n 's#.*<Version Condition="[^"]*">\([0-9][0-9.]*\)</Version>.*#\1#p' "$FILE_VERSIONE" | head -n 1)"
+    versione="$(jq -r '.version // empty' "$FILE_VERSIONE" 2>/dev/null || true)"   # jq c'è in produzione (installa-produzione.sh), node no
     [[ "$versione" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "ERRORE: versione non trovata in $FILE_VERSIONE" >&2; exit 1; }
     attuale="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$uscita/sir-agent.json" 2>/dev/null | head -n 1 || true)"
     if [[ "$FORZA" != "--forza" && "$attuale" == "$versione" && -f "$uscita/sir-agent.exe" ]]; then

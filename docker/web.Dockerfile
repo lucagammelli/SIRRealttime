@@ -7,6 +7,9 @@ ENV PNPM_HOME=/pnpm \
     PATH=/pnpm:$PATH \
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
+# Commit corto per la versione mostrata nel portale (in questo contesto non c'è .git): vuoto se non passato.
+ARG SIR_COMMIT=""
+ENV SIR_COMMIT=$SIR_COMMIT
 WORKDIR /repo
 COPY . .
 RUN pnpm install --frozen-lockfile

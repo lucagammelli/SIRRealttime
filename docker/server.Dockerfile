@@ -9,6 +9,9 @@ RUN corepack enable
 WORKDIR /repo
 
 FROM base AS build
+# Commit corto per scripts/scrivi-versione.mjs (in questo contesto non c'è .git): vuoto se non passato.
+ARG SIR_COMMIT=""
+ENV SIR_COMMIT=$SIR_COMMIT
 COPY . .
 RUN pnpm install --frozen-lockfile
 # Compila il server e i pacchetti da cui dipende (ordine topologico).

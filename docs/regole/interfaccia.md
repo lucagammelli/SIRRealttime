@@ -22,3 +22,5 @@
 ## Testi
 - Tutti i testi a video in italiano, terminologia della pallavolo italiana (battuta, ricezione, attacco, muro, difesa,
   alzata, break point, cambio palla).
+- Se cambi testi di menu, pulsanti o campi, aggiorna nello stesso lavoro la guida per gli utenti
+  (`apps/web/src/pages/admin/guide/content.ts`), che cita quei nomi.

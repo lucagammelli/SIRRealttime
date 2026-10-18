@@ -1,7 +1,8 @@
 import type { MeResponse } from '@sir/shared';
 import { OnboardingStatusSchema } from '@sir/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button } from '../../../components/ui.tsx';
+import { Link } from 'react-router';
+import { Button, buttonClass } from '../../../components/ui.tsx';
 import { apiRequest } from '../../../lib/api.ts';
 import { useAsync } from '../../../lib/useAsync.ts';
 import type { OnboardingStep } from './model.ts';
@@ -68,9 +69,14 @@ export function OnboardingHost({ tenantId, role }: { tenantId: string; role: MeR
               Logo, squadra, colori e grafica: pochi passi e il portale è pronto per la prima partita.
             </p>
           </div>
-          <Button variant="primary" onClick={() => setOpen(true)}>
-            {notice === 'resume' ? 'Riprendi' : 'Apri la configurazione guidata'}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to="/admin/guida" className={buttonClass()}>
+              Guida
+            </Link>
+            <Button variant="primary" onClick={() => setOpen(true)}>
+              {notice === 'resume' ? 'Riprendi' : 'Apri la configurazione guidata'}
+            </Button>
+          </div>
         </section>
       )}
       {open && (

@@ -796,6 +796,7 @@ della sessione, il superadmin su quello scelto):
 | POST | `/api/auth/invite/accept` | limite `RATE_LIMIT_PASSWORD_RESET`; 410 come sopra; apre la sessione | - (pubblica) |
 | POST | `/api/auth/password-reset/request` | limite `RATE_LIMIT_PASSWORD_RESET` + 3 all'ora per email; risposta sempre `{ ok: true }` | - (pubblica) |
 | POST | `/api/auth/password-reset/confirm` | limite `RATE_LIMIT_PASSWORD_RESET`; 410 come sopra; chiude le sessioni dell'utente | - (pubblica) |
+| POST | `/api/auth/password` | rate limit login; corpo `ChangeOwnPasswordRequestSchema` (`currentPassword`, `newPassword`); 400 `WRONG_PASSWORD` se l'attuale è errata; senza cliente; cancella i token di invito/recupero e chiude le **altre** sessioni (e i loro WebSocket), non quella in uso | viewer |
 | POST | `/api/auth/logout` | rate limit admin | - (chiude i WebSocket della sessione) |
 | GET | `/api/auth/me` | sessione (risposta con `tenant`, il cliente corrente) | viewer |
 | GET | `/api/admin/tenants` | sessione | superadmin |

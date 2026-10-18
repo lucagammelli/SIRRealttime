@@ -419,6 +419,7 @@ describe('guided first setup: close and resume', () => {
     renderAdmin();
     const notice = await screen.findByRole('region', { name: 'Configurazione da completare' });
     expect(screen.queryByRole('dialog')).toBeNull();
+    expect(within(notice).getByRole('link', { name: 'Guida' }).getAttribute('href')).toBe('/admin/guida');
     fireEvent.click(within(notice).getByRole('button', { name: 'Riprendi' }));
     expect(within(await wizard()).getByRole('heading', { name: 'La squadra' })).toBeTruthy();
   });

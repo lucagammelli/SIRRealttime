@@ -235,6 +235,11 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
    `packages/shared/src/themes/`, CSS generato con `pnpm --filter @sir/web themes`) assegnato dal superadmin, con 403 del
    server per gli altri; avviso «La pagina non si è caricata» con ricarica automatica una volta; «Apri lo Studio grafico»
    nel passo finale (`docs/portale.md`, `docs/architettura.md`, `docs/server.md`).
+13. `guida-utente` (**fatto**, 2026-10-18): pagina «Guida» (`/admin/guida`, 11 sezioni più una per il superadmin, ricerca,
+   nota per «Sola lettura», link solo verso pagine del menu, test sulle parole tecniche), pagina «Il mio account»
+   (`/admin/account`, cambio password con `POST /api/auth/password`) per tutti i ruoli, gruppo di menu «Account e aiuto»,
+   link alla guida nell'ultimo passo della procedura guidata e nell'avviso «Configurazione da completare»
+   (`docs/portale.md`, `docs/server.md`, `docs/architettura.md`).
 **Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
 PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo
 mostra con «autore sconosciuto».

@@ -553,6 +553,9 @@ export function DoneStep({ data, saveRef, onLeave }: StepProps) {
         <Link to={studioPath('colori')} className={buttonClass()} onClick={onLeave}>
           Apri lo Studio grafico
         </Link>
+        <Link to="/admin/guida" className={buttonClass()} onClick={onLeave}>
+          Leggi la guida
+        </Link>
       </div>
     </div>
   );

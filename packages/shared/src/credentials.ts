@@ -68,6 +68,13 @@ export const SetPasswordRequestSchema = z.object({
 });
 export type SetPasswordRequest = z.infer<typeof SetPasswordRequestSchema>;
 
+/** `POST /api/auth/password`: the user changes its own password, proving the current one. */
+export const ChangeOwnPasswordRequestSchema = z.object({
+  currentPassword: PasswordSchema(1),
+  newPassword: PasswordSchema(PASSWORD_MIN_LENGTH),
+});
+export type ChangeOwnPasswordRequest = z.infer<typeof ChangeOwnPasswordRequestSchema>;
+
 /** `POST /api/auth/password-reset/request`. */
 export const PasswordResetRequestSchema = z.object({ email: EmailSchema });
 export type PasswordResetRequest = z.infer<typeof PasswordResetRequestSchema>;

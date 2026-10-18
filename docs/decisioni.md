@@ -398,3 +398,9 @@ Una riga per decisione: data, scelta, motivo.
   per questo il backup `pre-aggiornamento`.
 - 2026-10-18: l'agente scaricabile si costruisce solo con Docker (`pubblica-agente-produzione.sh`, ricostruito solo se
   cambia la versione), perché sul server non si installa .NET e il disco è poco.
+- 2026-10-18: la guida utente è fatta di dati nel portale (`guide/content.ts`, pagina «Guida») e non è un documento
+  esterno, con un test che vieta le parole tecniche, perché cambia insieme all'interfaccia, rispetta il ruolo (link solo
+  verso pagine del menu) e chi la legge non è tecnico (`docs/portale.md`).
+- 2026-10-18: «Il mio account» (cambio password con la password attuale) è per tutti i ruoli, anche il superadmin fuori da un
+  cliente, perché la rotta non dipende dal cliente e ognuno deve poter cambiare la propria password senza un admin
+  (`docs/server.md`, `docs/portale.md`).

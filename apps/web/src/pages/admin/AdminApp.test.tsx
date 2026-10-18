@@ -131,6 +131,7 @@ describe('admin navigation', () => {
       'Pagina pubblica',
       'Dispositivi',
       'Amministrazione',
+      'Account e aiuto',
     ]);
     const names = (name: string): string[] =>
       within(within(nav).getByRole('region', { name }))
@@ -141,6 +142,7 @@ describe('admin navigation', () => {
     expect(names('Pagina pubblica')).toEqual(['Studio grafico', 'Link pubblici', 'Simulazione']);
     expect(names('Dispositivi')).toEqual(['Agenti']);
     expect(names('Amministrazione')).toEqual(['Utenti']);
+    expect(names('Account e aiuto')).toEqual(['Il mio account', 'Guida']);
     expect(within(nav).queryByRole('link', { name: 'Clienti' })).toBeNull();
     expect(screen.queryByLabelText('Cliente')).toBeNull();
     // The active item has the colours of the active menu item (red in «SIR VOLLEY»).
@@ -159,18 +161,29 @@ describe('admin navigation', () => {
       within(nav)
         .getAllByRole('region')
         .map((g) => g.getAttribute('aria-label')),
-    ).toEqual(['Amministrazione']);
+    ).toEqual(['Amministrazione', 'Account e aiuto']);
     expect(
       within(nav)
         .getAllByRole('link')
         .map((l) => l.textContent),
-    ).toEqual(['Clienti', 'Campionati', 'Posta']);
+    ).toEqual(['Clienti', 'Campionati', 'Posta', 'Il mio account', 'Guida']);
     expect(within(nav).getByRole('link', { name: 'Clienti' }).getAttribute('aria-current')).toBe('page');
     expect(within(nav).getByRole('link', { name: 'Campionati' }).getAttribute('href')).toBe('/admin/campionati');
     expect(screen.queryByTestId('barra-cliente')).toBeNull();
     expect(screen.queryByLabelText('Cliente')).toBeNull();
     // Nothing leads to the pages of a client, not even the logo.
     expect(screen.getAllByRole('link').filter((l) => l.getAttribute('href') === '/admin/live')).toEqual([]);
+  });
+
+  it('lets the superadmin outside any client open «Il mio account» and «Guida» without being sent away', async () => {
+    mockServer('superadmin', true);
+    renderAt('/admin/account');
+    expect(await screen.findByRole('heading', { name: 'Il mio account' })).toBeTruthy();
+    expect(where()).toBe('/admin/account');
+    const nav = screen.getByRole('navigation', { name: 'Area riservata' });
+    fireEvent.click(within(nav).getByRole('link', { name: 'Guida' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Guida' })).toBeTruthy();
+    expect(where()).toBe('/admin/guida');
   });
 
   it('gives the superadmin inside a client the pages of an administrator, under the bar of the client', async () => {
@@ -181,7 +194,15 @@ describe('admin navigation', () => {
       within(nav)
         .getAllByRole('region')
         .map((g) => g.getAttribute('aria-label')),
-    ).toEqual(['Partite', 'Statistiche', 'Club', 'Pagina pubblica', 'Dispositivi', 'Amministrazione']);
+    ).toEqual([
+      'Partite',
+      'Statistiche',
+      'Club',
+      'Pagina pubblica',
+      'Dispositivi',
+      'Amministrazione',
+      'Account e aiuto',
+    ]);
     expect(
       within(within(nav).getByRole('region', { name: 'Amministrazione' }))
         .getAllByRole('link')
@@ -204,12 +225,22 @@ describe('admin navigation', () => {
       within(nav)
         .getAllByRole('region')
         .map((g) => g.getAttribute('aria-label')),
-    ).toEqual(['Partite', 'Statistiche', 'Club', 'Pagina pubblica', 'Dispositivi']);
+    ).toEqual(['Partite', 'Statistiche', 'Club', 'Pagina pubblica', 'Dispositivi', 'Account e aiuto']);
     expect(
       within(nav)
         .getAllByRole('link')
         .map((l) => l.textContent),
-    ).toEqual(['Partita live', 'Partite', 'Calendario', 'Visualizzazioni', 'Club', 'Link pubblici', 'Agenti']);
+    ).toEqual([
+      'Partita live',
+      'Partite',
+      'Calendario',
+      'Visualizzazioni',
+      'Club',
+      'Link pubblici',
+      'Agenti',
+      'Il mio account',
+      'Guida',
+    ]);
   });
 
   it('opens «Campionati» for the superadmin only', async () => {

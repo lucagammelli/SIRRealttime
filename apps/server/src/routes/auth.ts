@@ -1,5 +1,11 @@
 import type { LinkInfo, MeResponse } from '@sir/shared';
-import { LinkTokenSchema, LoginRequestSchema, PasswordResetRequestSchema, SetPasswordRequestSchema } from '@sir/shared';
+import {
+  ChangeOwnPasswordRequestSchema,
+  LinkTokenSchema,
+  LoginRequestSchema,
+  PasswordResetRequestSchema,
+  SetPasswordRequestSchema,
+} from '@sir/shared';
 import { and, eq, lte } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
@@ -86,6 +92,36 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext): void {
       const user = request.user;
       if (!user) throw unauthorized();
       return { id: user.id, email: user.email, role: user.role, tenant: await tenantRef(ctx, request.adminTenantId) };
+    },
+  );
+
+  /**
+   * «Il mio account»: the logged user (any role, a superadmin too, with or without a client entered) changes its own
+   * password by proving the current one. It does not depend on any client; the other sessions of the user are closed,
+   * the one in use stays. Rate limited as the login (the current password could be guessed).
+   */
+  app.post(
+    '/api/auth/password',
+    { config: perMinute(ctx.rateLimits.login), preHandler: requireRole(ctx, 'viewer') },
+    async (request): Promise<{ ok: true }> => {
+      const user = request.user;
+      if (!user) throw unauthorized();
+      const body = validate(ChangeOwnPasswordRequestSchema, request.body);
+      const [row] = await ctx.db.select().from(users).where(eq(users.id, user.id)).limit(1);
+      if (!(await verifyPassword(row?.passwordHash, body.currentPassword))) {
+        request.log.warn({ userId: user.id }, 'cambio password: password attuale errata');
+        throw new HttpError(400, 'WRONG_PASSWORD', 'La password attuale non è corretta');
+      }
+      const passwordHash = await hashPassword(body.newPassword);
+      const token = request.cookies[SESSION_COOKIE];
+      const closed = await ctx.db.transaction(async (tx) => {
+        await tx.update(users).set({ passwordHash }).where(eq(users.id, user.id));
+        await tx.delete(userTokens).where(eq(userTokens.userId, user.id));
+        return deleteUserSessions(tx, user.id, token ? hashToken(token) : undefined);
+      });
+      closeSessionSockets(ctx, closed);
+      request.log.info({ userId: user.id, sessionsClosed: closed.length }, 'password cambiata dall’utente');
+      return { ok: true };
     },
   );
 

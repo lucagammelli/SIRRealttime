@@ -22,6 +22,8 @@ const ICONS = {
   collapse: 'M15 6l-6 6 6 6',
   close: 'M6 6l12 12M18 6L6 18',
   expand: 'M9 6l6 6-6 6',
+  help: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01',
+  account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
 } as const;
 export type IconName = keyof typeof ICONS;
 
@@ -52,6 +54,15 @@ export interface MenuGroup {
   items: MenuItem[];
 }
 
+/** «Il mio account» and «Guida»: for every role, inside a client or not (they depend on no client). */
+export const ACCOUNT_GROUP: MenuGroup = {
+  label: 'Account e aiuto',
+  items: [
+    { to: '/admin/account', label: 'Il mio account', icon: 'account' },
+    { to: '/admin/guida', label: 'Guida', icon: 'help' },
+  ],
+};
+
 /** Pages of the superadmin with no client entered: the only ones that are not of a client. */
 export const SUPERADMIN_MENU: readonly MenuGroup[] = [
   {
@@ -62,13 +73,14 @@ export const SUPERADMIN_MENU: readonly MenuGroup[] = [
       { to: '/admin/posta', label: 'Posta', icon: 'mail' },
     ],
   },
+  ACCOUNT_GROUP,
 ];
 
 /**
  * Pure: the groups of the side menu for a role. A viewer (sola lettura) sees the matches, the calendar, the club,
  * the public links («Pagina pubblica») and the devices; an administrator also Studio grafico and Simulazione (in
  * «Pagina pubblica», with the links) and the users. The superadmin with no client entered sees only its own pages (`SUPERADMIN_MENU`: clients,
- * championships and mail); inside a client (`inTenant`), the pages of an administrator of that client. «Club» is a group of
+ * championships and mail, plus «Il mio account» and «Guida»); inside a client (`inTenant`), the pages of an administrator of that client. «Club» is a group of
  * its own: championships and team of the club are not graphics, they decide the calendar and the links of the
  * matches. Groups without items are left out.
  */
@@ -108,6 +120,7 @@ export function menuGroups({
       label: 'Amministrazione',
       items: isAdmin ? [{ to: '/admin/utenti', label: 'Utenti', icon: 'users' }] : [],
     },
+    ACCOUNT_GROUP,
   ];
   return groups.filter((g) => g.items.length > 0);
 }

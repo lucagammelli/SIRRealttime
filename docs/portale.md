@@ -112,10 +112,11 @@ spariscono) sostituisce la barra a pillole. Gruppi di un cliente (admin e viewer
 - «Pagina pubblica»: Studio grafico, Link pubblici, Simulazione. Il **viewer** ci vede solo Link pubblici (Studio grafico e
   Simulazione sono dell'admin);
 - «Dispositivi»: Agenti;
-- «Amministrazione»: Utenti (solo admin).
+- «Amministrazione»: Utenti (solo admin);
+- «Account e aiuto» (`ACCOUNT_GROUP`, per tutti i ruoli, dentro o fuori da un cliente): «Il mio account» e «Guida».
 
 Il **superadmin fuori da un cliente** vede solo il suo menu (`SUPERADMIN_MENU`): il gruppo «Amministrazione» con Clienti,
-Campionati e Posta. Per lavorare su un cliente ci entra con «Entra nel cliente» (vedi «Più clienti»).
+Campionati e Posta, più «Account e aiuto». Per lavorare su un cliente ci entra con «Entra nel cliente» (vedi «Più clienti»).
 
 - in cima il logo (`BrandMark`), in fondo il nome del cliente, account, tema e «Esci»; la voce attiva è
   evidenziata (`--sir-nav-active`, rosso in SIR VOLLEY);
@@ -335,6 +336,32 @@ segno «fatto» è nel DB (`tenants.onboarded_at`), non nel browser.
   Il passo «I colori» offre i quattro modelli (`SELECTABLE_TEMPLATE_IDS`, vedi «Modelli grafici»), mai SIR VOLLEY.
 - File: `OnboardingHost.tsx`, `OnboardingWizard.tsx`, `OnboardingPreview.tsx`, `steps.tsx`, `model.ts` (`resumeStep`,
   `noticeFor`, `opensByItself`).
+
+### Guida e «Il mio account» (`pages/admin/guide/`, `AccountPage.tsx`)
+Lavoro «guida-utente». Le due voci stanno nel gruppo di menu «Account e aiuto», per ogni ruolo.
+- **«Guida»** (`GuidePage.tsx`, rotta `/admin/guida`): come preparare e usare il portale, con parole semplici. I contenuti
+  sono **dati** in `guide/content.ts` (`GUIDE_SECTIONS`: 11 sezioni per tutti, da «Primo accesso» a «Domande frequenti e
+  problemi comuni», più «Per chi gestisce più club (superadmin)», `superadminOnly`, visibile solo al superadmin). Ogni
+  sezione ha blocchi di testo, passi, elenchi e note, e può avere link «Vai a …». A sinistra l'indice (in alto su un
+  telefono), poi la ricerca «Cerca nella guida» (`filterSections`: ignora maiuscole e accenti, servono tutte le parole,
+  `normalize`, `sectionText`; «Nessun risultato per «…»» se vuota).
+- **Sola lettura**: legge tutta la guida; le sezioni `needsWrite` aggiungono la nota `READ_ONLY_NOTE` su ciò che può fare
+  solo «Lettura e scrittura».
+- **Link «Vai a …»**: `canOpen(to, groups)` li mostra solo se la pagina è nel menu dell'utente (`menuGroups`), quindi un
+  viewer non vede «Vai a Studio grafico» e il superadmin fuori da un cliente non vede «Vai a Club».
+- **Parole vietate**: `guide/content.test.ts` fallisce se un testo usa parole tecniche (API, token, WebSocket, server, JSON,
+  `.env`, endpoint, database, `config.json`, SMTP); controlla anche che i link vadano a pagine del menu o dello Studio e
+  che le parole dell'agente («Registra», «Nome agente», «START», «STOP»…) siano quelle della sua finestra.
+- **Regola per chi cambia l'interfaccia**: i testi della guida citano i nomi di pulsanti, campi e voci di menu; se si
+  cambiano, si aggiorna `guide/content.ts` nello stesso lavoro (e il test dei menu).
+- **Dove rimanda**: l'ultimo passo della procedura guidata ha il pulsante «Leggi la guida» (`onboarding/steps.tsx`) e
+  l'avviso «Configurazione da completare» ha il pulsante «Guida» (`OnboardingHost.tsx`).
+- **«Il mio account»** (`AccountPage.tsx`, rotta `/admin/account`): per tutti i ruoli, anche il superadmin fuori da un
+  cliente (la rotta del server non dipende dal cliente). «Chi sei» (Email, Ruolo, Cliente se c'è) e «Cambia password»:
+  «Password attuale», «Nuova password» (almeno `PASSWORD_MIN_LENGTH` caratteri), «Ripeti la nuova password»; i controlli
+  locali usano `ChangeOwnPasswordRequestSchema`, poi `POST /api/auth/password`. Dopo il cambio gli altri dispositivi
+  devono accedere di nuovo; «Password cambiata.» conferma. Password attuale sbagliata: errore `WRONG_PASSWORD` mostrato.
+- Rotta del server: `docs/server.md`, «Endpoint». Test: `GuidePage.test.tsx`, `AccountPage.test.tsx`, `AdminApp.test.tsx`.
 
 ### Link breve e QR (`src/qr/`, `pages/admin/ShareLinksPage.tsx`)
 Ogni link attivo ha un link breve `<base>/l/<codice>` (codice di 8 lettere, mostrato `K7M2-QX9P`; server in

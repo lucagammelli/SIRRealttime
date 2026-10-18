@@ -115,7 +115,9 @@ Amministrazione (`admin.ts`):
   `RESET_TTL_HOURS` (1), `LinkTokenSchema` (token dei link, base64url), `InviteDeliverySchema` (esito della mail di
   invito: `mail` `sent`/`not_configured`/`failed`, `link` da copiare o `null`, `expiresAt`), `LinkInfoSchema` (cosa
   mostra la pagina di un link), `SetPasswordRequestSchema` (`token` e `password`), `PasswordResetRequestSchema`,
-  `PasswordResetAnswerSchema` (`{ ok: true }`), `ResetLinkResponseSchema` (link da copiare);
+  `PasswordResetAnswerSchema` (`{ ok: true }`), `ResetLinkResponseSchema` (link da copiare),
+  `ChangeOwnPasswordRequestSchema` (`currentPassword`, `newPassword`: `POST /api/auth/password`, «Il mio account»,
+  `docs/server.md`, `docs/portale.md`);
 - posta (`packages/shared/src/mail.ts`): `SMTP_SECURITIES` / `SmtpSecuritySchema` (`none`, `starttls`, `tls`),
   `MailSettingsSchema` (mai la password: `passwordSet`, `configured`, `encryptionAvailable`),
   `UpdateMailSettingsRequestSchema` (`password` nuova, assente = tiene la salvata, `clearPassword` la toglie),

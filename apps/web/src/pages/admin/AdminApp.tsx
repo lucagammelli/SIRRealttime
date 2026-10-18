@@ -13,10 +13,12 @@ import { useTitlePrefix } from '../../lib/titlePrefix.ts';
 import { useAsync } from '../../lib/useAsync.ts';
 import { useViewportWidth } from '../../lib/useLayout.ts';
 import { AdminSidebar, Icon, menuGroups } from './AdminSidebar.tsx';
+import { AccountPage } from './AccountPage.tsx';
 import { AgentsPage } from './AgentsPage.tsx';
 import { CalendarPage } from './CalendarPage.tsx';
 import { ClubPage } from './ClubPage.tsx';
 import { useAuth, useSession } from './auth.tsx';
+import { GuidePage } from './guide/GuidePage.tsx';
 import { LeaguesPage } from './LeaguesPage.tsx';
 import { LiveAdminPage } from './LiveAdminPage.tsx';
 import { LoginPage } from './LoginPage.tsx';
@@ -220,6 +222,9 @@ function AdminLayout() {
                 {Object.entries(LEGACY_PAGES).map(([path, section]) => (
                   <Route key={path} path={path} element={ofTenant(<Navigate to={studioPath(section)} replace />)} />
                 ))}
+                {/* For every role, a superadmin outside any client too. */}
+                <Route path="account" element={<AccountPage />} />
+                <Route path="guida" element={<GuidePage />} />
                 <Route path="clienti" element={superadminOnly(<TenantsPage tenants={tenants} />)} />
                 <Route path="campionati" element={superadminOnly(<LeaguesPage />)} />
                 <Route path="posta" element={superadminOnly(<MailSettingsPage />)} />

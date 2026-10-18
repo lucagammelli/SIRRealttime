@@ -1,0 +1,31 @@
+# Proxy TLS di produzione (docker/compose.produzione.yml). SIR_HOSTNAMES e ACME_EMAIL arrivano dal .env.
+# Caddy ottiene e rinnova da solo i certificati Let's Encrypt per ogni hostname e reindirizza 80 -> 443.
+# Nessun access log: nel percorso ci sono i token dei link (/live/<token>, /l/<codice>) che nginx maschera nei suoi log.
+{
+	email {$ACME_EMAIL}
+
+	# Log di runtime senza l'oggetto «request» (URI, intestazioni, IP): un errore del reverse_proxy altrimenti
+	# scriverebbe il percorso con i token dei link.
+	log {
+		level WARN
+		format filter {
+			wrap console
+			fields {
+				request delete
+			}
+		}
+	}
+}
+
+{$SIR_HOSTNAMES} {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	# Il Host originale arriva invariato a nginx e al server, che da lì sceglie il cliente.
+	reverse_proxy web:8080 {
+		header_up X-Forwarded-For {remote_host}
+		flush_interval -1
+	}
+}

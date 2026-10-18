@@ -139,9 +139,8 @@ rilascio e l'altro. Il bundle principale è di circa 132 KB gzip. Le altre dipen
 - `DEFAULT_TENANT_SLUG` (cliente degli hostname sconosciuti, default `predefinito`) è commentata in `.env.example` e
   passata dal servizio `server` di `docker-compose.yml` con `${DEFAULT_TENANT_SLUG-predefinito}`: se in `.env` è
   definita ma vuota resta vuota (hostname sconosciuto = 404, `docs/server.md`).
-- Multi-cliente in produzione: nginx (`docker/web.nginx.conf`, oggi `server_name _`) va configurato con i `server_name`
-  espliciti dei clienti e un `default_server` per il resto, passando `Host $host` al server; i certificati https per ogni
-  hostname sono a cura del deploy.
+- Multi-cliente in produzione: nginx (`docker/web.nginx.conf`, `server_name _`) accetta ogni hostname e passa `Host` al
+  server; i certificati https per ogni hostname li emette Caddy (`SIR_HOSTNAMES`), vedi «Installazione in produzione».
 - `CORS_ORIGIN`, `PUBLIC_BASE_URL` e `TRUST_PROXY` sono **commentate** in `.env.example` di proposito: lasciate così
   valgono i default giusti per ogni modo di avvio (con compose `http://localhost:${WEB_PORT}` e `true`, perché il server
   è dietro nginx; con `pnpm --filter @sir/server dev` e `vite dev` `http://localhost:5173` e `false`). Una riga attiva
@@ -278,7 +277,234 @@ tutti i client dallo stesso IP):
 copie del server (ultimo punto del lavoro `scalabilita` in `docs/piano.md`, non ancora fatto: `StatePublisher` via
 Postgres LISTEN/NOTIFY).
 
+## Installazione in produzione
+Guida passo passo per mettere SIRRealtime su un server vero, con HTTPS e backup. Si fa con quattro script in `scripts/`
+(`installa-produzione.sh`, `aggiorna-produzione.sh`, `backup-produzione.sh`, `pubblica-agente-produzione.sh`) e tre file in
+`docker/` (`compose.produzione.yml`, `Caddyfile`, `web.realip.conf`). Come è fatto lo stack: **Caddy** (unico servizio
+esposto, porte 80 e 443) ottiene e rinnova i certificati Let's Encrypt e inoltra a `web` (nginx), che a sua volta parla con
+`server` e `postgres` nella rete interna di Docker. Server e web non pubblicano nessuna porta sull'host.
+
+### 1. Cosa serve prima
+- Un server **Ubuntu Server 24.04 LTS** appena installato (anche «minimized»), `x86_64` o `aarch64`, con systemd.
+- **Spazio libero**: almeno 20 GB su `/var/lib` (`SPAZIO_MIN_GB`; immagini Docker, database, build dell'agente, circa 5 GB
+  temporanei). **Memoria**: almeno 1800 MB tra RAM e swap (`MEMORIA_MIN_MB`; la build del portale usa circa 1,5 GB). Con
+  meno RAM si aggiunge un file di swap. Lo script si ferma con un messaggio se non bastano.
+- Un **dominio** per il portale e, per ogni cliente che ha un proprio indirizzo, un hostname: per ognuno un record DNS **A**
+  (IPv4) e, se il server ha un IPv6 pubblico, **AAAA**, che punta a questo server. L'IPv6 funziona con l'IP vero del client perché
+  lo script imposta in `/etc/docker/daemon.json` `ip6tables: true` e `userland-proxy: false` (unisce le chiavi a un file
+  esistente e riavvia Docker solo se cambia) e la rete di compose ha la sottorete ULA `fd29:250::/64`; senza queste impostazioni
+  i client IPv6 arriverebbero tutti con l'IP del gateway e dividerebbero lo stesso limite di richieste. Se non vuoi IPv6, non
+  creare il record AAAA. Senza DNS già propagato Let's Encrypt non
+  emette il certificato (lo script avvisa e puoi rilanciarlo più tardi).
+- Le porte **80 e 443** (TCP; 443 anche UDP) raggiungibili da Internet e libere sul server; la porta SSH nota.
+- Accesso **SSH** al server con un utente che può usare `sudo`.
+- Il repository è privato: serve poter aggiungere una chiave di deploy su GitHub (passo 3).
+- Non deve esserci il pacchetto Ubuntu `docker.io` (lo script si ferma e lo dice): lo script installa Docker ufficiale.
+
+### 2. Portare lo script sul server e compilare le variabili
+Copia `scripts/installa-produzione.sh` sul server (da un PC con il repository: `scp`; in alternativa incolla il contenuto con
+un editor). Aprilo e compila **solo** il blocco `--- variabili ---` in alto; ogni `"<…>"` va sostituito.
+
+| Variabile | Cosa mettere | Dove trovarla |
+|---|---|---|
+| `DOMINIO_PORTALE` | dominio del portale, solo il nome (es. `portale.example.org`, no `https://`, no IP) | il tuo registrar DNS |
+| `ALTRI_HOSTNAME` | altri hostname dei clienti separati da spazio; vuoto se non ce ne sono | stesso pannello DNS |
+| `EMAIL_LETSENCRYPT` | email per gli avvisi di scadenza | la tua |
+| `ADMIN_EMAIL` | email del superadmin iniziale | la tua |
+| `ADMIN_PASSWORD` | vuota = generata e mostrata una volta; altrimenti almeno 12 caratteri tra lettere, cifre e `@ % + = . , : ! _ -` | scelta tua |
+| `REPO_URL` | indirizzo SSH (repo privato) o https (pubblico) | GitHub, pulsante «Code» |
+| `REPO_RIFERIMENTO` | ramo o tag da installare (default `main`) | GitHub, «Branches» o «Tags» |
+| `CHIAVE_DEPLOY` | percorso di una chiave privata SSH già sul server; vuoto = ne crea una lo script | di norma vuoto |
+| `HOSTKEY_GITHUB_SHA256` | impronta ed25519 di GitHub; già compilata, controllala | docs.github.com, «GitHub's SSH key fingerprints»; vuota con repo https |
+| `CARTELLA_INSTALLAZIONE` | dove sta il codice e il `.env` (default `/opt/sir-realtime`) | scelta tua |
+| `CARTELLA_BACKUP` | dove vanno i backup (default `/var/backups/sir-realtime`) | scelta tua |
+| `BACKUP_DA_TENERE` | quanti backup tenere per tipo (default 14) | scelta tua |
+| `FUSO_ORARIO` | fuso del server (default `Europe/Rome`) | `timedatectl list-timezones` |
+| `PORTA_SSH` | porta di `sshd`; resta aperta nel firewall (se è sbagliata lo script si ferma prima di chiuderti fuori) | `ss -tlnp \| grep sshd` |
+| `UTENTE_SERVIZIO` | utente di sistema senza login, proprietario di codice e chiave (default `sir`) | scelta tua |
+| `SPAZIO_MIN_GB`, `MEMORIA_MIN_MB` | soglie minime (default 20 e 1800) | di norma non si toccano |
+| `DOCKER_GPG_FPR` | impronta della chiave apt di Docker; già compilata | docs.docker.com/engine/install/ubuntu |
+| `CONFIG_SISTEMA`, `LOG` | file delle impostazioni non segrete e registro dell'installazione | di norma non si toccano |
+
+Poi si lancia come root:
+```bash
+# --- variabili ---
+SCRIPT="/home/ubuntu/installa-produzione.sh"   # dove hai copiato lo script sul server
+
+# --- comandi ---
+sudo bash "$SCRIPT"
+```
+
+### 3. Primo avvio, chiave di deploy e rilancio
+Lo script è **idempotente**: se si ferma, risolto il problema si rilancia e riparte senza rifare ciò che è fatto. Fa: controlli
+del sistema, pacchetti e aggiornamenti di sicurezza automatici (senza riavvio), Docker ufficiale (impronta della chiave
+verificata), utente di servizio, firewall `ufw` (SSH, 80, 443), fuso orario, clone del codice, `.env`, servizi systemd, poi
+chiama `aggiorna-produzione.sh` (build e avvio) e verifica l'HTTPS.
+
+Con un repository SSH privato il **primo avvio si ferma** al clone e stampa una chiave pubblica. Aggiungila su GitHub:
+repository > **Settings > Deploy keys > Add deploy key**, incollando la chiave e **lasciando deselezionato «Allow write
+access»** (sola lettura). Poi rilancia lo stesso comando del passo 2: il clone riesce e l'installazione prosegue. La prima
+build richiede diversi minuti. Il registro è in `/var/log/sir-realtime-installazione.log`.
+
+### 4. Password del superadmin e primo accesso
+Se `ADMIN_PASSWORD` era vuota, la password generata compare **una sola volta** nel riepilogo finale dello script (non è nel
+registro); resta anche nel `.env` (`CARTELLA_INSTALLAZIONE/.env`, permessi 600, `ADMIN_PASSWORD`). Se la prima esecuzione si ferma prima del
+riepilogo la password viene mostrata alla prima esecuzione che arriva in fondo. Dopo il riepilogo esiste la marca
+`/etc/sir-realtime/superadmin-mostrato`: le esecuzioni successive non generano né mostrano nessuna nuova password (il
+superadmin esiste già; il server lo crea solo se non ce n'è nessuno). Si accede a
+`https://<DOMINIO_PORTALE>/admin` con `ADMIN_EMAIL` e quella password. Al primo accesso:
+1. cambia la password: il superadmin vede «Utenti» solo dentro un cliente («Entra nel cliente» da «Clienti»); lì, accanto
+   al tuo utente, c'è «Cambia password» (in alternativa usa «Password dimenticata?» dopo aver configurato la posta);
+2. configura la posta in «Posta» (`docs/server.md`) per inviti e recupero password;
+3. crea il primo cliente in «Clienti» con i suoi hostname (passo 7).
+
+### 5. Aggiornamenti e rollback
+```bash
+# --- variabili ---
+CARTELLA_INSTALLAZIONE="/opt/sir-realtime"   # la stessa dell'installazione
+RIFERIMENTO="main"                           # ramo o tag da installare (GitHub, «Branches» o «Tags»)
+
+# --- comandi ---
+sudo "$CARTELLA_INSTALLAZIONE/scripts/aggiorna-produzione.sh" "$RIFERIMENTO"
+```
+Senza argomento usa `REPO_RIFERIMENTO` di `/etc/sir-realtime/produzione.conf`. Passi (registro
+`/var/log/sir-realtime-aggiornamento.log`): 1) backup `pre-aggiornamento`, 2) scarica ramo o tag, 3) build e avvio (le
+migrazioni del database girano all'avvio del server), 4) attesa che `postgres`, `server` e `web` siano «healthy» e che
+`/api/health` risponda (fino a `ATTESA_SALUTE_SECONDI`, default 300), 5) pubblica l'agente (passo 8). A aggiornamento riuscito
+libera il disco (`docker image prune -f` e cache di build più vecchia di 7 giorni). Un solo aggiornamento alla volta (lock).
+
+**Rollback automatico e suoi limiti.** Se la nuova versione non diventa sana lo script torna al commit precedente,
+ricostruisce e riavvia, e lo dice. Ma **il database non torna indietro**: le migrazioni già applicate dalla nuova versione
+restano. Se la versione precedente non è sana (messaggio «ERRORE GRAVE») o i dati sono danneggiati, si ripristina dal backup
+`…-pre-aggiornamento` (passo 6). Alla prima installazione non c'è nulla a cui tornare e il backup è saltato.
+
+### 6. Backup e ripristino
+- **Quando**: ogni giorno alle 03:30 (con ritardo casuale fino a 15 minuti) dal timer `sir-backup.timer`; a mano con
+  `sudo systemctl start sir-backup.service`; in più prima di ogni aggiornamento.
+- **Dove**: `CARTELLA_BACKUP` (default `/var/backups/sir-realtime`, cartella 700, file 600, solo root).
+- **Cosa**, con la stessa data nel nome: `sir-db-<data>.dump` (database, formato `pg_dump -Fc`, verificato prima di essere
+  tenuto), `sir-assets-<data>.tar.gz` (immagini dei clienti), `sir-env-<data>` (il `.env`). Il `.env` serve: senza
+  `SETTINGS_ENCRYPTION_KEY` e `SHARE_CODE_SECRET` un ripristino perde la password della posta e i QR stampati. Quelli
+  prima di un aggiornamento hanno `-pre-aggiornamento` nel nome.
+- **Quanti**: gli ultimi `BACKUP_DA_TENERE` (default 14) per ciascun tipo; i più vecchi si cancellano.
+- **Avvertenza**: i backup stanno **sullo stesso server**. Se il disco si rompe o il server sparisce si perdono insieme ai
+  dati, e contengono i segreti. **Copiali ogni tanto fuori dal server**, in un posto protetto.
+
+Ripristino (fermano il portale per qualche minuto):
+```bash
+# --- variabili ---
+CARTELLA_INSTALLAZIONE="/opt/sir-realtime"      # dove sta il codice con il .env
+CARTELLA_BACKUP="/var/backups/sir-realtime"     # dove sono i backup
+DATA_BACKUP="<data-e-ora del backup, es. 20261018-033000 o 20261018-101500-pre-aggiornamento>"  # parte del nome dopo «sir-db-» (ls CARTELLA_BACKUP)
+RIPRISTINA_ENV="no"                             # "si" solo se il .env è perso: sovrascrive quello attuale con il salvato
+NOME_PROGETTO="sir-realtime"                    # nome del progetto compose (volume «<nome>_assets»)
+
+# --- comandi ---
+set -Eeuo pipefail
+[[ "$DATA_BACKUP" != *"<"* ]] || { echo "Compila DATA_BACKUP"; exit 1; }
+cd "$CARTELLA_INSTALLAZIONE"
+for f in "sir-db-$DATA_BACKUP.dump" "sir-assets-$DATA_BACKUP.tar.gz" "sir-env-$DATA_BACKUP"; do
+    [[ -f "$CARTELLA_BACKUP/$f" ]] || { echo "Manca $CARTELLA_BACKUP/$f"; exit 1; }
+done
+if [[ "$RIPRISTINA_ENV" == "si" ]]; then
+    install -m 0600 -o "$(stat -c %U .env 2>/dev/null || echo root)" "$CARTELLA_BACKUP/sir-env-$DATA_BACKUP" .env
+fi
+DB_UTENTE="$(grep -E '^POSTGRES_USER=' .env | tail -n 1 | cut -d= -f2-)"; DB_UTENTE="${DB_UTENTE:-sir}"
+DB_NOME="$(grep -E '^POSTGRES_DB=' .env | tail -n 1 | cut -d= -f2-)"; DB_NOME="${DB_NOME:-sir}"
+docker compose up -d postgres
+docker compose stop caddy web server
+docker compose exec -T postgres pg_restore -U "$DB_UTENTE" -d "$DB_NOME" --clean --if-exists --no-owner \
+    <"$CARTELLA_BACKUP/sir-db-$DATA_BACKUP.dump"
+IMMAGINE_PG="$(docker inspect -f '{{.Config.Image}}' "$(docker compose ps -q postgres)")"
+docker run --rm -i --entrypoint sh -v "${NOME_PROGETTO}_assets:/dati" "$IMMAGINE_PG" \
+    -c 'find /dati -mindepth 1 -delete && tar -xzf - -C /dati' <"$CARTELLA_BACKUP/sir-assets-$DATA_BACKUP.tar.gz"
+docker compose up -d
+echo "Ripristino completato. Controlla: docker compose ps"
+```
+Su un server nuovo si installa prima con `installa-produzione.sh` e poi si ripristina con `RIPRISTINA_ENV="si"`.
+
+### 7. Aggiungere l'hostname di un nuovo cliente
+1. Crea il record DNS A (e AAAA) dell'hostname verso il server.
+2. Rilancia `installa-produzione.sh` con l'hostname in `ALTRI_HOSTNAME` (insieme a quelli già presenti: l'elenco
+   `SIR_HOSTNAMES` del `.env` viene riscritto da quello dello script) e le stesse altre variabili; è sicuro, il `.env`
+   esistente non si sovrascrive. Caddy ottiene il certificato da solo.
+3. Nel portale, in «Clienti», assegna l'hostname al cliente (campo «Hostname», solo il nome senza `https://`).
+
+Un hostname non elencato in `SIR_HOSTNAMES` non ha certificato né risposta; uno elencato ma non assegnato risponde col cliente
+di `DEFAULT_TENANT_SLUG` (`docs/server.md`).
+
+### 8. Agente scaricabile
+`scripts/pubblica-agente-produzione.sh` costruisce l'agente C# per Windows **solo con Docker** (container temporaneo
+dell'SDK .NET, rimosso a fine build; sul server non si installa .NET) e pubblica `sir-agent.exe` e `sir-agent.json` nella
+cartella `AGENT_DOWNLOAD_HOST_DIR` del `.env` (default `/var/lib/<UTENTE_SERVIZIO>/downloads`), che il server legge in sola
+lettura. Lo chiama `aggiorna-produzione.sh`; **ricostruisce solo se la versione cambia** (elemento `<Version>` in
+`apps/agent-dotnet/Directory.Build.props`) o se i file mancano. Un suo errore non annulla l'aggiornamento.
+```bash
+# --- variabili ---
+CARTELLA_INSTALLAZIONE="/opt/sir-realtime"   # la stessa dell'installazione
+FORZA="--forza"                              # "--forza" = ricostruisce anche con versione invariata; vuoto = solo se cambia
+
+# --- comandi ---
+cd "$CARTELLA_INSTALLAZIONE"
+sudo scripts/pubblica-agente-produzione.sh $FORZA
+```
+
+### 9. Log e controlli
+```bash
+# --- variabili ---
+CARTELLA_INSTALLAZIONE="/opt/sir-realtime"   # la stessa dell'installazione
+SERVIZIO="server"                            # server, web, postgres o caddy
+DOMINIO_PORTALE="<dominio del portale>"      # come in installa-produzione.sh
+
+# --- comandi ---
+cd "$CARTELLA_INSTALLAZIONE"
+sudo docker compose ps                                  # stato dei servizi (colonna Health)
+sudo docker compose logs -f --tail 100 "$SERVIZIO"      # log di un servizio (a rotazione: 10 MB x 5 file)
+curl -fsS "https://$DOMINIO_PORTALE/api/health"         # salute vista da fuori
+sudo systemctl status sir-realtime.service sir-backup.timer
+sudo tail -n 50 /var/log/sir-realtime-aggiornamento.log
+sudo ufw status
+```
+Riavvio: `sudo systemctl restart sir-realtime.service` (lo stack riparte da solo anche al riavvio del server). **Caddy non
+scrive access log** (e i suoi log di errore non contengono l'oggetto `request`, quindi nemmeno l'URI): nel percorso ci sono i token dei link (`/live/<token>`, `/l/<codice>`) che i log di nginx mascherano.
+Se un certificato non arriva: `docker compose logs caddy` (di solito DNS non puntato o porte 80/443 chiuse).
+
+### 10. File nuovi e variabili del `.env` di produzione
+| File | A cosa serve |
+|---|---|
+| `scripts/installa-produzione.sh` | installa sistema, Docker, firewall, `.env`, servizi systemd; avvia lo stack |
+| `scripts/aggiorna-produzione.sh` | backup, aggiornamento, verifica di salute, rollback del codice |
+| `scripts/backup-produzione.sh` | backup con rotazione (timer systemd e prima degli aggiornamenti) |
+| `scripts/pubblica-agente-produzione.sh` | costruisce e pubblica l'agente scaricabile |
+| `docker/compose.produzione.yml` | sovrapposizione a `docker-compose.yml`: Caddy, nessuna porta di server e web, log a rotazione, sottoreti fisse `172.29.250.0/24` e `fd29:250::/64` (IPv6) |
+| `docker/Caddyfile` | HTTPS automatico per `SIR_HOSTNAMES`, header HSTS, nessun access log |
+| `docker/web.realip.conf` | nginx si fida di `X-Forwarded-For` solo dalla sottorete di Caddy (IP vero per rate limit) |
+| `/etc/sir-realtime/produzione.conf` | impostazioni non segrete lette dagli script e da systemd |
+| `sir-realtime.service`, `sir-backup.service`, `sir-backup.timer` | unit systemd (avvio automatico, backup 03:30) |
+
+Il `.env` di produzione lo crea lo script (permessi 600) e **non lo sovrascrive mai**: aggiunge solo le variabili mancanti.
+Segreti generati la prima volta: `POSTGRES_PASSWORD`, `SHARE_CODE_SECRET`, `SETTINGS_ENCRYPTION_KEY`.
+
+| Variabile | Valore | Note |
+|---|---|---|
+| `COMPOSE_FILE` | `docker-compose.yml:docker/compose.produzione.yml` | rimessa a ogni esecuzione; fa sì che ogni `docker compose` usi la produzione |
+| `COMPOSE_PROJECT_NAME` | `sir-realtime` | rimessa a ogni esecuzione; dà il nome ai volumi (`sir-realtime_assets`) |
+| `SIR_HOSTNAMES` | elenco separato da virgole | rimessa a ogni esecuzione da `DOMINIO_PORTALE` e `ALTRI_HOSTNAME` |
+| `ACME_EMAIL` | `EMAIL_LETSENCRYPT` | rimessa a ogni esecuzione |
+| `AGENT_DOWNLOAD_HOST_DIR` | `/var/lib/<UTENTE_SERVIZIO>/downloads` | solo se manca; cartella dell'agente scaricabile |
+| `PUBLIC_BASE_URL`, `CORS_ORIGIN`, `LEAGUE_CONTACT` | `https://<DOMINIO_PORTALE>` | solo se mancano; `PUBLIC_BASE_URL` costruisce i link di invito |
+| `COOKIE_SECURE`, `TRUST_PROXY` | `true` | solo se mancano |
+| `LEAGUE_SYNC`, `LOG_LEVEL`, `SESSION_TTL_HOURS` | `on`, `info`, `12` | solo se mancano |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | dallo script | scritte solo se una delle due manca |
+| `POSTGRES_DB`, `POSTGRES_USER`, `SERVER_BIND`, `WEB_BIND` | `sir`, `sir`, `127.0.0.1`, `127.0.0.1` | solo se mancano (nessuna porta è pubblicata comunque) |
+
+Dopo l'installazione le altre variabili del server (`docs/server.md`) si cambiano nel `.env` e si applicano con
+`sudo systemctl restart sir-realtime.service`. Collegamenti: `docs/server.md` (variabili, «Agente scaricabile», «Posta»),
+`docs/portale.md` (nginx, «Clienti»).
+
 ## Riferimenti
+- `scripts/installa-produzione.sh`, `scripts/aggiorna-produzione.sh`, `scripts/backup-produzione.sh`,
+  `scripts/pubblica-agente-produzione.sh`, `docker/compose.produzione.yml`, `docker/Caddyfile`, `docker/web.realip.conf`
 - `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`
 - `tsconfig.base.json`, `packages/*/tsconfig.json`, `packages/*/tsconfig.build.json`
 - `vitest.shared.ts`, `packages/*/vitest.config.ts`

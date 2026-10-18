@@ -1,0 +1,66 @@
+# Sovrapposizione di produzione a docker-compose.yml (la usa scripts/installa-produzione.sh tramite COMPOSE_FILE nel .env).
+# Uso a mano:  docker compose -f docker-compose.yml -f docker/compose.produzione.yml up -d
+# Cosa cambia rispetto allo sviluppo:
+#  - Caddy è l'unico servizio pubblicato (80, 443): certificati Let's Encrypt automatici per SIR_HOSTNAMES, redirect 80 -> 443;
+#  - server e web non pubblicano più nessuna porta sull'host (nemmeno su 127.0.0.1): si raggiungono solo dalla rete interna;
+#  - nginx (web) si fida di X-Forwarded-For solo da Caddy (rete con indirizzi fissi), così rate limit e log vedono l'IP vero;
+#  - log dei container a rotazione (altrimenti crescono senza limite); Postgres senza porta pubblicata (già così nel base).
+name: sir-realtime
+
+x-log-rotazione: &log-rotazione
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      # Elenco di hostname separati da virgola (portale e domini dei clienti): scritto da installa-produzione.sh nel .env.
+      SIR_HOSTNAMES: ${SIR_HOSTNAMES:?imposta SIR_HOSTNAMES in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?imposta ACME_EMAIL in .env}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificati e chiave dell'account ACME: da conservare (altrimenti si rischiano i limiti di Let's Encrypt).
+      - caddy_data:/data
+      - caddy_config:/config
+    logging: *log-rotazione
+
+  postgres:
+    logging: *log-rotazione
+
+  server:
+    # Nessuna porta sull'host: l'accesso è solo da web (nginx) nella rete interna.
+    ports: !reset []
+    environment:
+      NODE_ENV: production
+    logging: *log-rotazione
+
+  web:
+    ports: !reset []
+    volumes:
+      - ./docker/web.realip.conf:/etc/nginx/conf.d/00-realip.conf:ro
+    logging: *log-rotazione
+
+networks:
+  default:
+    # IPv6 con indirizzi veri dei client: richiede "ip6tables": true e "userland-proxy": false in /etc/docker/daemon.json
+    # (li imposta installa-produzione.sh). Sottoreti fisse: devono coincidere con set_real_ip_from di docker/web.realip.conf.
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 172.29.250.0/24
+        - subnet: fd29:250::/64
+
+volumes:
+  caddy_data:
+  caddy_config:

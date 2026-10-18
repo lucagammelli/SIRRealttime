@@ -92,7 +92,9 @@ Funzioni pure `computeMatchState(parsed)`:
 ## 6. Infrastruttura
 - `docker-compose.yml`: postgres, server, web (nginx per build statica + proxy `/api` e `/ws`).
 - `.env.example`, script `pnpm dev` che avvia tutto, migrazioni Drizzle, seed utente admin.
-- Deploy definitivo rimandato (il compose è portabile su VPS o cloud).
+- Deploy in produzione (dal 2026-10-18): `scripts/installa-produzione.sh` (Ubuntu 24.04, Docker, firewall, `.env`, systemd),
+  `aggiorna-produzione.sh` (con rollback), `backup-produzione.sh` (giornaliero), HTTPS automatico con Caddy
+  (`docker/compose.produzione.yml`). Guida in `docs/infrastruttura.md`, «Installazione in produzione».
 
 ## Fasi di sviluppo
 1. Scaffold monorepo, lint/format, vitest, CI base.

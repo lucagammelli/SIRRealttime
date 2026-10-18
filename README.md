@@ -69,7 +69,7 @@ Pagine, variabili della demo, Docker e punti ancora da verificare sono in `docs/
 - `docs/agente.md`: agente Windows (lettura del `.dvw`, coda offline, installazione come servizio)
 - `docs/server.md`: server (ingest, accessi, endpoint, WebSocket, database, Docker)
 - `docs/portale.md`: portale web (pagina pubblica, area riservata, demo, nginx)
-- `docs/infrastruttura.md`: monorepo, build, test, CI, Docker
+- `docs/infrastruttura.md`: monorepo, build, test, CI, Docker, installazione in produzione
 - `docs/dvw-parser.md`: parser DVW
 - `docs/simulatore.md`: simulatore DataVolley
 - `docs/decisioni.md`: decisioni con data e motivo

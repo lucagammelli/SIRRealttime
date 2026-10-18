@@ -389,3 +389,12 @@ Una riga per decisione: data, scelta, motivo.
 - 2026-10-18: `ErrorBoundary` con ricarica automatica una sola volta per sessione quando un file del portale non esiste
   più, perché dopo un aggiornamento una scheda lasciata aperta resta bianca, ma un guasto vero non deve andare in ciclo
   (`docs/portale.md`).
+- 2026-10-18: Caddy invece di nginx + certbot per l'HTTPS di produzione, perché ottiene e rinnova da solo i certificati
+  Let's Encrypt per un elenco di hostname (`SIR_HOSTNAMES`) senza cron né script di rinnovo (`docs/infrastruttura.md`).
+- 2026-10-18: Caddy senza access log, perché nel percorso ci sono i token dei link (`/live/<token>`, `/l/<codice>`) che
+  nginx maschera nei suoi log e Caddy non saprebbe mascherare.
+- 2026-10-18: aggiornamento in uno script separato (`aggiorna-produzione.sh`) con backup prima, verifica di salute e
+  rollback del codice, perché si usa spesso e non deve rifare l'installazione del sistema; il database non torna indietro,
+  per questo il backup `pre-aggiornamento`.
+- 2026-10-18: l'agente scaricabile si costruisce solo con Docker (`pubblica-agente-produzione.sh`, ricostruito solo se
+  cambia la versione), perché sul server non si installa .NET e il disco è poco.

@@ -17,6 +17,7 @@ import {
   BRANDING_IMAGE_SLOTS,
   IdParamSchema,
   intermissionImageIds,
+  isCustomTemplate,
   layoutImageIds,
   publicAssetPath,
   resolveBranding,
@@ -36,7 +37,7 @@ import { readAssetFile, removeAssetFile, writeAssetFile } from '../assetStore.js
 import type { AppContext } from '../context.js';
 import { perMinute } from '../context.js';
 import { assets, clientFixtures, tenants } from '../db/index.js';
-import { badRequest, conflict, HttpError, notFound } from '../lib/errors.js';
+import { badRequest, conflict, forbidden, HttpError, notFound } from '../lib/errors.js';
 import { ImageRejected, inspectImage } from '../lib/images.js';
 import { validate } from '../lib/validate.js';
 import { requireRole } from '../security.js';
@@ -183,6 +184,11 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const branding = validate(TenantBrandingSchema, request.body);
     await ctx.db.transaction(async (tx) => {
       await lockClientAssets(tx, tenantId);
+      // A custom theme is assigned by the superadmin: a client can only keep the one it already has.
+      if (isCustomTemplate(branding.template) && request.user?.role !== 'superadmin') {
+        const [current] = await tx.select({ branding: tenants.branding }).from(tenants).where(eq(tenants.id, tenantId));
+        if (resolveBranding(current?.branding).template !== branding.template) throw forbidden();
+      }
       for (const slot of SLOTS) {
         const id = branding[slot];
         if (id === null) continue;

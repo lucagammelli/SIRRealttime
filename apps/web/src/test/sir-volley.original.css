@@ -1,0 +1,227 @@
+/* Copia del CSS scritto a mano del tema SIR VOLLEY prima che diventasse un file JSON (tokens.css e index.css): serve solo al test di confronto lib/themes.test.ts. */
+/*
+ * Template «SIR VOLLEY» (always dark, see TEMPLATES of @sir/shared): palette, font and sizes of the graphic
+ * specifications (docs/grafica). After the dark blocks: same specificity, so these values win. The tokens it does not
+ * change (evaluations, court, warnings) are the ones of the dark theme, forced on <html> by lib/theme.ts.
+ * Contrast (checked by lib/templates.test.ts): text #ffffff and #a6a6ac at least 6.5:1 on every panel; the red
+ * #e30613 is for fills and big text (3:1), as small text the team colour is `-ink` #eb515a (4.5:1 up to #202024).
+ */
+:root[data-template='sir-volley'],
+[data-sir-scope][data-template='sir-volley'] {
+  --sir-font-sans: 'Google Sans Code', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --sir-font-display: var(--sir-font-sans);
+  /* Codes, links and tokens too: one font in every page of the template (Google Sans Code is monospaced). */
+  --sir-font-mono: var(--sir-font-sans);
+  --sir-radius: 8px;
+  --sir-radius-lg: 14px;
+  --sir-radius-button: 8px;
+
+  --sir-bg: #0b0b0d;
+  --sir-surface: #151518;
+  --sir-surface-2: #1c1c20;
+  --sir-border: #303036;
+  --sir-grid: #303036;
+  --sir-axis: #55555c;
+  --sir-text: #ffffff;
+  --sir-text-muted: #a6a6ac;
+  --sir-focus: #ffffff;
+  --sir-hover: #252529;
+  --sir-shadow: none;
+
+  --sir-primary: #e30613;
+  --sir-on-primary: #ffffff;
+  --sir-accent: #e30613;
+  --sir-on-accent: #ffffff;
+
+  /* Without a team of the client on court: home in red, away in white. */
+  --sir-home: #e30613;
+  --sir-home-soft: #3a1217;
+  --sir-on-home: #ffffff;
+  --sir-home-ink: #eb515a;
+  --sir-away: #ffffff;
+  --sir-away-soft: #48484b;
+  --sir-on-away: #000000;
+  --sir-away-ink: #ffffff;
+  /* Team of the client: always the accent (red); the opponent: white. */
+  --sir-our: var(--sir-accent);
+  --sir-our-soft: #3a1217;
+  --sir-on-our: var(--sir-on-accent);
+  --sir-our-ink: #eb515a;
+  --sir-opponent: #ffffff;
+  --sir-opponent-soft: #48484b;
+  --sir-on-opponent: #000000;
+  --sir-opponent-ink: #ffffff;
+
+  --sir-court-text: #ffffff;
+
+  /* No gradients on the panels: flat cards with a 1 px border. */
+  --sir-glow: transparent;
+  --sir-glow-soft: transparent;
+  --sir-home-glow: transparent;
+  --sir-away-glow: transparent;
+
+  --sir-seg-bg: #1c1c20;
+  --sir-seg-text: #a6a6ac;
+  --sir-seg-active: #e30613;
+  --sir-on-seg-active: #ffffff;
+  --sir-nav-active: #e30613;
+  --sir-on-nav-active: #ffffff;
+  --sir-badge-live: transparent;
+  --sir-badge-live-border: #e30613;
+  --sir-on-badge-live: #ffffff;
+  --sir-badge-live-dot: #e30613;
+  --sir-badge-final-border: #e30613;
+  --sir-badge-final-dot: #e30613;
+
+  --sir-table-head: #202024;
+  --sir-table-alt: #1c1c20;
+  --sir-table-key: #292024;
+  --sir-table-selected: #292024;
+  --sir-table-indicator: #e30613;
+  --sir-table-border: #303036;
+
+  --sir-chart-axis: #55555c;
+  --sir-chart-secondary: #77777f;
+
+  /* Big screen: smaller text than the standard look, so that the page of the mockup fits one 16:9 screen. */
+  --sir-tv-font-size: clamp(14px, min(0.9vw, 1.6vh), 36px);
+
+  /* Sizes of the specifications, desktop (≥ 1200 px); the media queries below change them on smaller screens. */
+  --sir-page-pad: 24px;
+  --sir-gap: 16px;
+  --sir-card-pad: 16px;
+  --sir-title-size: 18px;
+  --sir-text-size: 14px;
+  --sir-score-size: clamp(64px, 5vw, 96px);
+  --sir-team-size: clamp(24px, 1.9vw, 36px);
+  --sir-navbar-height: 56px;
+  --sir-logo-height: 36px;
+  --sir-chart-height: 260px;
+}
+
+/* Tablet landscape (900-1199 px, iPad 1024 × 768). */
+@media (max-width: 1199px) {
+  :root[data-template='sir-volley'],
+  [data-sir-scope][data-template='sir-volley'] {
+    --sir-page-pad: 20px;
+    --sir-gap: 16px;
+    --sir-card-pad: 16px;
+    --sir-title-size: 17px;
+    --sir-score-size: clamp(56px, 6vw, 64px);
+    --sir-team-size: 24px;
+    --sir-logo-height: 32px;
+    --sir-chart-height: 240px;
+  }
+}
+
+/* Tablet portrait (768-899 px, iPad 768 × 1024). */
+@media (max-width: 899px) {
+  :root[data-template='sir-volley'],
+  [data-sir-scope][data-template='sir-volley'] {
+    --sir-page-pad: 16px;
+    --sir-gap: 12px;
+    --sir-card-pad: 14px;
+    --sir-title-size: 16px;
+    --sir-score-size: clamp(48px, 6.5vw, 56px);
+    --sir-team-size: 20px;
+  }
+}
+
+/* Smartphone portrait (≤ 767 px). */
+@media (max-width: 767px) {
+  :root[data-template='sir-volley'],
+  [data-sir-scope][data-template='sir-volley'] {
+    --sir-radius-lg: 12px;
+    --sir-page-pad: 12px;
+    --sir-gap: 12px;
+    --sir-card-pad: 12px;
+    --sir-title-size: 15px;
+    --sir-score-size: clamp(36px, 10vw, 44px);
+    --sir-team-size: 16px;
+    --sir-navbar-height: 52px;
+    --sir-logo-height: 28px;
+    --sir-chart-height: 220px;
+  }
+}
+
+/* Smartphone landscape (667 × 375, 844 × 390, 932 × 430): low screens. */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root[data-template='sir-volley'],
+  [data-sir-scope][data-template='sir-volley'] {
+    --sir-page-pad: 12px;
+    --sir-gap: 12px;
+    --sir-card-pad: 12px;
+    --sir-score-size: clamp(32px, 5vw, 40px);
+    --sir-team-size: 16px;
+    --sir-navbar-height: 44px;
+    --sir-logo-height: 28px;
+    --sir-chart-height: 200px;
+  }
+}
+
+/* Big screen with the template: score and team names scale with the height of the screen. */
+:root.sir-tv[data-template='sir-volley'] {
+  --sir-score-size: min(13vh, 8rem);
+  --sir-team-size: min(4.2vh, 2.5rem);
+}
+
+/*
+ * Template «SIR VOLLEY» (tokens in tokens.css): sizes of the specifications on the hook classes of the components
+ * (`sir-card`, `sir-page`, ...). Outside of any layer, so they win over the Tailwind utilities of the components;
+ * only variables, never colours written here.
+ */
+[data-template='sir-volley'] {
+  font-variant-numeric: tabular-nums;
+}
+[data-template='sir-volley'] body,
+[data-sir-scope][data-template='sir-volley'] {
+  font-size: var(--sir-text-size);
+}
+[data-template='sir-volley'] .sir-page {
+  padding-left: max(var(--sir-page-pad), env(safe-area-inset-left));
+  padding-right: max(var(--sir-page-pad), env(safe-area-inset-right));
+}
+[data-template='sir-volley'] .sir-blocks {
+  gap: var(--sir-gap);
+}
+[data-template='sir-volley'] .sir-card {
+  border-radius: var(--sir-radius-lg);
+}
+[data-template='sir-volley'] .sir-card-head {
+  padding-left: var(--sir-card-pad);
+  padding-right: var(--sir-card-pad);
+}
+[data-template='sir-volley'] .sir-card-head[data-open='true'] {
+  padding-top: var(--sir-card-pad);
+}
+[data-template='sir-volley'] .sir-card-body {
+  padding: 12px var(--sir-card-pad) var(--sir-card-pad);
+}
+[data-template='sir-volley'] .sir-card-bleed {
+  margin-left: calc(-1 * var(--sir-card-pad));
+  margin-right: calc(-1 * var(--sir-card-pad));
+  max-width: calc(100% + 2 * var(--sir-card-pad));
+}
+[data-template='sir-volley'] .sir-card-title {
+  font-size: var(--sir-title-size);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+[data-template='sir-volley'] .sir-score {
+  font-size: var(--sir-score-size);
+}
+[data-template='sir-volley'] .sir-team-name {
+  font-size: var(--sir-team-size);
+}
+[data-template='sir-volley'] .sir-team-name[data-long='true'] {
+  font-size: calc(var(--sir-team-size) * 0.75);
+}
+[data-template='sir-volley'] .sir-chart {
+  height: var(--sir-chart-height);
+}
+[data-template='sir-volley'] .sir-navbar {
+  min-height: var(--sir-navbar-height);
+}
+[data-template='sir-volley'] .sir-navbar-logo {
+  height: var(--sir-logo-height);
+}

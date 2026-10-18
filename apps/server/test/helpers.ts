@@ -46,7 +46,10 @@ export interface TestServer {
 export async function startServer(
   rateLimits: Partial<RateLimits> = {},
   env: Record<string, string> = {},
-  appOptions: Pick<AppOptions, 'leagueFetcher' | 'onRoute' | 'simulationTimers' | 'mailTransport'> = {},
+  appOptions: Pick<AppOptions, 'leagueFetcher' | 'onRoute' | 'simulationTimers' | 'mailTransport'> & {
+    /** Clock of the server from the start (default: the real one until `setNow`): tests that depend on the date fix it. */
+    startAt?: Date;
+  } = {},
 ): Promise<TestServer> {
   const database = createPgliteDatabase();
   await database.migrate();
@@ -62,7 +65,7 @@ export async function startServer(
     LEAGUE_SYNC: 'off',
     ...env,
   });
-  let now: Date | null = null;
+  let now: Date | null = appOptions.startAt ?? null;
   const app = await buildApp({
     config,
     db: database.db,
@@ -158,6 +161,17 @@ export async function createTenant(server: TestServer, slug: string, hostnames: 
     .returning({ id: tenants.id });
   if (!row) throw new Error('tenant not inserted');
   return row.id;
+}
+
+/**
+ * Assigns a custom theme to a client as the superadmin does (directly in the database): the client then keeps it
+ * when it saves its graphics, while a client admin cannot choose it.
+ */
+export async function assignTemplate(server: TestServer, tenantId: string, template: string): Promise<void> {
+  await server.database.db
+    .update(tenants)
+    .set({ branding: { version: 1, template } })
+    .where(eq(tenants.id, tenantId));
 }
 
 /** User of a client inserted directly in the database. */

@@ -2,7 +2,7 @@ import type { AssetSummary, WebManifest } from '@sir/shared';
 import { DEFAULT_MANIFEST_ICONS } from '@sir/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
-import { createTenant, createUser, login, startServer } from './helpers.js';
+import { assignTemplate, createTenant, createUser, login, startServer } from './helpers.js';
 import { png } from './imageFixtures.js';
 
 const HOST = 'manifest.test';
@@ -64,6 +64,7 @@ describe('manifest of the installable app', () => {
   it('uses the colours of the template where the client has chosen none (SIR VOLLEY: dark and red)', async () => {
     const tenantId = await createTenant(server, 'manifest-sir', [HOST_SIR]);
     await createUser(server, ADMIN_S, 'admin', tenantId);
+    await assignTemplate(server, tenantId, 'sir-volley');
     const cookie = await login(server.app, ADMIN_S, HOST_SIR);
     const put = (payload: object) =>
       server.app.inject({ method: 'PUT', url: '/api/admin/branding', payload, headers: { cookie, host: HOST_SIR } });

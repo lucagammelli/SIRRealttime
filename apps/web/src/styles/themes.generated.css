@@ -1,0 +1,211 @@
+/* GENERATO da scripts/gen-themes.ts dai file JSON dei temi personalizzati: non modificare a mano. */
+
+/* Tema personalizzato «SIR VOLLEY» (packages/shared/src/themes/sir-volley.json). */
+:root[data-template='sir-volley'],
+[data-sir-scope][data-template='sir-volley'] {
+  --sir-font-sans: 'Google Sans Code', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --sir-font-display: var(--sir-font-sans);
+  --sir-font-mono: var(--sir-font-sans);
+  --sir-radius: 8px;
+  --sir-radius-lg: 14px;
+  --sir-radius-button: 8px;
+  --sir-bg: #0b0b0d;
+  --sir-surface: #151518;
+  --sir-surface-2: #1c1c20;
+  --sir-border: #303036;
+  --sir-grid: #303036;
+  --sir-axis: #55555c;
+  --sir-text: #ffffff;
+  --sir-text-muted: #a6a6ac;
+  --sir-focus: #ffffff;
+  --sir-hover: #252529;
+  --sir-shadow: none;
+  --sir-primary: #e30613;
+  --sir-on-primary: #ffffff;
+  --sir-accent: #e30613;
+  --sir-on-accent: #ffffff;
+  --sir-home: #e30613;
+  --sir-home-soft: #3a1217;
+  --sir-on-home: #ffffff;
+  --sir-home-ink: #eb515a;
+  --sir-away: #ffffff;
+  --sir-away-soft: #48484b;
+  --sir-on-away: #000000;
+  --sir-away-ink: #ffffff;
+  --sir-our: var(--sir-accent);
+  --sir-our-soft: #3a1217;
+  --sir-on-our: var(--sir-on-accent);
+  --sir-our-ink: #eb515a;
+  --sir-opponent: #ffffff;
+  --sir-opponent-soft: #48484b;
+  --sir-on-opponent: #000000;
+  --sir-opponent-ink: #ffffff;
+  --sir-court-text: #ffffff;
+  --sir-glow: transparent;
+  --sir-glow-soft: transparent;
+  --sir-home-glow: transparent;
+  --sir-away-glow: transparent;
+  --sir-seg-bg: #1c1c20;
+  --sir-seg-text: #a6a6ac;
+  --sir-seg-active: #e30613;
+  --sir-on-seg-active: #ffffff;
+  --sir-nav-active: #e30613;
+  --sir-on-nav-active: #ffffff;
+  --sir-badge-live: transparent;
+  --sir-badge-live-border: #e30613;
+  --sir-on-badge-live: #ffffff;
+  --sir-badge-live-dot: #e30613;
+  --sir-badge-final-border: #e30613;
+  --sir-badge-final-dot: #e30613;
+  --sir-table-head: #202024;
+  --sir-table-alt: #1c1c20;
+  --sir-table-key: #292024;
+  --sir-table-selected: #292024;
+  --sir-table-indicator: #e30613;
+  --sir-table-border: #303036;
+  --sir-chart-axis: #55555c;
+  --sir-chart-secondary: #77777f;
+  --sir-tv-font-size: clamp(14px, min(0.9vw, 1.6vh), 36px);
+  --sir-page-pad: 24px;
+  --sir-gap: 16px;
+  --sir-card-pad: 16px;
+  --sir-title-size: 18px;
+  --sir-text-size: 14px;
+  --sir-score-size: clamp(64px, 5vw, 96px);
+  --sir-team-size: clamp(24px, 1.9vw, 36px);
+  --sir-navbar-height: 56px;
+  --sir-logo-height: 36px;
+  --sir-chart-height: 260px;
+}
+
+@media (max-width: 1199px) {
+  :root[data-template='sir-volley'],
+  [data-sir-scope][data-template='sir-volley'] {
+    --sir-page-pad: 20px;
+    --sir-gap: 16px;
+    --sir-card-pad: 16px;
+    --sir-title-size: 17px;
+    --sir-score-size: clamp(56px, 6vw, 64px);
+    --sir-team-size: 24px;
+    --sir-logo-height: 32px;
+    --sir-chart-height: 240px;
+  }
+}
+
+@media (max-width: 899px) {
+  :root[data-template='sir-volley'],
+  [data-sir-scope][data-template='sir-volley'] {
+    --sir-page-pad: 16px;
+    --sir-gap: 12px;
+    --sir-card-pad: 14px;
+    --sir-title-size: 16px;
+    --sir-score-size: clamp(48px, 6.5vw, 56px);
+    --sir-team-size: 20px;
+  }
+}
+
+@media (max-width: 767px) {
+  :root[data-template='sir-volley'],
+  [data-sir-scope][data-template='sir-volley'] {
+    --sir-radius-lg: 12px;
+    --sir-page-pad: 12px;
+    --sir-gap: 12px;
+    --sir-card-pad: 12px;
+    --sir-title-size: 15px;
+    --sir-score-size: clamp(36px, 10vw, 44px);
+    --sir-team-size: 16px;
+    --sir-navbar-height: 52px;
+    --sir-logo-height: 28px;
+    --sir-chart-height: 220px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  :root[data-template='sir-volley'],
+  [data-sir-scope][data-template='sir-volley'] {
+    --sir-page-pad: 12px;
+    --sir-gap: 12px;
+    --sir-card-pad: 12px;
+    --sir-score-size: clamp(32px, 5vw, 40px);
+    --sir-team-size: 16px;
+    --sir-navbar-height: 44px;
+    --sir-logo-height: 28px;
+    --sir-chart-height: 200px;
+  }
+}
+
+:root.sir-tv[data-template='sir-volley'] {
+  --sir-score-size: min(13vh, 8rem);
+  --sir-team-size: min(4.2vh, 2.5rem);
+}
+
+[data-template='sir-volley'] {
+  font-variant-numeric: tabular-nums;
+}
+
+[data-template='sir-volley'] body,
+[data-sir-scope][data-template='sir-volley'] {
+  font-size: var(--sir-text-size);
+}
+
+[data-template='sir-volley'] .sir-page {
+  padding-left: max(var(--sir-page-pad), env(safe-area-inset-left));
+  padding-right: max(var(--sir-page-pad), env(safe-area-inset-right));
+}
+
+[data-template='sir-volley'] .sir-blocks {
+  gap: var(--sir-gap);
+}
+
+[data-template='sir-volley'] .sir-card {
+  border-radius: var(--sir-radius-lg);
+}
+
+[data-template='sir-volley'] .sir-card-head {
+  padding-left: var(--sir-card-pad);
+  padding-right: var(--sir-card-pad);
+}
+
+[data-template='sir-volley'] .sir-card-head[data-open='true'] {
+  padding-top: var(--sir-card-pad);
+}
+
+[data-template='sir-volley'] .sir-card-body {
+  padding: 12px var(--sir-card-pad) var(--sir-card-pad);
+}
+
+[data-template='sir-volley'] .sir-card-bleed {
+  margin-left: calc(-1 * var(--sir-card-pad));
+  margin-right: calc(-1 * var(--sir-card-pad));
+  max-width: calc(100% + 2 * var(--sir-card-pad));
+}
+
+[data-template='sir-volley'] .sir-card-title {
+  font-size: var(--sir-title-size);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+[data-template='sir-volley'] .sir-score {
+  font-size: var(--sir-score-size);
+}
+
+[data-template='sir-volley'] .sir-team-name {
+  font-size: var(--sir-team-size);
+}
+
+[data-template='sir-volley'] .sir-team-name[data-long='true'] {
+  font-size: calc(var(--sir-team-size) * 0.75);
+}
+
+[data-template='sir-volley'] .sir-chart {
+  height: var(--sir-chart-height);
+}
+
+[data-template='sir-volley'] .sir-navbar {
+  min-height: var(--sir-navbar-height);
+}
+
+[data-template='sir-volley'] .sir-navbar-logo {
+  height: var(--sir-logo-height);
+}

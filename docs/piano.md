@@ -139,7 +139,8 @@ dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in q
    finestra dell'agente mostra (`docs/server.md`, «Agente scaricabile»; `docs/agente.md`, `docs/portale.md`,
    `docs/infrastruttura.md`, `docs/architettura.md`); da provare su Windows.
 10. `template-sir-volley` (**fatto**, 2026-10-16): primo modello grafico (template) scelto dal cliente nella pagina
-    «Grafica» («Modello grafico»): SIR VOLLEY, tema scuro forzato, rosso e bianco, font Google Sans Code self-hosted, logo
+    «Grafica» («Modello grafico»): SIR VOLLEY (dal job `wizard-temi`, 2026-10-18, non più pubblico ma tema personalizzato
+    assegnato dal superadmin; ai clienti si offrono quattro modelli), tema scuro forzato, rosso e bianco, font Google Sans Code self-hosted, logo
     SIR Real Time, pagina predefinita come il mockup (specifiche e originali in
     `docs/grafica/`), «Nostra squadra» che segue i colori del cliente e breakpoint telefono/tablet/desktop per tutti i
     modelli (`docs/portale.md`, `docs/architettura.md`, `docs/server.md`); da provare su dispositivi veri.
@@ -170,7 +171,7 @@ Calendario, classifica, squadre e loghi dei campionati ufficiali, scaricati dai 
 3. `blocchi-calendario` (**fatto**, 2026-10-16): blocchi della pagina e diapositive delle pause «Prossima partita» (con QR
    del link della partita) e «Classifica» (prime righe, tutta, intorno alla nostra squadra), rotta pubblica
    `GET /api/public/tenant/schedule` (`docs/server.md`; `docs/portale.md`, «Blocchi del calendario»). Limiti noti:
-   «Prossima partita» non è nel layout TV predefinito di `sir-volley` (griglia piena); flag live in ritardo fino a 60 s;
+   «Prossima partita» non è nel layout TV predefinito del tema personalizzato `sir-volley` (griglia piena); flag live in ritardo fino a 60 s;
    la partita senza orario non si vede.
 
 **Fase «Campionati» completata** (2026-10-16) con la Lega Pallavolo Serie A. Passo futuro: il connettore FIPAV (altri
@@ -227,6 +228,11 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
    (messaggio `hello`, tabelle `page_views`, `viewer_peaks`, `view_daily`, migrazione `0013`), pagina «Statistiche» con
    «Adesso», periodo, partite con curva, link e QR, dispositivi ed esportazione CSV (`docs/server.md`, `docs/portale.md`,
    `docs/architettura.md`).
+12. `wizard-temi` (**fatto**, 2026-10-18): quattro modelli grafici per tutti i clienti (Standard, Chiaro e pulito, Scuro
+   sportivo, Alto contrasto per TV) nella procedura guidata e nello Studio; SIR VOLLEY diventa tema personalizzato (JSON in
+   `packages/shared/src/themes/`, CSS generato con `pnpm --filter @sir/web themes`) assegnato dal superadmin, con 403 del
+   server per gli altri; avviso «La pagina non si è caricata» con ricarica automatica una volta; «Apri lo Studio grafico»
+   nel passo finale (`docs/portale.md`, `docs/architettura.md`, `docs/server.md`).
 **Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
 PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo
 mostra con «autore sconosciuto».

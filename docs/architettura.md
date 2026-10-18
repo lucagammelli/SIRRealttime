@@ -166,13 +166,34 @@ rosso `#E30613` su `#151518` ha 3,7:1 e il testo piccolo usa `#eb515a`; inoltre 
 portale calcola variabili e avvisi di contrasto con queste funzioni, il server non le duplica. Flusso in
 `docs/server.md` («Grafica per cliente») e `docs/portale.md`.
 
-Modelli grafici (`templates.ts`): elenco chiuso `TEMPLATE_IDS` (`standard`, `sir-volley`), `TemplateIdSchema`,
-`DEFAULT_TEMPLATE` (`standard`), `TEMPLATES` (`TemplateDefinition`: etichetta, `forcedTheme` `'dark'` o null, `ourColor`
-`home` | `accent`, colori del modello, superfici scure `darkSurface` / `darkInkSurface` / `darkBackground`, immagini
-`navbarLogo`, `courtArrows` `evaluation` | `team`) e `templateOf(id)` (modello standard per un
-id sconosciuto). `standard` è l'aspetto di prima; `sir-volley` è il modello «SIR VOLLEY» (solo scuro, rosso `#e30613`,
-bianco, logo; nessun piè di pagina). Specifiche e originali grafici di Luca: `docs/grafica/`. I token CSS del modello
-stanno in `apps/web/src/styles/tokens.css` (`docs/portale.md`).
+Modelli grafici (`templates.ts`, `templateDefinition.ts`): elenco chiuso `TEMPLATE_IDS` (`standard`, `pulito`, `notte`,
+`contrasto`, `sir-volley`), `TemplateIdSchema`, `DEFAULT_TEMPLATE` (`standard`), `TEMPLATES` (`TemplateDefinition`:
+`custom`, etichetta, descrizione, `forcedTheme` `'dark'` | `'light'` | null, `ourColor` `home` | `accent`, colori del
+modello, superfici scure `darkSurface` / `darkInkSurface` / `darkBackground`, immagini `navbarLogo`, `courtArrows`
+`evaluation` | `team`, `scoreboard`, `css`, `layout`) e `templateOf(id)` (modello standard per un id sconosciuto).
+- **Quattro modelli per tutti i clienti** (`custom: false`): «Standard» (l'aspetto di prima), «Chiaro e pulito» (`pulito`,
+  sempre chiaro), «Scuro sportivo» (`notte`, sempre scuro), «Alto contrasto per TV» (`contrasto`, nero con giallo e
+  azzurro). I loro token CSS sono scritti a mano in `apps/web/src/styles/tokens.css` sotto `[data-template='…']`.
+- **Temi personalizzati** (`custom: true`): il look di un solo cliente, descritto da un **documento JSON** in
+  `packages/shared/src/themes/<id>.json` (oggi solo `sir-volley`, «SIR VOLLEY»: scuro, rosso `#e30613`, logo, nessun piè di
+  pagina). `TemplateDefinitionSchema` (zod strict) è lo schema di quel documento (lo stesso dei quattro modelli); la
+  sezione `css` (`ThemeCssSchema`: `vars`, `media`, `tvVars`, `rules`) contiene i token e le regole, con valori che non
+  possono uscire dalla dichiarazione (niente `;`, parentesi graffe, commenti, `@`, `url(`); `parseCustomTheme` legge e
+  valida un documento. Non è un modello pubblico: `SELECTABLE_TEMPLATE_IDS` sono i soli offerti ai clienti (procedura
+  guidata e «Grafica»), `isCustomTemplate(id)` riconosce i personalizzati e `templateChoices({ current, superadmin })` dà
+  l'elenco per un utente: i quattro modelli per tutti, i personalizzati solo al superadmin e al cliente che ha già quello
+  corrente. Il server rifiuta con 403 l'assegnazione a un cliente da parte di chi non è superadmin (`docs/server.md`).
+- **Generazione del CSS**: `themeCss` (`packages/shared/src/themeCss.ts`) trasforma il documento `css` in regole sotto
+  `[data-template='<id>']`; lo script `apps/web/scripts/gen-themes.ts` le scrive in
+  `apps/web/src/styles/themes.generated.css` (importato da `styles/index.css`, file **generato**, ma versionato). Comando:
+  `pnpm --filter @sir/web themes` (con `--check` non scrive e fallisce se il file non è aggiornato; lo controlla anche
+  un test, `lib/themes.test.ts`). Il CSS si genera in anticipo e arriva al browser come file statico, non come stile
+  inserito a runtime, perché la CSP del portale ammette solo `style-src 'self'`.
+- Procedura per un nuovo tema personalizzato: «Come aggiungere un tema personalizzato per un cliente» in
+  `docs/portale.md` (sezione «Modelli grafici»).
+
+Specifiche e originali grafici di Luca: `docs/grafica/`. Il tema forzato e i token stanno in `apps/web/src/styles/`
+(`docs/portale.md`).
 
 Nostra squadra (`ourTeam.ts`): `OurTeamSchema` / `OurTeam` (`code` e `name`, testi semplici, `OUR_TEAM_CODE_MAX` 10,
 `OUR_TEAM_NAME_MAX` 60, entrambi nullable), `normalizeTeamText` (senza maiuscole e accenti), `ourTeamSide(teams, ourTeam)`

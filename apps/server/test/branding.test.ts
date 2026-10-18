@@ -1,7 +1,14 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AssetListResponse, AssetSummary, BrandingResponse, PublicTenantResponse } from '@sir/shared';
-import { ASSET_MAX_BYTES, defaultBranding, defaultIntermissions, defaultLayout, defaultOverlays } from '@sir/shared';
+import {
+  ASSET_MAX_BYTES,
+  defaultBranding,
+  defaultIntermissions,
+  defaultLayout,
+  defaultOverlays,
+  resolveLayout,
+} from '@sir/shared';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
@@ -298,5 +305,44 @@ describe('branding of the client', () => {
     const res = await putBranding('console.sir.test', superCookie, { colors: { accent: '#ffcc00' } });
     expect(res.json<BrandingResponse>().tenantName).toBe('CLUB-A');
     expect((await publicTenant(HOST_A)).json<PublicTenantResponse>().branding.colors).toEqual({ accent: '#ffcc00' });
+  });
+});
+
+describe('custom theme (SIR VOLLEY)', () => {
+  const HOST_SIR = 'sir.sir.test';
+  const ADMIN_SIR = { email: 'admin-sir@sir.test', password: 'password-admin-sir' };
+  let tenantSir: string;
+  let cookieSir: string;
+
+  beforeAll(async () => {
+    tenantSir = await createTenant(server, 'club-sir', [HOST_SIR]);
+    await createUser(server, ADMIN_SIR, 'admin', tenantSir);
+    cookieSir = await login(server.app, ADMIN_SIR, HOST_SIR);
+  });
+
+  it('is refused to a client admin, accepted from the superadmin', async () => {
+    const refused = await putBranding(HOST_SIR, cookieSir, { template: 'sir-volley' });
+    expect(refused.statusCode).toBe(403);
+    expect((await publicTenant(HOST_SIR)).json<PublicTenantResponse>().branding.template).toBe('standard');
+    // A built-in model is free.
+    expect((await putBranding(HOST_SIR, cookieSir, { template: 'notte' })).statusCode).toBe(200);
+
+    const superCookie = await login(server.app, SUPERADMIN, 'console.sir.test');
+    await call(server, 'console.sir.test', superCookie, {
+      method: 'POST',
+      url: '/api/admin/active-tenant',
+      payload: { tenantId: tenantSir },
+    });
+    expect((await putBranding('console.sir.test', superCookie, { template: 'sir-volley' })).statusCode).toBe(200);
+  });
+
+  it('is kept by the client that has it, with the same page as before, and cannot be taken back after leaving it', async () => {
+    const pub = (await publicTenant(HOST_SIR)).json<PublicTenantResponse>();
+    expect(pub.branding.template).toBe('sir-volley');
+    expect(pub.layout).toEqual(resolveLayout({}, 'sir-volley'));
+    const keep = await putBranding(HOST_SIR, cookieSir, { template: 'sir-volley', colors: { accent: '#ff0000' } });
+    expect(keep.statusCode).toBe(200);
+    expect((await putBranding(HOST_SIR, cookieSir, { template: 'standard' })).statusCode).toBe(200);
+    expect((await putBranding(HOST_SIR, cookieSir, { template: 'sir-volley' })).statusCode).toBe(403);
   });
 });

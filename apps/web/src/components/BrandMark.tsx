@@ -3,11 +3,8 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useTemplate, useTenantLook } from '../lib/branding.ts';
 
-/** Alternative text of the logo of the platform in the template «SIR VOLLEY». */
-export const TEMPLATE_LOGO_ALT = 'SIR Real Time';
-
 /**
- * Brand in the header: the logo of the template (navbar of «SIR VOLLEY»: no other logo next to it), otherwise the
+ * Brand in the header: the logo of the template (e.g. the navbar of a custom theme: no other logo next to it), otherwise the
  * horizontal logo of the client (an <img>, SVG included: never inline markup), otherwise its name, otherwise the
  * SIRREALTIME wordmark. `to`: link to the dashboard (reserved area; the public page has no link).
  */
@@ -19,7 +16,7 @@ export function BrandMark({ className = '', to }: { className?: string; to?: str
     mark = (
       <img
         src={template.images.navbarLogo}
-        alt={TEMPLATE_LOGO_ALT}
+        alt={template.images.navbarLogoAlt ?? look?.name ?? ''}
         className={`sir-navbar-logo h-8 w-auto max-w-none object-contain ${className}`}
       />
     );

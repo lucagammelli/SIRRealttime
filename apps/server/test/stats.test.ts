@@ -100,7 +100,7 @@ async function closeSocket(ws: WebSocket, left = 0): Promise<void> {
 }
 
 beforeAll(async () => {
-  server = await startServer();
+  server = await startServer({}, {}, { startAt: T0 });
   baseUrl = await server.app.listen({ port: 0, host: '127.0.0.1' });
   admin = await login(server.app, ADMIN);
   agent = await createAgent(server);
@@ -411,7 +411,7 @@ describe('peaks and API', () => {
 describe('retention', () => {
   it('cleans up on its own hourly timer, with LEAGUE_SYNC=off (no scheduler)', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
-    const own = await startServer({}, { LEAGUE_SYNC: 'off' });
+    const own = await startServer({}, { LEAGUE_SYNC: 'off' }, { startAt: T0 });
     try {
       await own.app.ready();
       const db = own.database.db;

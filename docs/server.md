@@ -108,6 +108,10 @@ li legge dall'hostname e li applica (`docs/portale.md`, «Grafica per cliente»)
 vale i predefiniti del portale (`resolveBranding`; un documento non valido vale i predefiniti). `TENANT_CONFIG_VERSION`
 resta 1.
 
+- **Temi personalizzati**: `PUT /api/admin/branding` con un `template` personalizzato (`isCustomTemplate`, per esempio
+  `sir-volley`; `docs/architettura.md`) risponde **403** «Accesso negato» se chi scrive non è superadmin e il cliente non ha
+  già quel tema salvato (chi lo ha può risalvare la grafica senza cambiarlo). Il controllo è nella stessa transazione del
+  salvataggio.
 - **Rotte pubbliche** (senza token, stesso rate limit `RATE_LIMIT_PUBLIC`): `GET /api/public/tenant` dà nome, grafica e
   percorsi delle immagini del cliente dell'hostname (`Cache-Control: public, max-age=30`; 404 se nessun cliente); `GET
   /api/public/assets/:id` dà il file di un'immagine **solo** se è del cliente dell'hostname (altrimenti 404). Il tipo
@@ -1152,7 +1156,8 @@ Il token agente va nell'intestazione `Authorization: Bearer <token>` di `POST /a
 | `pnpm --filter @sir/server test` | `vitest run` con PGlite in memoria, non serve Postgres |
 | `pnpm --filter @sir/server db:generate` | `drizzle-kit generate` dopo una modifica a `schema.ts` |
 
-I test (`apps/server/test/`: `auth`, `config`, `hub`, `ingest`, `limits`, `migration`, `public`, `registration`, `shortCodes`, `tenants`, `leagues`, `leaguesHtml`, `leagueFetcher`, `legavolley`, `club`, `fixtureMatch`) usano PGlite; i campionati non scaricano
+I test (`apps/server/test/`: `auth`, `config`, `hub`, `ingest`, `limits`, `migration`, `public`, `registration`, `shortCodes`, `tenants`, `leagues`, `leaguesHtml`, `leagueFetcher`, `legavolley`, `club`, `fixtureMatch`) usano PGlite; `startServer` (`apps/server/test/helpers.ts`) accetta come terzo argomento l'opzione `startAt` (una `Date`):
+l'orologio del server parte da quella data invece che da quella vera, per i test che dipendono dal giorno; i campionati non scaricano
 nulla: i test di `legavolley` leggono le pagine vere salvate in `apps/server/test/fixtures/legavolley/`. Per la configurazione
 di vitest vedi `docs/infrastruttura.md`.
 

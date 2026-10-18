@@ -1,10 +1,10 @@
 import type { ClubLeagueStatus, ClubResponse, MeResponse, TenantBranding } from '@sir/shared';
-import { defaultBranding, defaultIntermissions, defaultOverlays } from '@sir/shared';
+import { defaultBranding, defaultIntermissions, defaultLayout, defaultOverlays } from '@sir/shared';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminApp } from '../AdminApp.tsx';
-import { skippedKey } from './model.ts';
+import { reachedKey, skippedKey } from './model.ts';
 import { DOWNLOAD_POLL } from './steps.tsx';
 
 // The real preview of the public page is tested with the Studio; the QR needs a canvas.
@@ -148,6 +148,10 @@ function mockServer(
         if (method === 'PUT') branding = { ...defaultBranding(), ...(body as Partial<TenantBranding>) };
         return json({ tenantName: 'Sir Safety', branding });
       }
+      if (url === '/api/admin/assets' && method === 'GET')
+        return json({ assets: [], usedBytes: 0, quotaBytes: 1000000 });
+      if (url === '/api/public/tenant') return json({ error: 'Non trovato' }, 404);
+      if (url === '/api/admin/layout') return json({ tenantName: 'Sir Safety', layout: defaultLayout() });
       if (url === '/api/admin/intermissions') {
         if (method === 'PUT') intermissions = body as typeof intermissions;
         return json({ tenantName: 'Sir Safety', intermissions });
@@ -196,9 +200,14 @@ function mockServer(
   return { calls, onboarded: () => onboarded };
 }
 
+function Where() {
+  return <output data-testid="where">{useLocation().pathname}</output>;
+}
+
 const renderAdmin = (path = '/admin/live') =>
   render(
     <MemoryRouter initialEntries={[path]}>
+      <Where />
       <Routes>
         <Route path="/admin/*" element={<AdminApp />} />
       </Routes>
@@ -314,12 +323,16 @@ describe('guided first setup: steps', () => {
 
     // 3. Colori: a template, shown in the preview, saved with «Avanti».
     expect(await within(dialog).findByRole('heading', { name: 'I colori' })).toBeTruthy();
-    fireEvent.click(within(dialog).getByRole('radio', { name: /SIR VOLLEY/i }));
-    expect(screen.getByTestId('anteprima').dataset.template).toBe('sir-volley');
+    const models = within(dialog).getAllByRole('radio', {
+      name: /Standard|Chiaro e pulito|Scuro sportivo|Alto contrasto/,
+    });
+    expect(models).toHaveLength(4);
+    // The custom theme of a club is not part of the procedure.
+    expect(within(dialog).queryByRole('radio', { name: /SIR VOLLEY/i })).toBeNull();
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Scuro sportivo/i }));
+    expect(screen.getByTestId('anteprima').dataset.template).toBe('notte');
     next(dialog);
-    await waitFor(() =>
-      expect(posted(calls, '/api/admin/branding')[0]?.body).toMatchObject({ template: 'sir-volley' }),
-    );
+    await waitFor(() => expect(posted(calls, '/api/admin/branding')[0]?.body).toMatchObject({ template: 'notte' }));
 
     // 4. Grafica: a ready-made model for pauses and notices.
     expect(await within(dialog).findByRole('heading', { name: 'La grafica' })).toBeTruthy();
@@ -429,5 +442,47 @@ describe('guided first setup: close and resume', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Salta per ora' }));
     fireEvent.click(screen.getByRole('button', { name: 'Riprendi' }));
     expect(within(await wizard()).getByRole('heading', { name: 'La grafica' })).toBeTruthy();
+  });
+});
+
+describe('guided first setup: last step', () => {
+  const lastStep = async (club: Partial<ClubResponse> = { logoMark: LOGO, displayName: 'Sir' }) => {
+    const server = mockServer('admin', { club });
+    window.sessionStorage.setItem(reachedKey(TENANT.id), 'fatto');
+    renderAdmin();
+    const dialog = await wizard();
+    await within(dialog).findByRole('heading', { name: 'Fatto' });
+    return { ...server, dialog };
+  };
+  const where = (): string => screen.getByTestId('where').textContent ?? '';
+
+  it('«Apri lo Studio grafico» goes to the colours of the Studio in the same tab and shows it', async () => {
+    const { dialog } = await lastStep();
+    const link = within(dialog).getByRole('link', { name: 'Apri lo Studio grafico' });
+    expect(link.getAttribute('href')).toBe('/admin/studio/colori');
+    // Same tab: no target, no download, and not an external address.
+    expect(link.getAttribute('target')).toBeNull();
+    expect(link.hasAttribute('download')).toBe(false);
+    fireEvent.click(link);
+    await waitFor(() => expect(where()).toBe('/admin/studio/colori'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // The Studio itself is on screen (not a blank page) and the notice of the procedure is there only once.
+    expect(await screen.findByTestId('studio', {}, { timeout: 8000 })).toBeTruthy();
+    expect(screen.getAllByRole('region', { name: 'Configurazione da completare' })).toHaveLength(1);
+    // React complained about two children with the same key (the cause of the blank page): never again.
+    const keyWarnings = vi.mocked(console.error).mock.calls.filter((c) => /same key/.test(String(c[0])));
+    expect(keyWarnings).toHaveLength(0);
+  }, 20000);
+
+  it('has the agent download, the channel link with its QR, and «Riprendi» that leads back to the last step', async () => {
+    const { dialog } = await lastStep();
+    const agent = within(dialog).getByRole('link', { name: 'Scarica l’agente' });
+    expect(agent.getAttribute('href')).toBe('/api/admin/agent/download');
+    expect(agent.hasAttribute('download')).toBe(true);
+    expect(await within(dialog).findByText('https://sir.test/l/K7M2QX9P')).toBeTruthy();
+    expect(await within(dialog).findByRole('img', { name: 'QR https://sir.test/l/K7M2QX9P' })).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salta per ora' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Riprendi' }));
+    expect(within(await wizard()).getByRole('heading', { name: 'Fatto' })).toBeTruthy();
   });
 });

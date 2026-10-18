@@ -396,8 +396,31 @@ describe('Colori e loghi', () => {
     expect(await screen.findByText(/Lo sfondo è troppo scuro/)).toBeTruthy();
   });
 
+  it('lists the custom theme only to the superadmin and to the client that already has it', async () => {
+    const models = (): string[] =>
+      within(screen.getByRole('radiogroup', { name: 'Modello grafico' }))
+        .getAllByRole('radio')
+        .map((r) => r.textContent ?? '');
+    mockServer({}, 'admin');
+    const first = renderAt('/admin/studio/colori');
+    await studio();
+    expect(models().some((m) => /SIR VOLLEY/.test(m))).toBe(false);
+    expect(models()).toHaveLength(4);
+    first.unmount();
+    mockServer({ branding: { ...SAVED_BRANDING, template: 'sir-volley' } }, 'admin');
+    const second = renderAt('/admin/studio/colori');
+    await studio();
+    expect(models().some((m) => /SIR VOLLEY/.test(m))).toBe(true);
+    expect(models()).toHaveLength(5);
+    second.unmount();
+    mockServer({}, 'superadmin');
+    renderAt('/admin/studio/colori');
+    await studio();
+    expect(models().some((m) => /SIR VOLLEY/.test(m))).toBe(true);
+  });
+
   it('template and team of the client: the preview follows, «nostra squadra» takes its colour, saved with PUT', async () => {
-    const { puts } = mockServer();
+    const { puts } = mockServer({}, 'superadmin');
     renderAt('/admin/studio/colori');
     await studio();
     fireEvent.click(

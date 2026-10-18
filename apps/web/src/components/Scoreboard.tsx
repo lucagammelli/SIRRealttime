@@ -245,7 +245,7 @@ export function Scoreboard({
     );
   }
 
-  if (template.id === 'sir-volley')
+  if (template.scoreboard === 'mockup')
     return (
       <TemplateScoreboard state={state} status={status} brand={brand} names={names} serving={serving} logos={logos} />
     );

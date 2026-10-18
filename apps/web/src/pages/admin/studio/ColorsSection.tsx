@@ -19,8 +19,8 @@ import {
   OUR_TEAM_CODE_MAX,
   OUR_TEAM_NAME_MAX,
   publicAssetPath,
-  TEMPLATE_IDS,
   TEMPLATES,
+  templateChoices,
   templateOf,
 } from '@sir/shared';
 import type { ChangeEvent } from 'react';
@@ -28,7 +28,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button, Empty, ErrorBox } from '../../../components/ui.tsx';
 import { apiCommand } from '../../../lib/api.ts';
 import { megabytes } from '../../../lib/format.ts';
-import { useApiError } from '../auth.tsx';
+import { useApiError, useAuth } from '../auth.tsx';
 import { ConfirmButton, Field, inputClass } from '../forms.tsx';
 import { ACCEPT, IMAGE_TOO_LARGE, uploadImage } from './blockEditors.tsx';
 import type { StudioTarget } from './model.ts';
@@ -146,12 +146,24 @@ export function ColorField({
 }
 
 /** Choice of the graphic template (closed list of @sir/shared): name, description and colours of each one. */
-export function TemplatePicker({ value, onChange }: { value: TemplateId; onChange: (value: TemplateId) => void }) {
+export function TemplatePicker({
+  value,
+  current = value,
+  superadmin = false,
+  onChange,
+}: {
+  value: TemplateId;
+  /** Template saved for the client: a custom theme it already has stays in the list. */
+  current?: TemplateId;
+  /** The superadmin also sees (and assigns) the custom themes; the clients never. */
+  superadmin?: boolean;
+  onChange: (value: TemplateId) => void;
+}) {
   return (
     <fieldset className="space-y-2">
       <legend className="text-sm font-medium text-text">Modello grafico</legend>
       <div role="radiogroup" aria-label="Modello grafico" className="grid gap-2">
-        {TEMPLATE_IDS.map((id) => {
+        {templateChoices({ current, superadmin }).map((id) => {
           const t = TEMPLATES[id];
           const active = id === value;
           return (
@@ -183,9 +195,10 @@ export function TemplatePicker({ value, onChange }: { value: TemplateId; onChang
           );
         })}
       </div>
-      {templateOf(value).forcedTheme === 'dark' && (
+      {templateOf(value).forcedTheme !== null && (
         <p className="text-xs text-muted">
-          Questo modello usa sempre il tema scuro: il pulsante chiaro/scuro non compare.
+          Questo modello usa sempre il tema {templateOf(value).forcedTheme === 'dark' ? 'scuro' : 'chiaro'}: il pulsante
+          chiaro/scuro non compare.
         </p>
       )}
     </fieldset>
@@ -312,6 +325,7 @@ export function ColorsSection({
   onTab: (tab: ColorsTab) => void;
 }) {
   const errorMessage = useApiError();
+  const { isSuperadmin } = useAuth();
   const [uploading, setUploading] = useState<BrandingImageSlot | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -410,7 +424,12 @@ export function ColorsSection({
                 scene={null}
                 targets={['page']}
               >
-                <TemplatePicker value={draft.template} onChange={(t) => onChange((d) => ({ ...d, template: t }))} />
+                <TemplatePicker
+                  value={draft.template}
+                  current={base.template}
+                  superadmin={isSuperadmin}
+                  onChange={(t) => onChange((d) => ({ ...d, template: t }))}
+                />
               </Setting>
               <div className="pt-2">
                 <Button onClick={() => onChange(() => defaultBranding())}>Ripristina predefiniti</Button>

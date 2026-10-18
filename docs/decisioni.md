@@ -380,3 +380,12 @@ Una riga per decisione: data, scelta, motivo.
   non deve dipendere da `LEAGUE_SYNC`, che può essere spento.
 - 2026-10-17: le visite sotto i 3 s sono scartate e una riconnessione entro 30 s è la stessa visita, perché una pagina
   aperta e chiusa subito o un telefono che perde un attimo la rete falserebbero i conteggi.
+- 2026-10-18: SIR VOLLEY non è più un modello pubblico: ai clienti si offrono quattro modelli (Standard, Chiaro e pulito,
+  Scuro sportivo, Alto contrasto per TV), perché SIR VOLLEY è il look di un solo cliente; lo assegna il superadmin e il
+  server rifiuta (403) chi non lo è (`docs/architettura.md`, `docs/portale.md`, `docs/server.md`).
+- 2026-10-18: i temi personalizzati sono documenti JSON in `packages/shared/src/themes/` con il CSS generato da
+  `pnpm --filter @sir/web themes` in un file versionato, perché un nuovo cliente costa un file e non codice, e la CSP
+  `style-src 'self'` non ammette stili inseriti a runtime (`docs/architettura.md`).
+- 2026-10-18: `ErrorBoundary` con ricarica automatica una sola volta per sessione quando un file del portale non esiste
+  più, perché dopo un aggiornamento una scheda lasciata aperta resta bianca, ma un guasto vero non deve andare in ciclo
+  (`docs/portale.md`).

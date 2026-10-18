@@ -234,167 +234,120 @@
 }
 
 /*
- * Template «SIR VOLLEY» (always dark, see TEMPLATES of @sir/shared): palette, font and sizes of the graphic
- * specifications (docs/grafica). After the dark blocks: same specificity, so these values win. The tokens it does not
- * change (evaluations, court, warnings) are the ones of the dark theme, forced on <html> by lib/theme.ts.
- * Contrast (checked by lib/templates.test.ts): text #ffffff and #a6a6ac at least 6.5:1 on every panel; the red
- * #e30613 is for fills and big text (3:1), as small text the team colour is `-ink` #eb515a (4.5:1 up to #202024).
+ * Built-in template «Chiaro e pulito» (`pulito`, always light, see TEMPLATES of @sir/shared): white and teal, flat
+ * cards with a thin border, no shadow and no gradients. Contrast checked by lib/templates.test.tsx.
  */
-:root[data-template='sir-volley'],
-[data-sir-scope][data-template='sir-volley'] {
-  --sir-font-sans: 'Google Sans Code', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
-  --sir-font-display: var(--sir-font-sans);
-  /* Codes, links and tokens too: one font in every page of the template (Google Sans Code is monospaced). */
-  --sir-font-mono: var(--sir-font-sans);
-  --sir-radius: 8px;
-  --sir-radius-lg: 14px;
-  --sir-radius-button: 8px;
-
-  --sir-bg: #0b0b0d;
-  --sir-surface: #151518;
-  --sir-surface-2: #1c1c20;
-  --sir-border: #303036;
-  --sir-grid: #303036;
-  --sir-axis: #55555c;
-  --sir-text: #ffffff;
-  --sir-text-muted: #a6a6ac;
-  --sir-focus: #ffffff;
-  --sir-hover: #252529;
+:root[data-template='pulito'],
+[data-sir-scope][data-template='pulito'] {
+  --sir-radius: 0.5rem;
+  --sir-radius-lg: 0.75rem;
+  --sir-bg: #f8fafc;
+  --sir-surface-2: #f1f5f9;
+  --sir-border: #cbd5e1;
+  --sir-grid: #e2e8f0;
   --sir-shadow: none;
-
-  --sir-primary: #e30613;
-  --sir-on-primary: #ffffff;
-  --sir-accent: #e30613;
-  --sir-on-accent: #ffffff;
-
-  /* Without a team of the client on court: home in red, away in white. */
-  --sir-home: #e30613;
-  --sir-home-soft: #3a1217;
-  --sir-on-home: #ffffff;
-  --sir-home-ink: #eb515a;
-  --sir-away: #ffffff;
-  --sir-away-soft: #48484b;
-  --sir-on-away: #000000;
-  --sir-away-ink: #ffffff;
-  /* Team of the client: always the accent (red); the opponent: white. */
-  --sir-our: var(--sir-accent);
-  --sir-our-soft: #3a1217;
-  --sir-on-our: var(--sir-on-accent);
-  --sir-our-ink: #eb515a;
-  --sir-opponent: #ffffff;
-  --sir-opponent-soft: #48484b;
-  --sir-on-opponent: #000000;
-  --sir-opponent-ink: #ffffff;
-
-  --sir-court-text: #ffffff;
-
-  /* No gradients on the panels: flat cards with a 1 px border. */
+  --sir-focus: #0b6b63;
+  --sir-primary: #0b6b63;
+  --sir-accent: #a04a06;
+  --sir-home: #0b6b63;
+  --sir-home-soft: #d8e7e6;
+  --sir-away: #6d28d9;
+  --sir-away-soft: #e8ddf9;
+  --sir-our: #0b6b63;
+  --sir-our-soft: #d8e7e6;
+  --sir-opponent: #6d28d9;
+  --sir-opponent-soft: #e8ddf9;
   --sir-glow: transparent;
   --sir-glow-soft: transparent;
   --sir-home-glow: transparent;
   --sir-away-glow: transparent;
-
-  --sir-seg-bg: #1c1c20;
-  --sir-seg-text: #a6a6ac;
-  --sir-seg-active: #e30613;
-  --sir-on-seg-active: #ffffff;
-  --sir-nav-active: #e30613;
-  --sir-on-nav-active: #ffffff;
-  --sir-badge-live: transparent;
-  --sir-badge-live-border: #e30613;
-  --sir-on-badge-live: #ffffff;
-  --sir-badge-live-dot: #e30613;
-  --sir-badge-final-border: #e30613;
-  --sir-badge-final-dot: #e30613;
-
-  --sir-table-head: #202024;
-  --sir-table-alt: #1c1c20;
-  --sir-table-key: #292024;
-  --sir-table-selected: #292024;
-  --sir-table-indicator: #e30613;
-  --sir-table-border: #303036;
-
-  --sir-chart-axis: #55555c;
-  --sir-chart-secondary: #77777f;
-
-  /* Big screen: smaller text than the standard look, so that the page of the mockup fits one 16:9 screen. */
-  --sir-tv-font-size: clamp(14px, min(0.9vw, 1.6vh), 36px);
-
-  /* Sizes of the specifications, desktop (≥ 1200 px); the media queries below change them on smaller screens. */
-  --sir-page-pad: 24px;
-  --sir-gap: 16px;
-  --sir-card-pad: 16px;
-  --sir-title-size: 18px;
-  --sir-text-size: 14px;
-  --sir-score-size: clamp(64px, 5vw, 96px);
-  --sir-team-size: clamp(24px, 1.9vw, 36px);
-  --sir-navbar-height: 56px;
-  --sir-logo-height: 36px;
-  --sir-chart-height: 260px;
 }
 
-/* Tablet landscape (900-1199 px, iPad 1024 × 768). */
-@media (max-width: 1199px) {
-  :root[data-template='sir-volley'],
-  [data-sir-scope][data-template='sir-volley'] {
-    --sir-page-pad: 20px;
-    --sir-gap: 16px;
-    --sir-card-pad: 16px;
-    --sir-title-size: 17px;
-    --sir-score-size: clamp(56px, 6vw, 64px);
-    --sir-team-size: 24px;
-    --sir-logo-height: 32px;
-    --sir-chart-height: 240px;
-  }
+/*
+ * Built-in template «Scuro sportivo» (`notte`, always dark): graphite with green and orange. After the dark blocks
+ * (same specificity, so these values win); the tokens it does not change are the ones of the dark theme.
+ */
+:root[data-template='notte'],
+[data-sir-scope][data-template='notte'] {
+  --sir-bg: #0a0f0d;
+  --sir-surface: #111a16;
+  --sir-surface-2: #17231d;
+  --sir-border: #26382f;
+  --sir-grid: #1c2a23;
+  --sir-axis: #8aa396;
+  --sir-text: #ecf5ef;
+  --sir-text-muted: #a9bdb1;
+  --sir-focus: #86efac;
+  --sir-hover: #1d2b24;
+  --sir-primary: #22c55e;
+  --sir-on-primary: #04210f;
+  --sir-accent: #f59e0b;
+  --sir-on-accent: #231500;
+  --sir-home: #22c55e;
+  --sir-home-soft: #12301f;
+  --sir-on-home: #04210f;
+  --sir-home-ink: #4ade80;
+  --sir-away: #f59e0b;
+  --sir-away-soft: #3a2a0a;
+  --sir-on-away: #231500;
+  --sir-away-ink: #fbbf24;
+  --sir-our: #22c55e;
+  --sir-our-soft: #12301f;
+  --sir-on-our: #04210f;
+  --sir-our-ink: #4ade80;
+  --sir-opponent: #f59e0b;
+  --sir-opponent-soft: #3a2a0a;
+  --sir-on-opponent: #231500;
+  --sir-opponent-ink: #fbbf24;
+  --sir-table-head: #1a2620;
+  --sir-chart-secondary: #4d6357;
 }
 
-/* Tablet portrait (768-899 px, iPad 768 × 1024). */
-@media (max-width: 899px) {
-  :root[data-template='sir-volley'],
-  [data-sir-scope][data-template='sir-volley'] {
-    --sir-page-pad: 16px;
-    --sir-gap: 12px;
-    --sir-card-pad: 14px;
-    --sir-title-size: 16px;
-    --sir-score-size: clamp(48px, 6.5vw, 56px);
-    --sir-team-size: 20px;
-  }
-}
-
-/* Smartphone portrait (≤ 767 px). */
-@media (max-width: 767px) {
-  :root[data-template='sir-volley'],
-  [data-sir-scope][data-template='sir-volley'] {
-    --sir-radius-lg: 12px;
-    --sir-page-pad: 12px;
-    --sir-gap: 12px;
-    --sir-card-pad: 12px;
-    --sir-title-size: 15px;
-    --sir-score-size: clamp(36px, 10vw, 44px);
-    --sir-team-size: 16px;
-    --sir-navbar-height: 52px;
-    --sir-logo-height: 28px;
-    --sir-chart-height: 220px;
-  }
-}
-
-/* Smartphone landscape (667 × 375, 844 × 390, 932 × 430): low screens. */
-@media (orientation: landscape) and (max-height: 500px) {
-  :root[data-template='sir-volley'],
-  [data-sir-scope][data-template='sir-volley'] {
-    --sir-page-pad: 12px;
-    --sir-gap: 12px;
-    --sir-card-pad: 12px;
-    --sir-score-size: clamp(32px, 5vw, 40px);
-    --sir-team-size: 16px;
-    --sir-navbar-height: 44px;
-    --sir-logo-height: 28px;
-    --sir-chart-height: 200px;
-  }
-}
-
-/* Big screen with the template: score and team names scale with the height of the screen. */
-:root.sir-tv[data-template='sir-volley'] {
-  --sir-score-size: min(13vh, 8rem);
-  --sir-team-size: min(4.2vh, 2.5rem);
+/*
+ * Built-in template «Alto contrasto per TV» (`contrasto`, always dark): black with yellow and cyan, bright borders,
+ * larger text on the big screen. Text 7:1 or more on every panel.
+ */
+:root[data-template='contrasto'],
+[data-sir-scope][data-template='contrasto'] {
+  --sir-radius: 0.375rem;
+  --sir-radius-lg: 0.5rem;
+  --sir-bg: #000000;
+  --sir-surface: #0a0a0a;
+  --sir-surface-2: #141414;
+  --sir-border: #7a7a7a;
+  --sir-grid: #3a3a3a;
+  --sir-axis: #b0b0b0;
+  --sir-text: #ffffff;
+  --sir-text-muted: #d9d9d9;
+  --sir-focus: #ffffff;
+  --sir-hover: #1f1f1f;
+  --sir-shadow: none;
+  --sir-primary: #ffd400;
+  --sir-on-primary: #000000;
+  --sir-accent: #00e5ff;
+  --sir-on-accent: #000000;
+  --sir-home: #ffd400;
+  --sir-home-soft: #3a3200;
+  --sir-on-home: #000000;
+  --sir-home-ink: #ffd400;
+  --sir-away: #00e5ff;
+  --sir-away-soft: #00323a;
+  --sir-on-away: #000000;
+  --sir-away-ink: #00e5ff;
+  --sir-our: #ffd400;
+  --sir-our-soft: #3a3200;
+  --sir-on-our: #000000;
+  --sir-our-ink: #ffd400;
+  --sir-opponent: #00e5ff;
+  --sir-opponent-soft: #00323a;
+  --sir-on-opponent: #000000;
+  --sir-opponent-ink: #00e5ff;
+  --sir-table-head: #141414;
+  --sir-chart-axis: #b0b0b0;
+  --sir-chart-secondary: #8a8a8a;
+  --sir-glow: transparent;
+  --sir-glow-soft: transparent;
+  --sir-home-glow: transparent;
+  --sir-away-glow: transparent;
+  --sir-tv-font-size: clamp(18px, min(1.5vw, 2.6vh), 56px);
 }

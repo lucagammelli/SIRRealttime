@@ -397,7 +397,11 @@ export function ColorsStep({ data, onBranding, saveRef }: StepProps) {
   );
   return (
     <div className="space-y-4">
-      <TemplatePicker value={branding.template} onChange={(t) => onBranding({ ...branding, template: t })} />
+      <TemplatePicker
+        value={branding.template}
+        current={saved.template}
+        onChange={(t) => onBranding({ ...branding, template: t })}
+      />
       <p className="text-xs text-muted">Colore principale e accento sono facoltativi: vuoti, vale il modello.</p>
       {color('primary')}
       {color('accent')}

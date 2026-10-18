@@ -3,7 +3,7 @@ import { defaultLayout } from '@sir/shared';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
-import { createTenant, createUser, login, startServer, SUPERADMIN } from './helpers.js';
+import { assignTemplate, createTenant, createUser, login, startServer, SUPERADMIN } from './helpers.js';
 import { png } from './imageFixtures.js';
 
 const HOST_A = 'la.sir.test';
@@ -155,6 +155,7 @@ describe('layout of the public page', () => {
     const admin = { email: 'layout-c@sir.test', password: 'password-layout-c' };
     await createUser(server, admin, 'admin', tenant);
     const cookie = await login(server.app, admin, host);
+    await assignTemplate(server, tenant, 'sir-volley');
     const put = await call(host, cookie, {
       method: 'PUT',
       url: '/api/admin/branding',

@@ -22,10 +22,12 @@ import { claimOurSide, currentOurSide, initTemplate, setTenantLook, tenantLookOf
 import { teamColorVars } from './teamColors.ts';
 import { applyThemeChoice, currentTheme, forcedTheme } from './theme.ts';
 
-const css = readFileSync(join(process.cwd(), 'src/styles/tokens.css'), 'utf8');
+const tokensCss = readFileSync(join(process.cwd(), 'src/styles/tokens.css'), 'utf8');
+/** Custom themes (SIR VOLLEY): generated from their JSON. */
+const themesCss = readFileSync(join(process.cwd(), 'src/styles/themes.generated.css'), 'utf8');
 
 /** Declarations of the first rule of tokens.css whose selector starts with `selector` (outside media queries). */
-function block(selector: string): Record<string, string> {
+function block(selector: string, css = tokensCss): Record<string, string> {
   const start = css.indexOf(`${selector}`);
   if (start < 0) throw new Error(`no block ${selector}`);
   const open = css.indexOf('{', start);
@@ -36,7 +38,7 @@ function block(selector: string): Record<string, string> {
   return vars;
 }
 
-const SIR = block(":root[data-template='sir-volley'],");
+const SIR = block(":root[data-template='sir-volley'],", themesCss);
 
 const tenant = (branding: Partial<PublicTenantResponse['branding']>): PublicTenantResponse => ({
   name: 'Sir Safety',
@@ -122,6 +124,75 @@ describe('tokens of the template «SIR VOLLEY»', () => {
     expect(contrastRatio('#e30613', '#151518')).toBeLessThan(MIN_TEXT_CONTRAST);
     expect(contrastRatio('#e30613', '#151518')).toBeGreaterThanOrEqual(3);
     expect(SIR['--sir-home-ink']).not.toBe('#e30613');
+  });
+});
+
+describe('tokens of the built-in models', () => {
+  const MODELS = ['pulito', 'notte', 'contrasto'] as const;
+  const tokens = (id: (typeof MODELS)[number]) => block(`:root[data-template='${id}'],`);
+
+  it('keeps the colours of each model in @sir/shared equal to its tokens', () => {
+    for (const id of MODELS) {
+      const t = tokens(id);
+      const def = TEMPLATES[id];
+      expect(t['--sir-primary'], id).toBe(def.colors.primary);
+      expect(t['--sir-accent'], id).toBe(def.colors.accent);
+      expect(t['--sir-home'], id).toBe(def.colors.home);
+      expect(t['--sir-away'], id).toBe(def.colors.away);
+      expect(t['--sir-bg'], id).toBe(def.colors.background);
+      if (def.forcedTheme === 'dark') {
+        expect(t['--sir-surface'], id).toBe(def.darkSurface);
+        expect(t['--sir-table-head'], id).toBe(def.darkInkSurface);
+      }
+    }
+  });
+
+  it('has text and team colours of at least 4.5:1 on every panel', () => {
+    for (const id of MODELS) {
+      const t = tokens(id);
+      const dark = TEMPLATES[id].forcedTheme === 'dark';
+      // Light model: the surfaces not overridden are those of the light theme in :root.
+      const light = block(':root,');
+      const get = (k: string): string => {
+        const value = t[k] ?? (dark ? '' : (light[k] ?? ''));
+        const ref = /^var\((--sir-[a-z0-9-]+)\)$/.exec(value);
+        return ref?.[1] ? get(ref[1]) : value;
+      };
+      const panels = ['--sir-bg', '--sir-surface', '--sir-surface-2'].map(get);
+      if (dark) panels.push(get('--sir-table-head'));
+      const texts = ['--sir-text', '--sir-text-muted', '--sir-home-ink', '--sir-away-ink'].map(get);
+      for (const text of texts)
+        for (const panel of panels)
+          expect(contrastRatio(text, panel), `${id} ${text} su ${panel}`).toBeGreaterThanOrEqual(MIN_TEXT_CONTRAST);
+      for (const team of ['home', 'away', 'primary', 'accent'] as const) {
+        const fill = get(`--sir-${team}`);
+        const on = get(`--sir-on-${team}`) || '#ffffff';
+        expect(contrastRatio(on, fill), `${id} testo su ${team}`).toBeGreaterThanOrEqual(MIN_TEXT_CONTRAST);
+      }
+      for (const team of ['home', 'away'] as const)
+        expect(contrastRatio(get(`--sir-${team}-ink`), get(`--sir-${team}-soft`))).toBeGreaterThanOrEqual(
+          MIN_TEXT_CONTRAST,
+        );
+    }
+  });
+
+  it('forces the theme of the model and gives the choice back', () => {
+    act(() => setTenantLook(tenantLookOf(tenant({ template: 'pulito' }))));
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(forcedTheme()).toBe('light');
+    act(() => setTenantLook(tenantLookOf(tenant({ template: 'contrasto' }))));
+    expect(document.documentElement.getAttribute('data-template')).toBe('contrasto');
+    expect(forcedTheme()).toBe('dark');
+    act(() => setTenantLook(tenantLookOf(tenant({ template: 'standard' }))));
+    expect(forcedTheme()).toBeNull();
+  });
+
+  it('has no logo of the template and the scoreboard of the portal', () => {
+    for (const id of MODELS) {
+      expect(TEMPLATES[id].images.navbarLogo).toBeNull();
+      expect(TEMPLATES[id].scoreboard).toBe('standard');
+    }
+    expect(TEMPLATES['sir-volley'].scoreboard).toBe('mockup');
   });
 });
 

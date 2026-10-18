@@ -4,7 +4,7 @@
  * client chooses them in the page «Pagina pubblica» of the reserved area.
  */
 import type { BlockType, LayoutBlock, LayoutDevice, TemplateId, TenantLayout } from '@sir/shared';
-import { defaultDeviceBlocks, LAYOUT_COLUMNS, TEMPLATE_IDS } from '@sir/shared';
+import { defaultDeviceBlocks, LAYOUT_COLUMNS, TEMPLATE_IDS, TEMPLATES } from '@sir/shared';
 
 export type { BlockType, LayoutBlock };
 
@@ -164,17 +164,10 @@ export const TV_BLOCK_MIN_REM: Record<BlockType, number> = {
   standings: 20,
 };
 
-/**
- * Smallest heights of the templates with their own (smaller text on the big screen, see `--sir-tv-font-size`): with
- * «SIR VOLLEY» the default page of the mockup (two rows under the scoreboard) fits one 16:9 screen.
- */
-const TEMPLATE_TV_BLOCK_MIN_REM: Partial<Record<TemplateId, Record<BlockType, number>>> = {
-  'sir-volley': { ...TV_BLOCK_MIN_REM, momentum: 14, comparison: 18, players: 16, court: 18, rotations: 14 },
-};
-
 /** Smallest heights of the blocks on the big screen for a template. */
 export function tvMinRemFor(template: TemplateId): Record<BlockType, number> {
-  return TEMPLATE_TV_BLOCK_MIN_REM[template] ?? TV_BLOCK_MIN_REM;
+  const own = TEMPLATES[template].tvMinRem;
+  return own ? { ...TV_BLOCK_MIN_REM, ...own } : TV_BLOCK_MIN_REM;
 }
 
 /** Blocks side by side on the big screen. */

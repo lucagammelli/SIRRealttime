@@ -119,7 +119,9 @@ describe('fonts', () => {
     expect(admin).toMatch(/--sir-font-sans:\s*'Inter'/);
     expect(admin).toContain('font-family: var(--sir-font-sans)');
     expect(index).toMatch(/\.sir-admin-font table[^{]*\{[^}]*tabular-nums/);
-    expect(read('../styles/tokens.css')).toMatch(/\[data-template='sir-volley'\][^{]*\{[^}]*'Google Sans Code'/);
+    expect(read('../styles/themes.generated.css')).toMatch(
+      /\[data-template='sir-volley'\][^{]*\{[^}]*'Google Sans Code'/,
+    );
   });
 
   it('the thin scrollbar of the side menu: 6 px, colours of the tokens', () => {

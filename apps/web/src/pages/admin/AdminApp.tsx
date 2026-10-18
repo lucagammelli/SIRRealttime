@@ -6,6 +6,7 @@ import { BrandMark } from '../../components/BrandMark.tsx';
 import { MenuButton } from '../../components/MenuButton.tsx';
 import { StatusScreen } from '../../components/StatusScreen.tsx';
 import { ThemeToggle } from '../../components/ThemeToggle.tsx';
+import { ErrorBoundary } from '../../components/ErrorBoundary.tsx';
 import { Button, ErrorBox, Spinner } from '../../components/ui.tsx';
 import { useTemplate } from '../../lib/branding.ts';
 import { useTitlePrefix } from '../../lib/titlePrefix.ts';
@@ -121,7 +122,8 @@ function AdminLayout() {
     if (width >= PHONE_MAX) setMenuOpen(false);
   }, [width]);
   // Entering the Studio (three columns and a big preview) the menu makes room, once: it can be opened again.
-  const studio = useLocation().pathname.startsWith('/admin/studio');
+  const { pathname } = useLocation();
+  const studio = pathname.startsWith('/admin/studio');
   useEffect(() => {
     if (studio && window.innerWidth < STUDIO_WIDE_MENU_MIN) setCollapsed(true);
   }, [studio]);
@@ -188,40 +190,42 @@ function AdminLayout() {
             {exit.error && <ErrorBox>{exit.error}</ErrorBox>}
             {/* First setup of a client not configured yet (admin; the superadmin only gets a link). */}
             {!superadminHome && user.role !== 'viewer' && user.tenant && (
-              <OnboardingHost key={user.tenant.id} tenantId={user.tenant.id} role={user.role} />
+              <OnboardingHost key={`onboarding-${user.tenant.id}`} tenantId={user.tenant.id} role={user.role} />
             )}
             {/* A new client remounts every page: data and the admin WebSocket follow the choice. */}
-            <Routes key={user.tenant?.id ?? 'nessun-cliente'}>
-              <Route index element={<Navigate to={home} replace />} />
-              <Route path="live" element={ofTenant(<LiveAdminPage />)} />
-              <Route path="partite" element={ofTenant(<MatchesPage />)} />
-              <Route path="partite/:id" element={ofTenant(<MatchDetailPage />)} />
-              {/* Read-only for a viewer: the pages hide or disable their commands (useCanEdit), the server refuses them. */}
-              <Route path="calendario" element={ofTenant(<CalendarPage />)} />
-              <Route path="club" element={ofTenant(<ClubPage />)} />
-              <Route path="link" element={ofTenant(<ShareLinksPage />)} />
-              <Route path="agenti" element={ofTenant(<AgentsPage />)} />
-              {/* Read-only: a viewer sees them too. */}
-              <Route path="statistiche" element={ofTenant(<StatsPage />)} />
-              <Route path="simulazione" element={adminOnly(<SimulationPage />)} />
-              <Route path="utenti" element={adminOnly(<UsersPage />)} />
-              <Route
-                path="studio/:section?"
-                element={adminOnly(
-                  <Suspense fallback={<Spinner label="Caricamento dello Studio grafico…" />}>
-                    <StudioPage />
-                  </Suspense>,
-                )}
-              />
-              {/* The old pages of the graphics are sections of the Studio now. */}
-              {Object.entries(LEGACY_PAGES).map(([path, section]) => (
-                <Route key={path} path={path} element={ofTenant(<Navigate to={studioPath(section)} replace />)} />
-              ))}
-              <Route path="clienti" element={superadminOnly(<TenantsPage tenants={tenants} />)} />
-              <Route path="campionati" element={superadminOnly(<LeaguesPage />)} />
-              <Route path="posta" element={superadminOnly(<MailSettingsPage />)} />
-              <Route path="*" element={<Navigate to={home} replace />} />
-            </Routes>
+            <ErrorBoundary resetKey={`${user.tenant?.id ?? ''}:${pathname}`}>
+              <Routes key={user.tenant?.id ?? 'nessun-cliente'}>
+                <Route index element={<Navigate to={home} replace />} />
+                <Route path="live" element={ofTenant(<LiveAdminPage />)} />
+                <Route path="partite" element={ofTenant(<MatchesPage />)} />
+                <Route path="partite/:id" element={ofTenant(<MatchDetailPage />)} />
+                {/* Read-only for a viewer: the pages hide or disable their commands (useCanEdit), the server refuses them. */}
+                <Route path="calendario" element={ofTenant(<CalendarPage />)} />
+                <Route path="club" element={ofTenant(<ClubPage />)} />
+                <Route path="link" element={ofTenant(<ShareLinksPage />)} />
+                <Route path="agenti" element={ofTenant(<AgentsPage />)} />
+                {/* Read-only: a viewer sees them too. */}
+                <Route path="statistiche" element={ofTenant(<StatsPage />)} />
+                <Route path="simulazione" element={adminOnly(<SimulationPage />)} />
+                <Route path="utenti" element={adminOnly(<UsersPage />)} />
+                <Route
+                  path="studio/:section?"
+                  element={adminOnly(
+                    <Suspense fallback={<Spinner label="Caricamento dello Studio grafico…" />}>
+                      <StudioPage />
+                    </Suspense>,
+                  )}
+                />
+                {/* The old pages of the graphics are sections of the Studio now. */}
+                {Object.entries(LEGACY_PAGES).map(([path, section]) => (
+                  <Route key={path} path={path} element={ofTenant(<Navigate to={studioPath(section)} replace />)} />
+                ))}
+                <Route path="clienti" element={superadminOnly(<TenantsPage tenants={tenants} />)} />
+                <Route path="campionati" element={superadminOnly(<LeaguesPage />)} />
+                <Route path="posta" element={superadminOnly(<MailSettingsPage />)} />
+                <Route path="*" element={<Navigate to={home} replace />} />
+              </Routes>
+            </ErrorBoundary>
           </div>
         </main>
       </div>

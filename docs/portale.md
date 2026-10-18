@@ -330,7 +330,9 @@ segno «fatto» è nel DB (`tenants.onboarded_at`), non nel browser.
      contrasto.
   4. «La grafica»: «Un modello pronto per le pause e gli avvisi durante la partita.» Modello di pause e avvisi.
   5. «Fatto»: «Ecco il riepilogo e i prossimi passi.» Riepilogo, link del canale del club con QR («Canale del club»),
-     prossima partita, «Scarica l’agente» e «Apri lo Studio grafico». «Fine» chiama `POST /api/admin/onboarding/complete`.
+     prossima partita, «Scarica l’agente» e «Apri lo Studio grafico» (collegamento nella stessa scheda alla sezione
+     «Colori» dello Studio, `studioPath('colori')`, e chiude la procedura). «Fine» chiama `POST /api/admin/onboarding/complete`.
+  Il passo «I colori» offre i quattro modelli (`SELECTABLE_TEMPLATE_IDS`, vedi «Modelli grafici»), mai SIR VOLLEY.
 - File: `OnboardingHost.tsx`, `OnboardingWizard.tsx`, `OnboardingPreview.tsx`, `steps.tsx`, `model.ts` (`resumeStep`,
   `noticeFor`, `opensByItself`).
 
@@ -646,13 +648,48 @@ I token (colori, font, raggi) sono scritti **solo** in `src/styles/tokens.css`. 
 `@theme` in `index.css`; ECharts li legge a runtime (`src/charts/theme.ts`, `usePalette.ts`) e si riadatta al cambio di
 tema. Chiaro di default, scuro con `prefers-color-scheme` o con il cambio tema (`ThemeToggle`; scelta salvata in
 `localStorage` con chiave `sir-theme`). Con `prefers-reduced-motion: reduce` niente animazioni nei grafici. Un modello
-grafico (vedi «Modelli grafici») può forzare il tema: con SIR VOLLEY il tema è sempre scuro (`lib/theme.ts`:
-`forcedTheme`, `useForcedTheme`) e il pulsante del tema non compare.
+grafico (vedi «Modelli grafici») può forzare il tema: con «Chiaro e pulito» è sempre chiaro, con «Scuro sportivo», «Alto
+contrasto per TV» e SIR VOLLEY sempre scuro (`lib/theme.ts`: `forcedTheme`, `useForcedTheme`) e il pulsante del tema non
+compare.
 
 ### Modelli grafici (template)
-Il cliente sceglie il **modello grafico** nella sezione «Colori e loghi» dello Studio («Modello grafico», in «Avanzate»); l'elenco è chiuso in `@sir/shared`
-(`TEMPLATES`, `docs/architettura.md`): «Standard» (l'aspetto di prima) e «SIR VOLLEY». I colori scelti dal cliente
-valgono sopra quelli del modello. Specifiche e originali dei loghi: `docs/grafica/` (non si modificano).
+Il cliente sceglie il **modello grafico** nella procedura guidata (passo «I colori») e nella sezione «Colori e loghi»
+dello Studio («Modello grafico», in «Avanzate»); l'elenco è chiuso in `@sir/shared` (`TEMPLATES`, `docs/architettura.md`).
+I modelli offerti a **tutti** i clienti sono quattro, con questi testi (`TemplatePicker`, `ColorsSection.tsx`):
+- «Standard»: aspetto predefinito del portale, tema chiaro o scuro a scelta;
+- «Chiaro e pulito»: sempre chiaro, bianco e verde acqua, schede piatte e sobrie, leggibile anche in sala stampa;
+- «Scuro sportivo»: sempre scuro, grafite con verde e arancio acceso, l'atmosfera di una partita serale;
+- «Alto contrasto per TV»: sempre scuro, nero con giallo e azzurro, si legge da lontano su un maxischermo.
+
+**SIR VOLLEY non è più un modello pubblico**: è un *tema personalizzato* (`custom: true`, documento JSON
+`packages/shared/src/themes/sir-volley.json`). `TemplatePicker` lo mostra (`templateChoices`) solo al superadmin e al
+cliente che lo ha già, che così può restare su di esso; nella procedura guidata (`SELECTABLE_TEMPLATE_IDS`) non compare. Il
+superadmin lo assegna a un cliente nello Studio: «Entra nel cliente», poi «Colori e loghi» e «Modello grafico». Il server
+rifiuta (403) il cambio a un tema personalizzato a chi non è superadmin (`docs/server.md`). I colori scelti dal cliente
+valgono sopra quelli del modello. Specifiche e originali dei loghi: `docs/grafica/` (non si modificano). Dove sotto si
+parla di «SIR VOLLEY» si intende questo tema personalizzato.
+
+#### Come aggiungere un tema personalizzato per un cliente
+1. Crea `packages/shared/src/themes/<id>.json` (id minuscolo con trattini, 2-32 caratteri) copiando `sir-volley.json`:
+   documento di `TemplateDefinitionSchema` con `"custom": true`, colori, superfici scure, immagini e sezione `css`
+   (`vars`, `media`, `tvVars`, `rules`; `docs/architettura.md`). Eventuali immagini vanno in `apps/web/public/templates/<id>/`.
+2. In `packages/shared/src/templates.ts` importa il JSON, aggiungi `'<id>'` a `TEMPLATE_IDS` e la voce
+   `'<id>': customTheme('<id>', <json>)` in `TEMPLATES` (lancia un errore se l'`id` del file è diverso).
+3. Rigenera il CSS: `pnpm --filter @sir/web themes` e versiona `apps/web/src/styles/themes.generated.css`.
+4. Prova con `pnpm --filter @sir/shared test` e `pnpm --filter @sir/web test` (i test controllano schema, CSS aggiornato e
+   che il tema non sia tra i modelli pubblici), poi `scripts/ci_locale.sh`.
+5. Il superadmin entra nel cliente e sceglie il tema in «Colori e loghi» > «Modello grafico»; il cliente non lo può cambiare
+   da solo, ma lo mantiene.
+6. In produzione basta pubblicare la versione nuova (nessuna migrazione: il modello è salvato come `id` nella grafica del
+   cliente). Lo stesso tema si può assegnare ad altri clienti senza altri file.
+
+### Pagina non caricata e ricarica dopo un aggiornamento
+`components/ErrorBoundary.tsx` avvolge l'applicazione (`main.tsx`) e l'area riservata (`AdminApp.tsx`, con `resetKey` =
+cliente e percorso, così un errore di una pagina non resta sulle altre). Se la pagina fallisce mostra «La pagina non si è
+caricata. Se hai lasciato il portale aperto a lungo, è stato aggiornato: ricarica la pagina.» con il pulsante di ricarica
+(`ErrorBox`). Se un file del portale non esiste più perché è uscita una versione nuova, `reloadOnceForMissingFile` ricarica
+la pagina **una sola volta** per sessione (chiave `sessionStorage` `sir-ricaricata-per-file`): un guasto vero non va in
+ciclo e mostra l'avviso.
 
 - **Come si applica** (`lib/branding.ts`): `applyTemplate` scrive `data-template` su `<html>` (nessun attributo per lo
   standard) e imposta il tema forzato; `initTemplate` lo fa all'avvio leggendo la voce `localStorage` `sir-template`, così

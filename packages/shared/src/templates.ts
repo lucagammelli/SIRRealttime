@@ -1,50 +1,42 @@
 import { z } from 'zod';
+import type { TemplateDocument } from './templateDefinition.js';
+import { parseCustomTheme } from './templateDefinition.js';
+import sirVolleyTheme from './themes/sir-volley.json' with { type: 'json' };
+
+export {
+  OurTeamColorSchema,
+  parseCustomTheme,
+  TemplateDefinitionSchema,
+  ThemeCssSchema,
+} from './templateDefinition.js';
+export type { OurTeamColor, TemplateDocument, TemplateDocumentInput, ThemeCss } from './templateDefinition.js';
 
 /**
  * Graphic templates of the portal: closed list. A template is the base look of every page of a client (tokens of
  * apps/web/src/styles/tokens.css under `[data-template]`, fonts, logos of the template, default page blocks); the
  * colours chosen by the client in «Grafica» go over it. `standard` is the look of the portal without a template.
+ * The models offered to every client are the built-in ones below; a custom theme of one client (`custom: true`, its
+ * definition is a JSON document in `themes/`) is assigned by the superadmin and never listed to the clients.
  */
-export const TEMPLATE_IDS = ['standard', 'sir-volley'] as const;
+export const TEMPLATE_IDS = ['standard', 'pulito', 'notte', 'contrasto', 'sir-volley'] as const;
 export type TemplateId = (typeof TEMPLATE_IDS)[number];
 export const TemplateIdSchema = z.enum(TEMPLATE_IDS);
 export const DEFAULT_TEMPLATE: TemplateId = 'standard';
 
-/** Colour of the client that the team of the client («nostra squadra») takes when it is on court. */
-export type OurTeamColor = 'home' | 'accent';
+/** A template of the closed list: its document (see `TemplateDefinitionSchema`) with the id narrowed. */
+export type TemplateDefinition = Omit<TemplateDocument, 'id'> & { id: TemplateId };
 
-export interface TemplateDefinition {
-  id: TemplateId;
-  /** Name in the selector of «Grafica». */
-  label: string;
-  /** One line under the name. */
-  description: string;
-  /** Theme imposed by the template (no light/dark switch); null: the choice of the viewer. */
-  forcedTheme: 'dark' | null;
-  /** Colour of our team: the colour of the home team (standard) or the accent of the client. */
-  ourColor: OurTeamColor;
-  /**
-   * Colours of the template where the client has chosen none (the same values as tokens.css, checked by a test of the
-   * portal): shown by the colour fields of «Grafica».
-   */
-  colors: { primary: string; accent: string; home: string; away: string; background: string };
-  /** Surface and background of the dark theme in tokens.css (the dark variants of the client colours use them). */
-  darkSurface: string;
-  /** Lightest dark panel with coloured small text on it (table header and rows): the `-ink` colours have 4.5:1 on it. */
-  darkInkSurface: string;
-  darkBackground: string;
-  /** Images of the template (files of apps/web/public), null: none. */
-  images: { navbarLogo: string | null };
-  /**
-   * Arrows of the court maps: `evaluation` coloured by the evaluation and as thick as their share; `team` thin (1.5 px),
-   * in the colour of the attacking team, 85% opaque, with a small head.
-   */
-  courtArrows: 'evaluation' | 'team';
+/** Pure: a custom theme document read and checked to be the one of `id`. */
+function customTheme(id: TemplateId, document: unknown): TemplateDefinition {
+  const theme = parseCustomTheme(document);
+  if (theme.id !== id) throw new Error(`tema ${theme.id} al posto di ${id}`);
+  return { ...theme, id };
 }
 
 export const TEMPLATES: Record<TemplateId, TemplateDefinition> = {
   standard: {
     id: 'standard',
+    custom: false,
     label: 'Standard',
     description: 'Aspetto predefinito del portale, tema chiaro o scuro a scelta.',
     forcedTheme: null,
@@ -53,26 +45,81 @@ export const TEMPLATES: Record<TemplateId, TemplateDefinition> = {
     darkSurface: '#0f1729',
     darkInkSurface: '#0f1729',
     darkBackground: '#070c17',
-    images: { navbarLogo: null },
+    fonts: { sans: null },
+    images: { navbarLogo: null, navbarLogoAlt: null },
     courtArrows: 'evaluation',
+    scoreboard: 'standard',
   },
-  'sir-volley': {
-    id: 'sir-volley',
-    label: 'SIR VOLLEY',
-    description: 'Tema scuro, rosso e bianco, font Google Sans Code, logo SIR Real Time.',
+  pulito: {
+    id: 'pulito',
+    custom: false,
+    label: 'Chiaro e pulito',
+    description: 'Sempre chiaro, bianco e verde acqua, schede piatte e sobrie: leggibile anche in sala stampa.',
+    forcedTheme: 'light',
+    ourColor: 'home',
+    colors: { primary: '#0b6b63', accent: '#a04a06', home: '#0b6b63', away: '#6d28d9', background: '#f8fafc' },
+    darkSurface: '#0f1729',
+    darkInkSurface: '#0f1729',
+    darkBackground: '#070c17',
+    fonts: { sans: null },
+    images: { navbarLogo: null, navbarLogoAlt: null },
+    courtArrows: 'evaluation',
+    scoreboard: 'standard',
+  },
+  notte: {
+    id: 'notte',
+    custom: false,
+    label: 'Scuro sportivo',
+    description: 'Sempre scuro, grafite con verde e arancio acceso: l’atmosfera di una partita serale.',
     forcedTheme: 'dark',
-    ourColor: 'accent',
-    colors: { primary: '#e30613', accent: '#e30613', home: '#e30613', away: '#ffffff', background: '#0b0b0d' },
-    darkSurface: '#151518',
-    darkInkSurface: '#202024',
-    darkBackground: '#0b0b0d',
-    images: { navbarLogo: '/templates/sir-volley/logo-sir-realtime.png' },
-    courtArrows: 'team',
+    ourColor: 'home',
+    colors: { primary: '#22c55e', accent: '#f59e0b', home: '#22c55e', away: '#f59e0b', background: '#0a0f0d' },
+    darkSurface: '#111a16',
+    darkInkSurface: '#1a2620',
+    darkBackground: '#0a0f0d',
+    fonts: { sans: null },
+    images: { navbarLogo: null, navbarLogoAlt: null },
+    courtArrows: 'evaluation',
+    scoreboard: 'standard',
   },
+  contrasto: {
+    id: 'contrasto',
+    custom: false,
+    label: 'Alto contrasto per TV',
+    description: 'Sempre scuro, nero con giallo e azzurro: si legge da lontano su un maxischermo.',
+    forcedTheme: 'dark',
+    ourColor: 'home',
+    colors: { primary: '#ffd400', accent: '#00e5ff', home: '#ffd400', away: '#00e5ff', background: '#000000' },
+    darkSurface: '#0a0a0a',
+    darkInkSurface: '#141414',
+    darkBackground: '#000000',
+    fonts: { sans: null },
+    images: { navbarLogo: null, navbarLogoAlt: null },
+    courtArrows: 'evaluation',
+    scoreboard: 'standard',
+  },
+  'sir-volley': customTheme('sir-volley', sirVolleyTheme),
 };
 
 /** Pure: the definition of a template (the standard one for an unknown id). */
 export function templateOf(id: string | null | undefined): TemplateDefinition {
   const parsed = TemplateIdSchema.safeParse(id);
   return TEMPLATES[parsed.success ? parsed.data : DEFAULT_TEMPLATE];
+}
+
+/** Ids offered to every client (guided setup, «Grafica»): the built-in models, never a custom theme. */
+/** Pure: true for a custom theme of one client (not offered to the clients). */
+export function isCustomTemplate(id: string | null | undefined): boolean {
+  const parsed = TemplateIdSchema.safeParse(id);
+  return parsed.success && TEMPLATES[parsed.data].custom;
+}
+
+export const SELECTABLE_TEMPLATE_IDS: readonly TemplateId[] = TEMPLATE_IDS.filter((id) => !isCustomTemplate(id));
+
+/**
+ * Pure: the templates a user can pick in «Grafica». Everybody gets the built-in models; a superadmin also the custom
+ * themes, and the client that already has a custom theme keeps seeing it (`current`) so it can stay on it.
+ */
+export function templateChoices(opts: { current: TemplateId; superadmin: boolean }): readonly TemplateId[] {
+  return TEMPLATE_IDS.filter((id) => !isCustomTemplate(id) || opts.superadmin || id === opts.current);
 }

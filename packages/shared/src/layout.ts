@@ -5,6 +5,7 @@ import { STANDINGS_SCOPES } from './club.js';
 import { TENANT_CONFIG_VERSION } from './configVersion.js';
 import { plainText } from './strings.js';
 import type { TemplateId } from './templates.js';
+import { TEMPLATES } from './templates.js';
 
 /**
  * Layout of the public match page chosen by a client (jsonb `tenants.layout`): one ordered list of blocks per device.
@@ -311,43 +312,9 @@ const DEFAULT_LAYOUT_INPUT: Record<LayoutDevice, LayoutBlockInput[]> = {
   ],
 };
 
-/**
- * Default page of the templates that have their own (the others use DEFAULT_LAYOUT_INPUT). «SIR VOLLEY», as the
- * mockup of the 16:9 screen: the scoreboard, then momentum | comparison | court maps in three columns, then players
- * statistics | rotations. Phone: one card per row, momentum, comparison, court, rotations, players.
- */
-const TEMPLATE_LAYOUT_INPUT: Partial<Record<TemplateId, Record<LayoutDevice, LayoutBlockInput[]>>> = {
-  'sir-volley': {
-    tv: [
-      { id: 'scoreboard', type: 'scoreboard', width: 12 },
-      { id: 'momentum', type: 'momentum', width: 4 },
-      { id: 'comparison', type: 'comparison', width: 4 },
-      { id: 'court', type: 'court', width: 4 },
-      { id: 'players', type: 'players', width: 8 },
-      { id: 'rotations', type: 'rotations', width: 4 },
-    ],
-    tablet: [
-      { id: 'scoreboard', type: 'scoreboard', width: 12 },
-      { id: 'momentum', type: 'momentum', width: 4 },
-      { id: 'comparison', type: 'comparison', width: 4 },
-      { id: 'court', type: 'court', width: 4 },
-      { id: 'players', type: 'players', width: 8 },
-      { id: 'rotations', type: 'rotations', width: 4 },
-    ],
-    phone: [
-      { id: 'scoreboard', type: 'scoreboard' },
-      { id: 'momentum', type: 'momentum' },
-      { id: 'comparison', type: 'comparison' },
-      { id: 'court', type: 'court', collapsed: true },
-      { id: 'rotations', type: 'rotations', collapsed: true },
-      { id: 'players', type: 'players', collapsed: true },
-    ],
-  },
-};
-
 /** Pure: the default blocks of a device for a template (a new list at every call). */
 export function defaultDeviceBlocks(device: LayoutDevice, template: TemplateId = 'standard'): LayoutBlock[] {
-  return DeviceBlocksSchema.parse((TEMPLATE_LAYOUT_INPUT[template] ?? DEFAULT_LAYOUT_INPUT)[device]);
+  return DeviceBlocksSchema.parse(TEMPLATES[template].layout?.[device] ?? DEFAULT_LAYOUT_INPUT[device]);
 }
 
 /** Pure: a block of `type` with the default options, the first allowed width not over `preferred` (12 if none). */

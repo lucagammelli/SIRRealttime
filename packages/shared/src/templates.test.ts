@@ -19,27 +19,39 @@ import {
   TEMPLATE_IDS,
   TEMPLATES,
   TemplateIdSchema,
+  SELECTABLE_TEMPLATE_IDS,
+  TemplateDefinitionSchema,
+  isCustomTemplate,
+  parseCustomTheme,
+  templateChoices,
   templateOf,
   TenantBrandingSchema,
   webManifest,
 } from './index.js';
+import sirVolleyJson from './themes/sir-volley.json' with { type: 'json' };
 
 describe('graphic templates', () => {
   it('has a closed list with a definition for every id', () => {
-    expect(TEMPLATE_IDS).toEqual(['standard', 'sir-volley']);
+    expect(TEMPLATE_IDS).toEqual(['standard', 'pulito', 'notte', 'contrasto', 'sir-volley']);
     for (const id of TEMPLATE_IDS) expect(TEMPLATES[id].id).toBe(id);
     expect(TemplateIdSchema.safeParse('altro').success).toBe(false);
     expect(templateOf('altro').id).toBe(DEFAULT_TEMPLATE);
     expect(templateOf(null).id).toBe('standard');
   });
 
-  it('forces the dark theme only for SIR VOLLEY, which has its logo and no footer credit', () => {
+  it('forces a theme only where the template says so; SIR VOLLEY has its logo and no footer credit', () => {
     expect(TEMPLATES.standard.forcedTheme).toBeNull();
+    expect(TEMPLATES.pulito.forcedTheme).toBe('light');
+    expect(TEMPLATES.notte.forcedTheme).toBe('dark');
+    expect(TEMPLATES.contrasto.forcedTheme).toBe('dark');
     expect(TEMPLATES['sir-volley'].forcedTheme).toBe('dark');
     expect(TEMPLATES['sir-volley'].images.navbarLogo).toMatch(/^\/templates\/sir-volley\/.+\.png$/);
-    expect(TEMPLATES['sir-volley'].images).toEqual({ navbarLogo: '/templates/sir-volley/logo-sir-realtime.png' });
+    expect(TEMPLATES['sir-volley'].images).toEqual({
+      navbarLogo: '/templates/sir-volley/logo-sir-realtime.png',
+      navbarLogoAlt: 'SIR Real Time',
+    });
     expect(TEMPLATES['sir-volley'].description).not.toContain('Istante');
-    expect(TEMPLATES.standard.images).toEqual({ navbarLogo: null });
+    expect(TEMPLATES.standard.images).toEqual({ navbarLogo: null, navbarLogoAlt: null });
   });
 
   it('keeps the standard template equal to the defaults of the colours', () => {
@@ -160,5 +172,118 @@ describe('default page of a template', () => {
     expect(resolveLayout({}, 'sir-volley')).toEqual(defaultLayout('sir-volley'));
     expect(resolveLayout({ tv: 'rotto' }, 'sir-volley')).toEqual(defaultLayout('sir-volley'));
     expect(resolveLayout({})).toEqual(defaultLayout());
+  });
+});
+
+describe('built-in models offered to every club', () => {
+  const MODELS = ['standard', 'pulito', 'notte', 'contrasto'] as const;
+
+  it('lists the standard one and three new ones, never SIR VOLLEY', () => {
+    expect(SELECTABLE_TEMPLATE_IDS).toEqual(MODELS);
+    expect(SELECTABLE_TEMPLATE_IDS).not.toContain('sir-volley');
+    expect(templateChoices({ current: 'standard', superadmin: false })).toEqual(MODELS);
+    expect(isCustomTemplate('sir-volley')).toBe(true);
+    for (const id of MODELS) expect(isCustomTemplate(id)).toBe(false);
+  });
+
+  it('has a valid definition, an Italian name and description, and no brand of a team', () => {
+    const labels = new Set<string>();
+    for (const id of MODELS) {
+      const t = TEMPLATES[id];
+      expect(TemplateDefinitionSchema.safeParse(t).success, id).toBe(true);
+      expect(t.label.length).toBeGreaterThan(3);
+      expect(t.description.length).toBeGreaterThan(20);
+      expect(`${t.label} ${t.description}`).not.toMatch(/sir|volley|perugia/i);
+      expect(t.images.navbarLogo).toBeNull();
+      expect(t.fonts.sans).toBeNull();
+      labels.add(t.label);
+    }
+    expect(labels.size).toBe(MODELS.length);
+  });
+
+  it('has colours that are well apart from each other', () => {
+    const keys = MODELS.map((id) => JSON.stringify(TEMPLATES[id].colors));
+    expect(new Set(keys).size).toBe(MODELS.length);
+  });
+
+  it('has text and team colours of at least 4.5:1 on the background, in the theme it is shown in', () => {
+    for (const id of MODELS) {
+      const t = TEMPLATES[id];
+      if (t.forcedTheme === 'dark') {
+        // Always dark: every colour is used as is on the dark panels (and the palette lightens the client ones).
+        for (const key of ['primary', 'accent', 'home', 'away'] as const)
+          expect(contrastRatio(t.colors[key], t.darkInkSurface), `${id} ${key}`).toBeGreaterThanOrEqual(
+            MIN_TEXT_CONTRAST,
+          );
+        expect(contrastRatio(t.colors.primary, t.colors.background)).toBeGreaterThanOrEqual(MIN_TEXT_CONTRAST);
+      } else {
+        expect(brandContrastIssues({}, id), id).toEqual([]);
+      }
+    }
+  });
+
+  it('keeps working with the primary and the accent of the club', () => {
+    for (const id of MODELS) {
+      const colors = { primary: '#0057b8', accent: '#ff6600' };
+      const all = resolveBrandColors(colors, id);
+      expect(all.primary).toBe('#0057b8');
+      expect(all.accent).toBe('#ff6600');
+      expect(all.home).toBe(TEMPLATES[id].colors.home);
+      const palette = brandPalette(colors, id);
+      const surface = TEMPLATES[id].darkSurface;
+      // The dark variants of the club colours are lightened until they are readable on the dark panels.
+      expect(contrastRatio(palette.dark['--sir-primary'] ?? '', surface)).toBeGreaterThanOrEqual(MIN_TEXT_CONTRAST);
+      expect(contrastRatio(palette.dark['--sir-accent'] ?? '', surface)).toBeGreaterThanOrEqual(MIN_TEXT_CONTRAST);
+      expect(palette.light['--sir-on-primary']).toBeDefined();
+    }
+  });
+
+  it('gives the club the default page of the portal', () => {
+    for (const id of MODELS) expect(defaultLayout(id)).toEqual(defaultLayout('standard'));
+  });
+});
+
+describe('custom theme: SIR VOLLEY loaded from its JSON', () => {
+  it('is a valid custom theme document', () => {
+    expect(parseCustomTheme(sirVolleyJson).id).toBe('sir-volley');
+    expect(TemplateDefinitionSchema.safeParse(sirVolleyJson).success).toBe(true);
+    expect(() => parseCustomTheme({ ...sirVolleyJson, custom: false })).toThrow();
+    expect(() => parseCustomTheme({ ...sirVolleyJson, colors: { ...sirVolleyJson.colors, home: 'rosso' } })).toThrow();
+    expect(() => parseCustomTheme({ ...sirVolleyJson, altro: 1 })).toThrow();
+  });
+
+  it('is exactly the SIR VOLLEY of before (colours, surfaces, logo, arrows, scoreboard, big-screen heights)', () => {
+    expect(TEMPLATES['sir-volley']).toEqual({
+      id: 'sir-volley',
+      custom: true,
+      label: 'SIR VOLLEY',
+      description: 'Tema scuro, rosso e bianco, font Google Sans Code, logo SIR Real Time.',
+      forcedTheme: 'dark',
+      ourColor: 'accent',
+      colors: { primary: '#e30613', accent: '#e30613', home: '#e30613', away: '#ffffff', background: '#0b0b0d' },
+      darkSurface: '#151518',
+      darkInkSurface: '#202024',
+      darkBackground: '#0b0b0d',
+      fonts: { sans: 'Google Sans Code' },
+      images: { navbarLogo: '/templates/sir-volley/logo-sir-realtime.png', navbarLogoAlt: 'SIR Real Time' },
+      courtArrows: 'team',
+      scoreboard: 'mockup',
+      tvMinRem: { momentum: 14, comparison: 18, players: 16, court: 18, rotations: 14 },
+      layout: sirVolleyJson.layout,
+      css: sirVolleyJson.css,
+    });
+  });
+
+  it('is not offered to the clients: only the superadmin, and the club that has it, see it', () => {
+    expect(templateChoices({ current: 'standard', superadmin: false })).not.toContain('sir-volley');
+    expect(templateChoices({ current: 'notte', superadmin: false })).not.toContain('sir-volley');
+    expect(templateChoices({ current: 'sir-volley', superadmin: false })).toContain('sir-volley');
+    expect(templateChoices({ current: 'standard', superadmin: true })).toContain('sir-volley');
+  });
+
+  it('keeps the same palette, dark variants and manifest as before', () => {
+    expect(resolveBrandColors({}, 'sir-volley')).toEqual(TEMPLATES['sir-volley'].colors);
+    expect(brandPalette({ accent: '#e30613' }, 'sir-volley').light['--sir-our']).toBe('#e30613');
+    expect(webManifest({ name: 'SIR', colors: {}, template: 'sir-volley', logo: null }).theme_color).toBe('#e30613');
   });
 });

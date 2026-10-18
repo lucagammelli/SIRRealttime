@@ -12,7 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { dosDateTime, isSafeEntryName, zipLayout, zipStream } from '../src/lib/zip.js';
 import { readmeText } from '../src/routes/agentDownload.js';
 import type { TestServer } from './helpers.js';
-import { ADMIN, createTenant, createUser, login, startServer, SUPERADMIN } from './helpers.js';
+import { ADMIN, assignTemplate, createTenant, createUser, login, startServer, SUPERADMIN } from './helpers.js';
 import { jpeg, png, svg, webp } from './imageFixtures.js';
 
 const HOST_A = 'a.sir.test';
@@ -77,6 +77,7 @@ const python = (() => {
 let server: TestServer;
 let downloadDir: string;
 let tenantLan: string;
+let tenantBId: string;
 let cookieA: string;
 let cookieViewerA: string;
 let cookieB: string;
@@ -142,6 +143,7 @@ beforeAll(async () => {
   await createUser(server, ADMIN_A, 'admin', tenantA);
   await createUser(server, VIEWER_A, 'viewer', tenantA);
   await createUser(server, ADMIN_B, 'admin', tenantB);
+  tenantBId = tenantB;
   cookieA = await login(server.app, ADMIN_A, HOST_A);
   cookieViewerA = await login(server.app, VIEWER_A, HOST_A);
   cookieB = await login(server.app, ADMIN_B, HOST_B);
@@ -288,6 +290,7 @@ describe('agente scaricabile: lo zip del cliente', () => {
 
   it('branding.json: i colori mancanti vengono dal template del cliente (SIR VOLLEY: finestra scura e rossa)', async () => {
     await publish();
+    await assignTemplate(server, tenantBId, 'sir-volley');
     const put = await call(HOST_B, cookieB, {
       method: 'PUT',
       url: '/api/admin/branding',

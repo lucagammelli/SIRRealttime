@@ -251,5 +251,5 @@ mostra con «autore sconosciuto».
   incluse correzioni di righe passate → verifica append vs snapshot e la convergenza dello stato.
 - E2E: `docker compose up` + agente puntato alla cartella del simulatore → la pagina `/live/:token`
   si aggiorna entro ~2 s; staccando la rete il backlog viene recuperato senza duplicati.
-- Scansione di sicurezza DAST (HawkScan) sul backend/portale al termine delle modifiche.
+- Scansione di sicurezza DAST (OWASP ZAP, `scripts/dast_zap.sh`) sul backend/portale al termine delle modifiche.
 - Appena disponibile, test con un vero `.dvw` prodotto da DataVolley sul PC Windows.

@@ -73,7 +73,7 @@ Vale per il primo messaggio a un agente; per le riprese basta il nuovo (§2b). I
    RESPINTO → i soli problemi bloccanti allo sviluppatore, il nuovo controllo al supervisore, entrambi con
    `SendMessage` (§2b); al massimo **2 giri**, poi chiedi a Luca.
 3. **documentazione** (solo delicata): dopo l'APPROVATO, con il «Da documentare» dello sviluppatore.
-4. **Scansione DAST** (skill `hawkscan:hawkscan`): solo per attività delicate che toccano rotte del server,
+4. **Scansione DAST** (`scripts/dast_zap.sh`, OWASP ZAP in Docker): solo per attività delicate che toccano rotte del server,
    autenticazione o token, oppure se Luca la chiede. Non dopo ogni modifica a server o portale.
 
 ## 5. Chiusura del job: la fai tu, senza operatore

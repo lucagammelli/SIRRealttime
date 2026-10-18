@@ -1176,14 +1176,10 @@ dell'area riservata chiedono il login: per queste serve una pagina pubblica o la
   scuro, `?tv=1` a 1920×1080, login admin. Nota pratica: `--window-size` di Chromium headless non scende sotto circa
   500 px; per il mobile serve `Emulation.setDeviceMetricsOverride`.
 
-### Scansione DAST dello stack (`stackhawk-portale.yml`)
-Come quella del solo server (`docs/server.md`), ma con host il portale (`APP_HOST`, default `http://localhost:8085`):
-stessa specifica `stackhawk/openapi.yaml`, Ajax Spider con `seedPaths` `/admin` e `LIVE_PATH` (default
-`/live/token-non-valido-per-la-scansione`: va dato il percorso di un link valido), token agente in `AGENT_AUTH_HEADER`,
-login `admin@sir.local` / `SCAN_PASSWORD`, logout escluso, WebSocket non coperti. Nel `.env` locale vanno alzati i
-`RATE_LIMIT_*` (es. 100000) e il servizio `server` ricreato. Esito: PASS, 25 URI raggiunti (API, `/admin`,
-`/live/<token>`, asset), un solo risultato Low, già segnato come falso positivo (email nelle rotte autenticate), 0 errori
-500 nei log.
+### Scansione DAST
+Con StackHawk (2026-10-14) fu scansionato anche lo stack dietro nginx: PASS, 25 URI, un solo Low (falso positivo, email
+nelle rotte autenticate), 0 errori 500. Ora la DAST è `scripts/dast_zap.sh` (OWASP ZAP, `docs/server.md`) e copre solo le
+API del server: il portale non è scansionato.
 
 ### Da rifinire
 - nella mappa di campo le frecce coprono le etichette delle zone;

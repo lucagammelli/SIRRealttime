@@ -4,7 +4,7 @@ info:
   version: 0.1.0
   description: >
     Specifica ricavata a mano dalle rotte di apps/server/src/routes/*.ts e dagli schemi di packages/shared,
-    usata dalla scansione DAST (stackhawk.yml). Le rotte WebSocket (/ws/*) non sono incluse.
+    usata dalla scansione DAST (scripts/dast_zap.sh). Le rotte WebSocket (/ws/*) e /api/auth/logout (chiuderebbe la sessione di prova) non sono incluse.
 servers:
   - url: /
 paths:
@@ -50,7 +50,7 @@ paths:
                 fromIndex: { type: integer, example: 0 }
                 lines: { type: array, items: { type: string }, example: ['*p01:00'] }
                 header: { type: string, example: '[3DATAVOLLEYSCOUT]' }
-                contentHash: { type: string, example: 0000000000000000000000000000000000000000000000000000000000000000 }
+                contentHash: { type: string, example: e28eae629bc35ffd823c9cf9361584a5f5320f54502f3a17047c9329e8036e38 }
       responses:
         '200': { description: esito ingest }
         '401': { description: token agente mancante o errato }
@@ -170,6 +170,17 @@ paths:
           schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
       responses:
         '204': { description: revocato }
+        '404': { description: non trovato }
+    patch:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, example: { name: agente-rinominato } }
+      responses:
+        '200': { description: agente aggiornato }
         '404': { description: non trovato }
   /api/admin/agent/info:
     get:
@@ -534,6 +545,355 @@ paths:
         '404': { description: non trovato }
         '409': { description: aggiornamento già in corso }
         '429': { description: troppi aggiornamenti al minuto }
+  /api/auth/password:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string, example: password-sbagliata-1 }
+                newPassword: { type: string, example: nuova-password-di-prova-2 }
+      responses:
+        '200': { description: password cambiata }
+        '400': { description: richiesta non valida }
+        '401': { description: password attuale errata }
+  /api/auth/links/{token}:
+    get:
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string, example: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA } }
+      responses:
+        '200': { description: dati del link di invito o di reimpostazione }
+        '404': { description: link non valido }
+  /api/auth/invite/accept:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string, example: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA }
+                password: { type: string, example: password-di-prova-123 }
+      responses:
+        '200': { description: invito accettato }
+        '404': { description: link non valido }
+  /api/auth/password-reset/request:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, example: nessuno@sir.local }
+      responses:
+        '200': { description: risposta identica, l'email esista o no }
+  /api/auth/password-reset/confirm:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string, example: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA }
+                password: { type: string, example: password-di-prova-123 }
+      responses:
+        '200': { description: password reimpostata }
+        '404': { description: link non valido }
+  /api/public/manifest.webmanifest:
+    get:
+      responses:
+        '200': { description: manifest dell'app del cliente }
+  /api/public/tenant/schedule:
+    get:
+      responses:
+        '200': { description: prossime partite del club }
+        '404': { description: hostname senza cliente }
+  /api/admin/agent-quota:
+    get:
+      responses:
+        '200': { description: quota degli agenti }
+  /api/admin/users/{id}:
+    patch:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, example: { disabled: false } }
+      responses:
+        '200': { description: utente aggiornato }
+        '404': { description: non trovato }
+    delete:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      responses:
+        '204': { description: utente eliminato }
+        '404': { description: non trovato }
+  /api/admin/users/{id}/invite:
+    post:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      requestBody: { required: false, content: { application/json: { schema: { type: object, example: {} } } } }
+      responses:
+        '200': { description: invito inviato }
+        '404': { description: non trovato }
+    delete:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      responses:
+        '204': { description: invito annullato }
+        '404': { description: non trovato }
+  /api/admin/users/{id}/reset-link:
+    post:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      requestBody: { required: false, content: { application/json: { schema: { type: object, example: {} } } } }
+      responses:
+        '200': { description: link di reimpostazione }
+        '404': { description: non trovato }
+  /api/admin/mail-settings:
+    get:
+      responses:
+        '200': { description: impostazioni della posta (solo superadmin) }
+        '403': { description: non superadmin }
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [host, port, security, fromName, fromEmail]
+              properties:
+                host: { type: string, example: smtp.example.test }
+                port: { type: integer, example: 587 }
+                security: { type: string, example: starttls }
+                username: { type: string, example: utente }
+                fromName: { type: string, example: SIRRealtime }
+                fromEmail: { type: string, example: noreply@example.test }
+      responses:
+        '200': { description: impostazioni salvate }
+        '403': { description: non superadmin }
+  /api/admin/mail-settings/test:
+    post:
+      requestBody: { required: false, content: { application/json: { schema: { type: object, example: {} } } } }
+      responses:
+        '200': { description: esito della mail di prova }
+        '403': { description: non superadmin }
+  /api/admin/onboarding:
+    get:
+      responses:
+        '200': { description: stato del primo accesso guidato }
+  /api/admin/onboarding/complete:
+    post:
+      requestBody: { required: false, content: { application/json: { schema: { type: object, example: {} } } } }
+      responses:
+        '200': { description: primo accesso completato }
+  /api/admin/club:
+    get:
+      responses:
+        '200': { description: club e campionati scelti }
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [leagues], properties: { leagues: { type: array, items: { type: object }, example: [] } } }
+      responses:
+        '200': { description: club salvato }
+  /api/admin/club/league:
+    get:
+      responses:
+        '200': { description: serie scelta dal club }
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [gender, series]
+              properties:
+                gender: { type: string, example: M }
+                series: { type: string, example: superlega }
+      responses:
+        '200': { description: serie scelta }
+        '400': { description: serie non valida }
+  /api/admin/club/leagues/{id}/teams:
+    get:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      responses:
+        '200': { description: squadre del campionato }
+        '404': { description: non trovato }
+  /api/admin/club/profile:
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, example: { displayName: null, logoMark: null } }
+      responses:
+        '200': { description: profilo salvato }
+        '400': { description: richiesta non valida }
+  /api/admin/club/sync:
+    post:
+      requestBody: { required: false, content: { application/json: { schema: { type: object, example: {} } } } }
+      responses:
+        '202': { description: aggiornamento avviato }
+        '429': { description: troppi aggiornamenti al minuto }
+  /api/admin/calendar:
+    get:
+      responses:
+        '200': { description: calendario del club }
+  /api/admin/calendar/fixtures:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, startsAt, opponent, opponentLogo, ourSide, venue, venueCity]
+              properties:
+                kind: { type: string, enum: [friendly, cup, other], example: friendly }
+                startsAt: { type: string, format: date-time, example: '2030-01-01T18:00:00.000Z' }
+                opponent: { type: string, example: Avversari }
+                opponentLogo: { type: string, nullable: true, example: null }
+                ourSide: { type: string, enum: [home, away], example: home }
+                venue: { type: string, nullable: true, example: Palazzetto }
+                venueCity: { type: string, nullable: true, example: Susa }
+      responses:
+        '201': { description: partita creata }
+        '400': { description: richiesta non valida }
+  /api/admin/calendar/fixtures/{id}:
+    put:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, startsAt, opponent, opponentLogo, ourSide, venue, venueCity]
+              properties:
+                kind: { type: string, enum: [friendly, cup, other], example: friendly }
+                startsAt: { type: string, format: date-time, example: '2030-01-01T18:00:00.000Z' }
+                opponent: { type: string, example: Avversari }
+                opponentLogo: { type: string, nullable: true, example: null }
+                ourSide: { type: string, enum: [home, away], example: home }
+                venue: { type: string, nullable: true, example: Palazzetto }
+                venueCity: { type: string, nullable: true, example: Susa }
+      responses:
+        '200': { description: partita aggiornata }
+        '404': { description: non trovata }
+    delete:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      responses:
+        '204': { description: partita eliminata }
+        '404': { description: non trovata }
+  /api/admin/calendar/fixtures/{id}/date:
+    put:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startsAt]
+              properties:
+                startsAt: { type: string, format: date-time, nullable: true, example: '2030-01-01T18:00:00.000Z' }
+      responses:
+        '200': { description: data aggiornata }
+        '404': { description: non trovata }
+  /api/admin/calendar/fixtures/{id}/settings:
+    patch:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, example: { hidden: false } }
+      responses:
+        '200': { description: impostazioni aggiornate }
+        '404': { description: non trovata }
+  /api/admin/matches/{id}/fixture:
+    put:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clientFixtureId]
+              properties:
+                clientFixtureId: { type: string, format: uuid, nullable: true, example: null }
+      responses:
+        '200': { description: partita collegata }
+        '404': { description: non trovata }
+  /api/admin/stats:
+    get:
+      responses:
+        '200': { description: statistiche generali }
+  /api/admin/stats/now:
+    get:
+      responses:
+        '200': { description: statistiche in tempo reale }
+  /api/admin/stats/matches/{matchId}/curve:
+    get:
+      parameters:
+        - { name: matchId, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      responses:
+        '200': { description: curva degli accessi }
+        '404': { description: non trovata }
+  /api/admin/simulation:
+    get:
+      responses:
+        '200': { description: simulazione del cliente }
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source, pace]
+              properties:
+                source: { type: object, example: { kind: generated, sets: 3 } }
+                pace: { type: object, example: { kind: duration, setSeconds: 60 } }
+      responses:
+        '200': { description: simulazione avviata }
+        '400': { description: richiesta non valida }
+    delete:
+      responses:
+        '204': { description: simulazione eliminata }
+  /api/admin/simulation/{command}:
+    post:
+      parameters:
+        - { name: command, in: path, required: true, schema: { type: string, enum: [pause, resume, stop, restart], example: pause } }
+      requestBody: { required: false, content: { application/json: { schema: { type: object, example: {} } } } }
+      responses:
+        '200': { description: comando eseguito }
 components:
   schemas:
     LayoutBlocks:

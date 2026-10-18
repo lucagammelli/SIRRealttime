@@ -277,6 +277,34 @@ tutti i client dallo stesso IP):
 copie del server (ultimo punto del lavoro `scalabilita` in `docs/piano.md`, non ancora fatto: `StatePublisher` via
 Postgres LISTEN/NOTIFY).
 
+### Scansione di sicurezza DAST (`scripts/dast_zap.sh`)
+Sostituisce StackHawk (piano scaduto). Avvia un server di prova (`apps/server` con `tsx`, database PGlite in memoria) sulla
+porta **18090**, crea l'utente `scan@sir.local` (admin del cliente «Predefinito») e un token agente tramite l'API, poi
+esegue `zap-api-scan.py` di OWASP ZAP nell'immagine Docker `ghcr.io/zaproxy/zaproxy:2.17.0` con la specifica
+`scripts/dast/openapi.yaml`. Cookie `sir_session` e `Authorization: Bearer` sono passati a ZAP con il `replacer`; `/api/auth/logout`
+è escluso (e tolto dalla specifica). Il server di prova ha tutti i `RATE_LIMIT_*` a 100000 tranne `RATE_LIMIT_LEAGUE_SYNC`
+(lasciato al predefinito per non caricare legavolley.it) e `LEAGUE_SYNC=off`. Non coperti: WebSocket e portale/nginx.
+- **Requisiti**: `docker`, `node` 24, `pnpm` (lo script prova `corepack enable`), `curl`; `pnpm install` già fatto. Porta 18090
+  libera (altrimenti esce con 2). **Disco**: l'immagine ZAP pesa circa 2 GB, scaricata alla prima esecuzione e lasciata nella
+  cache Docker; controllare lo spazio libero su `/` prima di lanciarla (lo script non lo verifica).
+- **Uscite**: 0 pulito; 1 avvisi di rischio Alto o Medio; 2 preparazione fallita (strumenti mancanti, server che non parte,
+  login, ZAP senza report).
+- **Report** (HTML e JSON, `zap.log`, `server.log`): `~/sir-dast-report/`, o `DAST_REPORT_DIR`; una cartella non vuota che
+  non sia un report precedente viene rifiutata. Restano fuori dal repository.
+- **Falsi positivi**: solo in `scripts/dast/zap-regole.tsv` (id plugin, `IGNORE`, motivo); oggi nessuna regola.
+- Le altre variabili (porta, credenziali di prova, immagine, minuti massimi) sono nel blocco in alto dello script.
+
+```bash
+# --- variabili ---
+RADICE="/percorso/del/repository"          # radice del repository o del worktree del job
+DAST_REPORT_DIR="$HOME/sir-dast-report"    # dove scrivere i report (fuori dal repository)
+
+# --- comandi ---
+cd "$RADICE"
+DAST_REPORT_DIR="$DAST_REPORT_DIR" scripts/dast_zap.sh
+```
+Dettagli sulle rotte e l'esito in `docs/server.md` («Scansione di sicurezza (DAST)»), regole in `docs/regole/sicurezza.md`.
+
 ## Installazione in produzione
 Guida passo passo per mettere SIRRealtime su un server vero, con HTTPS e backup. Si fa con quattro script in `scripts/`
 (`installa-produzione.sh`, `aggiorna-produzione.sh`, `backup-produzione.sh`, `pubblica-agente-produzione.sh`) e tre file in
@@ -509,6 +537,7 @@ Dopo l'installazione le altre variabili del server (`docs/server.md`) si cambian
 - `tsconfig.base.json`, `packages/*/tsconfig.json`, `packages/*/tsconfig.build.json`
 - `vitest.shared.ts`, `packages/*/vitest.config.ts`
 - `eslint.config.js`, `.prettierrc`, `.editorconfig`
+- `scripts/dast_zap.sh`, `scripts/dast/openapi.yaml`, `scripts/dast/zap-regole.tsv`
 - `scripts/ci_locale.sh`, `scripts/costruisci-agente.sh`, `scripts/costruisci-agente-dotnet.sh`, `.env.example`
 - `docker-compose.yml`, `docker/server.Dockerfile`, `docker/web.Dockerfile`, `docker/web.nginx.conf`,
   `docker/web.nginx.main.conf`, `docker/web.security-headers.conf`, `.dockerignore`, `apps/server/vitest.config.ts`

@@ -26,5 +26,7 @@
   in produzione sempre HTTPS).
 
 ## Verifica
-- Dopo modifiche a server o portale si esegue la scansione DAST (HawkScan) sul server in esecuzione e si correggono
-  i problemi trovati.
+- Dopo modifiche a server o portale si esegue la scansione DAST con OWASP ZAP (`scripts/dast_zap.sh`: avvia il server di prova,
+  esegue ZAP in Docker, esce con codice ≠ 0 per avvisi Alto/Medio) e si correggono i problemi trovati; i falsi
+  positivi si ignorano solo in `scripts/dast/zap-regole.tsv`, con il motivo. La specifica `scripts/dast/openapi.yaml`
+  si aggiorna quando cambiano le rotte.

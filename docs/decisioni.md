@@ -404,3 +404,6 @@ Una riga per decisione: data, scelta, motivo.
 - 2026-10-18: «Il mio account» (cambio password con la password attuale) è per tutti i ruoli, anche il superadmin fuori da un
   cliente, perché la rotta non dipende dal cliente e ognuno deve poter cambiare la propria password senza un admin
   (`docs/server.md`, `docs/portale.md`).
+- 2026-10-18: DAST con OWASP ZAP in Docker (`scripts/dast_zap.sh`) al posto di StackHawk, piano scaduto; specifica OpenAPI
+  spostata in `scripts/dast/openapi.yaml` e aggiornata alle rotte recenti, regole dei falsi positivi in
+  `scripts/dast/zap-regole.tsv` (oggi vuoto: prima scansione pulita, 0 avvisi Alto/Medio/Basso); portale e WebSocket non coperti.

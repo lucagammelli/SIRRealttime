@@ -1,0 +1,4 @@
+# Regole di ZAP per scripts/dast_zap.sh (formato zap-api-scan.py -c): id-plugin <TAB> IGNORE|WARN|FAIL <TAB> (nome o motivo)
+# Un falso positivo si aggiunge solo qui, con il motivo nella terza colonna. Esempio (non attivo):
+# 10202	IGNORE	(Absence of Anti-CSRF Tokens: il server usa SameSite=Lax e controllo dell'Origin)
+# Prima scansione (2026-10-18): nessun avviso Alto, Medio o Basso, quindi nessuna regola.

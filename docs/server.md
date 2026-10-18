@@ -1225,65 +1225,23 @@ Stato della verifica: Docker Compose con PostgreSQL vero e nginx è stato provat
 DAST dello stack in `docs/portale.md`); i test automatici restano su PGlite.
 
 ### Scansione di sicurezza (DAST)
-Configurazione HawkScan (StackHawk) in `stackhawk.yml` alla radice; specifica OpenAPI in `stackhawk/openapi.yaml`,
-**ricavata a mano dalle rotte**: va aggiornata quando si aggiungono o cambiano rotte. App StackHawk «SIRRealtime»,
-ambiente `Development` (`APP_ID`, `APP_ENV`, `APP_HOST` hanno un default nel file).
+Si lancia con `scripts/dast_zap.sh` (OWASP ZAP 2.17.0 in Docker, gratuito; sostituisce StackHawk, piano scaduto). Le
+variabili (porta di prova `18090`, credenziali di prova, immagine ZAP, cartella dei report) sono in alto nello script.
+La specifica OpenAPI, **ricavata a mano dalle rotte**, è `scripts/dast/openapi.yaml`: va aggiornata quando si aggiungono
+o cambiano rotte. Le regole per i falsi positivi motivati sono in `scripts/dast/zap-regole.tsv`.
 
-- Target: server con PGlite in memoria e limiti `RATE_LIMIT_*` a 100000, per non falsare la scansione.
-- Autenticazione: login JSON su `/api/auth/login` (campi `email` e `password`), cookie `sir_session`, prova su
-  `/api/auth/me`; `/api/auth/logout` è escluso per non chiudere la sessione. L'utente è un **admin del cliente
-  «Predefinito»** (`stackhawk.yml` e `stackhawk-portale.yml`: `SCAN_USERNAME` `scan@sir.local`, `SCAN_PASSWORD`
-  `password-scansione-1`), non il superadmin, che fuori da un cliente avrebbe 409 su ogni rotta admin. Si crea una volta
-  con lo script sotto; le rotte del solo superadmin rispondono 403 alla scansione.
-- Token agente: creato con `POST /api/admin/agents` e passato in `AGENT_AUTH_HEADER` (`Bearer <token>`), che il
-  replacer mette nell'intestazione `Authorization` per raggiungere `/api/ingest`.
-- I WebSocket (`/ws/public/:token`, `/ws/admin`) **non sono coperti** dalla scansione.
+- Lo script avvia il server con PGlite in memoria con i `RATE_LIMIT_*` a 100000 tranne `RATE_LIMIT_LEAGUE_SYNC`, che resta al valore predefinito perché le rotte di scelta e aggiornamento della serie scaricano davvero da legavolley.it, e con `LEAGUE_SYNC=off` (nessun aggiornamento automatico), aspetta `/api/health`, lo ferma alla
+  fine (trap).
+- Crea con le API un **admin del cliente «Predefinito»** (`scan@sir.local`; non il superadmin, che fuori da un cliente
+  avrebbe 409 su ogni rotta admin) e un token agente; fa il login e passa a ZAP il cookie `sir_session` e l'intestazione
+  `Authorization: Bearer <token agente>` (regole `replacer` di ZAP) per raggiungere anche `/api/ingest`.
+  `/api/auth/logout` non è nella specifica ed è escluso anche in ZAP. Le rotte del solo superadmin rispondono 403.
+- I WebSocket (`/ws/public/:token`, `/ws/admin`) e il portale web **non sono coperti** (le intestazioni del portale le
+  mette nginx, non il server di prova).
+- Report in `~/sir-dast-report/` (`DAST_REPORT_DIR` per cambiarlo): `zap-report.html`, `zap-report.json`, `zap.log`.
+  Uscita 0 pulito, 1 se restano avvisi di rischio Alto o Medio non ignorati, 2 errore di preparazione.
 
-```bash
-# --- variabili ---
-RADICE="/percorso/del/repository"        # radice del repository o del worktree del job
-SUPER_EMAIL="admin@sir.local"            # superadmin: la stessa ADMIN_EMAIL con cui parte il server (serve solo a creare l'utente di scansione)
-SUPER_PASSWORD="password-di-prova"       # password del superadmin (ADMIN_PASSWORD all'avvio)
-SCAN_EMAIL="scan@sir.local"              # utente di scansione, admin del cliente «Predefinito» (default di SCAN_USERNAME in stackhawk.yml)
-SCAN_PASSWORD="password-scansione-1"     # password dell'utente di scansione (default di SCAN_PASSWORD; almeno 12 caratteri)
-TENANT_SLUG="predefinito"                # identificativo del cliente in cui vive l'utente di scansione
-SERVER="http://localhost:8090"           # indirizzo del server (APP_HOST)
-JAR_SUPER="/tmp/sir-scan-super.txt"      # cookie di sessione del superadmin
-JAR_SCAN="/tmp/sir-scan-cookie.txt"      # cookie di sessione dell'utente di scansione
-API_KEY="<chiave API>"                   # chiave API StackHawk dell'organizzazione, in HAWK_API_KEY
-
-# --- avvio del server in un altro terminale ---
-# cd "$RADICE/apps/server" && DATABASE_URL="pglite:memory" COOKIE_SECURE="false" \
-#   ADMIN_EMAIL="$SUPER_EMAIL" ADMIN_PASSWORD="$SUPER_PASSWORD" CORS_ORIGIN="http://localhost:5173" \
-#   RATE_LIMIT_LOGIN=100000 RATE_LIMIT_ADMIN=100000 RATE_LIMIT_PUBLIC=100000 RATE_LIMIT_INGEST=100000 \
-#   RATE_LIMIT_REGISTER=100000 RATE_LIMIT_PUBLIC_WS=100000 RATE_LIMIT_PUBLIC_INVALID=100000 \
-#   RATE_LIMIT_LEAGUE_SYNC=100000 LEAGUE_SYNC=off pnpm dev   # LEAGUE_SYNC=off: la scansione non scarica da legavolley.it
-
-# --- comandi ---
-cd "$RADICE"
-# 1. il superadmin entra nel cliente e crea l'utente di scansione (se esiste già, la risposta è 409 e si prosegue)
-curl -s -c "$JAR_SUPER" -H "Content-Type: application/json" \
-  -d "{\"email\":\"$SUPER_EMAIL\",\"password\":\"$SUPER_PASSWORD\"}" "$SERVER/api/auth/login" > /dev/null
-TENANT_ID=$(curl -s -b "$JAR_SUPER" "$SERVER/api/admin/tenants" | TENANT_SLUG="$TENANT_SLUG" node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).find(t=>t.slug===process.env.TENANT_SLUG).id))")
-curl -s -b "$JAR_SUPER" -c "$JAR_SUPER" -H "Content-Type: application/json" \
-  -d "{\"tenantId\":\"$TENANT_ID\"}" "$SERVER/api/admin/active-tenant" > /dev/null
-curl -s -b "$JAR_SUPER" -H "Content-Type: application/json" \
-  -d "{\"email\":\"$SCAN_EMAIL\",\"password\":\"$SCAN_PASSWORD\",\"role\":\"admin\"}" "$SERVER/api/admin/users" > /dev/null
-# 2. l'utente di scansione (non il superadmin) crea il token agente per /api/ingest
-curl -s -c "$JAR_SCAN" -H "Content-Type: application/json" \
-  -d "{\"email\":\"$SCAN_EMAIL\",\"password\":\"$SCAN_PASSWORD\"}" "$SERVER/api/auth/login" > /dev/null
-TOKEN_AGENTE=$(curl -s -b "$JAR_SCAN" -H "Content-Type: application/json" -d '{"name":"scansione"}' \
-  "$SERVER/api/admin/agents" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
-AGENT_AUTH_HEADER="Bearer $TOKEN_AGENTE"
-# 3. HawkScan fa il login da solo con SCAN_USERNAME e SCAN_PASSWORD
-docker run --rm --network host -v "$PWD:/hawk:rw" -e API_KEY="$API_KEY" -e AGENT_AUTH_HEADER="$AGENT_AUTH_HEADER" \
-  -e SCAN_USERNAME="$SCAN_EMAIL" -e SCAN_PASSWORD="$SCAN_PASSWORD" \
-  stackhawk/hawkscan:latest --json-output stackhawk.yml
-# nota: l'immagine ha già `hawk` come entrypoint e `scan` verrebbe letto come file di configurazione
-# («/hawk/scan: No such file or directory»), quindi il comando non va ripetuto
-```
-
-Esito del 2026-10-14: 3 scansioni, soglia PASS. Due risultati di gravità Low sono segnati come falsi positivi:
+Esito storico del 2026-10-14 (StackHawk): 3 scansioni, soglia PASS. Due risultati di gravità Low sono segnati come falsi positivi:
 
 - «Information Leak - Email Address»: per progetto le rotte autenticate restituiscono l'email dell'utente in sessione
   (`/api/auth/me`, `/api/auth/login`), mentre l'elenco utenti e l'utente appena creato (`GET`/`POST /api/admin/users`)
@@ -1295,7 +1253,7 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
 «Validazione delle stringhe») e verificato: 0 errori 500 nella scansione finale.
 
 ## Riferimenti
-- `stackhawk.yml`, `stackhawk-portale.yml` (stack completo, `docs/portale.md`), `stackhawk/openapi.yaml`
+- `scripts/dast_zap.sh`, `scripts/dast/openapi.yaml`, `scripts/dast/zap-regole.tsv`
 - `apps/server/src/main.ts` (avvio), `app.ts` (`buildApp`, plugin, gestione errori), `config.ts` (`loadConfig`),
   `context.ts` (limiti, cache, cookie `sir_session`), `ingest.ts` (`IngestService`), `hub.ts` (`LiveHub`, `Frame`,
   `StatePublisher`, codici di chiusura), `lib/resync.ts` (`ResyncScheduler`), `lib/failureLimiter.ts` (`FailureLimiter`),

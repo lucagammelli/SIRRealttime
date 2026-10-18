@@ -28,6 +28,7 @@ import { adminRoutes } from './routes/admin.js';
 import { agentDownloadRoutes } from './routes/agentDownload.js';
 import { authRoutes } from './routes/auth.js';
 import { brandingAdminRoutes, brandingPublicRoutes } from './routes/branding.js';
+import { graphicsTransferRoutes } from './routes/graphicsTransfer.js';
 import { clubPublicRoutes, clubRoutes } from './routes/club.js';
 import { manualFixtureRoutes } from './routes/calendar.js';
 import { mailSettingsRoutes } from './routes/mailSettings.js';
@@ -269,6 +270,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     mailSettingsRoutes(scope, ctx);
     tenantRoutes(scope, ctx);
     brandingAdminRoutes(scope, ctx);
+    graphicsTransferRoutes(scope, ctx);
     agentDownloadRoutes(scope, ctx);
     leagueRoutes(scope, ctx);
     clubRoutes(scope, ctx);

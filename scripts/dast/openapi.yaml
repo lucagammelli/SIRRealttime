@@ -362,6 +362,27 @@ paths:
       responses:
         '200': { description: grafica salvata }
         '400': { description: colori non validi o immagine non del cliente }
+  /api/admin/branding/export:
+    get:
+      responses:
+        '200': { description: pacchetto JSON della grafica del cliente (download) }
+  /api/admin/branding/import:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [format, version]
+              properties:
+                format: { type: string, example: sirrealtime-grafica }
+                version: { type: integer, example: 1 }
+      responses:
+        '200': { description: grafica sostituita }
+        '400': { description: pacchetto non valido o di versione non supportata }
+        '403': { description: tema personalizzato senza essere superadmin }
+        '422': { description: immagine rifiutata }
   /api/admin/layout:
     get:
       responses:

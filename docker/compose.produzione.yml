@@ -1,7 +1,7 @@
 # Sovrapposizione di produzione a docker-compose.yml (la usa scripts/installa-produzione.sh tramite COMPOSE_FILE nel .env).
 # Uso a mano:  docker compose -f docker-compose.yml -f docker/compose.produzione.yml up -d
 # Cosa cambia rispetto allo sviluppo:
-#  - Caddy è l'unico servizio pubblicato (80, 443): certificati Let's Encrypt automatici per SIR_HOSTNAMES, redirect 80 -> 443;
+#  - Caddy è l'unico servizio pubblicato (80, 443): certificati automatici per SIR_HOSTNAMES (Let's Encrypt, o CA interna con SIR_TLS_MODE=interno), redirect 80 -> 443;
 #  - server e web non pubblicano più nessuna porta sull'host (nemmeno su 127.0.0.1): si raggiungono solo dalla rete interna;
 #  - nginx (web) si fida di X-Forwarded-For solo da Caddy (rete con indirizzi fissi), così rate limit e log vedono l'IP vero;
 #  - log dei container a rotazione (altrimenti crescono senza limite); Postgres senza porta pubblicata (già così nel base).
@@ -23,7 +23,10 @@ services:
     environment:
       # Elenco di hostname separati da virgola (portale e domini dei clienti): scritto da installa-produzione.sh nel .env.
       SIR_HOSTNAMES: ${SIR_HOSTNAMES:?imposta SIR_HOSTNAMES in .env}
-      ACME_EMAIL: ${ACME_EMAIL:?imposta ACME_EMAIL in .env}
+      # letsencrypt (predefinito) oppure interno (CA locale di Caddy, per hostname non pubblici): scritto da installa-produzione.sh.
+      SIR_TLS_MODE: ${SIR_TLS_MODE:-letsencrypt}
+      # Serve solo con letsencrypt (lo script la pretende in quel caso); con interno il segnaposto non viene usato.
+      ACME_EMAIL: ${ACME_EMAIL:-nessuna@example.invalid}
     ports:
       - '80:80'
       - '443:443'
@@ -33,6 +36,8 @@ services:
       # Certificati e chiave dell'account ACME: da conservare (altrimenti si rischiano i limiti di Let's Encrypt).
       - caddy_data:/data
       - caddy_config:/config
+      # Solo con SIR_TLS_MODE=interno: la radice pubblica della CA locale (installa-produzione.sh la copia qui).
+      - ${CA_PUBBLICA_DIR:-/etc/sir-realtime/ca-pubblica}:/srv/ca:ro
     logging: *log-rotazione
 
   postgres:

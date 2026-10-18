@@ -407,3 +407,5 @@ Una riga per decisione: data, scelta, motivo.
 - 2026-10-18: DAST con OWASP ZAP in Docker (`scripts/dast_zap.sh`) al posto di StackHawk, piano scaduto; specifica OpenAPI
   spostata in `scripts/dast/openapi.yaml` e aggiornata alle rotte recenti, regole dei falsi positivi in
   `scripts/dast/zap-regole.tsv` (oggi vuoto: prima scansione pulita, 0 avvisi Alto/Medio/Basso); portale e WebSocket non coperti.
+- 2026-10-18: in produzione, finché non ci sono domini pubblici, `CERTIFICATI="interno"` usa la CA locale di Caddy (`tls internal`) e la sua radice si installa sui PC Windows (anche per l'agente, che continua a validare il TLS); si passa a Let's Encrypt rilanciando lo script con `CERTIFICATI="letsencrypt"` (`docs/infrastruttura.md`).
+- 2026-10-18: `installa-produzione.sh` accetta Ubuntu 24.04 e 26.04; la suite apt di Docker è il nome in codice della release (`noble`, `resolute`: verificato che esiste su download.docker.com) e, se manca, lo script si ferma con un errore chiaro invece di ripiegare su un'altra suite.

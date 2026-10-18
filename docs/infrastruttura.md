@@ -309,11 +309,11 @@ Dettagli sulle rotte e l'esito in `docs/server.md` («Scansione di sicurezza (DA
 Guida passo passo per mettere SIRRealtime su un server vero, con HTTPS e backup. Si fa con quattro script in `scripts/`
 (`installa-produzione.sh`, `aggiorna-produzione.sh`, `backup-produzione.sh`, `pubblica-agente-produzione.sh`) e tre file in
 `docker/` (`compose.produzione.yml`, `Caddyfile`, `web.realip.conf`). Come è fatto lo stack: **Caddy** (unico servizio
-esposto, porte 80 e 443) ottiene e rinnova i certificati Let's Encrypt e inoltra a `web` (nginx), che a sua volta parla con
+esposto, porte 80 e 443) emette i certificati (Let's Encrypt, oppure una CA interna di Caddy se i domini non sono ancora pubblici: «Modalità dei certificati») e inoltra a `web` (nginx), che a sua volta parla con
 `server` e `postgres` nella rete interna di Docker. Server e web non pubblicano nessuna porta sull'host.
 
 ### 1. Cosa serve prima
-- Un server **Ubuntu Server 24.04 LTS** appena installato (anche «minimized»), `x86_64` o `aarch64`, con systemd.
+- Un server **Ubuntu Server 24.04 o 26.04 LTS** appena installato (anche «minimized»), `x86_64` o `aarch64`, con systemd. Su 26.04 la suite del repository Docker è `resolute` (lo script la verifica e si ferma se non esiste).
 - **Spazio libero**: almeno 20 GB su `/var/lib` (`SPAZIO_MIN_GB`; immagini Docker, database, build dell'agente, circa 5 GB
   temporanei). **Memoria**: almeno 1800 MB tra RAM e swap (`MEMORIA_MIN_MB`; la build del portale usa circa 1,5 GB). Con
   meno RAM si aggiunge un file di swap. Lo script si ferma con un messaggio se non bastano.
@@ -335,9 +335,10 @@ un editor). Aprilo e compila **solo** il blocco `--- variabili ---` in alto; ogn
 
 | Variabile | Cosa mettere | Dove trovarla |
 |---|---|---|
-| `DOMINIO_PORTALE` | dominio del portale, solo il nome (es. `portale.example.org`, no `https://`, no IP) | il tuo registrar DNS |
+| `CERTIFICATI` | `interno` (CA locale di Caddy, per hostname privati) o `letsencrypt` (certificato pubblico); vedi «Modalità dei certificati» | scelta tua |
+| `DOMINIO_PORTALE` | dominio del portale, solo il nome (es. `portale.example.org`, no `https://`, no IP; con `interno` anche nomi privati come `realtime.local`) | il tuo registrar DNS, o il tuo file hosts |
 | `ALTRI_HOSTNAME` | altri hostname dei clienti separati da spazio; vuoto se non ce ne sono | stesso pannello DNS |
-| `EMAIL_LETSENCRYPT` | email per gli avvisi di scadenza | la tua |
+| `EMAIL_LETSENCRYPT` | email per gli avvisi di scadenza; obbligatoria solo con `letsencrypt` | la tua |
 | `ADMIN_EMAIL` | email del superadmin iniziale | la tua |
 | `ADMIN_PASSWORD` | vuota = generata e mostrata una volta; altrimenti almeno 12 caratteri tra lettere, cifre e `@ % + = . , : ! _ -` | scelta tua |
 | `REPO_URL` | indirizzo SSH (repo privato) o https (pubblico) | GitHub, pulsante «Code» |
@@ -362,6 +363,63 @@ SCRIPT="/home/ubuntu/installa-produzione.sh"   # dove hai copiato lo script sul 
 # --- comandi ---
 sudo bash "$SCRIPT"
 ```
+
+### Modalità dei certificati
+`CERTIFICATI` nel blocco variabili sceglie come Caddy emette i certificati (nel `.env`: `SIR_TLS_MODE`, riallineata a ogni
+esecuzione; `docker/Caddyfile` importa lo snippet `modo_<valore>`).
+- **`letsencrypt`**: certificati pubblici Let's Encrypt; servono hostname con DNS pubblico e porte 80/443 raggiungibili da
+  Internet, e `EMAIL_LETSENCRYPT` valida. Senza record DNS lo script avvisa.
+- **`interno`**: `tls internal`, certificati firmati da una **radice generata da Caddy sul server** (volume `caddy_data`). Per
+  hostname non pubblici (`realtime.local`, o nomi non ancora in DNS risolti dal file hosts dei PC). `EMAIL_LETSENCRYPT` può
+  restare vuota, l'assenza del record DNS è solo informativa e la verifica finale usa `curl --resolve --cacert` con la radice
+  esportata (mai `-k`). Lo script copia **solo il certificato pubblico** (mai la chiave) in
+  `/etc/sir-realtime/ca-pubblica/sirrealtime-ca.crt`, lo rende scaricabile da `https://<DOMINIO_PORTALE>/sirrealtime-ca.crt`
+  (solo in questa modalità) e stampa nel riepilogo l'impronta SHA-256. I cookie restano `Secure` (c'è HTTPS).
+- **Passare da `interno` a `letsencrypt`**: imposta `CERTIFICATI="letsencrypt"`, compila `EMAIL_LETSENCRYPT`, usa hostname con
+  DNS pubblico e rilancia `installa-produzione.sh`: riallinea `SIR_TLS_MODE`, `ACME_EMAIL`, `PUBLIC_BASE_URL` e `CORS_ORIGIN` nel `.env` (questi due derivano da `DOMINIO_PORTALE` e si rimettono a ogni esecuzione), riavvia Caddy, che
+  chiede i certificati pubblici e smette di servire la radice. Il passo inverso funziona allo stesso modo. Dopo il passaggio la
+  radice interna non serve più e si può togliere dai PC.
+
+#### Radice della CA interna su Windows (agente e browser)
+L'agente Windows (`apps/agent-dotnet`) valida il certificato TLS e **non va indebolito**: con la CA interna la radice va
+installata in «Autorità di certificazione radice attendibili» del **computer**. Stessa cosa per Chrome e Edge su Windows, che
+usano quell'archivio (Firefox ha il suo; sui telefoni la radice si installa a mano dalle impostazioni, oppure si accetta
+l'avviso). Prima si confronta l'impronta con quella del riepilogo dello script. PowerShell **come amministratore**:
+```powershell
+# --- variabili ---
+$UrlRadice = "https://realtime.local/sirrealtime-ca.crt"   # indirizzo del portale + /sirrealtime-ca.crt (il PC deve risolvere il nome, es. dal file hosts)
+$FileRadice = ""                                           # in alternativa un file già copiato sul PC (es. C:\Temp\sirrealtime-ca.crt); se compilato, l'URL non si usa
+$ImprontaAttesa = "<impronta SHA-256 dal riepilogo dello script>"   # con o senza i due punti, maiuscole o minuscole
+
+# --- comandi ---
+$ErrorActionPreference = "Stop"
+if ($ImprontaAttesa -like "*<*") { throw "Compila ImprontaAttesa con l'impronta stampata dallo script." }
+if ($FileRadice -eq "") {
+    $FileRadice = Join-Path $env:TEMP "sirrealtime-ca.crt"
+    # Il download avviene prima di fidarsi della radice: serve solo a ottenere il file, la fiducia dipende dall'impronta controllata sotto.
+    if ($PSVersionTable.PSVersion.Major -ge 7) {
+        Invoke-WebRequest -Uri $UrlRadice -OutFile $FileRadice -SkipCertificateCheck
+    } else {
+        # Windows PowerShell 5.1: controllo disattivato solo per questa richiesta e subito ripristinato.
+        [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+        try {
+            Invoke-WebRequest -Uri $UrlRadice -OutFile $FileRadice -UseBasicParsing
+        } finally {
+            [Net.ServicePointManager]::ServerCertificateValidationCallback = $null
+        }
+    }
+}
+$cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($FileRadice)
+$impronta = (Get-FileHash -Algorithm SHA256 -InputStream ([IO.MemoryStream]::new($cert.RawData))).Hash
+$atteso = ($ImprontaAttesa -replace "[:\s]", "").ToUpper()
+if ($impronta -ne $atteso) {
+    throw "Impronta diversa dall'attesa ($impronta): non importo il certificato."
+} else {
+    Import-Certificate -FilePath $FileRadice -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
+    Write-Host "Radice importata: $($cert.Subject) (SHA-256 $impronta)"
+}
+```
+Dopo l'import si riavvia l'agente e il browser. Per rimuoverla: `Get-ChildItem Cert:\LocalMachine\Root | Where-Object Thumbprint -eq "<thumbprint>" | Remove-Item`.
 
 ### 3. Primo avvio, chiave di deploy e rilancio
 Lo script è **idempotente**: se si ferma, risolto il problema si rilancia e riparte senza rifare ciò che è fatto. Fa: controlli
@@ -505,7 +563,7 @@ Se un certificato non arriva: `docker compose logs caddy` (di solito DNS non pun
 | `scripts/backup-produzione.sh` | backup con rotazione (timer systemd e prima degli aggiornamenti) |
 | `scripts/pubblica-agente-produzione.sh` | costruisce e pubblica l'agente scaricabile |
 | `docker/compose.produzione.yml` | sovrapposizione a `docker-compose.yml`: Caddy, nessuna porta di server e web, log a rotazione, sottoreti fisse `172.29.250.0/24` e `fd29:250::/64` (IPv6) |
-| `docker/Caddyfile` | HTTPS automatico per `SIR_HOSTNAMES`, header HSTS, nessun access log |
+| `docker/Caddyfile` | HTTPS automatico per `SIR_HOSTNAMES` (Let's Encrypt o CA interna, secondo `SIR_TLS_MODE`), header HSTS, nessun access log |
 | `docker/web.realip.conf` | nginx si fida di `X-Forwarded-For` solo dalla sottorete di Caddy (IP vero per rate limit) |
 | `/etc/sir-realtime/produzione.conf` | impostazioni non segrete lette dagli script e da systemd |
 | `sir-realtime.service`, `sir-backup.service`, `sir-backup.timer` | unit systemd (avvio automatico, backup 03:30) |
@@ -518,9 +576,12 @@ Segreti generati la prima volta: `POSTGRES_PASSWORD`, `SHARE_CODE_SECRET`, `SETT
 | `COMPOSE_FILE` | `docker-compose.yml:docker/compose.produzione.yml` | rimessa a ogni esecuzione; fa sì che ogni `docker compose` usi la produzione |
 | `COMPOSE_PROJECT_NAME` | `sir-realtime` | rimessa a ogni esecuzione; dà il nome ai volumi (`sir-realtime_assets`) |
 | `SIR_HOSTNAMES` | elenco separato da virgole | rimessa a ogni esecuzione da `DOMINIO_PORTALE` e `ALTRI_HOSTNAME` |
-| `ACME_EMAIL` | `EMAIL_LETSENCRYPT` | rimessa a ogni esecuzione |
+| `SIR_TLS_MODE` | `CERTIFICATI` (`interno` o `letsencrypt`) | rimessa a ogni esecuzione |
+| `ACME_EMAIL` | `EMAIL_LETSENCRYPT` (vuota ammessa con `interno`) | rimessa a ogni esecuzione |
+| `CA_PUBBLICA_DIR` | `/etc/sir-realtime/ca-pubblica` | rimessa a ogni esecuzione; cartella della radice pubblica servita da Caddy (solo `interno`) |
 | `AGENT_DOWNLOAD_HOST_DIR` | `/var/lib/<UTENTE_SERVIZIO>/downloads` | solo se manca; cartella dell'agente scaricabile |
-| `PUBLIC_BASE_URL`, `CORS_ORIGIN`, `LEAGUE_CONTACT` | `https://<DOMINIO_PORTALE>` | solo se mancano; `PUBLIC_BASE_URL` costruisce i link di invito |
+| `PUBLIC_BASE_URL`, `CORS_ORIGIN` | `https://<DOMINIO_PORTALE>` | rimesse a ogni esecuzione; `PUBLIC_BASE_URL` costruisce i link di invito |
+| `LEAGUE_CONTACT` | `https://<DOMINIO_PORTALE>` | solo se manca |
 | `COOKIE_SECURE`, `TRUST_PROXY` | `true` | solo se mancano |
 | `LEAGUE_SYNC`, `LOG_LEVEL`, `SESSION_TTL_HOURS` | `on`, `info`, `12` | solo se mancano |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | dallo script | scritte solo se una delle due manca |

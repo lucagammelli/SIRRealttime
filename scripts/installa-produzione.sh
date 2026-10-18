@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installa SIRRealtime in produzione su un Ubuntu Server 24.04 LTS minimale (anche «minimized»), come root.
+# Installa SIRRealtime in produzione su un Ubuntu Server 24.04 o 26.04 LTS minimale (anche «minimized»), come root.
 # Idempotente: si può rilanciare per riallineare sistema e configurazione; chiama scripts/aggiorna-produzione.sh per
 # backup, build, avvio e verifica. Non sovrascrive mai un .env esistente (aggiunge solo le variabili mancanti).
 #
@@ -7,9 +7,10 @@
 # Log: /var/log/sir-realtime-installazione.log
 
 # --- variabili (le uniche da modificare; ogni "<…>" va sostituito) ---
-DOMINIO_PORTALE="<dominio del portale, es. portale.example.org: il record DNS A/AAAA deve puntare a questo server>"
+CERTIFICATI="interno"                              # «interno» = certificato firmato da una CA locale di Caddy (radice generata sul server; da installare sui PC): per hostname non pubblici, es. realtime.local risolti dal file hosts. «letsencrypt» = certificato pubblico (serve DNS pubblico e porte 80/443 raggiungibili). Si passa da uno all'altro rilanciando lo script
+DOMINIO_PORTALE="<dominio del portale, es. portale.example.org: con «letsencrypt» il record DNS A/AAAA deve puntare a questo server; con «interno» può essere un nome privato come realtime.local>"
 ALTRI_HOSTNAME=""                                  # altri hostname dei clienti separati da spazio (stessi requisiti DNS); si aggiungono rilanciando lo script
-EMAIL_LETSENCRYPT="<email per gli avvisi di scadenza di Let's Encrypt>"
+EMAIL_LETSENCRYPT="<email per gli avvisi di scadenza di Let's Encrypt; con «interno» può restare vuota>"
 ADMIN_EMAIL="<email del superadmin iniziale>"
 ADMIN_PASSWORD=""                                  # vuota = generata e mostrata una sola volta; altrimenti almeno 12 caratteri tra lettere, cifre e @ % + = . , : ! _ -
 REPO_URL="git@github.com:lucagammelli/SIRRealttime.git"  # GitHub, pulsante «Code»: indirizzo SSH (repo privato) o https (repo pubblico)
@@ -43,6 +44,9 @@ su_errore() {
 }
 
 hostname_valido() { [[ "$1" =~ ^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$ ]]; }
+# Con CERTIFICATI=interno bastano nomi privati (anche a una sola etichetta, es. realtime); mai indirizzi IP.
+hostname_valido_interno() { [[ "$1" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$ && ! "$1" =~ ^[0-9.]+$ ]]; }
+hostname_ammesso() { if [[ "$CERTIFICATI" == "interno" ]]; then hostname_valido_interno "$1"; else hostname_valido "$1"; fi; }
 email_valida() { [[ "$1" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; }
 percorso_valido() { [[ "$1" =~ ^/[A-Za-z0-9._/-]+$ && "$1" != *..* ]]; }
 password_valida() { [[ "$1" =~ ^[A-Za-z0-9@%+=.,:!_-]{12,}$ ]]; }
@@ -73,18 +77,23 @@ password_casuale() { openssl rand -base64 36 | tr -d '/+=\n' | cut -c1-24; }
 
 controlla_variabili() {
     local v
-    for v in DOMINIO_PORTALE EMAIL_LETSENCRYPT ADMIN_EMAIL; do
+    [[ "$CERTIFICATI" == "interno" || "$CERTIFICATI" == "letsencrypt" ]] || fallisci "CERTIFICATI deve essere «interno» o «letsencrypt»."
+    for v in DOMINIO_PORTALE ADMIN_EMAIL; do
         [[ "${!v}" != *"<"* ]] || fallisci "Compila la variabile $v in cima allo script."
     done
+    if [[ "$CERTIFICATI" == "interno" && "$EMAIL_LETSENCRYPT" == *"<"* ]]; then EMAIL_LETSENCRYPT=""; fi
+    [[ "$EMAIL_LETSENCRYPT" != *"<"* ]] || fallisci "Compila la variabile EMAIL_LETSENCRYPT in cima allo script."
     DOMINIO_PORTALE="${DOMINIO_PORTALE,,}"
-    hostname_valido "$DOMINIO_PORTALE" || fallisci "DOMINIO_PORTALE non è un nome di dominio valido (niente indirizzi IP né https://)."
+    hostname_ammesso "$DOMINIO_PORTALE" || fallisci "DOMINIO_PORTALE non è un nome valido (niente indirizzi IP né https://)."
     HOSTNAMES=("$DOMINIO_PORTALE")
     local h
     for h in ${ALTRI_HOSTNAME,,}; do
-        hostname_valido "$h" || fallisci "ALTRI_HOSTNAME contiene un nome non valido: $h"
+        hostname_ammesso "$h" || fallisci "ALTRI_HOSTNAME contiene un nome non valido: $h"
         [[ "$h" == "$DOMINIO_PORTALE" ]] || HOSTNAMES+=("$h")
     done
-    email_valida "$EMAIL_LETSENCRYPT" || fallisci "EMAIL_LETSENCRYPT non valida."
+    if [[ "$CERTIFICATI" == "letsencrypt" || -n "$EMAIL_LETSENCRYPT" ]]; then
+        email_valida "$EMAIL_LETSENCRYPT" || fallisci "EMAIL_LETSENCRYPT non valida."
+    fi
     email_valida "$ADMIN_EMAIL" || fallisci "ADMIN_EMAIL non valida."
     if [[ -n "$ADMIN_PASSWORD" ]]; then
         password_valida "$ADMIN_PASSWORD" || fallisci "ADMIN_PASSWORD: almeno 12 caratteri tra lettere, cifre e @ % + = . , : ! _ -"
@@ -106,8 +115,13 @@ controlla_sistema() {
     [[ -r /etc/os-release ]] || fallisci "/etc/os-release non leggibile."
     # shellcheck disable=SC1091
     . /etc/os-release
-    [[ "${ID:-}" == "ubuntu" && "${VERSION_ID:-}" == "24.04" ]] || fallisci "Serve Ubuntu Server 24.04 LTS (trovato: ${PRETTY_NAME:-sconosciuto})."
-    CODENAME="${VERSION_CODENAME:-noble}"
+    [[ "${ID:-}" == "ubuntu" && ( "${VERSION_ID:-}" == "24.04" || "${VERSION_ID:-}" == "26.04" ) ]] || fallisci "Serve Ubuntu Server 24.04 o 26.04 LTS (trovato: ${PRETTY_NAME:-sconosciuto})."
+    # Suite del repository apt di Docker = nome in codice della release (noble per 24.04, resolute per 26.04).
+    CODENAME="${VERSION_CODENAME:-}"
+    if [[ -z "$CODENAME" ]]; then
+        case "$VERSION_ID" in 24.04) CODENAME=noble ;; 26.04) CODENAME=resolute ;; *) CODENAME="" ;; esac
+    fi
+    [[ "$CODENAME" =~ ^[a-z]+$ ]] || fallisci "Nome in codice di Ubuntu non determinabile."
     case "$(uname -m)" in
         x86_64 | aarch64) ;;
         *) fallisci "Architettura non supportata: $(uname -m) (ammesse x86_64 e aarch64)." ;;
@@ -126,7 +140,13 @@ controlla_sistema() {
     ss -ltnH "sport = :$PORTA_SSH" | grep -q . || fallisci "Nessun servizio ascolta sulla porta $PORTA_SSH: correggi PORTA_SSH prima di attivare il firewall."
     local h
     for h in "${HOSTNAMES[@]}"; do
-        getent ahostsv4 "$h" >/dev/null 2>&1 || avviso "$h non ha ancora un record DNS: Let's Encrypt non potrà emettere il certificato finché non punta a questo server."
+        if ! getent ahostsv4 "$h" >/dev/null 2>&1; then
+            if [[ "$CERTIFICATI" == "interno" ]]; then
+                echo "Nota: $h non ha un record DNS su questo server; va bene con certificato interno, ma i PC devono risolverlo (file hosts o DNS)."
+            else
+                avviso "$h non ha ancora un record DNS: Let's Encrypt non potrà emettere il certificato finché non punta a questo server."
+            fi
+        fi
     done
     echo "Sistema ok: Ubuntu $VERSION_ID, $(uname -m), ${libero_gb} GB liberi, RAM ${mem_mb} MB + swap ${swap_mb} MB."
 }
@@ -172,6 +192,10 @@ installa_docker() {
     [[ "$fpr" == "$DOCKER_GPG_FPR" ]] || { rm -f "$chiave_tmp"; fallisci "Impronta della chiave Docker inattesa ($fpr): non la installo."; }
     install -m 0644 "$chiave_tmp" /etc/apt/keyrings/docker.asc
     rm -f "$chiave_tmp"
+    # La suite di questa release deve esistere nel repository Docker: altrimenti ci si ferma con un messaggio chiaro
+    # (niente ripiego silenzioso su un'altra suite).
+    curl -fsSI --proto '=https' --tlsv1.2 "https://download.docker.com/linux/ubuntu/dists/$CODENAME/Release" >/dev/null \
+        || fallisci "Il repository Docker non ha ancora la suite «$CODENAME» per questa versione di Ubuntu."
     cat >/etc/apt/sources.list.d/docker.sources <<DOCKERAPT
 Types: deb
 URIs: https://download.docker.com/linux/ubuntu
@@ -286,6 +310,11 @@ CONF
     install -d -m 0700 "$CARTELLA_BACKUP"
 }
 
+# Radice pubblica della CA interna di Caddy (solo certificato, mai la chiave): servita dal portale su /sirrealtime-ca.crt.
+CARTELLA_CA_PUBBLICA="$(dirname "$CONFIG_SISTEMA")/ca-pubblica"
+FILE_CA="$CARTELLA_CA_PUBBLICA/sirrealtime-ca.crt"
+IMPRONTA_CA=""
+
 # Crea .env solo se manca; altrimenti aggiunge soltanto le variabili mancanti o vuote.
 MARCA_SUPERADMIN="$(dirname "$CONFIG_SISTEMA")/superadmin-mostrato"  # esiste dopo il primo riepilogo: il superadmin è stato creato e la password mostrata
 prepara_env() {
@@ -306,8 +335,6 @@ prepara_env() {
     env_se_manca "$f" SHARE_CODE_SECRET "$(segreto_base64 48)"
     env_se_manca "$f" SETTINGS_ENCRYPTION_KEY "$(segreto_base64 32)"
     env_se_manca "$f" COOKIE_SECURE true
-    env_se_manca "$f" PUBLIC_BASE_URL "$url"
-    env_se_manca "$f" CORS_ORIGIN "$url"
     env_se_manca "$f" LEAGUE_SYNC on
     env_se_manca "$f" LEAGUE_CONTACT "$url"
     env_se_manca "$f" TRUST_PROXY true
@@ -321,13 +348,19 @@ prepara_env() {
     fi
     # Impostazioni di distribuzione governate da questo script: si riallineano a ogni esecuzione.
     env_forza "$f" SIR_HOSTNAMES "\"$lista\""
+    # Derivati da DOMINIO_PORTALE: si riallineano a ogni esecuzione (serve cambiando dominio o modalità).
+    env_forza "$f" PUBLIC_BASE_URL "$url"
+    env_forza "$f" CORS_ORIGIN "$url"
+    env_forza "$f" SIR_TLS_MODE "$CERTIFICATI"
     env_forza "$f" ACME_EMAIL "$EMAIL_LETSENCRYPT"
+    env_forza "$f" CA_PUBBLICA_DIR "$CARTELLA_CA_PUBBLICA"
     env_forza "$f" COMPOSE_PROJECT_NAME sir-realtime
     env_forza "$f" COMPOSE_FILE docker-compose.yml:docker/compose.produzione.yml
     # Agente per Windows offerto dal portale: cartella dell'host montata in sola lettura nel server (la riempie pubblica-agente-produzione.sh).
     env_se_manca "$f" AGENT_DOWNLOAD_HOST_DIR "/var/lib/$UTENTE_SERVIZIO/downloads"
     install -d -m 0755 "$(env_leggi "$f" AGENT_DOWNLOAD_HOST_DIR)"
     # Nessuna porta pubblicata da server e web (le toglie compose.produzione.yml): valori espliciti per chiarezza.
+    install -d -m 0755 "$CARTELLA_CA_PUBBLICA"
     env_se_manca "$f" SERVER_BIND 127.0.0.1
     env_se_manca "$f" WEB_BIND 127.0.0.1
     echo ".env $([[ $nuovo == yes ]] && echo creato || echo verificato) (permessi 600, proprietario $UTENTE_SERVIZIO)."
@@ -398,17 +431,42 @@ avvia_stack() {
     systemctl start sir-realtime.service
 }
 
+# Con CERTIFICATI=interno copia la radice pubblica generata da Caddy (appare al primo certificato emesso).
+esporta_radice_ca() {
+    [[ "$CERTIFICATI" == "interno" ]] || { rm -f "$FILE_CA"; return 0; }
+    stampa "Radice della CA interna"
+    local tentativo tmp
+    tmp="$(mktemp)"
+    for tentativo in $(seq 1 24); do
+        if (cd "$CARTELLA_INSTALLAZIONE" && docker compose exec -T caddy cat /data/caddy/pki/authorities/local/root.crt) >"$tmp" 2>/dev/null \
+            && openssl x509 -in "$tmp" -noout >/dev/null 2>&1; then
+            install -m 0644 "$tmp" "$FILE_CA"
+            rm -f "$tmp"
+            IMPRONTA_CA="$(openssl x509 -in "$FILE_CA" -noout -fingerprint -sha256 | cut -d= -f2)"
+            echo "Radice esportata in $FILE_CA (SHA-256 $IMPRONTA_CA)."
+            return 0
+        fi
+        sleep 5
+    done
+    rm -f "$tmp"
+    avviso "Radice della CA non ancora disponibile: rilancia lo script tra poco (cd $CARTELLA_INSTALLAZIONE && docker compose logs caddy)."
+}
+
 verifica_https() {
-    stampa "Verifica HTTPS pubblica"
-    local h tentativo ok
+    stampa "Verifica HTTPS"
+    local h tentativo ok opzioni_ca=()
+    if [[ "$CERTIFICATI" == "interno" ]]; then
+        [[ -s "$FILE_CA" ]] || { avviso "Senza la radice della CA non posso verificare l'HTTPS."; return 0; }
+        opzioni_ca=(--cacert "$FILE_CA")
+    fi
     for h in "${HOSTNAMES[@]}"; do
         ok=no
         for tentativo in $(seq 1 18); do
-            if curl -fsS --max-time 10 --resolve "$h:443:127.0.0.1" "https://$h/api/health" >/dev/null 2>&1; then ok=yes; break; fi
+            if curl -fsS --max-time 10 "${opzioni_ca[@]}" --resolve "$h:443:127.0.0.1" "https://$h/api/health" >/dev/null 2>&1; then ok=yes; break; fi
             sleep 5
         done
-        if [[ $ok == yes ]]; then echo "https://$h risponde con un certificato valido."
-        else avviso "https://$h non risponde ancora: probabile DNS non puntato a questo server o porte 80/443 non raggiungibili da Internet. Vedi: cd $CARTELLA_INSTALLAZIONE && docker compose logs caddy"; fi
+        if [[ $ok == yes ]]; then echo "https://$h risponde con un certificato valido$([[ "$CERTIFICATI" == "interno" ]] && echo ' (firmato dalla CA interna)')."
+        else avviso "https://$h non risponde ancora: con letsencrypt: DNS non puntato a questo server o porte 80/443 non raggiungibili da Internet. Vedi: cd $CARTELLA_INSTALLAZIONE && docker compose logs caddy"; fi
     done
 }
 
@@ -435,6 +493,18 @@ riepilogo() {
  Riavviare:        sudo systemctl restart sir-realtime.service
  Firewall:         sudo ufw status   (aperte: SSH $PORTA_SSH, 80, 443)
 RIEPILOGO
+    if [[ "$CERTIFICATI" == "interno" ]]; then
+        cat <<CA
+
+ Certificato:      INTERNO (CA locale di Caddy). Browser e agente Windows lo accettano solo dopo aver installato la radice.
+ Radice pubblica:  $FILE_CA   (scaricabile da https://$DOMINIO_PORTALE/sirrealtime-ca.crt)
+ Impronta SHA-256: ${IMPRONTA_CA:-non ancora disponibile, rilancia lo script}
+ Installazione:    sul PC Windows, PowerShell come amministratore, con lo script di docs/infrastruttura.md
+                   («Radice della CA interna su Windows»): confronta l'impronta sopra con quella del file.
+                   Chrome/Edge su Windows usano lo stesso archivio; sui telefoni va installata a mano o si accetta l'avviso.
+                   Per passare a Let's Encrypt: CERTIFICATI="letsencrypt", EMAIL_LETSENCRYPT compilata, rilancia lo script.
+CA
+    fi
     if [[ -e "$MARCA_SUPERADMIN" ]]; then
         printf '\n Il superadmin esisteva già: nessuna nuova password. Per recuperare l'"'"'accesso vedi docs/infrastruttura.md.\n' >&3
     elif [[ -n "$ADMIN_PASSWORD" ]]; then
@@ -470,6 +540,7 @@ principale() {
     controlla_porte_libere
     installa_servizi_systemd
     avvia_stack
+    esporta_radice_ca
     verifica_https
     riepilogo
 }

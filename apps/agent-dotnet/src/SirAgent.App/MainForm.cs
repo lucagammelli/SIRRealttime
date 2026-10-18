@@ -10,7 +10,7 @@ namespace SirAgent.App;
 /// </summary>
 internal sealed class MainForm : Form, IAgentWindow
 {
-    private const string DefaultTitle = "SIRRealtime – Agente";
+    private static readonly string DefaultTitle = $"SIRRealtime – Agente {AppVersion.Current}";
     private const int MaxMessages = 200;
     private const int Margin_ = 12;
     private const int FieldColumn = 170;
@@ -486,7 +486,7 @@ internal sealed class MainForm : Form, IAgentWindow
         if (name.Length > 100) name = name[..100];
         if (name.Length > 0)
         {
-            _title = $"{name} – Agente SIRRealtime";
+            _title = $"{name} – Agente SIRRealtime {AppVersion.Current}";
             Text = _title;
         }
         SuspendLayout();

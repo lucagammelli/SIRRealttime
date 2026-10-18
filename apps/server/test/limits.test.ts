@@ -1,9 +1,15 @@
+import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { generateMatch } from '@sir/dvw-simulator';
-import { INGEST_MAX_WIRE_BYTES } from '@sir/shared';
+import { HealthResponseSchema, INGEST_MAX_WIRE_BYTES } from '@sir/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
 import { ADMIN, createAgent, fileAt, ingest, login, requestFor, startServer } from './helpers.js';
+
+/** The root package.json is the only source of the version. */
+const rootVersion = (
+  JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8')) as { version: string }
+).version;
 
 let server: TestServer;
 let token: string;
@@ -153,7 +159,8 @@ describe('misc', () => {
   it('answers the health check without authentication', async () => {
     const res = await server.app.inject({ url: '/api/health' });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ status: 'ok' });
+    const body = HealthResponseSchema.strict().parse(res.json());
+    expect(body.version).toBe(rootVersion);
   });
 
   it('answers 404 with a generic body and sets the security headers', async () => {

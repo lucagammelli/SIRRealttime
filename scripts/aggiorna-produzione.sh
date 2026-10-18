@@ -57,6 +57,9 @@ attendi_salute() {
 
 costruisci_e_avvia() {
     # Con && perché la funzione gira dentro un `if` (set -e sospeso): il primo errore deve fermare la catena.
+    # SIR_COMMIT: commit corto mostrato con la versione (le build Docker non vedono .git; vuoto se non si legge).
+    export SIR_COMMIT
+    SIR_COMMIT="$(git_utente rev-parse --short HEAD 2>/dev/null || true)"
     compose pull --quiet caddy postgres && compose build --pull && compose up -d --remove-orphans
 }
 
@@ -90,6 +93,7 @@ principale() {
     nuovo="$(risolvi_riferimento "$riferimento")"
     git_utente -c advice.detachedHead=false checkout --quiet --force --detach "$nuovo"
     echo "    versione: $(git_utente log -1 --format='%h %s' HEAD)"
+    echo "    release: $(git_utente describe --tags --exact-match HEAD 2>/dev/null || echo 'nessun tag (ramo o commit)')"
 
     echo "3/5 Build e avvio (le migrazioni girano all'avvio del server)"
     if costruisci_e_avvia && echo "4/5 Verifica della salute" && attendi_salute; then

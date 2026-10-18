@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { APP_VERSION } from '../../lib/version.ts';
 import { AdminApp } from './AdminApp.tsx';
 
 const USER_ID = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
@@ -59,6 +60,13 @@ afterEach(() => {
 });
 
 describe('admin navigation', () => {
+  it('shows the version of the portal at the bottom of the side menu', async () => {
+    mockServer('admin');
+    renderAt('/admin/live');
+    await screen.findByRole('navigation', { name: 'Area riservata' });
+    expect(screen.getByTestId('app-version').textContent).toBe(`SIRRealtime ${APP_VERSION}`);
+  });
+
   it('goes to the right page from every menu item, always with absolute paths', async () => {
     mockServer('admin');
     renderAt('/admin/live');

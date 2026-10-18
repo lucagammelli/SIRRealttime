@@ -1,4 +1,3 @@
-import { createRequire } from 'node:module';
 import fastifyCookie from '@fastify/cookie';
 import fastifyCors from '@fastify/cors';
 import fastifyHelmet from '@fastify/helmet';
@@ -19,6 +18,7 @@ import { FailureLimiter } from './lib/failureLimiter.js';
 import { ResyncScheduler } from './lib/resync.js';
 import type { LeagueFetcherOptions } from './leagues/fetcher.js';
 import { LeagueCatalog } from './leagues/catalog.js';
+import { buildInfo } from './buildInfo.js';
 import { LeagueFetcher, leagueUserAgent } from './leagues/fetcher.js';
 import { LeagueScheduler } from './leagues/scheduler.js';
 import { advanceSeasons } from './leagues/seasons.js';
@@ -92,18 +92,6 @@ const RESET_REQUESTS_PER_EMAIL = 3;
 /** Hostnames and share tokens kept in the lookup caches (the oldest go first). */
 const LOOKUP_CACHE_ENTRIES = 10_000;
 
-/** Version of the server package (in the User-Agent of the downloads from the league sites). */
-function serverVersion(): string {
-  try {
-    const pkg: unknown = createRequire(import.meta.url)('../package.json');
-    return typeof pkg === 'object' && pkg !== null && 'version' in pkg && typeof pkg.version === 'string'
-      ? pkg.version
-      : '0';
-  } catch {
-    return '0';
-  }
-}
-
 /** Share tokens appear in public paths: they are masked in the logs (not the graphics routes of the client). */
 export function redactUrl(url: string): string {
   if (/^\/api\/public\/(?:tenant(?:[?#]|$)|manifest\.webmanifest(?:[?#]|$)|assets\/|team-logos\/)/.test(url))
@@ -161,7 +149,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const rateLimits = { ...config.rateLimits, ...options.rateLimits };
   const hub = new LiveHub(now);
   const leagueFetcher = new LeagueFetcher({
-    userAgent: leagueUserAgent(serverVersion(), config.leagueContact),
+    userAgent: leagueUserAgent(buildInfo().version, config.leagueContact),
     ...options.leagueFetcher,
   });
   const catalog = new LeagueCatalog({ fetcher: leagueFetcher, now, log: app.log });

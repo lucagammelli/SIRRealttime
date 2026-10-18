@@ -201,13 +201,14 @@ escluso da git) con messaggio finale di versione (`<versione>+<commit>`), dimens
 **Pulizia**: alla fine (anche in caso di errore) rimuove container e cartella temporanea; con `RIMUOVI_IMMAGINE=1`
 (default) rimuove anche l'immagine SDK, ma solo se l'ha scaricata questa build (se c'era già, resta); con `0` la tiene
 sempre per la build successiva.
-Le variabili `VERSIONE` (a.b.c, default 0.1.0), `USCITA` (default `<radice>/dist`) e `RIMUOVI_IMMAGINE` si passano
+Le variabili `VERSIONE` (a.b.c, default: la versione del `package.json` alla radice, via `scripts/versione.mjs`; `SIR_COMMIT` forza il
+commit mostrato), `USCITA` (default `<radice>/dist`) e `RIMUOVI_IMMAGINE` si passano
 dall'ambiente.
 
 ```bash
 # --- variabili ---
 RADICE="/percorso/del/repository"   # radice del repository o del worktree del job
-VERSIONE="0.1.0"                    # versione dell'agente: numeri a.b.c
+VERSIONE="1.0.0"                    # versione dell'agente: numeri a.b.c (vuota: quella del package.json alla radice)
 USCITA="$RADICE/dist"               # cartella dell'exe prodotto
 RIMUOVI_IMMAGINE="1"                # 1 = rimuove l'immagine SDK alla fine se l'ha scaricata la build; 0 = la tiene sempre
 
@@ -453,6 +454,12 @@ RIFERIMENTO="main"                           # ramo o tag da installare (GitHub,
 # --- comandi ---
 sudo "$CARTELLA_INSTALLAZIONE/scripts/aggiorna-produzione.sh" "$RIFERIMENTO"
 ```
+**Aggiornare a una release**: `RIFERIMENTO="v1.0.0"` (il tag creato da `scripts/rilascia.sh --tagga`,
+`docs/regole/test-job-rilasci.md`). Lo script scarica anche i tag, mostra `release: <tag>` (o «nessun tag» se installa un
+ramo) e passa ai build Docker il commit corto (`SIR_COMMIT`, perché nei build non c'è `.git`; `docker-compose.yml` lo
+inoltra come build arg di `server` e `web`, vuoto se manca). Dopo l'aggiornamento `GET /api/health` mostra `version` e
+`commit`, e il portale la versione in fondo al menu. Per tornare a una release precedente basta rilanciare con il suo
+tag (le migrazioni del database non tornano indietro: vedi sotto).
 Senza argomento usa `REPO_RIFERIMENTO` di `/etc/sir-realtime/produzione.conf`. Passi (registro
 `/var/log/sir-realtime-aggiornamento.log`): 1) backup `pre-aggiornamento`, 2) scarica ramo o tag, 3) build e avvio (le
 migrazioni del database girano all'avvio del server), 4) attesa che `postgres`, `server` e `web` siano «healthy» e che
@@ -523,8 +530,8 @@ di `DEFAULT_TENANT_SLUG` (`docs/server.md`).
 `scripts/pubblica-agente-produzione.sh` costruisce l'agente C# per Windows **solo con Docker** (container temporaneo
 dell'SDK .NET, rimosso a fine build; sul server non si installa .NET) e pubblica `sir-agent.exe` e `sir-agent.json` nella
 cartella `AGENT_DOWNLOAD_HOST_DIR` del `.env` (default `/var/lib/<UTENTE_SERVIZIO>/downloads`), che il server legge in sola
-lettura. Lo chiama `aggiorna-produzione.sh`; **ricostruisce solo se la versione cambia** (elemento `<Version>` in
-`apps/agent-dotnet/Directory.Build.props`) o se i file mancano. Un suo errore non annulla l'aggiornamento.
+lettura. Lo chiama `aggiorna-produzione.sh`; **ricostruisce solo se la versione cambia** (campo `version` del `package.json` alla
+radice, la stessa del rilascio: l'agente esce quindi a ogni nuova release) o se i file mancano. Un suo errore non annulla l'aggiornamento.
 ```bash
 # --- variabili ---
 CARTELLA_INSTALLAZIONE="/opt/sir-realtime"   # la stessa dell'installazione
@@ -599,7 +606,7 @@ Dopo l'installazione le altre variabili del server (`docs/server.md`) si cambian
 - `vitest.shared.ts`, `packages/*/vitest.config.ts`
 - `eslint.config.js`, `.prettierrc`, `.editorconfig`
 - `scripts/dast_zap.sh`, `scripts/dast/openapi.yaml`, `scripts/dast/zap-regole.tsv`
-- `scripts/ci_locale.sh`, `scripts/costruisci-agente.sh`, `scripts/costruisci-agente-dotnet.sh`, `.env.example`
+- `scripts/rilascia.sh` (rilascio e tag), `scripts/versione.mjs` e `scripts/scrivi-versione.mjs` (lettura e scrittura della versione), `scripts/ci_locale.sh`, `scripts/costruisci-agente.sh`, `scripts/costruisci-agente-dotnet.sh`, `.env.example`
 - `docker-compose.yml`, `docker/server.Dockerfile`, `docker/web.Dockerfile`, `docker/web.nginx.conf`,
   `docker/web.nginx.main.conf`, `docker/web.security-headers.conf`, `.dockerignore`, `apps/server/vitest.config.ts`
 - `tools/carico/src/cli.ts` (comandi `prova` e `dimensioni`), `spectators.ts` (processi degli spettatori), `metrics.ts`

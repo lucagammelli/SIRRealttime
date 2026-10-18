@@ -56,7 +56,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'Per cambiare la password quando sei già dentro, vai su «Il mio account».',
+        text: 'Per cambiare la password quando sei già dentro, vai su «Il mio account». Lì, e in fondo al menu a sinistra, vedi anche la versione del portale.',
       },
     ],
     links: [{ label: 'Vai a Il mio account', to: '/admin/account' }],

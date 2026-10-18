@@ -386,7 +386,9 @@ describe('Colori e loghi', () => {
   it('warns about little contrast, ignores a half typed colour', async () => {
     mockServer();
     renderAt('/admin/studio/colori');
-    const field = await screen.findByRole('textbox', { name: 'Squadra di casa' });
+    // Saved branding and example match loaded first: a value arriving later would reset the field being typed.
+    await studio();
+    const field = screen.getByRole('textbox', { name: 'Squadra di casa' });
     fireEvent.change(field, { target: { value: '#ff' } });
     expect(field.getAttribute('aria-invalid')).toBe('true');
     expect(screen.getByText(/Scrivi il colore come #rrggbb/)).toBeTruthy();

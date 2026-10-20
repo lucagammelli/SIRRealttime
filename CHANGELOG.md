@@ -4,6 +4,12 @@ Le versioni seguono il versionamento semantico (`vX.Y.Z`); la fonte della versio
 `package.json` alla radice. Le sezioni nuove le aggiunge `scripts/rilascia.sh` con i titoli dei commit dal tag
 precedente; le note della release su GitHub sono la sezione della versione (`docs/regole/test-job-rilasci.md`).
 
+## [1.3.0] - 2026-10-20
+
+- Login: logo centrato, titolo «Area riservata» solo per i lettori di schermo
+- Loghi di sistema: positivo e negativo, logo sinistro nella sidebar
+- Decisioni: produzione su rt.istante.info e sir.istante.info con Let's Encrypt
+
 ## [1.2.0] - 2026-10-20
 
 - Studio: comandi di blocchi e diapositive sotto il nome

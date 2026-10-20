@@ -1,4 +1,4 @@
-import { parseDvw } from '@sir/dvw-parser';
+import { parseDvw } from '@arenalive/dvw-parser';
 import { describe, expect, it } from 'vitest';
 import type { PlaybackLine } from './index.js';
 import { AVERAGE_GAP_SECONDS, generateMatch, matchSeconds, planPlayback, renderDvw, timeSeconds } from './index.js';

@@ -1,4 +1,4 @@
-import type { AssetSummary, Sponsor } from '@sir/shared';
+import type { AssetSummary, Sponsor } from '@arenalive/shared';
 import {
   AssetListResponseSchema,
   AssetSummarySchema,
@@ -7,7 +7,7 @@ import {
   SponsorListResponseSchema,
   SponsorSchema,
   UpdateSponsorRequestSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Card, Empty, ErrorBox, Spinner } from '../../components/ui.tsx';

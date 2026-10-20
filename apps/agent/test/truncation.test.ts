@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { generateMatch, renderDvw } from '@sir/dvw-simulator';
+import { generateMatch, renderDvw } from '@arenalive/dvw-simulator';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Agent } from '../src/agent.js';
 import {

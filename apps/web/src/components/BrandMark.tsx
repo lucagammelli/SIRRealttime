@@ -1,12 +1,13 @@
-import { DEFAULT_BRAND_NAME } from '@sir/shared';
+import { DEFAULT_BRAND_NAME } from '@arenalive/shared';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useTemplate, useTenantLook } from '../lib/branding.ts';
+import { ProductLogo } from './ProductLogo.tsx';
 
 /**
  * Brand in the header: the logo of the template (e.g. the navbar of a custom theme: no other logo next to it), otherwise the
  * horizontal logo of the client (an <img>, SVG included: never inline markup), otherwise its name, otherwise the
- * SIRREALTIME wordmark. `to`: link to the dashboard (reserved area; the public page has no link).
+ * logo of ArenaLive (variant for the background behind it). `to`: link to the dashboard (reserved area; the public page has no link).
  */
 export function BrandMark({ className = '', to }: { className?: string; to?: string }) {
   const look = useTenantLook();
@@ -31,11 +32,7 @@ export function BrandMark({ className = '', to }: { className?: string; to?: str
       </p>
     );
   } else {
-    mark = (
-      <p className={`font-display text-lg font-bold uppercase tracking-widest text-muted ${className}`}>
-        SIR<span className="text-primary">Realtime</span>
-      </p>
-    );
+    mark = <ProductLogo />;
   }
   if (!to) return mark;
   return (

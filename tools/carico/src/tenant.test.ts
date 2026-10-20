@@ -1,4 +1,4 @@
-import type { TenantSummary } from '@sir/shared';
+import type { TenantSummary } from '@arenalive/shared';
 import { describe, expect, it } from 'vitest';
 import { tenantForBase } from './tenant.js';
 

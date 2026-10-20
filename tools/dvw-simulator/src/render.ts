@@ -133,7 +133,7 @@ export function renderDvw(match: GeneratedMatch, upToLine: number, options: Rend
     '[3DATAVOLLEYSCOUT]',
     'FILEFORMAT: 2.0',
     `GENERATOR-DAY: ${date} ${time.replaceAll('.', ':')}`,
-    'GENERATOR-PRG: SIR dvw-simulator',
+    'GENERATOR-PRG: ArenaLive dvw-simulator',
     '',
     '[3MATCH]',
     `${date};${time};2024/25;Campionato Serie C;Girone A;;;;`,

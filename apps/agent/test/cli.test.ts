@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { generateMatch, renderDvw } from '@sir/dvw-simulator';
+import { generateMatch, renderDvw } from '@arenalive/dvw-simulator';
 import { afterEach, describe, expect, it } from 'vitest';
 import { runCli } from '../src/cli.js';
 import { acquireLock } from '../src/lock.js';
@@ -28,11 +28,11 @@ async function logText(home: string): Promise<string> {
   }
 }
 
-describe('sir-agent (CLI)', () => {
+describe('arenalive-agent (CLI)', () => {
   it('--help e opzioni sconosciute', async () => {
     const a = io('/tmp');
     expect(await runCli(['--help'], a.io)).toBe(0);
-    expect(a.out.join('')).toContain('sir-agent [--config <file>] [--console] [--once]');
+    expect(a.out.join('')).toContain('arenalive-agent [--config <file>] [--console] [--once]');
     expect(a.out.join('')).toContain('--gui');
     const b = io('/tmp');
     expect(await runCli(['--boh'], b.io)).toBe(1);
@@ -156,7 +156,7 @@ describe('sir-agent (CLI)', () => {
     expect((await serverMatches(server))[0]?.lineCount).toBe(33);
     const logs = await readdir(join(dirs.home, 'logs'));
     expect(logs).toHaveLength(1);
-    expect(logs[0]).toMatch(/^sir-agent-\d{4}-\d{2}-\d{2}\.log$/);
+    expect(logs[0]).toMatch(/^arenalive-agent-\d{4}-\d{2}-\d{2}\.log$/);
     const text = await readFile(join(dirs.home, 'logs', logs[0] ?? ''), 'utf8');
     expect(text).toContain('esecuzione singola terminata');
     expect(text).not.toContain(server.token);

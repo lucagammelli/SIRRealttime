@@ -1,5 +1,5 @@
-import type { AssetSummary, WebManifest } from '@sir/shared';
-import { DEFAULT_MANIFEST_ICONS, publicAssetPath } from '@sir/shared';
+import type { AssetSummary, WebManifest } from '@arenalive/shared';
+import { DEFAULT_MANIFEST_ICONS, publicAssetPath } from '@arenalive/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
 import { assignTemplate, createTenant, createUser, login, startServer } from './helpers.js';
@@ -29,7 +29,7 @@ const manifest = async (host?: string) => {
 describe('manifest of the installable app', () => {
   it('is the one of the portal for a client without graphics, without start_url', async () => {
     const body = await manifest();
-    expect(body).toMatchObject({ name: 'SIRRealtime', display: 'fullscreen', theme_color: '#1d4ed8' });
+    expect(body).toMatchObject({ name: 'ArenaLive', display: 'fullscreen', theme_color: '#1d4ed8' });
     expect(body.icons).toEqual(DEFAULT_MANIFEST_ICONS);
     expect('start_url' in body).toBe(false);
   });
@@ -63,7 +63,7 @@ describe('manifest of the installable app', () => {
       purpose: 'any',
     });
     // Another client keeps its own.
-    expect((await manifest()).name).toBe('SIRRealtime');
+    expect((await manifest()).name).toBe('ArenaLive');
   });
 
   it('uses the colours of the template where the client has chosen none (SIR VOLLEY: dark and red)', async () => {

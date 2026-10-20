@@ -1,7 +1,7 @@
 # Simulatore DataVolley
 
 ## A cosa serve
-`@sir/dvw-simulator` (`tools/dvw-simulator/`) genera partite sintetiche coerenti e le "suona" nel tempo scrivendo un file
+`@arenalive/dvw-simulator` (`tools/dvw-simulator/`) genera partite sintetiche coerenti e le "suona" nel tempo scrivendo un file
 `.dvw` come farebbe DataVolley, così agente, server e portale si provano senza un file vero né un computer di
 scout. Il formato scritto è quello letto da `docs/dvw-parser.md`.
 
@@ -37,7 +37,7 @@ scout. Il formato scritto è quello letto da `docs/dvw-parser.md`.
   file con orari su meno della metà delle righe, usano il **ritmo medio** (`AVERAGE_GAP_SECONDS`) dopo la riga
   precedente: 3 s dopo un tocco (`action`), 20 s dopo un punto (`point`), 60 s dopo un time-out (`timeout`), 300 s dopo la
   fine di un set (`setEnd`). Lo usa il server (`apps/server/src/simulation/`, `docs/server.md`) come dipendenza
-  `@sir/dvw-simulator`: `planPlayback` per i tempi di ogni partita (anche di un `.dvw` caricato) e, per la sorgente
+  `@arenalive/dvw-simulator`: `planPlayback` per i tempi di ogni partita (anche di un `.dvw` caricato) e, per la sorgente
   «Casuale» della pagina «Simulazione», `generateMatch`, `renderDvw` e `DEFAULT_AWAY_NAME`. Non ci sono partite di
   esempio già pronte: le sorgenti sono solo «Casuale» e il file `.dvw` caricato.
 - Il test di andata e ritorno (`src/roundtrip.test.ts`) genera partite con 3, 4 e 5 set, le scrive, le rilegge con
@@ -83,7 +83,7 @@ MODALITA="atomic"                   # atomic (file temporaneo + rinomina) oppure
 # --- comandi ---
 cd "$RADICE"
 pnpm install
-pnpm --filter @sir/dvw-simulator build
+pnpm --filter @arenalive/dvw-simulator build
 node tools/dvw-simulator/dist/cli.js play --out "$FILE_OUT" --seed "$SEED" --sets "$SET" \
   --speed "$VELOCITA" --mode "$MODALITA" --corrections
 ```
@@ -92,7 +92,7 @@ Per scrivere subito la partita completa: stesso script, ultima riga
 `node tools/dvw-simulator/dist/cli.js generate --out "$FILE_OUT" --seed "$SEED" --sets "$SET"`.
 Per rigenerare il campione: `--out samples/partita-sintetica.dvw --seed 1 --sets 3`.
 
-Test: `pnpm --filter @sir/dvw-simulator test`.
+Test: `pnpm --filter @arenalive/dvw-simulator test`.
 
 ## Riferimenti
 - `tools/dvw-simulator/src/generate.ts` (`generateMatch`), `render.ts` (`renderDvw`, `scoutLineText`),

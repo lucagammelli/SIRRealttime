@@ -1,4 +1,4 @@
-import type { MailSettings, MailTestResponse, UpdateMailSettingsRequest } from '@sir/shared';
+import type { MailSettings, MailTestResponse, UpdateMailSettingsRequest } from '@arenalive/shared';
 import nodemailer from 'nodemailer';
 import type { FastifyBaseLogger } from 'fastify';
 import type { Db } from '../db/index.js';

@@ -1,6 +1,6 @@
-import type { Side } from '@sir/volley-stats';
-import type { TeamColorRole } from '@sir/shared';
-import { teamColorRoles } from '@sir/shared';
+import type { Side } from '@arenalive/volley-stats';
+import type { TeamColorRole } from '@arenalive/shared';
+import { teamColorRoles } from '@arenalive/shared';
 
 /** Variables of one team colour (tokens.css): the colour, its tint, the text on it and the colour as small text. */
 const PARTS = ['', '-soft', '-ink'] as const;

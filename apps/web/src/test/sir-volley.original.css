@@ -1,6 +1,6 @@
 /* Copia del CSS scritto a mano del tema SIR VOLLEY prima che diventasse un file JSON (tokens.css e index.css): serve solo al test di confronto lib/themes.test.ts. */
 /*
- * Template «SIR VOLLEY» (always dark, see TEMPLATES of @sir/shared): palette, font and sizes of the graphic
+ * Template «SIR VOLLEY» (always dark, see TEMPLATES of @arenalive/shared): palette, font and sizes of the graphic
  * specifications (docs/grafica). After the dark blocks: same specificity, so these values win. The tokens it does not
  * change (evaluations, court, warnings) are the ones of the dark theme, forced on <html> by lib/theme.ts.
  * Contrast (checked by lib/templates.test.ts): text #ffffff and #a6a6ac at least 6.5:1 on every panel; the red

@@ -1,6 +1,6 @@
-import { generateMatch, planPlayback, renderDvw } from '@sir/dvw-simulator';
-import type { SimulationResponse, StartSimulationRequest } from '@sir/shared';
-import { SIMULATION_RETENTION_MS, SimulationResponseSchema } from '@sir/shared';
+import { generateMatch, planPlayback, renderDvw } from '@arenalive/dvw-simulator';
+import type { SimulationResponse, StartSimulationRequest } from '@arenalive/shared';
+import { SIMULATION_RETENTION_MS, SimulationResponseSchema } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { matches, shareTokens } from '../src/db/index.js';

@@ -1,6 +1,6 @@
-import type { TenantOverlaysInput } from '@sir/shared';
-import { TenantOverlaysSchema } from '@sir/shared';
-import type { MatchEvent, MatchState } from '@sir/volley-stats';
+import type { TenantOverlaysInput } from '@arenalive/shared';
+import { TenantOverlaysSchema } from '@arenalive/shared';
+import type { MatchEvent, MatchState } from '@arenalive/volley-stats';
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device } from '../lib/layout.ts';

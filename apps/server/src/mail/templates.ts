@@ -1,4 +1,4 @@
-import { INVITE_TTL_HOURS, RESET_TTL_HOURS } from '@sir/shared';
+import { INVITE_TTL_HOURS, RESET_TTL_HOURS } from '@arenalive/shared';
 
 /** Text and HTML of a mail (the HTML is minimal; the text is what a mail program without HTML shows). */
 export interface MailContent {
@@ -83,10 +83,10 @@ export function resetMail(brand: MailBrand, link: string): MailContent {
 
 /** Test message of the «Posta» page. */
 export function testMail(): MailContent {
-  return render('Prova di invio da SIRRealtime', {
-    brand: { name: 'SIRRealtime', logoUrl: null },
+  return render('Prova di invio da ArenaLive', {
+    brand: { name: 'ArenaLive', logoUrl: null },
     heading: 'Prova di invio',
-    paragraphs: ['Se leggi questa mail, il server di posta di SIRRealtime è configurato correttamente.'],
+    paragraphs: ['Se leggi questa mail, il server di posta di ArenaLive è configurato correttamente.'],
     action: null,
     footer: 'Messaggio automatico: non serve rispondere.',
   });

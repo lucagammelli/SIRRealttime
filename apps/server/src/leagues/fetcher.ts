@@ -52,7 +52,7 @@ export interface LeagueFetcherOptions {
 
 const realSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** Pure: User-Agent of the downloads, `SIRRealtime/<version> (+<contact>)`, printable ASCII only. */
+/** Pure: User-Agent of the downloads, `ArenaLive/<version> (+<contact>)`, printable ASCII only. */
 export function leagueUserAgent(version: string, contact: string): string {
   const clean = (s: string) =>
     s
@@ -60,7 +60,7 @@ export function leagueUserAgent(version: string, contact: string): string {
       .replace(/[()]/g, '')
       .trim();
   const c = clean(contact);
-  return `SIRRealtime/${clean(version) || '0'}${c ? ` (+${c})` : ''}`;
+  return `ArenaLive/${clean(version) || '0'}${c ? ` (+${c})` : ''}`;
 }
 
 export class LeagueFetcher {

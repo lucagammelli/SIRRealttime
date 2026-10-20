@@ -1,5 +1,5 @@
-import type { ClubResponse, MeResponse, TenantBranding, TenantIntermissions, TenantOverlays } from '@sir/shared';
-import { defaultBranding, defaultIntermissions, defaultOverlays } from '@sir/shared';
+import type { ClubResponse, MeResponse, TenantBranding, TenantIntermissions, TenantOverlays } from '@arenalive/shared';
+import { defaultBranding, defaultIntermissions, defaultOverlays } from '@arenalive/shared';
 import { sameValue } from '../studio/model.ts';
 
 /** The five steps of the guided first setup, in order. */

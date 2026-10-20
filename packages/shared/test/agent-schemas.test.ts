@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { AGENT_SCHEMAS_DIR, agentSchemaFiles } from '../scripts/agent-schemas.js';
 
 const dir = join(import.meta.dirname, '..', '..', '..', AGENT_SCHEMAS_DIR);
-const update = 'schemi non aggiornati: lancia pnpm --filter @sir/shared schemi:agente';
+const update = 'schemi non aggiornati: lancia pnpm --filter @arenalive/shared schemi:agente';
 
 describe('JSON Schema dell’agente C#', () => {
   it('i file in apps/agent-dotnet/schemas sono quelli generati dagli schemi zod', async () => {

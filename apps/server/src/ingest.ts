@@ -1,7 +1,7 @@
-import { parseDvw } from '@sir/dvw-parser';
-import type { IngestRequest, IngestResponse, StateMessage } from '@sir/shared';
-import { buildDvwText, hashScoutLines } from '@sir/shared';
-import { computeMatchState } from '@sir/volley-stats';
+import { parseDvw } from '@arenalive/dvw-parser';
+import type { IngestRequest, IngestResponse, StateMessage } from '@arenalive/shared';
+import { buildDvwText, hashScoutLines } from '@arenalive/shared';
+import { computeMatchState } from '@arenalive/volley-stats';
 import { and, asc, eq, gte } from 'drizzle-orm';
 import { evaluateFixtureLink } from './club.js';
 import type { AppContext } from './context.js';

@@ -7,7 +7,7 @@ import type {
   TenantIntermissions,
   TenantLayout,
   TenantOverlays,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   brandPalette,
   DEFAULT_BRAND_NAME,
@@ -18,8 +18,8 @@ import {
   PublicTenantResponseSchema,
   TemplateIdSchema,
   templateOf,
-} from '@sir/shared';
-import type { Side, TeamRef } from '@sir/volley-stats';
+} from '@arenalive/shared';
+import type { Side, TeamRef } from '@arenalive/volley-stats';
 import { useEffect, useSyncExternalStore } from 'react';
 import { teamColorVars } from './teamColors.ts';
 import type { ResolvedTheme } from './theme.ts';
@@ -198,7 +198,7 @@ export function useOurSide(): Side | null {
 }
 
 /**
- * Side of the team of the client in a match (`ourTeamSide` of @sir/shared with the team chosen in «Grafica»), claimed
+ * Side of the team of the client in a match (`ourTeamSide` of @arenalive/shared with the team chosen in «Grafica»), claimed
  * while the component is mounted: every view of the page follows the colours of our team.
  */
 export function useOurTeamColors(teams: Record<Side, TeamRef>): Side | null {

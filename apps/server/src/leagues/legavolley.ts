@@ -1,5 +1,5 @@
-import type { FixtureStatus, LeaguePhase } from '@sir/shared';
-import { LEAGUE_MAX_EXTERNAL_ID } from '@sir/shared';
+import type { FixtureStatus, LeaguePhase } from '@arenalive/shared';
+import { LEAGUE_MAX_EXTERNAL_ID } from '@arenalive/shared';
 import type { HtmlElement, HtmlTable, TableRow } from './html.js';
 import { byId, byTag, extractTables, findAll, findFirst, parseHtml, selectOptions, textOf } from './html.js';
 import { romeToUtc } from './romeTime.js';

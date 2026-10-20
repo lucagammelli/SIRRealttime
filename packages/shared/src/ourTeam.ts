@@ -1,4 +1,4 @@
-import type { Side, TeamRef } from '@sir/volley-stats';
+import type { Side, TeamRef } from '@arenalive/volley-stats';
 import { z } from 'zod';
 import { plainText } from './strings.js';
 

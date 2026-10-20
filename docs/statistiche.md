@@ -161,10 +161,10 @@ Nessuna: nessuna variabile né file di config.
 ```bash
 # Radice del repository (o del worktree del job)
 cd /home/athena/SIRRealttime
-pnpm --filter @sir/volley-stats typecheck
-pnpm --filter @sir/volley-stats test
+pnpm --filter @arenalive/volley-stats typecheck
+pnpm --filter @arenalive/volley-stats test
 ```
-Uso: `import { computeMatchState } from '@sir/volley-stats'` e `computeMatchState(parsed)` con il risultato del parser.
+Uso: `import { computeMatchState } from '@arenalive/volley-stats'` e `computeMatchState(parsed)` con il risultato del parser.
 
 Verifiche fatte:
 - test sui seed del simulatore (`packages/volley-stats/src/index.test.ts`);

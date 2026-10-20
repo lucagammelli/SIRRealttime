@@ -1,4 +1,4 @@
-import type { Side } from '@sir/volley-stats';
+import type { Side } from '@arenalive/volley-stats';
 
 /**
  * The only ECharts theme of the portal. Colours are the tokens of styles/tokens.css read at runtime

@@ -1,5 +1,5 @@
-import type { BlockType, LayoutBlock, LayoutDevice, TemplateId, TenantLayout } from '@sir/shared';
-import { defaultDeviceBlocks, LAYOUT_MAX_BLOCKS, newBlock, TenantLayoutSchema } from '@sir/shared';
+import type { BlockType, LayoutBlock, LayoutDevice, TemplateId, TenantLayout } from '@arenalive/shared';
+import { defaultDeviceBlocks, LAYOUT_MAX_BLOCKS, newBlock, TenantLayoutSchema } from '@arenalive/shared';
 
 /** Pure editing of the blocks of one device (editor «Pagina pubblica»): every function returns a new layout. */
 

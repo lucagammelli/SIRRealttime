@@ -1,4 +1,4 @@
-import type { ActionEntry, ParsedMatch, ScoutEntry } from '@sir/dvw-parser';
+import type { ActionEntry, ParsedMatch, ScoutEntry } from '@arenalive/dvw-parser';
 import type { Side } from './types.js';
 import { other } from './util.js';
 

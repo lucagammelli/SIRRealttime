@@ -1,7 +1,7 @@
 # Infrastruttura
 
 ## A cosa serve
-Il monorepo TypeScript che contiene tutte le sezioni di SIRRealtime: gestione dei pacchetti, compilazione, controlli di
+Il monorepo TypeScript che contiene tutte le sezioni di ArenaLive: gestione dei pacchetti, compilazione, controlli di
 qualità (lint, typecheck, test, formattazione) e CI. Le regole di codice sono in `docs/regole/codice.md`, quelle su
 rami, job e CI in `docs/regole/test-job-rilasci.md`.
 
@@ -27,14 +27,14 @@ Tutti ricorsivi sui pacchetti che hanno lo script (`pnpm -r --if-present`), tran
 | `pnpm format` | `prettier --write .` |
 | `pnpm format:check` | `prettier --check .` |
 
-### Condizione `@sir/source` e `dist`
-Ogni pacchetto dichiara negli `exports`: `@sir/source` → `./src/index.ts`, `types` → `./dist/index.d.ts`,
+### Condizione `@arenalive/source` e `dist`
+Ogni pacchetto dichiara negli `exports`: `@arenalive/source` → `./src/index.ts`, `types` → `./dist/index.d.ts`,
 `default` → `./dist/index.js`.
-- **typecheck e vitest** leggono i sorgenti: `tsconfig.base.json` ha `customConditions: ["@sir/source"]` e
-  `vitest.shared.ts` mette `@sir/source` tra le `conditions`. Non serve compilare le dipendenze per provare un pacchetto.
+- **typecheck e vitest** leggono i sorgenti: `tsconfig.base.json` ha `customConditions: ["@arenalive/source"]` e
+  `vitest.shared.ts` mette `@arenalive/source` tra le `conditions`. Non serve compilare le dipendenze per provare un pacchetto.
 - **build**: `tsconfig.build.json` di ogni pacchetto azzera `customConditions` (`[]`) e quindi compila contro i `.d.ts` in
   `dist` delle dipendenze. Per questo `pnpm -r build` procede in ordine topologico (prima le dipendenze).
-- **a runtime** Node non conosce `@sir/source` e usa `dist/index.js`: per eseguire un pacchetto (es. la CLI del
+- **a runtime** Node non conosce `@arenalive/source` e usa `dist/index.js`: per eseguire un pacchetto (es. la CLI del
   simulatore, `dist/cli.js`) serve prima la build.
 
 ### tsconfig
@@ -60,7 +60,7 @@ La CI è solo locale: `scripts/ci_locale.sh` esegue 5 passi: 1/5 `pnpm install -
 lo script va lanciato prima di ogni PR e da `scripts/job.sh unisci`. Richiede Node 24 e corepack.
 
 ### Test del server e `ws`
-`apps/server/vitest.config.ts` non usa le condizioni di `vitest.shared.ts` ma solo `@sir/source`, `node` e `default`
+`apps/server/vitest.config.ts` non usa le condizioni di `vitest.shared.ts` ma solo `@arenalive/source`, `node` e `default`
 (per `resolve` e `ssr.resolve`): togliere `import` e `module` serve perché vitest passa le condizioni anche a Node per le
 dipendenze CommonJS, e con `import` il `require('ws')` dentro `@fastify/websocket` caricherebbe il wrapper ESM di `ws`,
 che non ha `WebSocket.Server`. Timeout di test e hook: 30 s.
@@ -102,11 +102,11 @@ binario della piattaforma come dipendenza opzionale.
   il volume `assets`. nginx accetta corpi fino a 3 MB (`client_max_body_size 3m`) per il caricamento di un'immagine
   (`POST /api/admin/assets`, 2 MB in base64) e comprime anche `image/svg+xml`.
 - `docker/server.Dockerfile`: build multi-stage con Node 24 slim. Lo stadio `build` esegue
-  `pnpm install --frozen-lockfile`, `pnpm --filter "@sir/server..." build` e `pnpm --filter @sir/server deploy --prod /out`;
+  `pnpm install --frozen-lockfile`, `pnpm --filter "@arenalive/server..." build` e `pnpm --filter @arenalive/server deploy --prod /out`;
   lo stadio `runtime` copia `/out`, crea `/data/assets` di proprietà di `node` (il volume nuovo la eredita), gira come utente `node` ed esegue `node dist/main.js` con un healthcheck su
   `/api/health`.
 - Volume `downloads` (o cartella dell'host `AGENT_DOWNLOAD_HOST_DIR`): montato **in sola lettura** su `/data/downloads` nel
-  servizio `server`, con `AGENT_DOWNLOAD_DIR=/data/downloads`. Lo riempie solo `scripts/costruisci-agente.sh` (sotto);
+  servizio `server`, con `AGENT_DOWNLOAD_DIR=/data/downloads`. Lo riempiono solo gli script di costruzione: in produzione `scripts/pubblica-agente-produzione.sh` (agente C#, passo 8), a mano `scripts/costruisci-agente.sh` (agente Node, sotto);
   vuoto, il portale dice che l'agente non è pubblicato. Il server non lo scrive mai.
 - Campionati: il servizio `server` di `docker-compose.yml` passa `LEAGUE_SYNC` (default `on`), `LEAGUE_CONTACT` (vuoto: il
   server usa `PUBLIC_BASE_URL`) e `RATE_LIMIT_LEAGUE_SYNC` (6). Il server **esce in https** verso `www.legavolley.it`
@@ -118,8 +118,11 @@ binario della piattaforma come dipendenza opzionale.
   (`docs/server.md`, «Loghi di sistema»).
 - `.dockerignore`: esclude dal contesto `node_modules`, `dist`, `coverage`, log, `.git`, `.env` e `.env.*` (tranne
   `.env.example`), `.claude`, `docs` e `samples`.
-- Provato il 2026-10-14: `docker compose -p sirrealtime up -d --build` con `.env` da `.env.example`: `postgres`, `server`
+- Provato il 2026-10-14: `docker compose -p arenalive up -d --build` con `.env` da `.env.example`: `postgres`, `server`
   e `web` healthy. Esiti completi del collaudo in `docs/portale.md`.
+- Stack di prova locale: dal 2026-10-20 gira come progetto compose **`arenalive`** (volumi `arenalive_pgdata` e
+  `arenalive_assets`, database e utente `arenalive`). I dati dello stack precedente stanno nei volumi `sir-realtime_*` e
+  vanno copiati a mano nei nuovi (compose non li riconosce).
 
 ### Dipendenze del portale (`apps/web`)
 `echarts` (`^6.0.0`) pesa circa 60 MB su disco in `node_modules` ma nel bundle entra solo ciò che è importato: circa
@@ -146,10 +149,10 @@ rilascio e l'altro. Il bundle principale è di circa 132 KB gzip. Le altre dipen
   passata dal servizio `server` di `docker-compose.yml` con `${DEFAULT_TENANT_SLUG-predefinito}`: se in `.env` è
   definita ma vuota resta vuota (hostname sconosciuto = 404, `docs/server.md`).
 - Multi-cliente in produzione: nginx (`docker/web.nginx.conf`, `server_name _`) accetta ogni hostname e passa `Host` al
-  server; i certificati https per ogni hostname li emette Caddy (`SIR_HOSTNAMES`), vedi «Installazione in produzione».
+  server; i certificati https per ogni hostname li emette Caddy (`ARENALIVE_HOSTNAMES`), vedi «Installazione in produzione».
 - `CORS_ORIGIN`, `PUBLIC_BASE_URL` e `TRUST_PROXY` sono **commentate** in `.env.example` di proposito: lasciate così
   valgono i default giusti per ogni modo di avvio (con compose `http://localhost:${WEB_PORT}` e `true`, perché il server
-  è dietro nginx; con `pnpm --filter @sir/server dev` e `vite dev` `http://localhost:5173` e `false`). Una riga attiva
+  è dietro nginx; con `pnpm --filter @arenalive/server dev` e `vite dev` `http://localhost:5173` e `false`). Una riga attiva
   nel `.env` li sovrascriverebbe anche in compose, e un `TRUST_PROXY=false` o un'origine sbagliata rompono rate limit e
   login. Si decommentano solo per un dominio vero.
 
@@ -157,21 +160,21 @@ rilascio e l'altro. Il bundle principale è di circa 132 KB gzip. Le altre dipen
 ```bash
 # --- variabili ---
 RADICE="/percorso/del/repository"   # radice del repository o del worktree del job
-PACCHETTO="dvw-parser"              # nome del pacchetto dopo @sir/ (dvw-parser, dvw-simulator, shared, volley-stats)
+PACCHETTO="dvw-parser"              # nome del pacchetto dopo @arenalive/ (dvw-parser, dvw-simulator, shared, volley-stats)
 
 # --- comandi ---
 cd "$RADICE"
 corepack enable                       # una sola volta: attiva il pnpm fissato in packageManager
 pnpm install                          # dipendenze di tutti i pacchetti
-pnpm --filter "@sir/$PACCHETTO" test  # test di un solo pacchetto
+pnpm --filter "@arenalive/$PACCHETTO" test  # test di un solo pacchetto
 scripts/ci_locale.sh                  # i 5 passi della CI, da lanciare prima di ogni PR
 ```
 
 ### Agente scaricabile (`scripts/costruisci-agente.sh`)
-Costruisce da Linux `sir-agent.exe` (Node SEA per Windows x64) e lo pubblica dove il server lo offre dal portale
+Costruisce da Linux `arenalive-agent.exe` (Node SEA per Windows x64) e lo pubblica dove il server lo offre dal portale
 (`docs/server.md`, «Agente scaricabile»). Passi: bundle esbuild dell'agente → download di `node.exe` per Windows e di
 `SHASUMS256.txt` da nodejs.org in una cartella temporanea (rimossa alla fine) con verifica dello sha256 → blob SEA →
-iniezione con `postject` in una copia di `node.exe` → `sir-agent.exe` e `sir-agent.json` in `USCITA`, pubblicati con
+iniezione con `postject` in una copia di `node.exe` → `arenalive-agent.exe` e `arenalive-agent.json` in `USCITA`, pubblicati con
 `mv` (rename) così il server non vede mai un exe a metà. Sono gli stessi passi di `apps/agent/scripts/build-exe.ps1`.
 
 - **Versione** = versione di `apps/agent/package.json` + commit corto (`<versione>-<commit>`, «locale» senza git).
@@ -185,7 +188,7 @@ iniezione con `postject` in una copia di `node.exe` → `sir-agent.exe` e `sir-a
 ```bash
 # --- variabili ---
 RADICE="/percorso/del/repository"       # radice del repository o del worktree del job
-USCITA="/srv/sir/downloads"             # cartella d'uscita: AGENT_DOWNLOAD_HOST_DIR del .env (fuori dal repository)
+USCITA="/srv/arenalive/downloads"             # cartella d'uscita: AGENT_DOWNLOAD_HOST_DIR del .env (fuori dal repository)
 NODE_VERSIONE="$(node --version | sed 's/^v//')"   # versione di node.exe: deve essere quella del node locale (è già il default dello script)
 
 # --- comandi ---
@@ -194,20 +197,20 @@ USCITA="$USCITA" NODE_VERSIONE="$NODE_VERSIONE" scripts/costruisci-agente.sh
 # il server legge i file ad ogni richiesta: non serve riavviarlo
 ```
 
-`USCITA` e `NODE_VERSIONE` possono anche restare vuote: i default sono `$HOME/sir-agent-download` e la versione del node
+`USCITA` e `NODE_VERSIONE` possono anche restare vuote: i default sono `$HOME/arenalive-agent-download` e la versione del node
 locale.
 
 ### Agente C# (`scripts/costruisci-agente-dotnet.sh`)
 Costruisce da Linux l'agente C# (`apps/agent-dotnet`, `docs/agente.md`): prima i test xUnit della libreria core, poi
-`dotnet publish` di `sir-agent.exe` (win-x64, exe unico autosufficiente e compresso, circa 48 MB). Tutto in un container
+`dotnet publish` di `arenalive-agent.exe` (win-x64, exe unico autosufficiente e compresso, circa 48 MB). Tutto in un container
 temporaneo `mcr.microsoft.com/dotnet/sdk:10.0` (sul server non si installa nulla); i sorgenti sono copiati in una cartella
-`~/.sir-agent-dotnet-XXXXXX` (non in `/tmp`, che è in RAM). Prima di partire controlla Docker e lo spazio libero su `/`
-(almeno 5 GB, `SPAZIO_MINIMO_GB`); la prima volta scarica circa 1,5 GB. Output: `dist/sir-agent-<versione>.exe` (`dist/` è
+`~/.arenalive-agent-dotnet-XXXXXX` (non in `/tmp`, che è in RAM). Prima di partire controlla Docker e lo spazio libero su `/`
+(almeno 5 GB, `SPAZIO_MINIMO_GB`); la prima volta scarica circa 1,5 GB. Output: `dist/arenalive-agent-<versione>.exe` (`dist/` è
 escluso da git) con messaggio finale di versione (`<versione>+<commit>`), dimensione e sha256.
 **Pulizia**: alla fine (anche in caso di errore) rimuove container e cartella temporanea; con `RIMUOVI_IMMAGINE=1`
 (default) rimuove anche l'immagine SDK, ma solo se l'ha scaricata questa build (se c'era già, resta); con `0` la tiene
 sempre per la build successiva.
-Le variabili `VERSIONE` (a.b.c, default: la versione del `package.json` alla radice, via `scripts/versione.mjs`; `SIR_COMMIT` forza il
+Le variabili `VERSIONE` (a.b.c, default: la versione del `package.json` alla radice, via `scripts/versione.mjs`; `ARENALIVE_COMMIT` forza il
 commit mostrato), `USCITA` (default `<radice>/dist`) e `RIMUOVI_IMMAGINE` si passano
 dall'ambiente.
 
@@ -224,13 +227,13 @@ VERSIONE="$VERSIONE" USCITA="$USCITA" RIMUOVI_IMMAGINE="$RIMUOVI_IMMAGINE" scrip
 ```
 
 **La CI locale non compila il C#** (`scripts/ci_locale.sh` esegue solo i passi Node). Proposta: un passo facoltativo, attivo
-solo se c'è Docker, che lancia questo script. Per i contratti, invece, la CI locale (test di `@sir/shared`) controlla già che
+solo se c'è Docker, che lancia questo script. Per i contratti, invece, la CI locale (test di `@arenalive/shared`) controlla già che
 gli schemi in `apps/agent-dotnet/schemas/` siano aggiornati.
 
-### Prova di carico (`tools/carico`, `@sir/carico`)
+### Prova di carico (`tools/carico`, `@arenalive/carico`)
 Apre N WebSocket pubblici contro un server, riproduce una partita `.dvw` tramite `POST /api/ingest` (un ingest ogni
 `--interval` ms) e misura latenza di consegna, byte per aggiornamento, connessioni respinte o chiuse, CPU e memoria del
-server. Due comandi, da lanciare con `pnpm --filter @sir/carico carico <comando>`:
+server. Due comandi, da lanciare con `pnpm --filter @arenalive/carico carico <comando>`:
 
 - `prova`: `--url` (obbligatorio); `--token` (link pubblico) oppure `--admin-email` e `--admin-password` (crea agente e
   link); `--agent-token`; `--clients` (1000), `--rate` connessioni al secondo (200), `--workers` processi (2), `--gzip`
@@ -256,8 +259,8 @@ RISULTATI="/tmp/carico.json"             # file dove scrivere il rapporto JSON
 # --- comandi ---
 cd "$RADICE"
 ulimit -n 65536                          # un descrittore per spettatore
-pnpm --filter @sir/carico carico dimensioni --dvw "$DVW"
-pnpm --filter @sir/carico carico prova --url "$SERVER" \
+pnpm --filter @arenalive/carico carico dimensioni --dvw "$DVW"
+pnpm --filter @arenalive/carico carico prova --url "$SERVER" \
   --admin-email "$ADMIN_EMAIL_PROVA" --admin-password "$ADMIN_PASSWORD_PROVA" \
   --clients "$CLIENTI" --gzip --dvw "$DVW" --step point --interval 300 \
   --server-pid "$SERVER_PID" --json "$RISULTATI"
@@ -286,9 +289,9 @@ Postgres LISTEN/NOTIFY).
 
 ### Scansione di sicurezza DAST (`scripts/dast_zap.sh`)
 Sostituisce StackHawk (piano scaduto). Avvia un server di prova (`apps/server` con `tsx`, database PGlite in memoria) sulla
-porta **18090**, crea l'utente `scan@sir.local` (admin del cliente «Predefinito») e un token agente tramite l'API, poi
+porta **18090**, crea l'utente `scan@arenalive.local` (admin del cliente «Predefinito») e un token agente tramite l'API, poi
 esegue `zap-api-scan.py` di OWASP ZAP nell'immagine Docker `ghcr.io/zaproxy/zaproxy:2.17.0` con la specifica
-`scripts/dast/openapi.yaml`. Cookie `sir_session` e `Authorization: Bearer` sono passati a ZAP con il `replacer`; `/api/auth/logout`
+`scripts/dast/openapi.yaml`. Cookie `arenalive_session` e `Authorization: Bearer` sono passati a ZAP con il `replacer`; `/api/auth/logout`
 è escluso (e tolto dalla specifica). Il server di prova ha tutti i `RATE_LIMIT_*` a 100000 tranne `RATE_LIMIT_LEAGUE_SYNC`
 (lasciato al predefinito per non caricare legavolley.it) e `LEAGUE_SYNC=off`. Non coperti: WebSocket e portale/nginx.
 - **Requisiti**: `docker`, `node` 24, `pnpm` (lo script prova `corepack enable`), `curl`; `pnpm install` già fatto. Porta 18090
@@ -296,7 +299,7 @@ esegue `zap-api-scan.py` di OWASP ZAP nell'immagine Docker `ghcr.io/zaproxy/zapr
   cache Docker; controllare lo spazio libero su `/` prima di lanciarla (lo script non lo verifica).
 - **Uscite**: 0 pulito; 1 avvisi di rischio Alto o Medio; 2 preparazione fallita (strumenti mancanti, server che non parte,
   login, ZAP senza report).
-- **Report** (HTML e JSON, `zap.log`, `server.log`): `~/sir-dast-report/`, o `DAST_REPORT_DIR`; una cartella non vuota che
+- **Report** (HTML e JSON, `zap.log`, `server.log`): `~/arenalive-dast-report/`, o `DAST_REPORT_DIR`; una cartella non vuota che
   non sia un report precedente viene rifiutata. Restano fuori dal repository.
 - **Falsi positivi**: solo in `scripts/dast/zap-regole.tsv` (id plugin, `IGNORE`, motivo); oggi nessuna regola.
 - Le altre variabili (porta, credenziali di prova, immagine, minuti massimi) sono nel blocco in alto dello script.
@@ -304,7 +307,7 @@ esegue `zap-api-scan.py` di OWASP ZAP nell'immagine Docker `ghcr.io/zaproxy/zapr
 ```bash
 # --- variabili ---
 RADICE="/percorso/del/repository"          # radice del repository o del worktree del job
-DAST_REPORT_DIR="$HOME/sir-dast-report"    # dove scrivere i report (fuori dal repository)
+DAST_REPORT_DIR="$HOME/arenalive-dast-report"    # dove scrivere i report (fuori dal repository)
 
 # --- comandi ---
 cd "$RADICE"
@@ -313,8 +316,9 @@ DAST_REPORT_DIR="$DAST_REPORT_DIR" scripts/dast_zap.sh
 Dettagli sulle rotte e l'esito in `docs/server.md` («Scansione di sicurezza (DAST)»), regole in `docs/regole/sicurezza.md`.
 
 ## Installazione in produzione
-Guida passo passo per mettere SIRRealtime su un server vero, con HTTPS e backup. Si fa con quattro script in `scripts/`
-(`installa-produzione.sh`, `aggiorna-produzione.sh`, `backup-produzione.sh`, `pubblica-agente-produzione.sh`) e tre file in
+Guida passo passo per mettere ArenaLive su un server vero, con HTTPS e backup. Si fa con cinque script in `scripts/`
+(`installa-produzione.sh`, `aggiorna-produzione.sh`, `backup-produzione.sh`, `pubblica-agente-produzione.sh`,
+`ripristina-produzione.sh`) e tre file in
 `docker/` (`compose.produzione.yml`, `Caddyfile`, `web.realip.conf`). Come è fatto lo stack: **Caddy** (unico servizio
 esposto, porte 80 e 443) emette i certificati (Let's Encrypt, oppure una CA interna di Caddy se i domini non sono ancora pubblici: «Modalità dei certificati») e inoltra a `web` (nginx), che a sua volta parla con
 `server` e `postgres` nella rete interna di Docker. Server e web non pubblicano nessuna porta sull'host.
@@ -352,12 +356,12 @@ un editor). Aprilo e compila **solo** il blocco `--- variabili ---` in alto; ogn
 | `REPO_RIFERIMENTO` | ramo o tag da installare (default `main`) | GitHub, «Branches» o «Tags» |
 | `CHIAVE_DEPLOY` | percorso di una chiave privata SSH già sul server; vuoto = ne crea una lo script | di norma vuoto |
 | `HOSTKEY_GITHUB_SHA256` | impronta ed25519 di GitHub; già compilata, controllala | docs.github.com, «GitHub's SSH key fingerprints»; vuota con repo https |
-| `CARTELLA_INSTALLAZIONE` | dove sta il codice e il `.env` (default `/opt/sir-realtime`) | scelta tua |
-| `CARTELLA_BACKUP` | dove vanno i backup (default `/var/backups/sir-realtime`) | scelta tua |
+| `CARTELLA_INSTALLAZIONE` | dove sta il codice e il `.env` (default `/opt/arenalive`) | scelta tua |
+| `CARTELLA_BACKUP` | dove vanno i backup (default `/var/backups/arenalive`) | scelta tua |
 | `BACKUP_DA_TENERE` | quanti backup tenere per tipo (default 14) | scelta tua |
 | `FUSO_ORARIO` | fuso del server (default `Europe/Rome`) | `timedatectl list-timezones` |
 | `PORTA_SSH` | porta di `sshd`; resta aperta nel firewall (se è sbagliata lo script si ferma prima di chiuderti fuori) | `ss -tlnp \| grep sshd` |
-| `UTENTE_SERVIZIO` | utente di sistema senza login, proprietario di codice e chiave (default `sir`) | scelta tua |
+| `UTENTE_SERVIZIO` | utente di sistema senza login, proprietario di codice e chiave (default `arenalive`) | scelta tua |
 | `SPAZIO_MIN_GB`, `MEMORIA_MIN_MB` | soglie minime (default 20 e 1800) | di norma non si toccano |
 | `DOCKER_GPG_FPR` | impronta della chiave apt di Docker; già compilata | docs.docker.com/engine/install/ubuntu |
 | `CONFIG_SISTEMA`, `LOG` | file delle impostazioni non segrete e registro dell'installazione | di norma non si toccano |
@@ -372,7 +376,7 @@ sudo bash "$SCRIPT"
 ```
 
 ### Modalità dei certificati
-`CERTIFICATI` nel blocco variabili sceglie come Caddy emette i certificati (nel `.env`: `SIR_TLS_MODE`, riallineata a ogni
+`CERTIFICATI` nel blocco variabili sceglie come Caddy emette i certificati (nel `.env`: `ARENALIVE_TLS_MODE`, riallineata a ogni
 esecuzione; `docker/Caddyfile` importa lo snippet `modo_<valore>`).
 - **`letsencrypt`**: certificati pubblici Let's Encrypt; servono hostname con DNS pubblico e porte 80/443 raggiungibili da
   Internet, e `EMAIL_LETSENCRYPT` valida. Senza record DNS lo script avvisa.
@@ -380,10 +384,10 @@ esecuzione; `docker/Caddyfile` importa lo snippet `modo_<valore>`).
   hostname non pubblici (`realtime.local`, o nomi non ancora in DNS risolti dal file hosts dei PC). `EMAIL_LETSENCRYPT` può
   restare vuota, l'assenza del record DNS è solo informativa e la verifica finale usa `curl --resolve --cacert` con la radice
   esportata (mai `-k`). Lo script copia **solo il certificato pubblico** (mai la chiave) in
-  `/etc/sir-realtime/ca-pubblica/sirrealtime-ca.crt`, lo rende scaricabile da `https://<DOMINIO_PORTALE>/sirrealtime-ca.crt`
+  `/etc/arenalive/ca-pubblica/arenalive-ca.crt`, lo rende scaricabile da `https://<DOMINIO_PORTALE>/arenalive-ca.crt`
   (solo in questa modalità) e stampa nel riepilogo l'impronta SHA-256. I cookie restano `Secure` (c'è HTTPS).
 - **Passare da `interno` a `letsencrypt`**: imposta `CERTIFICATI="letsencrypt"`, compila `EMAIL_LETSENCRYPT`, usa hostname con
-  DNS pubblico e rilancia `installa-produzione.sh`: riallinea `SIR_TLS_MODE`, `ACME_EMAIL`, `PUBLIC_BASE_URL` e `CORS_ORIGIN` nel `.env` (questi due derivano da `DOMINIO_PORTALE` e si rimettono a ogni esecuzione), riavvia Caddy, che
+  DNS pubblico e rilancia `installa-produzione.sh`: riallinea `ARENALIVE_TLS_MODE`, `ACME_EMAIL`, `PUBLIC_BASE_URL` e `CORS_ORIGIN` nel `.env` (questi due derivano da `DOMINIO_PORTALE` e si rimettono a ogni esecuzione), riavvia Caddy, che
   chiede i certificati pubblici e smette di servire la radice. Il passo inverso funziona allo stesso modo. Dopo il passaggio la
   radice interna non serve più e si può togliere dai PC.
 
@@ -394,15 +398,15 @@ usano quell'archivio (Firefox ha il suo; sui telefoni la radice si installa a ma
 l'avviso). Prima si confronta l'impronta con quella del riepilogo dello script. PowerShell **come amministratore**:
 ```powershell
 # --- variabili ---
-$UrlRadice = "https://realtime.local/sirrealtime-ca.crt"   # indirizzo del portale + /sirrealtime-ca.crt (il PC deve risolvere il nome, es. dal file hosts)
-$FileRadice = ""                                           # in alternativa un file già copiato sul PC (es. C:\Temp\sirrealtime-ca.crt); se compilato, l'URL non si usa
+$UrlRadice = "https://realtime.local/arenalive-ca.crt"   # indirizzo del portale + /arenalive-ca.crt (il PC deve risolvere il nome, es. dal file hosts)
+$FileRadice = ""                                           # in alternativa un file già copiato sul PC (es. C:\Temp\arenalive-ca.crt); se compilato, l'URL non si usa
 $ImprontaAttesa = "<impronta SHA-256 dal riepilogo dello script>"   # con o senza i due punti, maiuscole o minuscole
 
 # --- comandi ---
 $ErrorActionPreference = "Stop"
 if ($ImprontaAttesa -like "*<*") { throw "Compila ImprontaAttesa con l'impronta stampata dallo script." }
 if ($FileRadice -eq "") {
-    $FileRadice = Join-Path $env:TEMP "sirrealtime-ca.crt"
+    $FileRadice = Join-Path $env:TEMP "arenalive-ca.crt"
     # Il download avviene prima di fidarsi della radice: serve solo a ottenere il file, la fiducia dipende dall'impronta controllata sotto.
     if ($PSVersionTable.PSVersion.Major -ge 7) {
         Invoke-WebRequest -Uri $UrlRadice -OutFile $FileRadice -SkipCertificateCheck
@@ -437,13 +441,13 @@ chiama `aggiorna-produzione.sh` (build e avvio) e verifica l'HTTPS.
 Con un repository SSH privato il **primo avvio si ferma** al clone e stampa una chiave pubblica. Aggiungila su GitHub:
 repository > **Settings > Deploy keys > Add deploy key**, incollando la chiave e **lasciando deselezionato «Allow write
 access»** (sola lettura). Poi rilancia lo stesso comando del passo 2: il clone riesce e l'installazione prosegue. La prima
-build richiede diversi minuti. Il registro è in `/var/log/sir-realtime-installazione.log`.
+build richiede diversi minuti. Il registro è in `/var/log/arenalive-installazione.log`.
 
 ### 4. Password del superadmin e primo accesso
 Se `ADMIN_PASSWORD` era vuota, la password generata compare **una sola volta** nel riepilogo finale dello script (non è nel
 registro); resta anche nel `.env` (`CARTELLA_INSTALLAZIONE/.env`, permessi 600, `ADMIN_PASSWORD`). Se la prima esecuzione si ferma prima del
 riepilogo la password viene mostrata alla prima esecuzione che arriva in fondo. Dopo il riepilogo esiste la marca
-`/etc/sir-realtime/superadmin-mostrato`: le esecuzioni successive non generano né mostrano nessuna nuova password (il
+`/etc/arenalive/superadmin-mostrato`: le esecuzioni successive non generano né mostrano nessuna nuova password (il
 superadmin esiste già; il server lo crea solo se non ce n'è nessuno). Si accede a
 `https://<DOMINIO_PORTALE>/admin` con `ADMIN_EMAIL` e quella password. Al primo accesso:
 1. cambia la password: il superadmin vede «Utenti» solo dentro un cliente («Entra nel cliente» da «Clienti»); lì, accanto
@@ -454,7 +458,7 @@ superadmin esiste già; il server lo crea solo se non ce n'è nessuno). Si acced
 ### 5. Aggiornamenti e rollback
 ```bash
 # --- variabili ---
-CARTELLA_INSTALLAZIONE="/opt/sir-realtime"   # la stessa dell'installazione
+CARTELLA_INSTALLAZIONE="/opt/arenalive"   # la stessa dell'installazione
 RIFERIMENTO="main"                           # ramo o tag da installare (GitHub, «Branches» o «Tags»)
 
 # --- comandi ---
@@ -462,12 +466,12 @@ sudo "$CARTELLA_INSTALLAZIONE/scripts/aggiorna-produzione.sh" "$RIFERIMENTO"
 ```
 **Aggiornare a una release**: `RIFERIMENTO="v1.0.0"` (il tag creato da `scripts/rilascia.sh --tagga`,
 `docs/regole/test-job-rilasci.md`). Lo script scarica anche i tag, mostra `release: <tag>` (o «nessun tag» se installa un
-ramo) e passa ai build Docker il commit corto (`SIR_COMMIT`, perché nei build non c'è `.git`; `docker-compose.yml` lo
+ramo) e passa ai build Docker il commit corto (`ARENALIVE_COMMIT`, perché nei build non c'è `.git`; `docker-compose.yml` lo
 inoltra come build arg di `server` e `web`, vuoto se manca). Dopo l'aggiornamento `GET /api/health` mostra `version` e
 `commit`, e il portale la versione in fondo al menu. Per tornare a una release precedente basta rilanciare con il suo
 tag (le migrazioni del database non tornano indietro: vedi sotto).
-Senza argomento usa `REPO_RIFERIMENTO` di `/etc/sir-realtime/produzione.conf`. Passi (registro
-`/var/log/sir-realtime-aggiornamento.log`): 1) backup `pre-aggiornamento`, 2) scarica ramo o tag, 3) build e avvio (le
+Senza argomento usa `REPO_RIFERIMENTO` di `/etc/arenalive/produzione.conf`. Passi (registro
+`/var/log/arenalive-aggiornamento.log`): 1) backup `pre-aggiornamento`, 2) scarica ramo o tag, 3) build e avvio (le
 migrazioni del database girano all'avvio del server), 4) attesa che `postgres`, `server` e `web` siano «healthy» e che
 `/api/health` risponda (fino a `ATTESA_SALUTE_SECONDI`, default 300), 5) pubblica l'agente (passo 8). A aggiornamento riuscito
 libera il disco (`docker image prune -f` e cache di build più vecchia di 7 giorni). Un solo aggiornamento alla volta (lock).
@@ -478,11 +482,11 @@ restano. Se la versione precedente non è sana (messaggio «ERRORE GRAVE») o i 
 `…-pre-aggiornamento` (passo 6). Alla prima installazione non c'è nulla a cui tornare e il backup è saltato.
 
 ### 6. Backup e ripristino
-- **Quando**: ogni giorno alle 03:30 (con ritardo casuale fino a 15 minuti) dal timer `sir-backup.timer`; a mano con
-  `sudo systemctl start sir-backup.service`; in più prima di ogni aggiornamento.
-- **Dove**: `CARTELLA_BACKUP` (default `/var/backups/sir-realtime`, cartella 700, file 600, solo root).
-- **Cosa**, con la stessa data nel nome: `sir-db-<data>.dump` (database, formato `pg_dump -Fc`, verificato prima di essere
-  tenuto), `sir-assets-<data>.tar.gz` (immagini dei clienti), `sir-env-<data>` (il `.env`). Il `.env` serve: senza
+- **Quando**: ogni giorno alle 03:30 (con ritardo casuale fino a 15 minuti) dal timer `arenalive-backup.timer`; a mano con
+  `sudo systemctl start arenalive-backup.service`; in più prima di ogni aggiornamento.
+- **Dove**: `CARTELLA_BACKUP` (default `/var/backups/arenalive`, cartella 700, file 600, solo root).
+- **Cosa**, con la stessa data nel nome: `arenalive-db-<data>.dump` (database, formato `pg_dump -Fc`, verificato prima di essere
+  tenuto), `arenalive-assets-<data>.tar.gz` (immagini dei clienti), `arenalive-env-<data>` (il `.env`). Il `.env` serve: senza
   `SETTINGS_ENCRYPTION_KEY` e `SHARE_CODE_SECRET` un ripristino perde la password della posta e i QR stampati. Quelli
   prima di un aggiornamento hanno `-pre-aggiornamento` nel nome.
 - **Quanti**: gli ultimi `BACKUP_DA_TENERE` (default 14) per ciascun tipo; i più vecchi si cancellano.
@@ -492,55 +496,117 @@ restano. Se la versione precedente non è sana (messaggio «ERRORE GRAVE») o i 
 Ripristino (fermano il portale per qualche minuto):
 ```bash
 # --- variabili ---
-CARTELLA_INSTALLAZIONE="/opt/sir-realtime"      # dove sta il codice con il .env
-CARTELLA_BACKUP="/var/backups/sir-realtime"     # dove sono i backup
-DATA_BACKUP="<data-e-ora del backup, es. 20261018-033000 o 20261018-101500-pre-aggiornamento>"  # parte del nome dopo «sir-db-» (ls CARTELLA_BACKUP)
+CARTELLA_INSTALLAZIONE="/opt/arenalive"      # dove sta il codice con il .env
+CARTELLA_BACKUP="/var/backups/arenalive"     # dove sono i backup
+DATA_BACKUP="<data-e-ora del backup, es. 20261018-033000 o 20261018-101500-pre-aggiornamento>"  # parte del nome dopo «arenalive-db-» (ls CARTELLA_BACKUP)
 RIPRISTINA_ENV="no"                             # "si" solo se il .env è perso: sovrascrive quello attuale con il salvato
-NOME_PROGETTO="sir-realtime"                    # nome del progetto compose (volume «<nome>_assets»)
+NOME_PROGETTO="arenalive"                    # nome del progetto compose (volume «<nome>_assets»)
 
 # --- comandi ---
 set -Eeuo pipefail
 [[ "$DATA_BACKUP" != *"<"* ]] || { echo "Compila DATA_BACKUP"; exit 1; }
 cd "$CARTELLA_INSTALLAZIONE"
-for f in "sir-db-$DATA_BACKUP.dump" "sir-assets-$DATA_BACKUP.tar.gz" "sir-env-$DATA_BACKUP"; do
+for f in "arenalive-db-$DATA_BACKUP.dump" "arenalive-assets-$DATA_BACKUP.tar.gz" "arenalive-env-$DATA_BACKUP"; do
     [[ -f "$CARTELLA_BACKUP/$f" ]] || { echo "Manca $CARTELLA_BACKUP/$f"; exit 1; }
 done
 if [[ "$RIPRISTINA_ENV" == "si" ]]; then
-    install -m 0600 -o "$(stat -c %U .env 2>/dev/null || echo root)" "$CARTELLA_BACKUP/sir-env-$DATA_BACKUP" .env
+    install -m 0600 -o "$(stat -c %U .env 2>/dev/null || echo root)" "$CARTELLA_BACKUP/arenalive-env-$DATA_BACKUP" .env
 fi
-DB_UTENTE="$(grep -E '^POSTGRES_USER=' .env | tail -n 1 | cut -d= -f2-)"; DB_UTENTE="${DB_UTENTE:-sir}"
-DB_NOME="$(grep -E '^POSTGRES_DB=' .env | tail -n 1 | cut -d= -f2-)"; DB_NOME="${DB_NOME:-sir}"
+DB_UTENTE="$(grep -E '^POSTGRES_USER=' .env | tail -n 1 | cut -d= -f2-)"; DB_UTENTE="${DB_UTENTE:-arenalive}"
+DB_NOME="$(grep -E '^POSTGRES_DB=' .env | tail -n 1 | cut -d= -f2-)"; DB_NOME="${DB_NOME:-arenalive}"
 docker compose up -d postgres
 docker compose stop caddy web server
 docker compose exec -T postgres pg_restore -U "$DB_UTENTE" -d "$DB_NOME" --clean --if-exists --no-owner \
-    <"$CARTELLA_BACKUP/sir-db-$DATA_BACKUP.dump"
+    <"$CARTELLA_BACKUP/arenalive-db-$DATA_BACKUP.dump"
 IMMAGINE_PG="$(docker inspect -f '{{.Config.Image}}' "$(docker compose ps -q postgres)")"
 docker run --rm -i --entrypoint sh -v "${NOME_PROGETTO}_assets:/dati" "$IMMAGINE_PG" \
-    -c 'find /dati -mindepth 1 -delete && tar -xzf - -C /dati' <"$CARTELLA_BACKUP/sir-assets-$DATA_BACKUP.tar.gz"
+    -c 'find /dati -mindepth 1 -delete && tar -xzf - -C /dati' <"$CARTELLA_BACKUP/arenalive-assets-$DATA_BACKUP.tar.gz"
 docker compose up -d
 echo "Ripristino completato. Controlla: docker compose ps"
 ```
 Su un server nuovo si installa prima con `installa-produzione.sh` e poi si ripristina con `RIPRISTINA_ENV="si"`.
 
+#### Migrare i dati dalla vecchia produzione (`scripts/ripristina-produzione.sh`)
+Caso del 2026-10-20: la produzione di ArenaLive è nata **sullo stesso server** (`185.105.208.42`) della vecchia
+(`rt.istante.info` e `sir.istante.info`), con portale admin `admin.arenalive.studio`, cliente SIR `sir.arenalive.studio` e
+Let's Encrypt (stessa email ACME). Il nuovo stack ha nomi diversi (cartelle, progetto compose, utente di servizio, database),
+quindi non si ripristina con lo script del passo 6 ma con `ripristina-produzione.sh`, che porta nella nuova installazione
+i dati della vecchia: dump del database, immagini e i soli segreti che servono ai dati. Procedura:
+1. **Sul vecchio**: fai un backup (`sudo systemctl start sir-backup.service`, o lo script di backup della vecchia
+   installazione) e copia dalla sua cartella dei backup, con la stessa data, il `.dump` del database, l'archivio `.tar.gz`
+   delle immagini e il file `.env` salvato (nel vecchio sistema i file si chiamavano `sir-db-…`, `sir-assets-…`, `sir-env-…`).
+2. **Copia i tre file** sul server nuovo (stessa macchina: una cartella fuori dal repository, es. `/root/vecchia/`, permessi
+   600). Contengono segreti: vanno cancellati a migrazione finita.
+3. **Installa il nuovo** con `installa-produzione.sh` (passo 2), con `DOMINIO_PORTALE="admin.arenalive.studio"`,
+   `ALTRI_HOSTNAME="sir.arenalive.studio"`, `CERTIFICATI="letsencrypt"` e la stessa `EMAIL_LETSENCRYPT`; i record DNS A (e AAAA)
+   dei due nomi devono già puntare al server.
+4. **Ripristina**: compila il blocco variabili di `scripts/ripristina-produzione.sh` e lancialo come root (sotto).
+
+Variabili del blocco in alto dello script:
+
+| Variabile | Cosa mette | Default |
+|---|---|---|
+| `DUMP_DATABASE` | dump `pg_dump -Fc` della vecchia produzione | da compilare |
+| `ARCHIVIO_IMMAGINI` | `tar.gz` del vecchio volume delle immagini | da compilare |
+| `ENV_VECCHIO` | `.env` della vecchia produzione (backup `sir-env-…`); vuoto = non riporta i segreti | da compilare |
+| `HOSTNAME_DA_CAMBIARE` | coppie `vecchio=nuovo` separate da spazio (hostname salvati nei clienti); vuoto = nessun cambio | `rt.istante.info=admin.arenalive.studio sir.istante.info=sir.arenalive.studio` |
+| `SEGRETI_DA_RIPORTARE` | chiavi del vecchio `.env` da copiare nel nuovo | `SHARE_CODE_SECRET SETTINGS_ENCRYPTION_KEY` |
+| `CONFERMA` | `si` = sovrascrive davvero database e immagini della nuova installazione | `no` |
+| `CONFIG_SISTEMA` | file scritto dall'installazione; se leggibile lo script lo carica (prevale sulle variabili omonime) | `/etc/arenalive/produzione.conf` |
+| `CARTELLA_INSTALLAZIONE`, `NOME_PROGETTO` | codice con `.env`; progetto compose (volume `<nome>_assets`) | `/opt/arenalive`, `arenalive` |
+| `ATTESA_SALUTE_SECONDI`, `LOG` | attesa massima dello stato «healthy»; registro | `300`, `/var/log/arenalive-ripristino.log` |
+
+I sette passi dello script (si ferma al primo errore; senza `CONFERMA="si"`, senza i file o con hostname non validi non
+tocca nulla):
+1. avvia `postgres`, controlla che il dump sia leggibile da `pg_restore -l` e fa un **backup della nuova installazione**
+   (`backup-produzione.sh pre-ripristino`) se c'era già qualcosa;
+2. ferma `caddy`, `web` e `server` (resta solo il database);
+3. **ricrea il database** (`DROP DATABASE … WITH (FORCE)`, `CREATE DATABASE` con l'utente del `.env`) e ripristina il dump con
+   `pg_restore --no-owner --no-privileges --exit-on-error --single-transaction`: il vecchio utente e il vecchio nome del
+   database («sir») non servono;
+4. sostituisce gli hostname dei clienti in `tenants.hostnames` per ogni coppia di `HOSTNAME_DA_CAMBIARE` e stampa
+   l'elenco `slug, name, hostname`;
+5. svuota il volume `<NOME_PROGETTO>_assets` e vi estrae l'archivio delle immagini (mantiene il proprietario del volume);
+6. se `ENV_VECCHIO` è compilato, salva `.env.pre-ripristino-<data>` e copia nel nuovo `.env` i segreti di
+   `SEGRETI_DA_RIPORTARE`: **`SHARE_CODE_SECRET`** (senza, i QR e i link brevi stampati non funzionano più) e
+   **`SETTINGS_ENCRYPTION_KEY`** (senza, la password della posta salvata non si decifra); vuoto, li lascia nuovi e lo dice;
+7. `docker compose up -d` (le migrazioni girano all'avvio del server) e attende che `postgres`, `server` e `web` siano
+   «healthy» e che `/api/health` risponda; altrimenti stampa gli ultimi log del server ed esce con errore.
+
+```bash
+# --- variabili (stesse del blocco in alto di scripts/ripristina-produzione.sh: si compila il file, non l'ambiente) ---
+CARTELLA_INSTALLAZIONE="/opt/arenalive"   # dove sta il codice sul server nuovo
+DOMINIO_PORTALE="admin.arenalive.studio"  # come in installa-produzione.sh
+
+# --- comandi ---
+cd "$CARTELLA_INSTALLAZIONE"
+sudo nano scripts/ripristina-produzione.sh    # compila DUMP_DATABASE, ARCHIVIO_IMMAGINI, ENV_VECCHIO e CONFERMA="si"
+sudo bash scripts/ripristina-produzione.sh
+curl -fsS "https://$DOMINIO_PORTALE/api/health"
+```
+Dopo: controlla dal browser i due portali e i link dei clienti, poi cancella i file copiati dalla vecchia produzione. Gli
+**agenti** non vanno migrati (nessuno era installato) e l'etichetta HMAC dei codici brevi è rimasta quella di prima apposta,
+perché i codici dei link ripristinati restino validi (`docs/server.md`).
+
 ### 7. Aggiungere l'hostname di un nuovo cliente
 1. Crea il record DNS A (e AAAA) dell'hostname verso il server.
 2. Rilancia `installa-produzione.sh` con l'hostname in `ALTRI_HOSTNAME` (insieme a quelli già presenti: l'elenco
-   `SIR_HOSTNAMES` del `.env` viene riscritto da quello dello script) e le stesse altre variabili; è sicuro, il `.env`
+   `ARENALIVE_HOSTNAMES` del `.env` viene riscritto da quello dello script) e le stesse altre variabili; è sicuro, il `.env`
    esistente non si sovrascrive. Caddy ottiene il certificato da solo.
 3. Nel portale, in «Clienti», assegna l'hostname al cliente (campo «Hostname», solo il nome senza `https://`).
 
-Un hostname non elencato in `SIR_HOSTNAMES` non ha certificato né risposta; uno elencato ma non assegnato risponde col cliente
+Un hostname non elencato in `ARENALIVE_HOSTNAMES` non ha certificato né risposta; uno elencato ma non assegnato risponde col cliente
 di `DEFAULT_TENANT_SLUG` (`docs/server.md`).
 
 ### 8. Agente scaricabile
 `scripts/pubblica-agente-produzione.sh` costruisce l'agente C# per Windows **solo con Docker** (container temporaneo
-dell'SDK .NET, rimosso a fine build; sul server non si installa .NET) e pubblica `sir-agent.exe` e `sir-agent.json` nella
+dell'SDK .NET, rimosso a fine build; sul server non si installa .NET) e pubblica `arenalive-agent.exe` e `arenalive-agent.json` nella
 cartella `AGENT_DOWNLOAD_HOST_DIR` del `.env` (default `/var/lib/<UTENTE_SERVIZIO>/downloads`), che il server legge in sola
 lettura. Lo chiama `aggiorna-produzione.sh`; **ricostruisce solo se la versione cambia** (campo `version` del `package.json` alla
 radice, la stessa del rilascio: l'agente esce quindi a ogni nuova release) o se i file mancano. Un suo errore non annulla l'aggiornamento.
 ```bash
 # --- variabili ---
-CARTELLA_INSTALLAZIONE="/opt/sir-realtime"   # la stessa dell'installazione
+CARTELLA_INSTALLAZIONE="/opt/arenalive"   # la stessa dell'installazione
 FORZA="--forza"                              # "--forza" = ricostruisce anche con versione invariata; vuoto = solo se cambia
 
 # --- comandi ---
@@ -551,7 +617,7 @@ sudo scripts/pubblica-agente-produzione.sh $FORZA
 ### 9. Log e controlli
 ```bash
 # --- variabili ---
-CARTELLA_INSTALLAZIONE="/opt/sir-realtime"   # la stessa dell'installazione
+CARTELLA_INSTALLAZIONE="/opt/arenalive"   # la stessa dell'installazione
 SERVIZIO="server"                            # server, web, postgres o caddy
 DOMINIO_PORTALE="<dominio del portale>"      # come in installa-produzione.sh
 
@@ -560,11 +626,11 @@ cd "$CARTELLA_INSTALLAZIONE"
 sudo docker compose ps                                  # stato dei servizi (colonna Health)
 sudo docker compose logs -f --tail 100 "$SERVIZIO"      # log di un servizio (a rotazione: 10 MB x 5 file)
 curl -fsS "https://$DOMINIO_PORTALE/api/health"         # salute vista da fuori
-sudo systemctl status sir-realtime.service sir-backup.timer
-sudo tail -n 50 /var/log/sir-realtime-aggiornamento.log
+sudo systemctl status arenalive.service arenalive-backup.timer
+sudo tail -n 50 /var/log/arenalive-aggiornamento.log
 sudo ufw status
 ```
-Riavvio: `sudo systemctl restart sir-realtime.service` (lo stack riparte da solo anche al riavvio del server). **Caddy non
+Riavvio: `sudo systemctl restart arenalive.service` (lo stack riparte da solo anche al riavvio del server). **Caddy non
 scrive access log** (e i suoi log di errore non contengono l'oggetto `request`, quindi nemmeno l'URI): nel percorso ci sono i token dei link (`/live/<token>`, `/l/<codice>`) che i log di nginx mascherano.
 Se un certificato non arriva: `docker compose logs caddy` (di solito DNS non puntato o porte 80/443 chiuse).
 
@@ -575,11 +641,12 @@ Se un certificato non arriva: `docker compose logs caddy` (di solito DNS non pun
 | `scripts/aggiorna-produzione.sh` | backup, aggiornamento, verifica di salute, rollback del codice |
 | `scripts/backup-produzione.sh` | backup con rotazione (timer systemd e prima degli aggiornamenti) |
 | `scripts/pubblica-agente-produzione.sh` | costruisce e pubblica l'agente scaricabile |
+| `scripts/ripristina-produzione.sh` | porta in una nuova installazione i dati della vecchia (database, immagini, segreti, hostname) |
 | `docker/compose.produzione.yml` | sovrapposizione a `docker-compose.yml`: Caddy, nessuna porta di server e web, log a rotazione, sottoreti fisse `172.29.250.0/24` e `fd29:250::/64` (IPv6) |
-| `docker/Caddyfile` | HTTPS automatico per `SIR_HOSTNAMES` (Let's Encrypt o CA interna, secondo `SIR_TLS_MODE`), header HSTS, nessun access log |
+| `docker/Caddyfile` | HTTPS automatico per `ARENALIVE_HOSTNAMES` (Let's Encrypt o CA interna, secondo `ARENALIVE_TLS_MODE`), header HSTS, nessun access log |
 | `docker/web.realip.conf` | nginx si fida di `X-Forwarded-For` solo dalla sottorete di Caddy (IP vero per rate limit) |
-| `/etc/sir-realtime/produzione.conf` | impostazioni non segrete lette dagli script e da systemd |
-| `sir-realtime.service`, `sir-backup.service`, `sir-backup.timer` | unit systemd (avvio automatico, backup 03:30) |
+| `/etc/arenalive/produzione.conf` | impostazioni non segrete lette dagli script e da systemd |
+| `arenalive.service`, `arenalive-backup.service`, `arenalive-backup.timer` | unit systemd (avvio automatico, backup 03:30) |
 
 Il `.env` di produzione lo crea lo script (permessi 600) e **non lo sovrascrive mai**: aggiunge solo le variabili mancanti.
 Segreti generati la prima volta: `POSTGRES_PASSWORD`, `SHARE_CODE_SECRET`, `SETTINGS_ENCRYPTION_KEY`.
@@ -587,26 +654,26 @@ Segreti generati la prima volta: `POSTGRES_PASSWORD`, `SHARE_CODE_SECRET`, `SETT
 | Variabile | Valore | Note |
 |---|---|---|
 | `COMPOSE_FILE` | `docker-compose.yml:docker/compose.produzione.yml` | rimessa a ogni esecuzione; fa sì che ogni `docker compose` usi la produzione |
-| `COMPOSE_PROJECT_NAME` | `sir-realtime` | rimessa a ogni esecuzione; dà il nome ai volumi (`sir-realtime_assets`) |
-| `SIR_HOSTNAMES` | elenco separato da virgole | rimessa a ogni esecuzione da `DOMINIO_PORTALE` e `ALTRI_HOSTNAME` |
-| `SIR_TLS_MODE` | `CERTIFICATI` (`interno` o `letsencrypt`) | rimessa a ogni esecuzione |
+| `COMPOSE_PROJECT_NAME` | `arenalive` | rimessa a ogni esecuzione; dà il nome ai volumi (`arenalive_assets`) |
+| `ARENALIVE_HOSTNAMES` | elenco separato da virgole | rimessa a ogni esecuzione da `DOMINIO_PORTALE` e `ALTRI_HOSTNAME` |
+| `ARENALIVE_TLS_MODE` | `CERTIFICATI` (`interno` o `letsencrypt`) | rimessa a ogni esecuzione |
 | `ACME_EMAIL` | `EMAIL_LETSENCRYPT` (vuota ammessa con `interno`) | rimessa a ogni esecuzione |
-| `CA_PUBBLICA_DIR` | `/etc/sir-realtime/ca-pubblica` | rimessa a ogni esecuzione; cartella della radice pubblica servita da Caddy (solo `interno`) |
+| `CA_PUBBLICA_DIR` | `/etc/arenalive/ca-pubblica` | rimessa a ogni esecuzione; cartella della radice pubblica servita da Caddy (solo `interno`) |
 | `AGENT_DOWNLOAD_HOST_DIR` | `/var/lib/<UTENTE_SERVIZIO>/downloads` | solo se manca; cartella dell'agente scaricabile |
 | `PUBLIC_BASE_URL`, `CORS_ORIGIN` | `https://<DOMINIO_PORTALE>` | rimesse a ogni esecuzione; `PUBLIC_BASE_URL` costruisce i link di invito |
 | `LEAGUE_CONTACT` | `https://<DOMINIO_PORTALE>` | solo se manca |
 | `COOKIE_SECURE`, `TRUST_PROXY` | `true` | solo se mancano |
 | `LEAGUE_SYNC`, `LOG_LEVEL`, `SESSION_TTL_HOURS` | `on`, `info`, `12` | solo se mancano |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | dallo script | scritte solo se una delle due manca |
-| `POSTGRES_DB`, `POSTGRES_USER`, `SERVER_BIND`, `WEB_BIND` | `sir`, `sir`, `127.0.0.1`, `127.0.0.1` | solo se mancano (nessuna porta è pubblicata comunque) |
+| `POSTGRES_DB`, `POSTGRES_USER`, `SERVER_BIND`, `WEB_BIND` | `arenalive`, `arenalive`, `127.0.0.1`, `127.0.0.1` | solo se mancano (nessuna porta è pubblicata comunque) |
 
 Dopo l'installazione le altre variabili del server (`docs/server.md`) si cambiano nel `.env` e si applicano con
-`sudo systemctl restart sir-realtime.service`. Collegamenti: `docs/server.md` (variabili, «Agente scaricabile», «Posta»),
+`sudo systemctl restart arenalive.service`. Collegamenti: `docs/server.md` (variabili, «Agente scaricabile», «Posta»),
 `docs/portale.md` (nginx, «Clienti»).
 
 ## Riferimenti
 - `scripts/installa-produzione.sh`, `scripts/aggiorna-produzione.sh`, `scripts/backup-produzione.sh`,
-  `scripts/pubblica-agente-produzione.sh`, `docker/compose.produzione.yml`, `docker/Caddyfile`, `docker/web.realip.conf`
+  `scripts/pubblica-agente-produzione.sh`, `scripts/ripristina-produzione.sh`, `docker/compose.produzione.yml`, `docker/Caddyfile`, `docker/web.realip.conf`
 - `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`
 - `tsconfig.base.json`, `packages/*/tsconfig.json`, `packages/*/tsconfig.build.json`
 - `vitest.shared.ts`, `packages/*/vitest.config.ts`

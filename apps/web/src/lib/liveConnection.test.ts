@@ -1,5 +1,5 @@
 import { gzipSync } from 'node:zlib';
-import type { PatchMessage, StateMessage } from '@sir/shared';
+import type { PatchMessage, StateMessage } from '@arenalive/shared';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { midMatchState } from '../test/fixtures.ts';

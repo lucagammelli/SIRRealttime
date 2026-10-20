@@ -1,6 +1,6 @@
-# SIRRealtime: regole del progetto
+# ArenaLive: regole del progetto
 
-DataVolley 4 (Windows) scrive in tempo reale il file di scout `.dvw` su una pennina USB. SIRRealtime lo legge mentre
+DataVolley 4 (Windows) scrive in tempo reale il file di scout `.dvw` su una pennina USB. ArenaLive lo legge mentre
 cambia, lo invia a un backend e lo pubblica su un portale web con grafici: punteggio live, statistiche giocatori,
 andamento della partita, grafici di campo. Piano completo e decisioni: `docs/piano.md`.
 

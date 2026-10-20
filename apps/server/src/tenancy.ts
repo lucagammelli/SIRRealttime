@@ -1,5 +1,5 @@
-import type { TenantBranding, TenantRef } from '@sir/shared';
-import { DEFAULT_BRAND_NAME, DEFAULT_TENANT_SLUG, isValidHostname, TENANT_REQUIRED_MESSAGE } from '@sir/shared';
+import type { TenantBranding, TenantRef } from '@arenalive/shared';
+import { DEFAULT_BRAND_NAME, DEFAULT_TENANT_SLUG, isValidHostname, TENANT_REQUIRED_MESSAGE } from '@arenalive/shared';
 import type { SQL } from 'drizzle-orm';
 import { and, arrayContains, eq, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
@@ -14,15 +14,15 @@ export interface Tenant {
   slug: string;
   name: string;
   hostnames: string[];
-  /** Stored branding document (read it with `resolveBranding` of `@sir/shared`). */
+  /** Stored branding document (read it with `resolveBranding` of `@arenalive/shared`). */
   branding: Record<string, unknown>;
-  /** Stored layout of the public page (read it with `resolveLayout` of `@sir/shared`). */
+  /** Stored layout of the public page (read it with `resolveLayout` of `@arenalive/shared`). */
   layout: Record<string, unknown>;
-  /** Stored pauses of the public page (read it with `resolveIntermissions` of `@sir/shared`). */
+  /** Stored pauses of the public page (read it with `resolveIntermissions` of `@arenalive/shared`). */
   intermissions: Record<string, unknown>;
-  /** Stored overlays of the events of the match (read it with `resolveOverlays` of `@sir/shared`). */
+  /** Stored overlays of the events of the match (read it with `resolveOverlays` of `@arenalive/shared`). */
   overlays: Record<string, unknown>;
-  /** Stored profile of the club (read it with `resolveClubProfile` of `@sir/shared`). */
+  /** Stored profile of the club (read it with `resolveClubProfile` of `@arenalive/shared`). */
   clubProfile: Record<string, unknown>;
   /** «Link e QR per singola partita» (links of the matches of the calendar and «partita fissa»). */
   matchLinksEnabled: boolean;

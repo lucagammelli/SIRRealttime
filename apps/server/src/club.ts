@@ -1,5 +1,5 @@
-import type { ParsedMatch } from '@sir/dvw-parser';
-import { parseDvw } from '@sir/dvw-parser';
+import type { ParsedMatch } from '@arenalive/dvw-parser';
+import { parseDvw } from '@arenalive/dvw-parser';
 import type {
   ClubCoverage,
   FixtureCandidate,
@@ -13,7 +13,7 @@ import type {
   TeamLogoPair,
   TeamLogosMode,
   UpcomingFixture,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   adminAssetPath,
   effectiveStartsAt,
@@ -25,7 +25,7 @@ import {
   resolveClubProfile,
   SCHEDULE_MAX_FIXTURES,
   shownTeamLogo,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, notInArray, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { Db } from './db/index.js';
@@ -214,7 +214,7 @@ export async function scheduledMessage(
 }
 
 /**
- * Logos of the `.dvw` of a client for its public messages (`matchTeamLogos` of `@sir/shared`): from its match of the
+ * Logos of the `.dvw` of a client for its public messages (`matchTeamLogos` of `@arenalive/shared`): from its match of the
  * calendar when linked, otherwise only ours (logo of the profile, then the league logo of the team of the club).
  */
 export async function matchLogoInfo(db: Db, tenantId: string, clientFixtureId: string | null): Promise<MatchLogoInfo> {

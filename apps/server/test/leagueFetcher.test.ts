@@ -3,7 +3,7 @@ import type { FetchLike, LeagueFetcherOptions } from '../src/leagues/fetcher.js'
 import { decodePage, LeagueFetcher, LeagueFetchError, leagueUserAgent } from '../src/leagues/fetcher.js';
 import { calendarUrl, logoUrl, teamUrl } from '../src/leagues/legavolley.js';
 
-const UA = 'SIRRealtime/1.2.3 (+https://portale.test)';
+const UA = 'ArenaLive/1.2.3 (+https://portale.test)';
 
 function fetcher(fetch: FetchLike, extra: Partial<LeagueFetcherOptions> = {}) {
   return new LeagueFetcher({ userAgent: UA, fetch, minIntervalMs: 0, ...extra });
@@ -166,10 +166,10 @@ describe('LeagueFetcher', () => {
 describe('helpers', () => {
   it('builds a printable User-Agent', () => {
     expect(leagueUserAgent('0.0.0', 'https://portale.example.org')).toBe(
-      'SIRRealtime/0.0.0 (+https://portale.example.org)',
+      'ArenaLive/0.0.0 (+https://portale.example.org)',
     );
-    expect(leagueUserAgent('1', 'àè\r\n(x)')).toBe('SIRRealtime/1 (+x)');
-    expect(leagueUserAgent('1', '')).toBe('SIRRealtime/1');
+    expect(leagueUserAgent('1', 'àè\r\n(x)')).toBe('ArenaLive/1 (+x)');
+    expect(leagueUserAgent('1', '')).toBe('ArenaLive/1');
   });
 
   it('decodes UTF-8 pages and Latin-1 ones', () => {

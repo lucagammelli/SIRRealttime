@@ -1,4 +1,4 @@
-import type { SystemLogo, SystemLogos, SystemLogoSlot, SystemLogoVariant } from '@sir/shared';
+import type { SystemLogo, SystemLogos, SystemLogoSlot, SystemLogoVariant } from '@arenalive/shared';
 import {
   ASSET_MAX_BYTES,
   hasSystemLogo,
@@ -7,7 +7,7 @@ import {
   SYSTEM_LOGO_SLOTS,
   SYSTEM_LOGO_VARIANTS,
   SystemLogosSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { SystemLogosBar } from '../../components/SystemLogosBar.tsx';

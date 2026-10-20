@@ -1,12 +1,14 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { agentBranding, agentDownloadConfig } from '@sir/shared';
+import { agentBranding, agentDownloadConfig } from '@arenalive/shared';
 import { afterEach, describe, expect, it } from 'vitest';
 import { jpeg, png, webp } from '../../server/test/imageFixtures.js';
 import { parseConfig } from '../src/config.js';
 import { imageSize, readWindowBranding } from '../src/gui/branding.js';
 import { GuiController } from '../src/gui/controller.js';
+import { NO_PRODUCT_ASSETS, writeProductAssets } from '../src/gui/productAssets.js';
 import { GuiOutMessageSchema } from '../src/gui/protocol.js';
+import { WINDOW_SCRIPT } from '../src/gui/window-script.js';
 import { createLogger } from '../src/logger.js';
 import { tempDirs } from './support.js';
 
@@ -107,11 +109,57 @@ describe('grafica del cliente accanto all’eseguibile', () => {
   });
 });
 
+describe('logo e icona di ArenaLive per la finestra', () => {
+  it('scritti accanto allo script della finestra: due PNG e un .ico', async () => {
+    const dir = join(await home(), 'gui');
+    const assets = await writeProductAssets(dir);
+    expect(assets).toEqual({
+      logoPositive: join(dir, 'arenalive-positivo.png'),
+      logoNegative: join(dir, 'arenalive-negativo.png'),
+      icon: join(dir, 'arenalive-agent.ico'),
+    });
+    for (const path of [assets.logoPositive, assets.logoNegative]) {
+      const bytes = await readFile(path ?? '');
+      expect(imageSize(bytes, 'image/png')).toMatchObject({ width: 150 });
+    }
+    const ico = await readFile(assets.icon ?? '');
+    expect([ico.readUInt16LE(0), ico.readUInt16LE(2)]).toEqual([0, 1]);
+    expect(ico.readUInt16LE(4)).toBeGreaterThanOrEqual(5);
+  });
+
+  it('una cartella non scrivibile: niente immagini, la finestra si apre lo stesso', async () => {
+    const file = join(await home(), 'un-file');
+    await writeFile(file, 'x');
+    expect(await writeProductAssets(join(file, 'gui'))).toEqual(NO_PRODUCT_ASSETS);
+  });
+
+  it('il messaggio init porta i percorsi; la finestra mette il logo senza grafica del cliente e l’icona', async () => {
+    const dir = await home();
+    const lines: string[] = [];
+    const { logger, close } = createLogger({ level: 'silent', logDir: join(dir, 'logs'), console: false });
+    cleanups.push(() => Promise.resolve(close()));
+    const product = await writeProductAssets(join(dir, 'gui'));
+    const controller = new GuiController({
+      configPath: join(dir, 'config.json'),
+      baseDir: dir,
+      logger,
+      send: (line) => lines.push(line),
+      product,
+    });
+    cleanups.push(() => controller.shutdown());
+    await controller.init();
+    const init = GuiOutMessageSchema.parse(JSON.parse(lines[0] ?? '{}'));
+    expect(init).toMatchObject({ type: 'init', product });
+    expect(WINDOW_SCRIPT).toContain('Set-ProductHeader $message.product');
+    expect(WINDOW_SCRIPT).toContain('Set-WindowIcon $message.product.icon');
+  });
+});
+
 describe('config.json scaricato dal portale', () => {
   it('con il token della registrazione è una configurazione valida dell’agente', () => {
     const token = 't'.repeat(43);
     for (const url of ['https://club-a.sir.it', 'http://192.168.1.20:8080', 'http://localhost:8080']) {
-      const config = parseConfig({ ...agentDownloadConfig(url), agentToken: token }, 'C:\\SIRAgent');
+      const config = parseConfig({ ...agentDownloadConfig(url), agentToken: token }, 'C:\\ArenaLiveAgent');
       expect(config.serverUrl).toBe(url);
     }
   });

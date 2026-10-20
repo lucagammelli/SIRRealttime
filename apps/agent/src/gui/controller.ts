@@ -1,5 +1,5 @@
 import { mkdir } from 'node:fs/promises';
-import type { RegistrationStatusResponse } from '@sir/shared';
+import type { RegistrationStatusResponse } from '@arenalive/shared';
 import type { AgentStatus } from '../agent.js';
 import { Agent } from '../agent.js';
 import type { AgentConfig } from '../config.js';
@@ -27,6 +27,7 @@ import {
   windowFields,
 } from './config-file.js';
 import type { WindowBranding } from './branding.js';
+import type { ProductAssets } from './productAssets.js';
 import type { LogSink } from './log-sink.js';
 import type { GuiInMessage, GuiOutMessage, GuiPhase, GuiRegistrationMessage } from './protocol.js';
 import { parseGuiLine } from './protocol.js';
@@ -56,6 +57,8 @@ export interface GuiControllerOptions {
   startupError?: string;
   /** Graphics of the client, sent with every `init` (absent: the default graphics). */
   branding?: WindowBranding;
+  /** Logo and icon of ArenaLive next to the window script, sent with every `init`. */
+  product?: ProductAssets;
 }
 
 /** Registration message without `type` (what the window shows). */
@@ -514,6 +517,7 @@ export class GuiController {
       token: info,
       ...(read.kind === 'ok' ? {} : { configError: read.message }),
       ...(this.options.branding ? { branding: this.options.branding } : {}),
+      ...(this.options.product ? { product: this.options.product } : {}),
     });
   }
 

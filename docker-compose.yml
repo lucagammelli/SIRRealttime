@@ -1,15 +1,15 @@
-# SIRRealtime: database, server e portale (nginx su http://localhost:8080). Variabili in `.env` (vedi `.env.example`).
+# ArenaLive: database, server e portale (nginx su http://localhost:8080). Variabili in `.env` (vedi `.env.example`).
 # Avvio: docker compose up -d --build    Arresto: docker compose down (i dati restano nei volumi `pgdata` e `assets`).
 # Agente scaricabile: scripts/costruisci-agente.sh con USCITA = AGENT_DOWNLOAD_HOST_DIR del .env (sola lettura nel server).
-name: sir-realtime
+name: arenalive
 
 services:
   postgres:
     image: postgres:17
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-sir}
-      POSTGRES_USER: ${POSTGRES_USER:-sir}
+      POSTGRES_DB: ${POSTGRES_DB:-arenalive}
+      POSTGRES_USER: ${POSTGRES_USER:-arenalive}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?imposta POSTGRES_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -25,13 +25,13 @@ services:
       dockerfile: docker/server.Dockerfile
       # Commit corto mostrato con la versione (le build Docker non vedono .git): lo passano gli script di produzione.
       args:
-        SIR_COMMIT: ${SIR_COMMIT:-}
+        ARENALIVE_COMMIT: ${ARENALIVE_COMMIT:-}
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-sir}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sir}
+      DATABASE_URL: postgres://${POSTGRES_USER:-arenalive}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-arenalive}
       HOST: 0.0.0.0
       PORT: 8090
       # Default: il portale servito da nginx (servizio web, porta WEB_PORT), stessa origine di /api e /ws.
@@ -63,7 +63,7 @@ services:
       # Immagini caricate dai clienti (loghi, sponsor): nel volume `assets`, quota per cliente in MB.
       ASSETS_DIR: /data/assets
       ASSETS_QUOTA_MB: ${ASSETS_QUOTA_MB:-50}
-      # Agente per Windows offerto dal portale (sir-agent.exe e sir-agent.json di scripts/costruisci-agente.sh).
+      # Agente per Windows offerto dal portale (arenalive-agent.exe e arenalive-agent.json di scripts/costruisci-agente.sh).
       AGENT_DOWNLOAD_DIR: /data/downloads
       # Campionati scaricati da www.legavolley.it (on: ogni notte e nei giorni di gara; off: solo «Aggiorna ora»).
       LEAGUE_SYNC: ${LEAGUE_SYNC:-on}
@@ -100,7 +100,7 @@ services:
       dockerfile: docker/web.Dockerfile
       # Commit corto mostrato con la versione (le build Docker non vedono .git): lo passano gli script di produzione.
       args:
-        SIR_COMMIT: ${SIR_COMMIT:-}
+        ARENALIVE_COMMIT: ${ARENALIVE_COMMIT:-}
     restart: unless-stopped
     # Descrittori di file per nginx (worker_rlimit_nofile in docker/web.nginx.main.conf): ogni WebSocket ne usa 2.
     ulimits:

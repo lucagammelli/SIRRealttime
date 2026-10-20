@@ -19,7 +19,7 @@ import type {
   TenantIntermissions,
   TenantLayout,
   TenantOverlays,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   BRAND_COLOR_KEYS,
   defaultBranding,
@@ -35,9 +35,9 @@ import {
   SET_BREAK_SETS,
   TEMPLATES,
   THANKS_MESSAGE,
-} from '@sir/shared';
-import type { MatchState } from '@sir/volley-stats';
-import { COMEBACK_MIN_POINTS, LONG_RALLY_MIN_ATTACKS, RUN_MIN_POINTS } from '@sir/volley-stats';
+} from '@arenalive/shared';
+import type { MatchState } from '@arenalive/volley-stats';
+import { COMEBACK_MIN_POINTS, LONG_RALLY_MIN_ATTACKS, RUN_MIN_POINTS } from '@arenalive/volley-stats';
 import { BLOCKS } from '../../../blocks/registry.tsx';
 import type { PauseTarget } from '../intermissionEditor.ts';
 import { pauseAt } from '../intermissionEditor.ts';

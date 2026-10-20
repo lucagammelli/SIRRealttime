@@ -1,10 +1,10 @@
 /**
  * Layout of the match page as a list of blocks, one list per device (pure functions, no DOM). The shape of the
- * blocks, their widths on 12 columns and the defaults are the contract of @sir/shared (`TenantLayoutSchema`): the
+ * blocks, their widths on 12 columns and the defaults are the contract of @arenalive/shared (`TenantLayoutSchema`): the
  * client chooses them in the page «Pagina pubblica» of the reserved area.
  */
-import type { BlockType, LayoutBlock, LayoutDevice, TemplateId, TenantLayout } from '@sir/shared';
-import { defaultDeviceBlocks, LAYOUT_COLUMNS, TEMPLATE_IDS, TEMPLATES } from '@sir/shared';
+import type { BlockType, LayoutBlock, LayoutDevice, TemplateId, TenantLayout } from '@arenalive/shared';
+import { defaultDeviceBlocks, LAYOUT_COLUMNS, TEMPLATE_IDS, TEMPLATES } from '@arenalive/shared';
 
 export type { BlockType, LayoutBlock };
 

@@ -5,8 +5,8 @@ import type {
   GraphicsExport,
   GraphicsImportResponse,
   PublicTenantResponse,
-} from '@sir/shared';
-import { GraphicsExportSchema, graphicsImageIds, publicAssetPath } from '@sir/shared';
+} from '@arenalive/shared';
+import { GraphicsExportSchema, graphicsImageIds, publicAssetPath } from '@arenalive/shared';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
@@ -112,7 +112,7 @@ describe('GET /api/admin/branding/export', () => {
       /^attachment; filename="grafica-graf-a-\d{4}-\d{2}-\d{2}\.json"$/,
     );
     const pkg = GraphicsExportSchema.parse(res.json());
-    expect(pkg.format).toBe('sirrealtime-grafica');
+    expect(pkg.format).toBe('arenalive-grafica');
     expect(pkg.version).toBe(1);
     expect(pkg.sourceName).toBe('GRAF-A');
     expect(pkg.branding.displayName).toBe('Club A');
@@ -194,6 +194,11 @@ describe('POST /api/admin/branding/import', () => {
     expect((await importTo(HOST_B, cookieB, pkg)).statusCode).toBe(200);
     const list = (await call(HOST_B, cookieB, { url: '/api/admin/assets' })).json<AssetListResponse>();
     expect(list.assets).toHaveLength(2);
+  });
+
+  it('imports a package exported before the product was called ArenaLive', async () => {
+    const pkg = (await exportOf(HOST_A, cookieA)).json<GraphicsExport>();
+    expect((await importTo(HOST_B, cookieB, { ...pkg, format: 'sirrealtime-grafica' })).statusCode).toBe(200);
   });
 
   it('replaces what the client had, overlays included', async () => {

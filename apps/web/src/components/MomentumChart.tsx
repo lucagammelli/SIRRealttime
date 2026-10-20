@@ -1,4 +1,4 @@
-import type { MatchState, Side } from '@sir/volley-stats';
+import type { MatchState, Side } from '@arenalive/volley-stats';
 import { useMemo, useState } from 'react';
 import { EChart } from '../charts/EChart.tsx';
 import { breakPointCount, defaultMomentumSet, momentumSeries, momentumSets } from '../charts/momentum.ts';

@@ -1,4 +1,4 @@
-import { CourtOptionsSchema } from '@sir/shared';
+import { CourtOptionsSchema } from '@arenalive/shared';
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { claimOurSide } from '../lib/branding.ts';

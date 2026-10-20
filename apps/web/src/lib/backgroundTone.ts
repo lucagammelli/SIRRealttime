@@ -1,4 +1,4 @@
-import { formatHexColor } from '@sir/shared';
+import { formatHexColor } from '@arenalive/shared';
 import type { RefObject } from 'react';
 import { useLayoutEffect, useState } from 'react';
 import { subscribeThemeEvents } from './theme.ts';

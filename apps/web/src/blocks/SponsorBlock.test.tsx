@@ -1,11 +1,11 @@
-import type { PublicSponsor } from '@sir/shared';
+import type { PublicSponsor } from '@arenalive/shared';
 import {
   adminAssetPath,
   IntermissionSlideSchema,
   publicAssetPath,
   SponsorOptionsSchema,
   TenantIntermissionsSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { visibleSlides } from '../lib/intermission.ts';

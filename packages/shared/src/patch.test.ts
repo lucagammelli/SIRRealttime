@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { decodeDvw, parseDvw } from '@sir/dvw-parser';
-import { applyCorrection, generateMatch, renderDvw } from '@sir/dvw-simulator';
-import { computeMatchState } from '@sir/volley-stats';
+import { decodeDvw, parseDvw } from '@arenalive/dvw-parser';
+import { applyCorrection, generateMatch, renderDvw } from '@arenalive/dvw-simulator';
+import { computeMatchState } from '@arenalive/volley-stats';
 import { describe, expect, it } from 'vitest';
 import type { JsonValue, PatchOp } from './index.js';
 import {

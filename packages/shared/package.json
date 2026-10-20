@@ -1,12 +1,12 @@
 {
-  "name": "@sir/shared",
+  "name": "@arenalive/shared",
   "version": "0.0.0",
   "private": true,
   "description": "Tipi e schemi zod dei messaggi agente-server-web.",
   "type": "module",
   "exports": {
     ".": {
-      "@sir/source": "./src/index.ts",
+      "@arenalive/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -19,15 +19,15 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
-    "schemi:agente": "tsx --conditions=@sir/source scripts/genera-schemi-agente.ts"
+    "schemi:agente": "tsx --conditions=@arenalive/source scripts/genera-schemi-agente.ts"
   },
   "dependencies": {
-    "@sir/dvw-parser": "workspace:*",
-    "@sir/volley-stats": "workspace:*",
+    "@arenalive/dvw-parser": "workspace:*",
+    "@arenalive/volley-stats": "workspace:*",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@sir/dvw-simulator": "workspace:*",
+    "@arenalive/dvw-simulator": "workspace:*",
     "tsx": "^4.23.15"
   }
 }

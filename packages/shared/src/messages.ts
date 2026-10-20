@@ -1,10 +1,10 @@
-import type { MatchState } from '@sir/volley-stats';
+import type { MatchState } from '@arenalive/volley-stats';
 import { z } from 'zod';
 import { TeamLogoPairSchema, UpcomingFixtureSchema } from './club.js';
 import { PatchOpsSchema } from './patch.js';
 import { HelloMessageSchema } from './stats.js';
 
-/** Match state computed by `@sir/volley-stats`: only checked to be an object (it comes from the server). */
+/** Match state computed by `@arenalive/volley-stats`: only checked to be an object (it comes from the server). */
 export const MatchStateSchema = z.custom<MatchState>((v) => typeof v === 'object' && v !== null && !Array.isArray(v), {
   message: 'stato della partita non valido',
 });

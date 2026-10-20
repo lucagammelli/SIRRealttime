@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { PublicTenantResponse } from '@sir/shared';
+import type { PublicTenantResponse } from '@arenalive/shared';
 import {
   brandPalette,
   DEFAULT_BRAND_COLORS,
@@ -8,7 +8,7 @@ import {
   defaultIntermissions,
   defaultLayout,
   defaultOverlays,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { usePalette } from '../charts/usePalette.ts';
@@ -82,7 +82,7 @@ describe('CSS variables of the client', () => {
   });
 
   // Tests run from apps/web (vitest root).
-  it('keeps tokens.css and the defaults of @sir/shared in step', () => {
+  it('keeps tokens.css and the defaults of @arenalive/shared in step', () => {
     const css = readFileSync(join(process.cwd(), 'src/styles/tokens.css'), 'utf8');
     const light = css.slice(0, css.indexOf("[data-theme='dark']"));
     const value = (name: string): string | undefined => new RegExp(`${name}:\\s*(#[0-9a-f]{6});`).exec(light)?.[1];
@@ -125,9 +125,9 @@ describe('components', () => {
     expect(before).not.toBe('#e30613');
   });
 
-  it('the header shows the horizontal logo as an image, otherwise the wordmark', () => {
+  it('the header shows the horizontal logo as an image, otherwise the logo of ArenaLive', () => {
     render(<BrandMark />);
-    expect(screen.getByText('Realtime')).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'ArenaLive' })).toBeTruthy();
     act(() => setTenantLook(tenantLookOf(tenant({}, true))));
     const img = screen.getByRole('img', { name: 'Sir Safety' });
     expect(img.getAttribute('src')).toBe(LOGO);

@@ -1,4 +1,4 @@
-import { DUEL_ROLES, TEAM_DUEL_KEYS } from '@sir/volley-stats';
+import { DUEL_ROLES, TEAM_DUEL_KEYS } from '@arenalive/volley-stats';
 import { describe, expect, it } from 'vitest';
 import {
   DUEL_ROLE_CHOICES,
@@ -186,7 +186,7 @@ describe('pauses of the public page: slides of the statistics', () => {
     expect(parse(slide('roleDuel', { role: 'coach' })).success).toBe(false);
   });
 
-  it('team duel: rows of TEAM_DUEL_KEYS of @sir/volley-stats, chosen once each (empty: all)', () => {
+  it('team duel: rows of TEAM_DUEL_KEYS of @arenalive/volley-stats, chosen once each (empty: all)', () => {
     expect(parse(slide('teamDuel', { rows: ['points', 'aces'] })).success).toBe(true);
     expect(parse(slide('teamDuel', { rows: [...TEAM_DUEL_KEYS] })).success).toBe(true);
     expect(parse(slide('teamDuel', { rows: [] })).success).toBe(true);

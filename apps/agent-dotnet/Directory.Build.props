@@ -13,10 +13,10 @@
     <!-- Proprietà dell'exe di Windows: «Versione file» e «Versione prodotto» (a.b.c+commit). -->
     <FileVersion Condition="'$(FileVersion)' == ''">$(Version).0</FileVersion>
     <InformationalVersion Condition="'$(InformationalVersion)' == ''">$(Version)</InformationalVersion>
-    <Company>SIRRealtime</Company>
-    <Product>SIRRealtime Agent</Product>
-    <Authors>SIRRealtime</Authors>
-    <Copyright>Copyright © 2026 SIRRealtime</Copyright>
+    <Company>ArenaLive</Company>
+    <Product>ArenaLive Agent</Product>
+    <Authors>ArenaLive</Authors>
+    <Copyright>Copyright © 2026 ArenaLive</Copyright>
     <NeutralLanguage>it-IT</NeutralLanguage>
     <Deterministic>true</Deterministic>
   </PropertyGroup>

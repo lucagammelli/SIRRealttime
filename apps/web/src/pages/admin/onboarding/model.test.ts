@@ -1,4 +1,4 @@
-import { defaultBranding, defaultIntermissions, defaultOverlays } from '@sir/shared';
+import { defaultBranding, defaultIntermissions, defaultOverlays } from '@arenalive/shared';
 import { describe, expect, it } from 'vitest';
 import { applyPauseModel } from '../studio/model.ts';
 import type { OnboardingProgress } from './model.ts';

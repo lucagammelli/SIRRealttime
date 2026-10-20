@@ -1,5 +1,5 @@
-import type { ClubResponse, OurTeam, TenantBranding } from '@sir/shared';
-import { BrandingResponseSchema, ClubResponseSchema, UpdateClubProfileRequestSchema } from '@sir/shared';
+import type { ClubResponse, OurTeam, TenantBranding } from '@arenalive/shared';
+import { BrandingResponseSchema, ClubResponseSchema, UpdateClubProfileRequestSchema } from '@arenalive/shared';
 import { apiRequest } from '../../../lib/api.ts';
 import { initBranding } from '../../../lib/branding.ts';
 

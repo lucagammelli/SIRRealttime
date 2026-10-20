@@ -1,4 +1,4 @@
-# SIRRealtime
+# ArenaLive (arenalive.studio)
 
 Legge in tempo reale i file di scout DataVolley (`.dvw`) di una partita di pallavolo e ne mostra l'andamento e le
 statistiche in un portale web. Il progetto è un monorepo TypeScript; il piano completo è in `docs/piano.md`.
@@ -36,7 +36,7 @@ ADMIN_PASSWORD_DEV="password-di-prova-1" # password del primo admin, almeno 12 c
 # --- comandi ---
 DATABASE_URL="pglite:memory" COOKIE_SECURE="false" \
   ADMIN_EMAIL="$ADMIN_EMAIL_DEV" ADMIN_PASSWORD="$ADMIN_PASSWORD_DEV" \
-  pnpm --filter @sir/server dev
+  pnpm --filter @arenalive/server dev
 ```
 
 Il server ascolta su `http://127.0.0.1:8090` (controllo: `/api/health`). Variabili, endpoint, login, token agente, link
@@ -52,12 +52,12 @@ si apre su `http://localhost:5173` (gli indirizzi dei link sono stampati dalla d
 DEMO_SPEED="15" # accelerazione della partita simulata
 
 # --- comandi (primo terminale) ---
-DEMO_SPEED="$DEMO_SPEED" pnpm --filter @sir/web demo
+DEMO_SPEED="$DEMO_SPEED" pnpm --filter @arenalive/web demo
 ```
 
 ```bash
 # --- comandi (secondo terminale) ---
-pnpm --filter @sir/web dev
+pnpm --filter @arenalive/web dev
 ```
 
 Pagine, variabili della demo, Docker e punti ancora da verificare sono in `docs/portale.md`.

@@ -1,5 +1,5 @@
-import type { CreateShareTokenResponse, ShareTokenSummary } from '@sir/shared';
-import { formatShortCode, PAIRING_CODE_ALPHABET, SHORT_CODE_PATTERN } from '@sir/shared';
+import type { CreateShareTokenResponse, ShareTokenSummary } from '@arenalive/shared';
+import { formatShortCode, PAIRING_CODE_ALPHABET, SHORT_CODE_PATTERN } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DEV_SHARE_CODE_SECRET } from '../src/config.js';

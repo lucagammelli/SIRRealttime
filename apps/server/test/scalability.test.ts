@@ -1,7 +1,7 @@
 import { gunzipSync } from 'node:zlib';
-import { generateMatch } from '@sir/dvw-simulator';
-import type { CreateShareTokenResponse, JsonValue, ServerMessage } from '@sir/shared';
-import { applyPatch } from '@sir/shared';
+import { generateMatch } from '@arenalive/dvw-simulator';
+import type { CreateShareTokenResponse, JsonValue, ServerMessage } from '@arenalive/shared';
+import { applyPatch } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { WebSocket } from 'ws';

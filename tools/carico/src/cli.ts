@@ -6,8 +6,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { gzipSync } from 'node:zlib';
-import { decodeDvw, parseDvw } from '@sir/dvw-parser';
-import type { IngestRequest, JsonValue } from '@sir/shared';
+import { decodeDvw, parseDvw } from '@arenalive/dvw-parser';
+import type { IngestRequest, JsonValue } from '@arenalive/shared';
 import {
   buildDvwText,
   diffJson,
@@ -15,14 +15,14 @@ import {
   MeResponseSchema,
   splitDvwText,
   TenantSummarySchema,
-} from '@sir/shared';
-import { computeMatchState } from '@sir/volley-stats';
+} from '@arenalive/shared';
+import { computeMatchState } from '@arenalive/volley-stats';
 import { canonicalJson, stepCounts, summarize } from './metrics.js';
 import type { ChildEvent, ParentCommand, ReadyEvent, ResultEvent } from './spectators.js';
 import { runSpectatorProcess } from './spectators.js';
 import { tenantForBase } from './tenant.js';
 
-export const HELP = `carico: prova di carico dei WebSocket pubblici di SIRRealtime
+export const HELP = `carico: prova di carico dei WebSocket pubblici di ArenaLive
 
 Uso:
   carico prova --url <http://host:porta> (--token <link> | --admin-email <e> --admin-password <p>) [opzioni]

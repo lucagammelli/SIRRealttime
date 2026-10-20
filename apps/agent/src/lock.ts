@@ -96,7 +96,7 @@ export async function acquireLock(dataDir: string, options: LockOptions = {}): P
     if (holder && isHeld(holder)) {
       throw new LockError(
         holder.pid,
-        `Un'altra istanza dell'agente è già in lettura (pid ${holder.pid}, per esempio il servizio SIRAgent): fermala prima di avviare questa`,
+        `Un'altra istanza dell'agente è già in lettura (pid ${holder.pid}, per esempio il servizio ArenaLiveAgent): fermala prima di avviare questa`,
       );
     }
     if (attempt >= 2) {

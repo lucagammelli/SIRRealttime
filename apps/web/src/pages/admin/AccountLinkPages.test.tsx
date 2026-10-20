@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { NO_SYSTEM_LOGOS } from '@sir/shared';
+import { NO_SYSTEM_LOGOS } from '@arenalive/shared';
 import { setSystemLogos } from '../../lib/systemLogos.ts';
 import { mockApi } from '../../test/adminPage.tsx';
 import { ForgotPasswordPage, SetPasswordPage } from './AccountLinkPages.tsx';
@@ -152,7 +152,7 @@ describe('loghi di sistema on the login and on the pages of the account links', 
   it('without a left logo: the brand of the client (wordmark), no link', () => {
     setSystemLogos({ left: { positive: null, negative: null }, right: { positive: LOGO, negative: null } });
     renderLogin();
-    expect(screen.getByText('Realtime')).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'ArenaLive' })).toBeTruthy();
     expect(document.querySelector('[data-system-logo]')).toBeNull();
   });
 
@@ -162,13 +162,13 @@ describe('loghi di sistema on the login and on the pages of the account links', 
     const img = document.querySelector('[data-system-logo="sinistra"]');
     expect(img?.getAttribute('src')).toBe(LOGO.url);
     expect(img?.closest('a')).toBeNull();
-    expect(screen.queryByText('Realtime')).toBeNull();
+    expect(screen.queryByRole('img', { name: 'ArenaLive' })).toBeNull();
     // Centred logo; the title «Area riservata» is for screen readers only.
     expect(img?.closest('.justify-center')).not.toBeNull();
     expect(screen.getByRole('heading', { name: 'Area riservata' }).className).toContain('sr-only');
     cleanup();
     renderAt('/admin/password-dimenticata');
     expect(document.querySelector('[data-system-logo="sinistra"]')?.getAttribute('src')).toBe(LOGO.url);
-    expect(screen.queryByText('Realtime')).toBeNull();
+    expect(screen.queryByRole('img', { name: 'ArenaLive' })).toBeNull();
   });
 });

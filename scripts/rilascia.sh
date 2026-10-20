@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rilascio di una versione di SIRRealtime (semver X.Y.Z), in due tempi (docs/regole/test-job-rilasci.md):
+# Rilascio di una versione di ArenaLive (semver X.Y.Z), in due tempi (docs/regole/test-job-rilasci.md):
 #   1) scripts/rilascia.sh X.Y.Z            prepara il rilascio: da main pulito e allineato a origin crea il ramo
 #                                           rilascio-X.Y.Z (in un worktree), porta la versione nel package.json alla
 #                                           radice, aggiunge la sezione al CHANGELOG.md con i titoli dei commit dal tag
@@ -203,9 +203,9 @@ tagga() {
     echo "--------------------------"
     FILE_NOTE="$(mktemp)"
     printf '%s\n' "$note" > "$FILE_NOTE"
-    esegui git tag -a "v$VERSIONE" -m "SIRRealtime $VERSIONE" HEAD
+    esegui git tag -a "v$VERSIONE" -m "ArenaLive $VERSIONE" HEAD
     esegui git push "$REMOTO" "refs/tags/v$VERSIONE"
-    esegui gh release create "v$VERSIONE" --title "SIRRealtime $VERSIONE" --notes-file "$FILE_NOTE" --verify-tag
+    esegui gh release create "v$VERSIONE" --title "ArenaLive $VERSIONE" --notes-file "$FILE_NOTE" --verify-tag
     if (( PROVA )); then
         echo "Controlli superati (prova: nessun tag né release creati)."
     else

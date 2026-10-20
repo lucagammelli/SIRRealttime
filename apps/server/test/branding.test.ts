@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AssetListResponse, AssetSummary, BrandingResponse, PublicTenantResponse } from '@sir/shared';
+import type { AssetListResponse, AssetSummary, BrandingResponse, PublicTenantResponse } from '@arenalive/shared';
 import {
   adminAssetPath,
   ASSET_MAX_BYTES,
@@ -10,7 +10,7 @@ import {
   defaultOverlays,
   publicAssetPath,
   resolveLayout,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
@@ -81,7 +81,7 @@ describe('public graphics of the client of the hostname', () => {
 
   it('names the default client after the portal until it has a display name', async () => {
     const res = await publicTenant('sconosciuto.test');
-    expect(res.json<PublicTenantResponse>().name).toBe('SIRRealtime');
+    expect(res.json<PublicTenantResponse>().name).toBe('ArenaLive');
   });
 
   it('is 404 for an unknown hostname without default client', async () => {

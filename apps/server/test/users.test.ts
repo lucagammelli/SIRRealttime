@@ -1,5 +1,5 @@
-import type { TenantSummary, UserSummary } from '@sir/shared';
-import { AGENT_QUOTA_MAX, TenantSummarySchema } from '@sir/shared';
+import type { TenantSummary, UserSummary } from '@arenalive/shared';
+import { AGENT_QUOTA_MAX, TenantSummarySchema } from '@arenalive/shared';
 import { eq, sql } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';

@@ -1,12 +1,12 @@
 {
-  "name": "@sir/dvw-parser",
+  "name": "@arenalive/dvw-parser",
   "version": "0.0.0",
   "private": true,
   "description": "Parser puro dei file di scout DataVolley (.dvw).",
   "type": "module",
   "exports": {
     ".": {
-      "@sir/source": "./src/index.ts",
+      "@arenalive/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }

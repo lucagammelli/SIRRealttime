@@ -1,4 +1,4 @@
-import type { PlayerRef, Ratio, Side, TeamRef } from '@sir/volley-stats';
+import type { PlayerRef, Ratio, Side, TeamRef } from '@arenalive/volley-stats';
 
 /** Shown for every missing value (`null`, ratio with zero denominator). */
 export const DASH = '–';

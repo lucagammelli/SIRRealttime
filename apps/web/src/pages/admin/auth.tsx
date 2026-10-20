@@ -1,5 +1,5 @@
-import type { MeResponse } from '@sir/shared';
-import { MeResponseSchema } from '@sir/shared';
+import type { MeResponse } from '@arenalive/shared';
+import { MeResponseSchema } from '@arenalive/shared';
 import type { ReactNode } from 'react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { ApiError, apiCommand, apiRequest, errorText } from '../../lib/api.ts';

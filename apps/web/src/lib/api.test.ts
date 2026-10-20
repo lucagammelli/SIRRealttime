@@ -1,4 +1,4 @@
-import { MeResponseSchema, TENANT_REQUIRED_MESSAGE } from '@sir/shared';
+import { MeResponseSchema, TENANT_REQUIRED_MESSAGE } from '@arenalive/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ApiError, apiCommand, apiRequest, errorText, OUTDATED_MESSAGE } from './api.ts';

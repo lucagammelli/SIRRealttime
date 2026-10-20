@@ -1,5 +1,5 @@
-import type { PublicSponsor, Sponsor } from '@sir/shared';
-import { publicAssetPath, SPONSOR_IMAGES_MAX } from '@sir/shared';
+import type { PublicSponsor, Sponsor } from '@arenalive/shared';
+import { publicAssetPath, SPONSOR_IMAGES_MAX } from '@arenalive/shared';
 import { asc, count, eq, inArray } from 'drizzle-orm';
 import type { Db } from './db/index.js';
 import { assets, sponsors } from './db/index.js';

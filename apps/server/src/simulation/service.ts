@@ -1,6 +1,6 @@
 import { randomInt, randomUUID } from 'node:crypto';
-import type { PlaybackPlan } from '@sir/dvw-simulator';
-import { DEFAULT_AWAY_NAME, planPlayback } from '@sir/dvw-simulator';
+import type { PlaybackPlan } from '@arenalive/dvw-simulator';
+import { DEFAULT_AWAY_NAME, planPlayback } from '@arenalive/dvw-simulator';
 import type {
   IngestRequest,
   SimulationCommand,
@@ -9,15 +9,15 @@ import type {
   SimulationStatus,
   SimulationSummary,
   StartSimulationRequest,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   hashScoutLines,
   INGEST_PROTOCOL,
   IngestRequestSchema,
   SIMULATION_RETENTION_MS,
   SIMULATION_TITLE,
-} from '@sir/shared';
-import type { MatchState } from '@sir/volley-stats';
+} from '@arenalive/shared';
+import type { MatchState } from '@arenalive/volley-stats';
 import type { SQL } from 'drizzle-orm';
 import { and, desc, eq, inArray, lte } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';

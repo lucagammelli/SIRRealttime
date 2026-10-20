@@ -8,7 +8,7 @@ import type {
   OurTeam,
   TemplateId,
   TenantBranding,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   ASSET_MAX_BYTES,
   BRAND_COLOR_KEYS,
@@ -23,7 +23,7 @@ import {
   TEMPLATES,
   templateChoices,
   templateOf,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { ChangeEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Empty, ErrorBox } from '../../../components/ui.tsx';
@@ -148,7 +148,7 @@ export function ColorField({
   );
 }
 
-/** Choice of the graphic template (closed list of @sir/shared): name, description and colours of each one. */
+/** Choice of the graphic template (closed list of @arenalive/shared): name, description and colours of each one. */
 export function TemplatePicker({
   value,
   current = value,

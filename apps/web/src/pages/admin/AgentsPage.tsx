@@ -1,4 +1,4 @@
-import type { AgentRegistrationSummary, AgentSummary, CreateAgentResponse } from '@sir/shared';
+import type { AgentRegistrationSummary, AgentSummary, CreateAgentResponse } from '@arenalive/shared';
 import {
   agentActive,
   AgentDownloadInfoSchema,
@@ -7,7 +7,7 @@ import {
   AgentSummarySchema,
   CreateAgentRequestSchema,
   CreateAgentResponseSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
@@ -152,11 +152,11 @@ function AgentDownload() {
           </a>
           <ol className="list-decimal space-y-1 pl-5 text-muted">
             <li>
-              Scompatta lo zip in <code className="font-mono text-text">C:\SIRAgent</code> (non sulla pennina).
+              Scompatta lo zip in <code className="font-mono text-text">C:\ArenaLiveAgent</code> (non sulla pennina).
             </li>
             <li>
-              Fai doppio clic su <code className="font-mono text-text">sir-agent.exe</code>. Non è firmato: se Windows
-              lo blocca premi «Ulteriori informazioni» e poi «Esegui comunque».
+              Fai doppio clic su <code className="font-mono text-text">arenalive-agent.exe</code>. Non è firmato: se
+              Windows lo blocca premi «Ulteriori informazioni» e poi «Esegui comunque».
             </li>
             <li>Scrivi il nome dell’agente e premi «Registra».</li>
             <li>Abilitalo qui sotto in «Richieste in attesa», controllando il codice mostrato sul PC.</li>
@@ -383,7 +383,7 @@ export function AgentsPage() {
                   <p className="font-semibold">Configurazione dell’agente</p>
                   <ol className="list-decimal space-y-1 pl-5 text-muted">
                     <li>
-                      Accanto a <code className="font-mono text-text">sir-agent.exe</code> crea il file{' '}
+                      Accanto a <code className="font-mono text-text">arenalive-agent.exe</code> crea il file{' '}
                       <code className="font-mono text-text">config.json</code> con questo contenuto.
                     </li>
                     <li>

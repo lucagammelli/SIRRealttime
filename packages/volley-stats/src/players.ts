@@ -1,4 +1,4 @@
-import type { PlayerInfo } from '@sir/dvw-parser';
+import type { PlayerInfo } from '@arenalive/dvw-parser';
 import type { PlayerRef } from './types.js';
 
 /** Anagrafica dei giocatori con un numero di maglia (righe [3PLAYERS-*] senza numero ignorate). */

@@ -1,4 +1,4 @@
-import { DEFAULT_TENANT_SLUG } from '@sir/shared';
+import { DEFAULT_TENANT_SLUG } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import type { Config } from './config.js';

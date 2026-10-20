@@ -1,5 +1,5 @@
 {
-  "name": "@sir/carico",
+  "name": "@arenalive/carico",
   "version": "0.0.0",
   "private": true,
   "description": "Prova di carico dei WebSocket pubblici: N spettatori e una partita .dvw riprodotta tramite l'ingest.",
@@ -9,12 +9,12 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
-    "carico": "tsx --conditions=@sir/source src/cli.ts"
+    "carico": "tsx --conditions=@arenalive/source src/cli.ts"
   },
   "dependencies": {
-    "@sir/dvw-parser": "workspace:*",
-    "@sir/shared": "workspace:*",
-    "@sir/volley-stats": "workspace:*",
+    "@arenalive/dvw-parser": "workspace:*",
+    "@arenalive/shared": "workspace:*",
+    "@arenalive/volley-stats": "workspace:*",
     "ws": "^8.22.0"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
-import type { AssetSummary } from '@sir/shared';
-import { ASSET_MAX_BYTES, AssetSummarySchema } from '@sir/shared';
+import type { AssetSummary } from '@arenalive/shared';
+import { ASSET_MAX_BYTES, AssetSummarySchema } from '@arenalive/shared';
 import { useId, useState } from 'react';
 import { Button } from '../../components/ui.tsx';
 import { apiRequest } from '../../lib/api.ts';

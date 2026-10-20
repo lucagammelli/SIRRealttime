@@ -1,5 +1,5 @@
-import { AGENT_EXPIRED_ERROR, INGEST_PROTOCOL, IngestRequestSchema, hashScoutLines } from '@sir/shared';
-import type { IngestRequest, IngestResponse } from '@sir/shared';
+import { AGENT_EXPIRED_ERROR, INGEST_PROTOCOL, IngestRequestSchema, hashScoutLines } from '@arenalive/shared';
+import type { IngestRequest, IngestResponse } from '@arenalive/shared';
 import { usesPlainHttpOnPrivateNetwork, type AgentConfig } from './config.js';
 import type { DvwContent } from './dvw.js';
 import { bytesHash, deriveMatchKey, readDvw, suspicion } from './dvw.js';

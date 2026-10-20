@@ -1,5 +1,5 @@
-import type { ResetLinkResponse, UserInviteResponse, UserSummary } from '@sir/shared';
-import { CreateUserRequestSchema, IdParamSchema, UpdateUserRequestSchema } from '@sir/shared';
+import type { ResetLinkResponse, UserInviteResponse, UserSummary } from '@arenalive/shared';
+import { CreateUserRequestSchema, IdParamSchema, UpdateUserRequestSchema } from '@arenalive/shared';
 import { and, eq, exists, sql } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { AppContext, SessionUser } from '../context.js';

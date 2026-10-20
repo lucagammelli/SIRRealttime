@@ -1,5 +1,5 @@
-import type { PublicSponsor, ScheduleResponse, TeamLogoPair } from '@sir/shared';
-import type { MatchState } from '@sir/volley-stats';
+import type { PublicSponsor, ScheduleResponse, TeamLogoPair } from '@arenalive/shared';
+import type { MatchState } from '@arenalive/volley-stats';
 import type { ReactNode } from 'react';
 import type { Device } from '../lib/layout.ts';
 

@@ -67,7 +67,7 @@ describe('log su file', () => {
     const dirs = tempDirs();
     cleanups.push(dirs.cleanup);
     await mkdir(dirs.root, { recursive: true });
-    await writeFile(join(dirs.root, 'sir-agent-2020-01-01.log'), 'vecchio\n');
+    await writeFile(join(dirs.root, 'arenalive-agent-2020-01-01.log'), 'vecchio\n');
     let now = new Date('2025-01-18T10:00:00Z');
     const stream = new RotatingFileStream({ dir: dirs.root, maxBytes: 20, keepDays: 3, now: () => now });
     stream.write('riga uno lunga quanto basta\n');
@@ -76,9 +76,9 @@ describe('log su file', () => {
     stream.write('giorno dopo\n');
     stream.close();
     expect((await readdir(dirs.root)).sort()).toEqual([
-      'sir-agent-2025-01-18.1.log',
-      'sir-agent-2025-01-18.log',
-      'sir-agent-2025-01-19.log',
+      'arenalive-agent-2025-01-18.1.log',
+      'arenalive-agent-2025-01-18.log',
+      'arenalive-agent-2025-01-19.log',
     ]);
   });
 });

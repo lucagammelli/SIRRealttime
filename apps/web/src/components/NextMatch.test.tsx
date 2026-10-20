@@ -1,4 +1,4 @@
-import type { UpcomingFixture } from '@sir/shared';
+import type { UpcomingFixture } from '@arenalive/shared';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LiveMatch } from './LiveMatch.tsx';

@@ -1,11 +1,11 @@
-import type { CreateTenantResponse, MeResponse, TenantSummary } from '@sir/shared';
+import type { CreateTenantResponse, MeResponse, TenantSummary } from '@arenalive/shared';
 import {
   clampAgentQuota,
   CreateTenantRequestSchema,
   IdParamSchema,
   SetActiveTenantRequestSchema,
   UpdateTenantRequestSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { and, arrayOverlaps, asc, count, eq, isNotNull, ne } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../context.js';

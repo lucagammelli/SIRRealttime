@@ -1,4 +1,4 @@
-import { NO_SYSTEM_LOGOS } from '@sir/shared';
+import { NO_SYSTEM_LOGOS } from '@arenalive/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initSystemLogos, loadSystemLogos, setSystemLogos } from './systemLogos.ts';
 

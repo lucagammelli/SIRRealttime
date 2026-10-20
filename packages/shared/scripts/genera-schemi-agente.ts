@@ -4,7 +4,7 @@ import { AGENT_SCHEMAS_DIR, agentSchemaFiles } from './agent-schemas.js';
 
 /**
  * Writes the JSON Schemas of the C# agent in `apps/agent-dotnet/schemas/` (generated: never edit them by hand).
- * Uso: pnpm --filter @sir/shared schemi:agente
+ * Uso: pnpm --filter @arenalive/shared schemi:agente
  */
 const root = join(import.meta.dirname, '..', '..', '..');
 const dir = join(root, AGENT_SCHEMAS_DIR);

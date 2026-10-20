@@ -1,4 +1,4 @@
-import type { MailSettings } from '@sir/shared';
+import type { MailSettings } from '@arenalive/shared';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderAs } from '../../test/adminPage.tsx';

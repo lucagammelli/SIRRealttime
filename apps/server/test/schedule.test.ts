@@ -1,6 +1,6 @@
-import { generateMatch } from '@sir/dvw-simulator';
-import type { CalendarResponse, ClubTeamsResponse, LeagueSummary, ScheduleResponse } from '@sir/shared';
-import { ScheduleResponseSchema } from '@sir/shared';
+import { generateMatch } from '@arenalive/dvw-simulator';
+import type { CalendarResponse, ClubTeamsResponse, LeagueSummary, ScheduleResponse } from '@arenalive/shared';
+import { ScheduleResponseSchema } from '@arenalive/shared';
 import { and, eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';

@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { gunzipSync } from 'node:zlib';
-import type { JsonValue, ScheduledMessage, ServerMessage, StateMessage } from '@sir/shared';
-import { applyPatch } from '@sir/shared';
+import type { JsonValue, ScheduledMessage, ServerMessage, StateMessage } from '@arenalive/shared';
+import { applyPatch } from '@arenalive/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import type { FrameEncoding, Grant, Target } from '../src/hub.js';

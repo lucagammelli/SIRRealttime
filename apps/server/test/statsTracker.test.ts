@@ -1,4 +1,4 @@
-import type { HelloMessage } from '@sir/shared';
+import type { HelloMessage } from '@arenalive/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { addDays, romeDay } from '../src/stats/days.js';
 import type { SocketView } from '../src/stats/tracker.js';

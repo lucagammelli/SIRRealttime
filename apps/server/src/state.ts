@@ -1,5 +1,5 @@
-import type { ClubCoverage, MatchLogoInfo, ServerMessage, ShareAccess, StateMessage } from '@sir/shared';
-import { ClientMessageSchema, effectiveStartsAt, LiveSocketQuerySchema, matchTeamLogos } from '@sir/shared';
+import type { ClubCoverage, MatchLogoInfo, ServerMessage, ShareAccess, StateMessage } from '@arenalive/shared';
+import { ClientMessageSchema, effectiveStartsAt, LiveSocketQuerySchema, matchTeamLogos } from '@arenalive/shared';
 import { and, desc, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import {
   broadcastOf,

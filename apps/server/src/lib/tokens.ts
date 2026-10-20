@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
-import { PAIRING_CODE_ALPHABET, PAIRING_CODE_LENGTH } from '@sir/shared';
+import { PAIRING_CODE_ALPHABET, PAIRING_CODE_LENGTH } from '@arenalive/shared';
 
 /** Random secret of 256 bit, base64url (43 characters). */
 export function generateToken(): string {

@@ -1,7 +1,7 @@
-import type { TenantIntermissionsInput } from '@sir/shared';
-import { defaultIntermissions, TenantIntermissionsSchema, THANKS_MESSAGE } from '@sir/shared';
-import type { MatchState } from '@sir/volley-stats';
-import { MATCH_PERIOD } from '@sir/volley-stats';
+import type { TenantIntermissionsInput } from '@arenalive/shared';
+import { defaultIntermissions, TenantIntermissionsSchema, THANKS_MESSAGE } from '@arenalive/shared';
+import type { MatchState } from '@arenalive/volley-stats';
+import { MATCH_PERIOD } from '@arenalive/volley-stats';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { activePause, duelRoles, previewState, visibleSlides } from '../lib/intermission.ts';

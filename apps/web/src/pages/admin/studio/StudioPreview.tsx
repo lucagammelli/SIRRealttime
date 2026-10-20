@@ -1,4 +1,4 @@
-import type { IntermissionKind, LayoutDevice, OverlayKind } from '@sir/shared';
+import type { IntermissionKind, LayoutDevice, OverlayKind } from '@arenalive/shared';
 import {
   brandPalette,
   LAYOUT_DEVICES,
@@ -6,8 +6,8 @@ import {
   ourTeamSide,
   resolveBrandColors,
   templateOf,
-} from '@sir/shared';
-import type { MatchState } from '@sir/volley-stats';
+} from '@arenalive/shared';
+import type { MatchState } from '@arenalive/volley-stats';
 import type { CSSProperties, MouseEvent, ReactNode } from 'react';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { BlockBrand } from '../../../blocks/env.ts';

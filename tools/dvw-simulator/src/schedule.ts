@@ -3,7 +3,7 @@
  * simulation of the server (a generated match, an example `.dvw` or an uploaded one): no I/O, no current time.
  */
 
-/** What the timing needs of a scout line (a `ScoutEntry` of `@sir/dvw-parser` fits). */
+/** What the timing needs of a scout line (a `ScoutEntry` of `@arenalive/dvw-parser` fits). */
 export interface PlaybackLine {
   /** Kind of the line (`point`, `setEnd`, `timeout`, …; anything else counts as an action). */
   kind: string;

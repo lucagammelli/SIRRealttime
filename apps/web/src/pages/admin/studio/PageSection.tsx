@@ -6,8 +6,8 @@ import type {
   Sponsor,
   TemplateId,
   TenantLayout,
-} from '@sir/shared';
-import { LAYOUT_DEVICES, LAYOUT_MAX_BLOCKS } from '@sir/shared';
+} from '@arenalive/shared';
+import { LAYOUT_DEVICES, LAYOUT_MAX_BLOCKS } from '@arenalive/shared';
 import type { DragEvent, ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { BLOCKS, REGISTRY_TYPES } from '../../../blocks/registry.tsx';

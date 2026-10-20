@@ -1,6 +1,6 @@
 import { gzipSync } from 'node:zlib';
-import type { JsonValue, PatchMessage, ScheduledMessage, ServerMessage, StateMessage } from '@sir/shared';
-import { diffJson } from '@sir/shared';
+import type { JsonValue, PatchMessage, ScheduledMessage, ServerMessage, StateMessage } from '@arenalive/shared';
+import { diffJson } from '@arenalive/shared';
 import type { WebSocket } from 'ws';
 import type { SocketView } from './stats/tracker.js';
 

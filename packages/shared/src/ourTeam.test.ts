@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { TeamRef } from '@sir/volley-stats';
+import type { TeamRef } from '@arenalive/volley-stats';
 import { normalizeTeamText, ourTeamSide, OurTeamSchema, teamColorRoles } from './index.js';
 
 const teams = (home: TeamRef, away: TeamRef) => ({ home, away });

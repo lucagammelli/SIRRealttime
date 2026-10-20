@@ -1,4 +1,4 @@
-import type { TenantSummary } from '@sir/shared';
+import type { TenantSummary } from '@arenalive/shared';
 import type { ReactElement } from 'react';
 import { lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';

@@ -1,11 +1,11 @@
-import type { MatchState, TeamDuelRow } from '@sir/volley-stats';
-import { MATCH_PERIOD, setPeriod, teamDuel } from '@sir/volley-stats';
+import type { MatchState, TeamDuelRow } from '@arenalive/volley-stats';
+import { MATCH_PERIOD, setPeriod, teamDuel } from '@arenalive/volley-stats';
 
-/** One row of the team comparison: `TeamDuelRow` of @sir/volley-stats (the only place of its numbers). */
+/** One row of the team comparison: `TeamDuelRow` of @arenalive/volley-stats (the only place of its numbers). */
 export type ComparisonRow = TeamDuelRow;
 
 /**
- * Rows of the team comparison for the whole match (`set` null) or one set: `teamDuel` of @sir/volley-stats. Side-out
+ * Rows of the team comparison for the whole match (`set` null) or one set: `teamDuel` of @arenalive/volley-stats. Side-out
  * and break point percentages exist only for the whole match, so they are listed only when `set` is null; a set
  * that does not exist gives null values.
  */

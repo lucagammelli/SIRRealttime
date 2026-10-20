@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { SystemLogo, SystemLogoPair, SystemLogos, SystemLogoSlot } from '@sir/shared';
+import type { SystemLogo, SystemLogoPair, SystemLogos, SystemLogoSlot } from '@arenalive/shared';
 import {
   ASSET_MAX_BASE64_LENGTH,
   ASSET_MAX_BYTES,
@@ -11,7 +11,7 @@ import {
   systemLogoFits,
   systemLogoPath,
   UploadSystemLogoRequestSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { and, eq, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';

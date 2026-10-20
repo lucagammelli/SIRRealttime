@@ -16,11 +16,11 @@ esito=0
 
 passo() {   # $1 = titolo, resto = comando; mostra solo le ultime righe
     echo "== $1"
-    "${@:2}" > "/tmp/ci-sir-$$.log" 2>&1
+    "${@:2}" > "/tmp/ci-arenalive-$$.log" 2>&1
     local r=$?
-    tail -15 "/tmp/ci-sir-$$.log"
+    tail -15 "/tmp/ci-arenalive-$$.log"
     [[ $r -eq 0 ]] && echo "ok" || { echo "FALLITO ($1)"; esito=1; }
-    rm -f "/tmp/ci-sir-$$.log"
+    rm -f "/tmp/ci-arenalive-$$.log"
 }
 
 passo "1/5 Dipendenze" pnpm install --frozen-lockfile

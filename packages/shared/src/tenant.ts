@@ -118,7 +118,7 @@ export const publicAssetPath = (id: string): string => `/api/public/assets/${id}
 export const adminAssetPath = (id: string): string => `/api/admin/assets/${id}/file`;
 
 /** Name shown for the default client without a display name (and when no graphics are loaded). */
-export const DEFAULT_BRAND_NAME = 'SIRRealtime';
+export const DEFAULT_BRAND_NAME = 'ArenaLive';
 
 /** `GET /api/public/tenant`: graphics of the client of the hostname, for the portal before any page. */
 export const PublicTenantResponseSchema = z.object({

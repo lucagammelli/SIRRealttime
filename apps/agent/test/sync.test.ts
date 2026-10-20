@@ -1,4 +1,4 @@
-import { hashScoutLines } from '@sir/shared';
+import { hashScoutLines } from '@arenalive/shared';
 import { describe, expect, it } from 'vitest';
 import { planRequests } from '../src/sync.js';
 

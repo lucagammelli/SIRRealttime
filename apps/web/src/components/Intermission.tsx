@@ -1,5 +1,5 @@
-import type { Intermission as PauseConfig, ScheduleResponse, TenantIntermissions } from '@sir/shared';
-import type { MatchState, PointMilestone } from '@sir/volley-stats';
+import type { Intermission as PauseConfig, ScheduleResponse, TenantIntermissions } from '@arenalive/shared';
+import type { MatchState, PointMilestone } from '@arenalive/volley-stats';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { BlockBrand } from '../blocks/env.ts';

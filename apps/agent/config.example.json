@@ -4,8 +4,8 @@
   "agentToken": "<token agente creato nell'area admin del portale>",
   "pollIntervalMs": 1000,
   "stableMs": 700,
-  "dataDir": "C:\\SIRAgent\\data",
-  "logDir": "C:\\SIRAgent\\logs",
+  "dataDir": "C:\\ArenaLiveAgent\\data",
+  "logDir": "C:\\ArenaLiveAgent\\logs",
   "logLevel": "info",
   "snapshotRetryMs": 300000,
   "retentionDays": 30

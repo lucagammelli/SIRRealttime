@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
-import { generateMatch } from '@sir/dvw-simulator';
-import { HealthResponseSchema, INGEST_MAX_WIRE_BYTES } from '@sir/shared';
+import { generateMatch } from '@arenalive/dvw-simulator';
+import { HealthResponseSchema, INGEST_MAX_WIRE_BYTES } from '@arenalive/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
 import { ADMIN, createAgent, fileAt, ingest, login, requestFor, startServer } from './helpers.js';

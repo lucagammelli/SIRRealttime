@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
-import type { JsonValue } from '@sir/shared';
-import { LIVE_FRAME_MAX_DECODED_BYTES, ServerMessageSchema, applyPatch } from '@sir/shared';
+import type { JsonValue } from '@arenalive/shared';
+import { LIVE_FRAME_MAX_DECODED_BYTES, ServerMessageSchema, applyPatch } from '@arenalive/shared';
 import WebSocket from 'ws';
 import { bump, canonicalJson, frameHeader } from './metrics.js';
 

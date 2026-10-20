@@ -2,7 +2,7 @@
   "id": "sir-volley",
   "custom": true,
   "label": "SIR VOLLEY",
-  "description": "Tema scuro, rosso e bianco, font Google Sans Code, logo SIR Real Time.",
+  "description": "Tema scuro, rosso e bianco, font Google Sans Code, logo ArenaLive.",
   "forcedTheme": "dark",
   "ourColor": "accent",
   "colors": {
@@ -19,8 +19,8 @@
     "sans": "Google Sans Code"
   },
   "images": {
-    "navbarLogo": "/templates/sir-volley/logo-sir-realtime.png",
-    "navbarLogoAlt": "SIR Real Time"
+    "navbarLogo": "/brand/arenalive-negativo.png",
+    "navbarLogoAlt": "ArenaLive"
   },
   "courtArrows": "team",
   "scoreboard": "mockup",

@@ -10,14 +10,14 @@ WORKDIR /repo
 
 FROM base AS build
 # Commit corto per scripts/scrivi-versione.mjs (in questo contesto non c'è .git): vuoto se non passato.
-ARG SIR_COMMIT=""
-ENV SIR_COMMIT=$SIR_COMMIT
+ARG ARENALIVE_COMMIT=""
+ENV ARENALIVE_COMMIT=$ARENALIVE_COMMIT
 COPY . .
 RUN pnpm install --frozen-lockfile
 # Compila il server e i pacchetti da cui dipende (ordine topologico).
-RUN pnpm --filter "@sir/server..." build
+RUN pnpm --filter "@arenalive/server..." build
 # Cartella autonoma con il solo server e le dipendenze di produzione.
-RUN pnpm --filter @sir/server deploy --prod /out
+RUN pnpm --filter @arenalive/server deploy --prod /out
 
 FROM node:24-slim AS runtime
 ENV NODE_ENV=production \

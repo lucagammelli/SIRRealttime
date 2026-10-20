@@ -1,5 +1,5 @@
-import type { TenantSummary } from '@sir/shared';
-import { DEFAULT_TENANT_SLUG } from '@sir/shared';
+import type { TenantSummary } from '@arenalive/shared';
+import { DEFAULT_TENANT_SLUG } from '@arenalive/shared';
 
 /**
  * Pure: the client a superadmin enters for the test: the one with the hostname of `base`, otherwise the default one

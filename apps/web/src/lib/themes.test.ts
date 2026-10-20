@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { TEMPLATE_IDS, TEMPLATES, ThemeCssSchema, themeCss } from '@sir/shared';
+import { TEMPLATE_IDS, TEMPLATES, ThemeCssSchema, themeCss } from '@arenalive/shared';
 import { describe, expect, it } from 'vitest';
 import { generatedThemesCss, THEMES_CSS_PATH } from '../../scripts/gen-themes.ts';
 

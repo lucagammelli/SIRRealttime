@@ -1,4 +1,4 @@
-import { defaultLayout } from '@sir/shared';
+import { defaultLayout } from '@arenalive/shared';
 import { describe, expect, it } from 'vitest';
 import { addBlock, freeId, layoutProblems, moveBlock, removeBlock, resetDevice } from './layoutEditor.ts';
 

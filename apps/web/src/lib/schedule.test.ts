@@ -1,5 +1,5 @@
-import { defaultIntermissions, EMPTY_SCHEDULE } from '@sir/shared';
-import type { ScheduleResponse } from '@sir/shared';
+import { defaultIntermissions, EMPTY_SCHEDULE } from '@arenalive/shared';
+import type { ScheduleResponse } from '@arenalive/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { SAMPLE_SCHEDULE } from '../blocks/sampleSchedule.ts';
 import { hasScheduleData, intermissionsUseSchedule, loadSchedule, nextFixture, SCHEDULE_PATH } from './schedule.ts';

@@ -1,4 +1,4 @@
-import { DUEL_ROLES, TEAM_DUEL_KEYS } from '@sir/volley-stats';
+import { DUEL_ROLES, TEAM_DUEL_KEYS } from '@arenalive/volley-stats';
 import { z } from 'zod';
 import { AssetIdSchema } from './assets.js';
 import { STANDINGS_SCOPES } from './club.js';
@@ -140,7 +140,7 @@ export const TopPlayersOptionsSchema = z.strictObject({
 });
 
 /**
- * Period of the statistics of a block or a slide (`Period` of @sir/volley-stats): `set` the set of the pause (just
+ * Period of the statistics of a block or a slide (`Period` of @arenalive/volley-stats): `set` the set of the pause (just
  * closed, or in progress during a time-out or an «ogni N punti»; for a block of the page the set in progress), `match`
  * the whole match.
  */
@@ -172,7 +172,7 @@ export const AttackOptionsSchema = z.strictObject({
 });
 
 /**
- * Role of a player against player duel: one role (`DUEL_ROLES` of @sir/volley-stats, in its order), or `rotate`
+ * Role of a player against player duel: one role (`DUEL_ROLES` of @arenalive/volley-stats, in its order), or `rotate`
  * every role with a duel in turn.
  */
 export const DUEL_ROLE_CHOICES = ['rotate', ...DUEL_ROLES] as const;
@@ -185,7 +185,7 @@ export const RoleDuelOptionsSchema = z.strictObject({
 
 export const TeamDuelOptionsSchema = z.strictObject({
   period: PeriodSchema,
-  /** Rows chosen (`TEAM_DUEL_KEYS` of @sir/volley-stats, shown in its order); empty: every row. */
+  /** Rows chosen (`TEAM_DUEL_KEYS` of @arenalive/volley-stats, shown in its order); empty: every row. */
   rows: z
     .array(z.enum(TEAM_DUEL_KEYS))
     .max(TEAM_DUEL_KEYS.length)

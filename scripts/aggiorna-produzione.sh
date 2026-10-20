@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# Aggiorna SIRRealtime in produzione: backup, scarica il ramo o tag, build, avvio (le migrazioni del database
+# Aggiorna ArenaLive in produzione: backup, scarica il ramo o tag, build, avvio (le migrazioni del database
 # girano all'avvio del server), verifica della salute. Se la verifica fallisce torna alla versione precedente.
 # Lo usa anche installa-produzione.sh per la prima installazione.
 # Uso (come root):  scripts/aggiorna-produzione.sh [ramo-o-tag]     (senza argomento: REPO_RIFERIMENTO di CONFIG_SISTEMA)
-# Log: /var/log/sir-realtime-aggiornamento.log
+# Log: /var/log/arenalive-aggiornamento.log
 
 # --- variabili ---
-CONFIG_SISTEMA="${CONFIG_SISTEMA:-/etc/sir-realtime/produzione.conf}"  # scritta da installa-produzione.sh
-CARTELLA_INSTALLAZIONE="${CARTELLA_INSTALLAZIONE:-/opt/sir-realtime}"  # dove sta il codice (di norma da CONFIG_SISTEMA)
-UTENTE_SERVIZIO="${UTENTE_SERVIZIO:-sir}"                              # proprietario del codice (di norma da CONFIG_SISTEMA)
+CONFIG_SISTEMA="${CONFIG_SISTEMA:-/etc/arenalive/produzione.conf}"  # scritta da installa-produzione.sh
+CARTELLA_INSTALLAZIONE="${CARTELLA_INSTALLAZIONE:-/opt/arenalive}"  # dove sta il codice (di norma da CONFIG_SISTEMA)
+UTENTE_SERVIZIO="${UTENTE_SERVIZIO:-arenalive}"                              # proprietario del codice (di norma da CONFIG_SISTEMA)
 REPO_RIFERIMENTO="${REPO_RIFERIMENTO:-main}"                           # ramo o tag da installare (di norma da CONFIG_SISTEMA)
 CHIAVE_DEPLOY_EFFETTIVA="${CHIAVE_DEPLOY_EFFETTIVA:-}"                 # chiave SSH di deploy dell'utente di servizio (di norma da CONFIG_SISTEMA)
 ATTESA_SALUTE_SECONDI="${ATTESA_SALUTE_SECONDI:-300}"                  # tempo massimo di attesa per server e web «healthy»
-LOG="/var/log/sir-realtime-aggiornamento.log"                          # registro degli aggiornamenti
+LOG="/var/log/arenalive-aggiornamento.log"                          # registro degli aggiornamenti
 
 # --- codice ---
 set -Eeuo pipefail
@@ -57,9 +57,9 @@ attendi_salute() {
 
 costruisci_e_avvia() {
     # Con && perché la funzione gira dentro un `if` (set -e sospeso): il primo errore deve fermare la catena.
-    # SIR_COMMIT: commit corto mostrato con la versione (le build Docker non vedono .git; vuoto se non si legge).
-    export SIR_COMMIT
-    SIR_COMMIT="$(git_utente rev-parse --short HEAD 2>/dev/null || true)"
+    # ARENALIVE_COMMIT: commit corto mostrato con la versione (le build Docker non vedono .git; vuoto se non si legge).
+    export ARENALIVE_COMMIT
+    ARENALIVE_COMMIT="$(git_utente rev-parse --short HEAD 2>/dev/null || true)"
     compose pull --quiet caddy postgres && compose build --pull && compose up -d --remove-orphans
 }
 
@@ -75,7 +75,7 @@ principale() {
     exec > >(tee -a "$LOG") 2>&1
     echo "=== Aggiornamento a '$riferimento' del $(date '+%Y-%m-%d %H:%M:%S %z') ==="
     cd "$CARTELLA_INSTALLAZIONE"
-    exec 8>/run/lock/sir-aggiorna.lock
+    exec 8>/run/lock/arenalive-aggiorna.lock
     flock -n 8 || { echo "ERRORE: un altro aggiornamento è in corso" >&2; exit 1; }
 
     local precedente nuovo era_attivo=no

@@ -1,9 +1,9 @@
-import type { SimulationResponse } from '@sir/shared';
+import type { SimulationResponse } from '@arenalive/shared';
 import {
   SIMULATION_UPLOAD_MAX_BASE64_LENGTH,
   SimulationCommandParamSchema,
   StartSimulationRequestSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppContext } from '../context.js';

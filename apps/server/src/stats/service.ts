@@ -1,4 +1,4 @@
-import type { HelloMessage } from '@sir/shared';
+import type { HelloMessage } from '@arenalive/shared';
 import type { FastifyBaseLogger } from 'fastify';
 import type { Db } from '../db/index.js';
 import type { NowCounts, SocketView, VisitLink } from './tracker.js';

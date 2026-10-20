@@ -1,7 +1,7 @@
 import type { FileHandle } from 'node:fs/promises';
 import { Readable } from 'node:stream';
 import { crc32 } from 'node:zlib';
-import { hasNoControlChars } from '@sir/shared';
+import { hasNoControlChars } from '@arenalive/shared';
 
 /**
  * Minimal zip writer, «store» method (no compression: the executable compresses little and the download starts at

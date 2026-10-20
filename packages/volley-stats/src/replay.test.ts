@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { parseDvw } from '@sir/dvw-parser';
-import { generateMatch, renderDvw } from '@sir/dvw-simulator';
+import { parseDvw } from '@arenalive/dvw-parser';
+import { generateMatch, renderDvw } from '@arenalive/dvw-simulator';
 import { describe, expect, it } from 'vitest';
 import { computeMatchState, matchPoints, matchStateUntilPoint, pointsExtend, RECENT_POINTS_LIMIT } from './index.js';
 import type { MatchState } from './index.js';

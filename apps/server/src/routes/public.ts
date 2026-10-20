@@ -1,5 +1,5 @@
-import type { ServerMessage } from '@sir/shared';
-import { ShareTokenParamSchema } from '@sir/shared';
+import type { ServerMessage } from '@arenalive/shared';
+import { ShareTokenParamSchema } from '@arenalive/shared';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { AppContext } from '../context.js';
 import { perMinute, SERVER_FULL_RETRY_AFTER_S } from '../context.js';

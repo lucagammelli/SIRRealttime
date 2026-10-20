@@ -6,14 +6,14 @@ import type {
   LeagueSyncState,
   LeagueTeam,
   StandingRow,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   AssetMimeSchema,
   CreateLeagueRequestSchema,
   IdParamSchema,
   LeagueProviderSchema,
   publicTeamLogoPath,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { asc, count, desc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { readLeagueLogoFile } from '../assetStore.js';

@@ -1,5 +1,5 @@
-import type { UserRole } from '@sir/shared';
-import { AGENT_EXPIRED_ERROR, containsNul } from '@sir/shared';
+import type { UserRole } from '@arenalive/shared';
+import { AGENT_EXPIRED_ERROR, containsNul } from '@arenalive/shared';
 import { and, eq, gt } from 'drizzle-orm';
 import type {
   FastifyReply,

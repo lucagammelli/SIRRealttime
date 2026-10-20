@@ -1,4 +1,4 @@
-import type { MatchState, Ratio, Side } from '@sir/volley-stats';
+import type { MatchState, Ratio, Side } from '@arenalive/volley-stats';
 
 export interface RotationDatum {
   position: number;

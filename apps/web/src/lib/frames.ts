@@ -1,4 +1,4 @@
-import { LIVE_FRAME_MAX_DECODED_BYTES } from '@sir/shared';
+import { LIVE_FRAME_MAX_DECODED_BYTES } from '@arenalive/shared';
 
 /** True when the browser can decompress gzip frames (then the socket URL asks `enc=gzip`). */
 export function supportsGzip(): boolean {

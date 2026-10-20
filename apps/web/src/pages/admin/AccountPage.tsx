@@ -3,7 +3,7 @@ import {
   formatBuildVersion,
   PASSWORD_MIN_LENGTH,
   PasswordResetAnswerSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { Button, Card, ErrorBox } from '../../components/ui.tsx';

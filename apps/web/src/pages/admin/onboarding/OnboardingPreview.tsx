@@ -1,6 +1,12 @@
-import type { BrandingResponse, LayoutDevice, TenantBranding, TenantIntermissions, TenantOverlays } from '@sir/shared';
-import { adminAssetPath, defaultLayout } from '@sir/shared';
-import type { MatchState } from '@sir/volley-stats';
+import type {
+  BrandingResponse,
+  LayoutDevice,
+  TenantBranding,
+  TenantIntermissions,
+  TenantOverlays,
+} from '@arenalive/shared';
+import { adminAssetPath, defaultLayout } from '@arenalive/shared';
+import type { MatchState } from '@arenalive/volley-stats';
 import { useEffect, useMemo, useState } from 'react';
 import { loadSampleMatch } from '../../../blocks/sampleMatch.ts';
 import { Segmented } from '../../../components/ui.tsx';

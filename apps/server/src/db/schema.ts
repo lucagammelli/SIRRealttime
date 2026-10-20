@@ -1,5 +1,5 @@
-import type { FixtureCandidate, LeaguePhase, SetScore } from '@sir/shared';
-import type { MatchState } from '@sir/volley-stats';
+import type { FixtureCandidate, LeaguePhase, SetScore } from '@arenalive/shared';
+import type { MatchState } from '@arenalive/volley-stats';
 import { sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import {
@@ -22,7 +22,7 @@ import {
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
-/** jsonb configuration document of a client, `{}` by default; its shape is checked by the schemas of `@sir/shared`. */
+/** jsonb configuration document of a client, `{}` by default; its shape is checked by the schemas of `@arenalive/shared`. */
 const tenantConfig = (name: string) =>
   jsonb(name)
     .$type<Record<string, unknown>>()
@@ -45,7 +45,7 @@ export const tenants = pgTable(
     layout: tenantConfig('layout'),
     intermissions: tenantConfig('intermissions'),
     overlays: tenantConfig('overlays'),
-    /** Profile of the club: series, coverage of the matches, team logos (`resolveClubProfile` of `@sir/shared`). */
+    /** Profile of the club: series, coverage of the matches, team logos (`resolveClubProfile` of `@arenalive/shared`). */
     clubProfile: tenantConfig('club_profile'),
     /** Most active agents of the client (given by the superadmin); past it a registration cannot be enabled. */
     agentQuota: integer('agent_quota').notNull().default(1),

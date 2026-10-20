@@ -1,10 +1,10 @@
-import { IntermissionSlideSchema, TenantLayoutSchema } from '@sir/shared';
-import type { ScheduleResponse } from '@sir/shared';
+import { IntermissionSlideSchema, TenantLayoutSchema } from '@arenalive/shared';
+import type { ScheduleResponse } from '@arenalive/shared';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MatchView } from '../components/MatchView.tsx';
 import { visibleSlides } from '../lib/intermission.ts';
-import { defaultIntermissions } from '@sir/shared';
+import { defaultIntermissions } from '@arenalive/shared';
 import { midMatchState } from '../test/fixtures.ts';
 import type { SlideEnv } from './IntermissionSlides.tsx';
 import { renderSlide } from './IntermissionSlides.tsx';

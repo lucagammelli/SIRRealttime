@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { AgentConfig } from '../config.js';
 import type { Lock } from '../lock.js';
 import type { Logger } from '../logger.js';
@@ -9,6 +9,7 @@ import type { RunnableAgent } from './controller.js';
 import { GuiController } from './controller.js';
 import { runGuiHost } from './host.js';
 import { LogSink } from './log-sink.js';
+import { writeProductAssets } from './productAssets.js';
 import { WINDOW_SCRIPT } from './window-script.js';
 
 export interface GuiOptions {
@@ -21,7 +22,7 @@ export interface GuiOptions {
   script?: string;
   statusIntervalMs?: number;
   registrationPollMs?: number;
-  /** Safe folder used when dataDir or logDir are on the USB stick (default `<tmp>/SIRAgent`). */
+  /** Safe folder used when dataDir or logDir are on the USB stick (default `<tmp>/ArenaLiveAgent`). */
   fallbackDir?: string;
   createAgent?: (config: AgentConfig, logger: Logger) => Promise<RunnableAgent>;
   acquireLock?: (dataDir: string) => Promise<Lock>;
@@ -50,6 +51,7 @@ export async function runGui(options: GuiOptions): Promise<number> {
       logger.info({ logo: graphics.branding.logoPath !== null }, 'grafica del cliente caricata');
     }
     const scriptPath = join(paths.dataDir, 'gui', 'window.ps1');
+    const product = await writeProductAssets(dirname(scriptPath));
     const code = await runGuiHost({
       script: options.script ?? WINDOW_SCRIPT,
       scriptPath,
@@ -70,6 +72,7 @@ export async function runGui(options: GuiOptions): Promise<number> {
           ...(options.registrationPollMs ? { registrationPollMs: options.registrationPollMs } : {}),
           ...(paths.problem ? { startupError: paths.problem } : {}),
           ...(graphics.branding ? { branding: graphics.branding } : {}),
+          product,
         }),
     });
     logger.info('finestra chiusa');

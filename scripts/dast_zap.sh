@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scansione DAST con OWASP ZAP (Docker) del server SIRRealtime (apps/server), docs/regole/sicurezza.md.
+# Scansione DAST con OWASP ZAP (Docker) del server ArenaLive (apps/server), docs/regole/sicurezza.md.
 # Avvia il server di prova (PGlite in memoria, limiti alzati), crea l'utente di scansione e un token agente,
 # esegue zap-api-scan.py con la specifica scripts/dast/openapi.yaml e termina con codice 1 se restano avvisi di
 # rischio Alto o Medio non ignorati (regole motivate in scripts/dast/zap-regole.tsv).
@@ -10,12 +10,12 @@
 
 # --- variabili ---
 PORTA="18090"                                                   # porta del server di prova
-SUPER_EMAIL="admin@sir.local"                                   # superadmin del server di prova
+SUPER_EMAIL="admin@arenalive.local"                                   # superadmin del server di prova
 SUPER_PASSWORD="password-di-prova"                              # password del superadmin di prova
-SCAN_EMAIL="scan@sir.local"                                     # utente di scansione: admin del cliente «Predefinito»
+SCAN_EMAIL="scan@arenalive.local"                                     # utente di scansione: admin del cliente «Predefinito»
 SCAN_PASSWORD="password-scansione-1"                            # password dell'utente di scansione
 IMMAGINE_ZAP="ghcr.io/zaproxy/zaproxy:2.17.0"                   # immagine ZAP con versione fissa
-CARTELLA_REPORT="${DAST_REPORT_DIR:-$HOME/sir-dast-report}"     # report HTML/JSON: fuori dal repository
+CARTELLA_REPORT="${DAST_REPORT_DIR:-$HOME/arenalive-dast-report}"     # report HTML/JSON: fuori dal repository
 MINUTI_MAX="30"                                                 # tempo massimo della scansione, in minuti
 LIMITE_ALTO_MEDIO="2"                                           # rischio minimo che fa fallire (3 Alto, 2 Medio)
 
@@ -56,7 +56,7 @@ echo "== Avvio del server di prova su $SERVER"
     RATE_LIMIT_PUBLIC=100000 RATE_LIMIT_INGEST=100000 RATE_LIMIT_REGISTER=100000 RATE_LIMIT_PUBLIC_WS=100000 \
     RATE_LIMIT_PUBLIC_INVALID=100000 RATE_LIMIT_SHORT_CODE_INVALID=100000 RATE_LIMIT_AGENT_DOWNLOAD=100000 \
     RATE_LIMIT_PASSWORD_RESET=100000 LEAGUE_SYNC=off \
-    exec setsid pnpm exec tsx --conditions=@sir/source src/main.ts
+    exec setsid pnpm exec tsx --conditions=@arenalive/source src/main.ts
 ) > "$LOG_SERVER" 2>&1 &
 SERVER_PID=$!
 for _ in $(seq 1 90); do
@@ -79,8 +79,8 @@ post /api/admin/users "{\"email\":\"$SCAN_EMAIL\",\"password\":\"$SCAN_PASSWORD\
 AGENT_TOKEN="$(post /api/admin/agents '{"name":"agente-dast"}' | json "o.token")" || errore "token agente"
 : > "$JAR"
 post /api/auth/login "{\"email\":\"$SCAN_EMAIL\",\"password\":\"$SCAN_PASSWORD\"}" >/dev/null || errore "login utente di scansione"
-SESSIONE="$(awk '$6=="sir_session"{print $7}' "$JAR")"
-[[ -n "$SESSIONE" ]] || errore "cookie sir_session non ottenuto"
+SESSIONE="$(awk '$6=="arenalive_session"{print $7}' "$JAR")"
+[[ -n "$SESSIONE" ]] || errore "cookie arenalive_session non ottenuto"
 curl -sf -b "$JAR" "$SERVER/api/auth/me" >/dev/null || errore "sessione di scansione non valida"
 
 # --- ZAP: cookie di sessione e token agente su ogni richiesta; il logout è escluso ---
@@ -90,7 +90,7 @@ ZAP_CONFIG=(
     -config "replacer.full_list(0).matchtype=REQ_HEADER"
     -config "replacer.full_list(0).matchstr=Cookie"
     -config "replacer.full_list(0).regex=false"
-    -config "replacer.full_list(0).replacement=sir_session=$SESSIONE"
+    -config "replacer.full_list(0).replacement=arenalive_session=$SESSIONE"
     -config "replacer.full_list(1).description=agente"
     -config "replacer.full_list(1).enabled=true"
     -config "replacer.full_list(1).matchtype=REQ_HEADER"

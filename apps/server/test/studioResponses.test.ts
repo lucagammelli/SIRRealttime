@@ -1,4 +1,4 @@
-import type { Sponsor } from '@sir/shared';
+import type { Sponsor } from '@arenalive/shared';
 import {
   AssetListResponseSchema,
   BrandingResponseSchema,
@@ -7,7 +7,7 @@ import {
   LayoutResponseSchema,
   OverlaysResponseSchema,
   SponsorListResponseSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { z } from 'zod';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';

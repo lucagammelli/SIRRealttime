@@ -1,10 +1,10 @@
-import type { ClubResponse, TenantBranding, TenantIntermissions, TenantOverlays } from '@sir/shared';
+import type { ClubResponse, TenantBranding, TenantIntermissions, TenantOverlays } from '@arenalive/shared';
 import {
   BrandingResponseSchema,
   ClubResponseSchema,
   IntermissionsResponseSchema,
   OverlaysResponseSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { ReactNode } from 'react';
 import { useCallback, useId, useRef, useState } from 'react';
 import { Button, ErrorBox, Spinner } from '../../../components/ui.tsx';

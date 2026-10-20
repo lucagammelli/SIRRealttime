@@ -1,12 +1,12 @@
 {
-  "name": "@sir/server",
+  "name": "@arenalive/server",
   "version": "0.0.0",
   "private": true,
   "description": "Backend: ingest delle righe DVW, ricalcolo dello stato, WebSocket, API admin e pubbliche.",
   "type": "module",
   "exports": {
     ".": {
-      "@sir/source": "./src/index.ts",
+      "@arenalive/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -20,7 +20,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
-    "dev": "tsx watch --conditions=@sir/source src/main.ts",
+    "dev": "tsx watch --conditions=@arenalive/source src/main.ts",
     "start": "node dist/main.js",
     "db:generate": "drizzle-kit generate"
   },
@@ -30,10 +30,10 @@
     "@fastify/helmet": "^13.1.2",
     "@fastify/rate-limit": "^11.2.1",
     "@fastify/websocket": "^11.3.4",
-    "@sir/dvw-parser": "workspace:*",
-    "@sir/dvw-simulator": "workspace:*",
-    "@sir/shared": "workspace:*",
-    "@sir/volley-stats": "workspace:*",
+    "@arenalive/dvw-parser": "workspace:*",
+    "@arenalive/dvw-simulator": "workspace:*",
+    "@arenalive/shared": "workspace:*",
+    "@arenalive/volley-stats": "workspace:*",
     "argon2": "^0.45.1",
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.7",

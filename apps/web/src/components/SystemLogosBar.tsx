@@ -1,5 +1,5 @@
-import type { SystemLogos } from '@sir/shared';
-import { hasSystemLogo } from '@sir/shared';
+import type { SystemLogos } from '@arenalive/shared';
+import { hasSystemLogo } from '@arenalive/shared';
 import { useSystemLogos } from '../lib/systemLogos.ts';
 import { SystemLogo } from './SystemLogo.tsx';
 

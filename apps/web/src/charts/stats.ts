@@ -1,4 +1,4 @@
-import type { StatsCurve, StatsDayRow } from '@sir/shared';
+import type { StatsCurve, StatsDayRow } from '@arenalive/shared';
 import type { EChartsCoreOption } from './EChart.tsx';
 
 /** Visits per day (bars) and the peak of spectators (line). Colours: the series colours of the theme. */

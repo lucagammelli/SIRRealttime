@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { win32 } from 'node:path';
-import { decodeDvw, parseDvw } from '@sir/dvw-parser';
-import { SCOUT_SECTION_MARKER, splitDvwText } from '@sir/shared';
+import { decodeDvw, parseDvw } from '@arenalive/dvw-parser';
+import { SCOUT_SECTION_MARKER, splitDvwText } from '@arenalive/shared';
 
 /** Header and scout lines of a DVW file, as sent to the server. */
 export interface DvwContent {
@@ -46,7 +46,7 @@ export type DvwRead =
   /** `endsWithNewline` false: DataVolley may still be writing the file. */
   | { kind: 'content'; content: DvwContent; endsWithNewline: boolean };
 
-// stessa regola di splitDvwText in @sir/shared (la regex non è esportata, shared non si tocca da qui)
+// stessa regola di splitDvwText in @arenalive/shared (la regex non è esportata, shared non si tocca da qui)
 const MARKER_LINE = /^[ \t]*\[3SCOUT\][ \t]*$/m;
 
 /** Pure: decodes a read of the file (Windows-1252 or UTF-8) into header and scout lines. */

@@ -1,7 +1,7 @@
-import type { IntermissionSlideInput, TenantLayout } from '@sir/shared';
-import { IntermissionSlideSchema, TenantIntermissionsSchema, TenantLayoutSchema } from '@sir/shared';
-import type { MatchState, Period, StatLine } from '@sir/volley-stats';
-import { MATCH_PERIOD, periodSummary, roleDuels, scorers, setPeriod, teamDuel } from '@sir/volley-stats';
+import type { IntermissionSlideInput, TenantLayout } from '@arenalive/shared';
+import { IntermissionSlideSchema, TenantIntermissionsSchema, TenantLayoutSchema } from '@arenalive/shared';
+import type { MatchState, Period, StatLine } from '@arenalive/volley-stats';
+import { MATCH_PERIOD, periodSummary, roleDuels, scorers, setPeriod, teamDuel } from '@arenalive/volley-stats';
 import { act, cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MatchView } from '../components/MatchView.tsx';

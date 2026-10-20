@@ -1,13 +1,13 @@
-import type { GraphicsExport, TemplateId } from '@sir/shared';
+import type { GraphicsExport, TemplateId } from '@arenalive/shared';
 import {
-  GRAPHICS_EXPORT_FORMAT,
+  isGraphicsExportFormat,
   GRAPHICS_EXPORT_VERSION,
   GRAPHICS_IMPORT_BODY_LIMIT,
   GraphicsExportSchema,
   GraphicsImportResponseSchema,
   templateChoices,
   templateOf,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { ChangeEvent } from 'react';
 import { useState } from 'react';
 import { Button, ErrorBox } from '../../../components/ui.tsx';
@@ -41,8 +41,8 @@ export function readPackage(text: string): { pkg: GraphicsExport; problem: null 
     return { pkg: null, problem: 'Il file non è una configurazione grafica: non si riesce a leggerlo.' };
   }
   const record = json !== null && typeof json === 'object' ? (json as Record<string, unknown>) : {};
-  if (record.format !== GRAPHICS_EXPORT_FORMAT)
-    return { pkg: null, problem: 'Il file non è una configurazione grafica di SIRRealtime.' };
+  if (!isGraphicsExportFormat(record.format))
+    return { pkg: null, problem: 'Il file non è una configurazione grafica di ArenaLive.' };
   if (record.version !== GRAPHICS_EXPORT_VERSION)
     return {
       pkg: null,

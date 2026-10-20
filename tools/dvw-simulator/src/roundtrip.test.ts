@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { parseDvw } from '@sir/dvw-parser';
-import type { ParsedMatch } from '@sir/dvw-parser';
+import { parseDvw } from '@arenalive/dvw-parser';
+import type { ParsedMatch } from '@arenalive/dvw-parser';
 import { describe, expect, it } from 'vitest';
 import { generateMatch, renderDvw, scoutLineText } from './index.js';
 import type { GeneratedMatch } from './index.js';

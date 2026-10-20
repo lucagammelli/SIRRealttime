@@ -1,4 +1,4 @@
-import type { InviteDelivery, TenantUserRole, UpdateUserRequest, UserRole, UserSummary } from '@sir/shared';
+import type { InviteDelivery, TenantUserRole, UpdateUserRequest, UserRole, UserSummary } from '@arenalive/shared';
 import {
   CreateUserRequestSchema,
   PASSWORD_MIN_LENGTH,
@@ -6,7 +6,7 @@ import {
   UpdateUserRequestSchema,
   UserInviteResponseSchema,
   UserSummarySchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { FormEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { z } from 'zod';

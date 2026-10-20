@@ -1,5 +1,5 @@
-import type { HelloMessage, VisitDevice } from '@sir/shared';
-import { QR_QUERY_PARAM } from '@sir/shared';
+import type { HelloMessage, VisitDevice } from '@arenalive/shared';
+import { QR_QUERY_PARAM } from '@arenalive/shared';
 import { isStandalone } from './pwa.ts';
 
 /**

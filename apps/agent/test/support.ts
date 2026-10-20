@@ -4,8 +4,8 @@ import { createServer } from 'node:net';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { IngestRequest } from '@sir/shared';
-import { IngestRequestSchema } from '@sir/shared';
+import type { IngestRequest } from '@arenalive/shared';
+import { IngestRequestSchema } from '@arenalive/shared';
 import pino from 'pino';
 import type { Logger } from 'pino';
 import { matches } from '../../server/src/db/index.js';
@@ -21,7 +21,7 @@ export { matches };
 
 /** Temporary folder with the watched folder (`stick`) and the agent's folder (`home`). */
 export function tempDirs(): { root: string; stick: string; home: string; cleanup: () => Promise<void> } {
-  const root = mkdtempSync(join(tmpdir(), 'sir-agent-'));
+  const root = mkdtempSync(join(tmpdir(), 'arenalive-agent-'));
   return {
     root,
     stick: join(root, 'pennina'),

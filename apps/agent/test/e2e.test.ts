@@ -1,10 +1,10 @@
 import { mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { decodeDvw, parseDvw } from '@sir/dvw-parser';
-import { generateMatch, play } from '@sir/dvw-simulator';
-import type { IngestRequest } from '@sir/shared';
-import { hashScoutLines, splitDvwText } from '@sir/shared';
-import { computeMatchState } from '@sir/volley-stats';
+import { decodeDvw, parseDvw } from '@arenalive/dvw-parser';
+import { generateMatch, play } from '@arenalive/dvw-simulator';
+import type { IngestRequest } from '@arenalive/shared';
+import { hashScoutLines, splitDvwText } from '@arenalive/shared';
+import { computeMatchState } from '@arenalive/volley-stats';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { LiveServer } from './support.js';
 import {

@@ -1,8 +1,8 @@
 import { PassThrough, Transform } from 'node:stream';
 import type { Readable } from 'node:stream';
 import { createGunzip } from 'node:zlib';
-import { INGEST_MAX_DECODED_BYTES, INGEST_MAX_WIRE_BYTES, IngestRequestSchema } from '@sir/shared';
-import type { IngestResponse } from '@sir/shared';
+import { INGEST_MAX_DECODED_BYTES, INGEST_MAX_WIRE_BYTES, IngestRequestSchema } from '@arenalive/shared';
+import type { IngestResponse } from '@arenalive/shared';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { AppContext } from '../context.js';
 import { perMinute } from '../context.js';

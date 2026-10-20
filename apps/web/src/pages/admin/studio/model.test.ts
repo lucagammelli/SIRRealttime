@@ -1,4 +1,4 @@
-import type { TenantIntermissions } from '@sir/shared';
+import type { TenantIntermissions } from '@arenalive/shared';
 import {
   defaultBranding,
   defaultIntermissions,
@@ -9,8 +9,8 @@ import {
   LayoutBlockSchema,
   newBlock,
   OVERLAY_KINDS,
-} from '@sir/shared';
-import type { MatchState } from '@sir/volley-stats';
+} from '@arenalive/shared';
+import type { MatchState } from '@arenalive/volley-stats';
 import { describe, expect, it } from 'vitest';
 import { addBlock, moveBlock, removeBlock, updateBlock } from '../layoutEditor.ts';
 import { setOwnPause, withPause } from '../intermissionEditor.ts';

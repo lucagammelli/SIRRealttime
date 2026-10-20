@@ -1,4 +1,4 @@
-import { hasSystemLogo } from '@sir/shared';
+import { hasSystemLogo } from '@arenalive/shared';
 import { Link } from 'react-router';
 import { BrandMark } from '../../components/BrandMark.tsx';
 import { SYSTEM_LOGO_FULL_SIZE, SystemLogo } from '../../components/SystemLogo.tsx';

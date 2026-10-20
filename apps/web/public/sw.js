@@ -1,6 +1,6 @@
 /* global self */
 /*
- * Service worker minimo di SIRRealtime: serve solo perché il browser consideri la pagina installabile («Installa come
+ * Service worker minimo di ArenaLive: serve solo perché il browser consideri la pagina installabile («Installa come
  * app»). Non mette nulla in cache e non intercetta le richieste: dati live, WebSocket e API passano sempre dalla rete.
  */
 self.addEventListener('install', () => {

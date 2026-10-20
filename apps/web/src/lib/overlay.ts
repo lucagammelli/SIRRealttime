@@ -1,7 +1,7 @@
 /**
  * Overlays of the public page (pure functions, no DOM): which events of the match become an overlay with the
- * configuration of the client (`TenantOverlays` of @sir/shared), their text and the order of the queue. The events
- * and every number come from @sir/volley-stats (`MatchState.events`): nothing is computed here.
+ * configuration of the client (`TenantOverlays` of @arenalive/shared), their text and the order of the queue. The events
+ * and every number come from @arenalive/volley-stats (`MatchState.events`): nothing is computed here.
  */
 import type {
   LayoutDevice,
@@ -10,9 +10,9 @@ import type {
   OverlayPosition,
   OverlaySize,
   TenantOverlays,
-} from '@sir/shared';
-import { fillOverlayText, overlayPlacement } from '@sir/shared';
-import type { MatchEvent, MatchState, Side } from '@sir/volley-stats';
+} from '@arenalive/shared';
+import { fillOverlayText, overlayPlacement } from '@arenalive/shared';
+import type { MatchEvent, MatchState, Side } from '@arenalive/volley-stats';
 import { playerName, teamName } from './format.ts';
 
 /** An overlay waiting in the queue (or on screen). */

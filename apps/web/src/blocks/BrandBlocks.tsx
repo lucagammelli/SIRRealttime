@@ -1,5 +1,5 @@
-import type { BlockOptions } from '@sir/shared';
-import { SHORT_CODE_PATTERN } from '@sir/shared';
+import type { BlockOptions } from '@arenalive/shared';
+import { SHORT_CODE_PATTERN } from '@arenalive/shared';
 import { useEffect, useState } from 'react';
 import { Card } from '../components/ui.tsx';
 import type { SponsorItem } from '../lib/sponsors.ts';
@@ -11,7 +11,7 @@ const FILL = 'h-full min-h-0';
 
 /** Logo of the client (horizontal or square), otherwise its name. */
 export function LogoBlock({ options, env }: { options: BlockOptions<'logo'>; env: BlockEnv }) {
-  const name = env.brand?.name ?? 'SIRRealtime';
+  const name = env.brand?.name ?? 'ArenaLive';
   const src = options.variant === 'mark' ? env.brand?.logoMark : env.brand?.logoMain;
   return (
     <Card className={FILL} bodyClassName="flex items-center justify-center">

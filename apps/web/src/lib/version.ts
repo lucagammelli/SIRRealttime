@@ -1,18 +1,18 @@
-import { formatBuildVersion } from '@sir/shared';
+import { formatBuildVersion } from '@arenalive/shared';
 import { z } from 'zod';
 
 // Replaced at build time by Vite (`define` in vite.config.ts and vitest.config.ts) with the version of the root
 // package.json and the short commit (empty when unknown).
-declare const __SIR_VERSION__: string | undefined;
-declare const __SIR_COMMIT__: string | undefined;
-declare const __SIR_BUILD__: string | undefined;
+declare const __ARENALIVE_VERSION__: string | undefined;
+declare const __ARENALIVE_COMMIT__: string | undefined;
+declare const __ARENALIVE_BUILD__: string | undefined;
 
 /** Version of the portal, from the root package.json (`0.0.0` if the build did not set it). */
-export const APP_VERSION: string = typeof __SIR_VERSION__ === 'string' ? __SIR_VERSION__ : '0.0.0';
+export const APP_VERSION: string = typeof __ARENALIVE_VERSION__ === 'string' ? __ARENALIVE_VERSION__ : '0.0.0';
 /** Short commit of the build, or empty. */
-export const APP_COMMIT: string = typeof __SIR_COMMIT__ === 'string' ? __SIR_COMMIT__ : '';
+export const APP_COMMIT: string = typeof __ARENALIVE_COMMIT__ === 'string' ? __ARENALIVE_COMMIT__ : '';
 /** Id of this build of the portal (a new one at every `vite build`), or empty in development. */
-export const APP_BUILD: string = typeof __SIR_BUILD__ === 'string' ? __SIR_BUILD__ : '';
+export const APP_BUILD: string = typeof __ARENALIVE_BUILD__ === 'string' ? __ARENALIVE_BUILD__ : '';
 
 /** `/version.json`, written by the build next to `index.html` (`buildIdPlugin` in vite.config.ts). */
 const VersionFileSchema = z.object({ build: z.string().min(1) });
@@ -40,7 +40,7 @@ export async function newBuildAvailable(
   }
 }
 
-/** Pure: «SIRRealtime 1.0.0», with the commit in brackets only when asked for and known. */
+/** Pure: «ArenaLive 1.0.0», with the commit in brackets only when asked for and known. */
 export function versionLabel(version: string, commit: string, withCommit: boolean): string {
-  return `SIRRealtime ${formatBuildVersion(version, withCommit ? commit : '')}`;
+  return `ArenaLive ${formatBuildVersion(version, withCommit ? commit : '')}`;
 }

@@ -45,10 +45,10 @@ describe('graphic templates', () => {
     expect(TEMPLATES.notte.forcedTheme).toBe('dark');
     expect(TEMPLATES.contrasto.forcedTheme).toBe('dark');
     expect(TEMPLATES['sir-volley'].forcedTheme).toBe('dark');
-    expect(TEMPLATES['sir-volley'].images.navbarLogo).toMatch(/^\/templates\/sir-volley\/.+\.png$/);
+    expect(TEMPLATES['sir-volley'].images.navbarLogo).toBe('/brand/arenalive-negativo.png');
     expect(TEMPLATES['sir-volley'].images).toEqual({
-      navbarLogo: '/templates/sir-volley/logo-sir-realtime.png',
-      navbarLogoAlt: 'SIR Real Time',
+      navbarLogo: '/brand/arenalive-negativo.png',
+      navbarLogoAlt: 'ArenaLive',
     });
     expect(TEMPLATES['sir-volley'].description).not.toContain('Istante');
     expect(TEMPLATES.standard.images).toEqual({ navbarLogo: null, navbarLogoAlt: null });
@@ -257,7 +257,7 @@ describe('custom theme: SIR VOLLEY loaded from its JSON', () => {
       id: 'sir-volley',
       custom: true,
       label: 'SIR VOLLEY',
-      description: 'Tema scuro, rosso e bianco, font Google Sans Code, logo SIR Real Time.',
+      description: 'Tema scuro, rosso e bianco, font Google Sans Code, logo ArenaLive.',
       forcedTheme: 'dark',
       ourColor: 'accent',
       colors: { primary: '#e30613', accent: '#e30613', home: '#e30613', away: '#ffffff', background: '#0b0b0d' },
@@ -265,7 +265,7 @@ describe('custom theme: SIR VOLLEY loaded from its JSON', () => {
       darkInkSurface: '#202024',
       darkBackground: '#0b0b0d',
       fonts: { sans: 'Google Sans Code' },
-      images: { navbarLogo: '/templates/sir-volley/logo-sir-realtime.png', navbarLogoAlt: 'SIR Real Time' },
+      images: { navbarLogo: '/brand/arenalive-negativo.png', navbarLogoAlt: 'ArenaLive' },
       courtArrows: 'team',
       scoreboard: 'mockup',
       tvMinRem: { momentum: 14, comparison: 18, players: 16, court: 18, rotations: 14 },

@@ -1,4 +1,4 @@
-import { MeResponseSchema } from '@sir/shared';
+import { MeResponseSchema } from '@arenalive/shared';
 import { useCallback, useEffect } from 'react';
 import { LiveMatch } from '../../components/LiveMatch.tsx';
 import { ApiError, apiRequest } from '../../lib/api.ts';

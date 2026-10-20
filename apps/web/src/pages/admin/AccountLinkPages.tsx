@@ -1,4 +1,4 @@
-import type { LinkInfo } from '@sir/shared';
+import type { LinkInfo } from '@arenalive/shared';
 import {
   LinkInfoSchema,
   MeResponseSchema,
@@ -6,7 +6,7 @@ import {
   PasswordResetAnswerSchema,
   PasswordResetRequestSchema,
   SetPasswordRequestSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { FormEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';

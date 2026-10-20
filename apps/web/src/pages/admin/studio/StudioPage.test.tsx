@@ -8,7 +8,7 @@ import type {
   TenantIntermissions,
   TenantLayout,
   TenantOverlays,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   DEFAULT_BRAND_COLORS,
   defaultBranding,
@@ -20,7 +20,7 @@ import {
   TenantIntermissionsSchema,
   TenantLayoutSchema,
   TenantOverlaysSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

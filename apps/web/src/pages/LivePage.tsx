@@ -1,4 +1,4 @@
-import { QR_QUERY_PARAM, SHARE_TOKEN_PATTERN } from '@sir/shared';
+import { QR_QUERY_PARAM, SHARE_TOKEN_PATTERN } from '@arenalive/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { BrandMark } from '../components/BrandMark.tsx';

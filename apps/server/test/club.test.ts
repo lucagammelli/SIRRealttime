@@ -1,4 +1,4 @@
-import { generateMatch } from '@sir/dvw-simulator';
+import { generateMatch } from '@arenalive/dvw-simulator';
 import type {
   CalendarResponse,
   ClubFixture,
@@ -8,7 +8,7 @@ import type {
   LeagueSummary,
   ServerMessage,
   ShareTokenSummary,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { and, eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';

@@ -1,5 +1,5 @@
-import type { ChampionshipOption, LeagueSeries } from '@sir/shared';
-import { LEAGUE_SERIES, pickSeriesChampionships } from '@sir/shared';
+import type { ChampionshipOption, LeagueSeries } from '@arenalive/shared';
+import { LEAGUE_SERIES, pickSeriesChampionships } from '@arenalive/shared';
 import type { FastifyBaseLogger } from 'fastify';
 import type { LeagueFetcher } from './fetcher.js';
 import { decodePage } from './fetcher.js';

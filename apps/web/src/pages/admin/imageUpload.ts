@@ -1,5 +1,5 @@
-import type { AssetKind, AssetSummary } from '@sir/shared';
-import { ASSET_MAX_BYTES, AssetSummarySchema } from '@sir/shared';
+import type { AssetKind, AssetSummary } from '@arenalive/shared';
+import { ASSET_MAX_BYTES, AssetSummarySchema } from '@arenalive/shared';
 import { apiRequest } from '../../lib/api.ts';
 import { fileToBase64 } from '../../lib/base64.ts';
 

@@ -1,4 +1,4 @@
-import { HelloMessageSchema } from '@sir/shared';
+import { HelloMessageSchema } from '@arenalive/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { helloText, makeHello, newVisitId, visitSource } from './visit.ts';
 

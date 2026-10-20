@@ -1,5 +1,5 @@
-import type { BlockOptions, PublicSponsor, Sponsor } from '@sir/shared';
-import { adminAssetPath, publicAssetPath } from '@sir/shared';
+import type { BlockOptions, PublicSponsor, Sponsor } from '@arenalive/shared';
+import { adminAssetPath, publicAssetPath } from '@arenalive/shared';
 
 /** One image of the rotation of a sponsor block or slide. */
 export interface SponsorItem {

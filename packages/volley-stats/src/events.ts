@@ -1,4 +1,4 @@
-import type { ParsedMatch } from '@sir/dvw-parser';
+import type { ParsedMatch } from '@arenalive/dvw-parser';
 import { describePoint } from './score.js';
 import type { PointEvent, Timeline } from './timeline.js';
 import { buildTimeline } from './timeline.js';

@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import type { MailSettings, UserInviteResponse, UserSummary } from '@sir/shared';
+import type { MailSettings, UserInviteResponse, UserSummary } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -26,7 +26,7 @@ const SETTINGS = {
   security: 'starttls',
   username: 'robot',
   password: SMTP_PASSWORD,
-  fromName: 'SIR Realtime',
+  fromName: 'ArenaLive',
   fromEmail: 'noreply@posta.test',
 };
 

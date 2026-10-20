@@ -1,6 +1,6 @@
-import type { IntermissionSlide, SlideType } from '@sir/shared';
-import type { Side, StatLine } from '@sir/volley-stats';
-import { matchMvp, setRecap } from '@sir/volley-stats';
+import type { IntermissionSlide, SlideType } from '@arenalive/shared';
+import type { Side, StatLine } from '@arenalive/volley-stats';
+import { matchMvp, setRecap } from '@arenalive/volley-stats';
 import type { ReactNode } from 'react';
 import { Partials } from '../components/Scoreboard.tsx';
 import { BreakableName } from '../components/ui.tsx';
@@ -380,7 +380,7 @@ export function renderSlide(slide: IntermissionSlide, env: SlideEnv, size: Slide
 }
 
 function CompactLogo({ env, variant }: { env: SlideEnv; variant: 'main' | 'mark' }) {
-  const name = env.brand?.name ?? 'SIRRealtime';
+  const name = env.brand?.name ?? 'ArenaLive';
   const src = variant === 'mark' ? env.brand?.logoMark : env.brand?.logoMain;
   return src ? (
     <img src={src} alt={name} className="max-h-12 w-auto max-w-full object-contain" />

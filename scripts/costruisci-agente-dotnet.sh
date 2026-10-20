@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Costruisce l'agente C# (apps/agent-dotnet) da Linux: test xUnit della libreria core e sir-agent.exe per Windows x64
+# Costruisce l'agente C# (apps/agent-dotnet) da Linux: test xUnit della libreria core e arenalive-agent.exe per Windows x64
 # (exe unico autosufficiente: runtime .NET incluso, compresso). Tutto avviene in un container temporaneo dell'SDK .NET:
 # sul server non si installa niente. Alla fine container, cache NuGet e (se RIMUOVI_IMMAGINE=1) l'immagine SDK sono
 # rimossi, per non riempire il disco.
@@ -17,9 +17,9 @@ USCITA="${USCITA:-$RADICE/dist}"                                      # cartella
 IMMAGINE="mcr.microsoft.com/dotnet/sdk:10.0"                          # SDK .NET 10 LTS ufficiale Microsoft (mcr.microsoft.com)
 RIMUOVI_IMMAGINE="${RIMUOVI_IMMAGINE:-1}"                             # 1 = alla fine rimuove l'immagine SDK se l'ha scaricata questa build (spazio disco); 0 = la tiene sempre
 SPAZIO_MINIMO_GB=5                                                    # spazio libero minimo su / per partire
-PROGETTO_APP="apps/agent-dotnet/src/SirAgent.App/SirAgent.App.csproj" # progetto dell'exe (WinForms, net10.0-windows)
-PROGETTO_TEST="apps/agent-dotnet/tests/SirAgent.Core.Tests/SirAgent.Core.Tests.csproj" # test xUnit della libreria core
-NOME_CONTAINER="sir-agent-dotnet-build-$$"                            # nome del container temporaneo (rimosso alla fine)
+PROGETTO_APP="apps/agent-dotnet/src/ArenaLive.Agent.App/ArenaLive.Agent.App.csproj" # progetto dell'exe (WinForms, net10.0-windows)
+PROGETTO_TEST="apps/agent-dotnet/tests/ArenaLive.Agent.Core.Tests/ArenaLive.Agent.Core.Tests.csproj" # test xUnit della libreria core
+NOME_CONTAINER="arenalive-agent-dotnet-build-$$"                            # nome del container temporaneo (rimosso alla fine)
 
 # --- passi ---
 set -euo pipefail
@@ -35,11 +35,11 @@ if (( libero_kb < SPAZIO_MINIMO_GB * 1024 * 1024 )); then
     echo "Spazio libero su / insufficiente: $((libero_kb / 1024 / 1024)) GB, ne servono almeno $SPAZIO_MINIMO_GB (df -h /)" >&2
     exit 1
 fi
-commit="${SIR_COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo locale)}"
+commit="${ARENALIVE_COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo locale)}"
 # L'immagine si rimuove alla fine solo se non c'era già prima della build (non si tolgono immagini di altri).
 immagine_presente=0
 docker image inspect "$IMMAGINE" >/dev/null 2>&1 && immagine_presente=1
-TEMP="$(mktemp -d "$HOME/.sir-agent-dotnet-XXXXXX")"                  # sorgenti copiati, cache NuGet e uscita del container (rimossa alla fine; non in /tmp, che è in RAM)
+TEMP="$(mktemp -d "$HOME/.arenalive-agent-dotnet-XXXXXX")"                  # sorgenti copiati, cache NuGet e uscita del container (rimossa alla fine; non in /tmp, che è in RAM)
 pulisci() {
     docker rm -f "$NOME_CONTAINER" >/dev/null 2>&1 || true
     rm -rf "$TEMP"
@@ -67,17 +67,17 @@ eseguire() {   # comando dentro il container, come l'utente corrente (i file pro
 }
 eseguire dotnet test --project "/work/$PROGETTO_TEST" -c Release
 
-echo "3/4 Pubblicazione di sir-agent.exe (win-x64, exe unico autosufficiente)"
+echo "3/4 Pubblicazione di arenalive-agent.exe (win-x64, exe unico autosufficiente)"
 eseguire dotnet publish "/work/$PROGETTO_APP" -c Release -r win-x64 --self-contained true \
     -p:EnableWindowsTargeting=true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true \
     -p:IncludeNativeLibrariesForSelfExtract=true -p:Version="$VERSIONE" -p:FileVersion="$VERSIONE.0" \
     -p:InformationalVersion="$VERSIONE+$commit" -o /out
 
 echo "4/4 Copia in $USCITA"
-[[ -f "$TEMP/out/sir-agent.exe" ]] || { echo "sir-agent.exe non prodotto" >&2; exit 1; }
+[[ -f "$TEMP/out/arenalive-agent.exe" ]] || { echo "arenalive-agent.exe non prodotto" >&2; exit 1; }
 mkdir -p "$USCITA"
-destinazione="$USCITA/sir-agent-$VERSIONE.exe"
-cp "$TEMP/out/sir-agent.exe" "$destinazione.tmp"
+destinazione="$USCITA/arenalive-agent-$VERSIONE.exe"
+cp "$TEMP/out/arenalive-agent.exe" "$destinazione.tmp"
 mv -f "$destinazione.tmp" "$destinazione"
 sha="$(sha256sum "$destinazione" | awk '{ print $1 }')"
 fine=$(date +%s)

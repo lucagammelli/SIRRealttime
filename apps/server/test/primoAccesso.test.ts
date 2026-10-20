@@ -1,8 +1,8 @@
-import type { ClubLeagueStatus, ClubResponse, OnboardingStatus } from '@sir/shared';
+import type { ClubLeagueStatus, ClubResponse, OnboardingStatus } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { pickSeriesChampionships, seriesById } from '@sir/shared';
+import { pickSeriesChampionships, seriesById } from '@arenalive/shared';
 import { leagues, leagueTeams, tenantLeagues, tenants } from '../src/db/index.js';
 import { discoverChampionships } from '../src/leagues/catalog.js';
 import { LeagueFormatError, parseChampionshipLinkIds, parseChampionshipMenu } from '../src/leagues/legavolley.js';

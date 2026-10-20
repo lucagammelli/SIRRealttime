@@ -1,4 +1,4 @@
-import type { Sponsor, SponsorListResponse } from '@sir/shared';
+import type { Sponsor, SponsorListResponse } from '@arenalive/shared';
 import {
   CreateSponsorRequestSchema,
   IdParamSchema,
@@ -9,7 +9,7 @@ import {
   SponsorOrderRequestSchema,
   SPONSORS_MAX,
   UpdateSponsorRequestSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { count, eq, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../context.js';

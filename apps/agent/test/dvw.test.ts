@@ -1,6 +1,6 @@
-import { generateMatch, renderDvw } from '@sir/dvw-simulator';
+import { generateMatch, renderDvw } from '@arenalive/dvw-simulator';
 import { describe, expect, it } from 'vitest';
-import { MatchKeySchema } from '@sir/shared';
+import { MatchKeySchema } from '@arenalive/shared';
 import { deriveMatchKey, readDvw, suspicion } from '../src/dvw.js';
 
 const match = generateMatch({ seed: 3 });

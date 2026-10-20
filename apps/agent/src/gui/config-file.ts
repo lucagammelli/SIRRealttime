@@ -21,7 +21,7 @@ export type ConfigFileRead =
   { kind: 'ok'; raw: RawConfig } | { kind: 'missing'; message: string } | { kind: 'invalid'; message: string };
 
 export const missingConfigMessage = (file: string): string =>
-  `config.json non trovato (${file}): scaricalo dall'area admin, pagina «Agenti», e mettilo accanto a sir-agent.exe`;
+  `config.json non trovato (${file}): scaricalo dall'area admin, pagina «Agenti», e mettilo accanto a arenalive-agent.exe`;
 
 /** Reads `config.json` without validating it (the window shows what is there). */
 export async function readConfigFile(file: string): Promise<ConfigFileRead> {
@@ -107,7 +107,7 @@ export function registrationDataDir(raw: RawConfig, baseDir: string): string {
 }
 
 /** Where the window writes its script and logs when the configured folders are on the USB stick. */
-export const defaultFallbackDir = (): string => join(tmpdir(), 'SIRAgent');
+export const defaultFallbackDir = (): string => join(tmpdir(), 'ArenaLiveAgent');
 
 /**
  * Folders of the window process (script `gui/window.ps1` and logs) that are safe to write: the configured ones, or

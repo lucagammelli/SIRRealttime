@@ -1,7 +1,7 @@
 # Regole: codice TypeScript
 
 ## Struttura
-- Monorepo pnpm: `apps/*`, `packages/*`, `tools/*`. Ogni pacchetto ha `package.json` con nome `@sir/<nome>`,
+- Monorepo pnpm: `apps/*`, `packages/*`, `tools/*`. Ogni pacchetto ha `package.json` con nome `@arenalive/<nome>`,
   script `build`, `test`, `lint`, `typecheck` (anche se vuoti), e dipende dagli altri con `workspace:*`.
 - `tsconfig.base.json` alla radice (strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, ESM, target ES2023);
   ogni pacchetto lo estende.

@@ -9,7 +9,7 @@ import type {
   TenantIntermissions,
   TenantLayout,
   TenantOverlays,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   AssetListResponseSchema,
   BrandingResponseSchema,
@@ -20,8 +20,8 @@ import {
   OverlaysResponseSchema,
   adminAssetPath,
   SponsorListResponseSchema,
-} from '@sir/shared';
-import type { MatchState } from '@sir/volley-stats';
+} from '@arenalive/shared';
+import type { MatchState } from '@arenalive/volley-stats';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';

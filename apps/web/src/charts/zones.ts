@@ -1,4 +1,4 @@
-import type { MatchState, Side, ZoneCell } from '@sir/volley-stats';
+import type { MatchState, Side, ZoneCell } from '@arenalive/volley-stats';
 
 export type ZoneSkill = 'attack' | 'serve';
 

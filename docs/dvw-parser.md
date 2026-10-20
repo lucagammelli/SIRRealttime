@@ -1,7 +1,7 @@
 # Parser DVW
 
 ## A cosa serve
-`@sir/dvw-parser` (`packages/dvw-parser/`) trasforma un file di scout DataVolley (`.dvw`) in un oggetto `ParsedMatch`
+`@arenalive/dvw-parser` (`packages/dvw-parser/`) trasforma un file di scout DataVolley (`.dvw`) in un oggetto `ParsedMatch`
 con partita, squadre, giocatori, set e righe di scout interpretate. È una funzione pura: nessun I/O, nessuna
 eccezione per righe malformate. Il formato è descritto in `docs/regole/dvw.md`; i file di prova li genera
 `docs/simulatore.md`.
@@ -132,8 +132,8 @@ FILE_DVW="samples/partita-sintetica.dvw"   # file .dvw da leggere (relativo alla
 
 # --- comandi ---
 cd "$RADICE"
-pnpm --filter @sir/dvw-parser test
-pnpm --filter @sir/dvw-parser build
+pnpm --filter @arenalive/dvw-parser test
+pnpm --filter @arenalive/dvw-parser build
 node --input-type=module -e "
 import { readFileSync } from 'node:fs';
 import { parseDvw } from './packages/dvw-parser/dist/index.js';

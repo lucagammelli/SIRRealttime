@@ -1,5 +1,5 @@
-import type { WebManifest } from '@sir/shared';
-import { AssetMimeSchema, publicAssetPath, resolveBranding, webManifest } from '@sir/shared';
+import type { WebManifest } from '@arenalive/shared';
+import { AssetMimeSchema, publicAssetPath, resolveBranding, webManifest } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../context.js';
@@ -11,7 +11,7 @@ import { hostTenant, tenantDisplayName, tenantScope } from '../tenancy.js';
 const MANIFEST_CACHE = 'public, max-age=300';
 
 /**
- * Manifest of the installable app of the client of the hostname (`webManifest` of `@sir/shared`): name shown, colours
+ * Manifest of the installable app of the client of the hostname (`webManifest` of `@arenalive/shared`): name shown, colours
  * (those of the client over those of its template, as on the portal) and square logo of its graphics; without a client
  * the one of the portal. No token: public graphics only.
  */
@@ -37,7 +37,7 @@ export function manifestRoutes(app: FastifyInstance, ctx: AppContext): void {
         .header('content-type', 'application/manifest+json; charset=utf-8')
         .header('cache-control', MANIFEST_CACHE);
       return webManifest({
-        name: tenant ? tenantDisplayName(tenant, branding) : 'SIRRealtime',
+        name: tenant ? tenantDisplayName(tenant, branding) : 'ArenaLive',
         colors: branding.colors,
         template: branding.template,
         logo,

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { contrastRatio, MIN_TEXT_CONTRAST } from '@sir/shared';
+import { contrastRatio, MIN_TEXT_CONTRAST } from '@arenalive/shared';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { menuGroups, SUPERADMIN_MENU } from './AdminSidebar.tsx';

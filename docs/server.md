@@ -1,8 +1,8 @@
 # Server
 
 ## A cosa serve
-`@sir/server` (`apps/server/`) è il backend di SIRRealtime. Riceve dall'agente le righe di scout DataVolley (ingest),
-le salva in Postgres, ricalcola lo stato della partita con `@sir/dvw-parser` e `@sir/volley-stats` e lo spinge via
+`@arenalive/server` (`apps/server/`) è il backend di ArenaLive. Riceve dall'agente le righe di scout DataVolley (ingest),
+le salva in Postgres, ricalcola lo stato della partita con `@arenalive/dvw-parser` e `@arenalive/volley-stats` e lo spinge via
 WebSocket ai client. Offre anche le API di amministrazione (agenti, link pubblici, utenti, partite) e l'accesso in sola
 lettura tramite link pubblici. I contratti sono in `packages/shared` (vedi `docs/architettura.md`).
 
@@ -125,7 +125,7 @@ resta 1.
   salvataggio.
 - **Esporta / importa la grafica** (`src/routes/graphicsTransfer.ts`, contratto `GraphicsExportSchema` in
   `packages/shared/src/graphicsExport.ts`): `GET /api/admin/branding/export` (admin) scarica un pacchetto JSON
-  (`Content-Disposition: attachment; filename="grafica-<slug>-<data>.json"`) con `format: "sirrealtime-grafica"`,
+  (`Content-Disposition: attachment; filename="grafica-<slug>-<data>.json"`) con `format: "arenalive-grafica"` (l'importazione accetta ancora il vecchio `sirrealtime-grafica`),
   `version: 1`, `exportedAt`, `sourceName` (nome del cliente), `branding`, `layout`, `intermissions`, `overlays` e le
   immagini usate (loghi del branding, immagini singole e immagini degli sponsor scelti: id originale, tipo, mime, base64) e
   `sponsors` (gli sponsor scelti da pagina e pause: id originale, nome, sito, `imageIds`; la `version` resta 1, un
@@ -233,7 +233,7 @@ modello.
 ### Pause della partita (`apps/server/src/routes/branding.ts`)
 Ogni cliente sceglie cosa vede il pubblico durante i time-out, a fine set e a fine partita (`TenantIntermissionsSchema`,
 `tenants.intermissions`; forma, predefiniti e regole in `docs/architettura.md`, schermate ed editor in `docs/portale.md`).
-La fase della partita (`state.phase`) è calcolata da `@sir/volley-stats` (`docs/statistiche.md`): il server non decide
+La fase della partita (`state.phase`) è calcolata da `@arenalive/volley-stats` (`docs/statistiche.md`): il server non decide
 nulla, la fase viaggia nello stato come ogni altro campo. `{}` è valido e vale i predefiniti (`resolveIntermissions`).
 
 - **Rotte admin** (ruolo `admin`; il superadmin lavora sul cliente attivo, `adminTenantId`): `GET /api/admin/intermissions`
@@ -287,7 +287,7 @@ sponsor delle pause scelgono gli sponsor e ne mostrano le immagini a rotazione (
 Ogni cliente sceglie quali eventi della partita (ace, set point, match point…) compaiono come avviso breve sopra la pagina
 pubblica, con testo, durata, dispositivi e priorità (`TenantOverlaysSchema`, `tenants.overlays`; forma, segnaposto e
 predefiniti in `docs/architettura.md`, schermata ed editor in `docs/portale.md`). Gli eventi (`state.events`) sono calcolati
-da `@sir/volley-stats` (`docs/statistiche.md`) e viaggiano nello stato come ogni altro campo: il server non decide nulla.
+da `@arenalive/volley-stats` (`docs/statistiche.md`) e viaggiano nello stato come ogni altro campo: il server non decide nulla.
 `{}` è valido e vale i predefiniti (`resolveOverlays`).
 
 - **Rotte admin** (ruolo `admin`; il superadmin lavora sul cliente attivo, `adminTenantId`): `GET /api/admin/overlays` e
@@ -301,19 +301,19 @@ da `@sir/volley-stats` (`docs/statistiche.md`) e viaggiano nello stato come ogni
 ### Agente scaricabile (`apps/server/src/routes/agentDownload.ts`)
 Il portale offre l'agente per Windows come zip già pronto per il cliente (portale: `docs/portale.md`, pagina «Agenti»;
 finestra e grafica: `docs/agente.md`; costruzione dell'exe: `docs/infrastruttura.md`). L'exe è **uno solo per tutti i
-clienti**, costruito da `scripts/costruisci-agente.sh` in `AGENT_DOWNLOAD_DIR` insieme a `sir-agent.json`
+clienti**, costruito da `scripts/pubblica-agente-produzione.sh` (agente C#, via `scripts/costruisci-agente-dotnet.sh`; l'exe Node si fa a mano con `scripts/costruisci-agente.sh`) in `AGENT_DOWNLOAD_DIR` insieme a `arenalive-agent.json`
 (`AgentReleaseSchema`: `version`, `builtAt`, `sha256`, `nodeVersion` facoltativa); lo zip è generato **a ogni richiesta**.
 
 - **Rotte** (ruolo `admin`; il superadmin lavora sul cliente attivo, `adminTenantId`; un viewer riceve 403):
   - `GET /api/admin/agent/info` → `AgentDownloadInfo`: `{ available: false }` oppure `available`, `version`, `builtAt`,
     `bytes`, `sha256`, `fileName`. Risposta `no-store`.
-  - `GET /api/admin/agent/download` → lo zip `SIRRealtime-agente-<slug>-<versione>.zip` (`agentDownloadFileName`),
+  - `GET /api/admin/agent/download` → lo zip `ArenaLive-agente-<slug>-<versione>.zip` (`agentDownloadFileName`),
     `Content-Type: application/zip`, `Content-Disposition: attachment`, `Content-Length` noto, `no-store`. Se l'exe non è
     pubblicato: 404 «L’agente non è ancora stato pubblicato sul server» (apostrofo tipografico). Ha un limite proprio
     (`RATE_LIMIT_AGENT_DOWNLOAD`, 10 al minuto per IP), separato da quello delle altre rotte admin.
-- **Contenuto dello zip**, tutto nella cartella `SIRRealtime-agente/` (`AGENT_ZIP_FOLDER`):
-  - `sir-agent.exe`;
-  - `config.json`: `watchPath` `E:\`, `serverUrl`, `dataDir` `C:\SIRAgent\data`, `logDir` `C:\SIRAgent\logs`
+- **Contenuto dello zip**, tutto nella cartella `ArenaLive-agente/` (`AGENT_ZIP_FOLDER`):
+  - `arenalive-agent.exe`;
+  - `config.json`: `watchPath` `E:\`, `serverUrl`, `dataDir` `C:\ArenaLiveAgent\data`, `logDir` `C:\ArenaLiveAgent\logs`
     (`agentDownloadConfig`). **Mai un token**: arriva con la registrazione automatica. `serverUrl` è l'URL pubblico del
     cliente (`publicBaseUrlFor`), **mai ricavato dall'header `Host`**; `allowHttpPrivateNetwork: true` c'è solo per `http`
     verso un IPv4 privato (prove in LAN);
@@ -322,10 +322,10 @@ clienti**, costruito da `scripts/costruisci-agente.sh` in `AGENT_DOWNLOAD_DIR` i
     `packages/shared/src/colors.ts`, la stessa funzione del manifest e degli avvisi di contrasto);
   - `logo.png` o `logo.jpg`: il logo orizzontale (`logoMain`), altrimenti quello quadrato (`logoMark`), solo se PNG o JPEG,
     fino a 2 MB e 1024×1024 px; SVG e WebP sono esclusi (WinForms non li legge). Senza un logo adatto non c'è;
-  - `LEGGIMI.txt` (UTF-8 con BOM, fine riga CRLF): installazione in `C:\SIRAgent`, SmartScreen («Ulteriori informazioni» →
+  - `LEGGIMI.txt` (UTF-8 con BOM, fine riga CRLF): installazione in `C:\ArenaLiveAgent`, SmartScreen («Ulteriori informazioni» →
     «Esegui comunque»), registrazione e sha256 dell'exe (`readmeText`).
 - **Controllo dell'exe** (`AgentReleaseStore`, `apps/server/src/agentRelease.ts`): l'exe è offerto solo se lo sha256 del
-  file coincide con `sir-agent.json`; sha256 e CRC-32 si calcolano **una volta per versione** del file (inode, dimensione,
+  file coincide con `arenalive-agent.json`; sha256 e CRC-32 si calcolano **una volta per versione** del file (inode, dimensione,
   data di modifica). Il file è aperto una volta per richiesta: se viene sostituito durante un download, quel download
   continua a leggere il vecchio file e non si rompe. Manca o non coincide: «non disponibile» (con un messaggio nel log).
 - **Zip scritto in casa** (`apps/server/src/lib/zip.ts`, `zipStream`): formato «store» (senza compressione), CRC con
@@ -364,7 +364,7 @@ partita (`fixtures.external_id`) è il **numero ufficiale** (`n<numero>`; senza 
 - timeout di 15 s (`DOWNLOAD_TIMEOUT_MS`) valido anche per la lettura del corpo; al massimo 2 MB per pagina e 300 KB per
   logo (`DOWNLOAD_LIMITS`), contati **anche dopo la decompressione**;
 - una richiesta per volta, con almeno 1 s fra due partenze (`MIN_REQUEST_INTERVAL_MS`);
-- `User-Agent` `SIRRealtime/<versione> (+<contatto>)` (`leagueUserAgent`), con contatto `LEAGUE_CONTACT` o, se manca,
+- `User-Agent` `ArenaLive/<versione> (+<contatto>)` (`leagueUserAgent`), con contatto `LEAGUE_CONTACT` o, se manca,
   `PUBLIC_BASE_URL`;
 - richieste condizionate (`ETag` / `Last-Modified` in `league_http_cache`), salvate **solo dopo** la scrittura dei dati: un
   aggiornamento fallito riscarica tutto;
@@ -601,7 +601,7 @@ del cliente, altrimenti 400):
   (torna l'ufficiale: nulla da congelare). Per una manuale cambia `starts_at` e `null` dà 400 «Una partita aggiunta a mano ha
   sempre una data». Aggiorna l'etichetta del link, poi `refreshClub`, `closeNotBroadcast` e `announceFixture`. La
   sincronizzazione (`leagues/sync.ts`, `refreshClientFixtures`) non tocca queste colonne e continua ad aggiornare
-  risultato, stato e data ufficiale. **Data effettiva** (`effectiveStartsAt` di `@sir/shared`; in SQL `effectiveStartSql` in
+  risultato, stato e data ufficiale. **Data effettiva** (`effectiveStartsAt` di `@arenalive/shared`; in SQL `effectiveStartSql` in
   `apps/server/src/club.ts` = `coalesce(override_starts_at, starts_at)`): usata per l'abbinamento dei `.dvw`, il piano del
   giorno di gara, la «Prossima partita», il canale e i link; `ClubFixture.startsAt` è la data effettiva,
   `officialStartsAt` quella della Lega, `movedByLeague` dice che la Lega l'ha spostata dopo la modifica a mano;
@@ -651,7 +651,7 @@ copre da solo quelle nuove.
 
 **Manifest dell'app** (`routes/manifest.ts`, `GET /api/public/manifest.webmanifest`, rate limit pubblico,
 `Cache-Control: public, max-age=300`): `webManifest` di `packages/shared/src/manifest.ts` con nome mostrato, colori (risolti con `resolveBrandColors`: quelli del cliente sopra quelli del template) e logo
-quadrato (`logoMark`) del cliente dell'hostname; senza cliente quelli del portale («SIRRealtime»).
+quadrato (`logoMark`) del cliente dell'hostname; senza cliente quelli del portale («ArenaLive»).
 
 ### Ingest (`POST /api/ingest`, protocollo 1)
 L'agente invia una richiesta `IngestRequest` (`packages/shared/src/ingest.ts`):
@@ -866,7 +866,10 @@ della sessione, il superadmin su quello scelto):
   HMAC-SHA256(`SHARE_CODE_SECRET`, id del link, più `:<salt>` se il salt è > 0) (`deriveShortCode`,
   `src/lib/shortCode.ts`), quindi si ricalcola ogni volta che serve (anche per riscaricare il QR). Nel database c'è solo
   `short_code_hash` (unica) = HMAC con chiave derivata dal segreto su `lookup:<codice>` (`shortCodeLookupHash`), più
-  `short_code_salt`: una copia del database da sola non permette di provare offline i 2^40 codici.
+  `short_code_salt`: una copia del database da sola non permette di provare offline i 2^40 codici. **Eccezione alla
+  rinomina**: l'etichetta usata per derivare la chiave di ricerca (`sirrealtime:short-code-lookup-key`) è rimasta quella
+  vecchia, perché cambiarla invaliderebbe i codici brevi dei link ripristinati dalla vecchia produzione
+  (`docs/infrastruttura.md`, «Migrare i dati dalla vecchia produzione»).
   - Creazione (`insertShareToken`, `src/shareCodes.ts`): l'id è scelto prima dell'insert; su collisione di codice si
     passa al salt successivo (massimo 16, `MAX_SHORT_CODE_SALT`, poi `ShortCodeError`). `ensureShortCode` assegna il
     codice ai link senza (o con hash non più coerente) al primo elenco; `syncShortCodes` lo fa per tutti i link non
@@ -883,7 +886,7 @@ della sessione, il superadmin su quello scelto):
     del minuto durante il blocco globale (i link lunghi funzionano).
   - Cambiando `SHARE_CODE_SECRET` cambiano **tutti** i codici: i QR stampati smettono di funzionare, i link lunghi
     restano.
-- **Sessioni admin e viewer**: login con email e password (argon2id) su `/api/auth/login`; cookie `sir_session`
+- **Sessioni admin e viewer**: login con email e password (argon2id) su `/api/auth/login`; cookie `arenalive_session`
   (`httpOnly`, `SameSite=Lax`, `Secure` secondo `COOKIE_SECURE`), durata `SESSION_TTL_HOURS`. Ruoli: `viewer` (sola lettura: partite, club,
   calendario, agenti, link e grafica; mai utenti e richieste di registrazione né scritture, 403), `admin` (tutto il resto del proprio cliente) e `superadmin` (anche i clienti; vedi «Clienti»). Le scritture
   dal browser (`POST`/`PATCH`/`DELETE` su `/api/auth/*` e `/api/admin/*`) richiedono corpo JSON e, se presente, un `Origin`
@@ -893,9 +896,9 @@ della sessione, il superadmin su quello scelto):
 
 ### Versione (`src/buildInfo.ts`)
 La versione è il campo `version` del `package.json` alla radice (unica fonte, `docs/regole/test-job-rilasci.md`). Il build del
-server scrive `dist/build-info.json` (`version` e `commit` corto, da `SIR_COMMIT` o da git: `scripts/scrivi-versione.mjs`);
+server scrive `dist/build-info.json` (`version` e `commit` corto, da `ARENALIVE_COMMIT` o da git: `scripts/scrivi-versione.mjs`);
 `buildInfo()` lo legge, altrimenti (test, `pnpm dev`) legge il `package.json` alla radice, altrimenti `0.0.0`. La usano
-`GET /api/health` e lo User-Agent dei download dei campionati (`SIRRealtime/<versione>`).
+`GET /api/health` e lo User-Agent dei download dei campionati (`ArenaLive/<versione>`).
 
 ### Endpoint
 
@@ -1123,7 +1126,7 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `ASSETS_DIR` | `data/assets` (container: `/data/assets`) | cartella delle immagini dei clienti, una sottocartella per cliente; nel compose è il volume `assets` |
 | `ASSETS_QUOTA_MB` | `50` | spazio massimo delle immagini di ogni cliente, in MB (intero da 1 a 1000); oltre, 409 |
 | `RATE_LIMIT_AGENT_DOWNLOAD` | `10` | richieste al minuto per IP su `GET /api/admin/agent/download` (intero da 1 a 100000) |
-| `AGENT_DOWNLOAD_DIR` | `data/downloads` (container: `/data/downloads`) | cartella con `sir-agent.exe` e `sir-agent.json` (da `scripts/costruisci-agente.sh`); relativa alla cartella di avvio; vuota: il portale dice che l'agente non è pubblicato |
+| `AGENT_DOWNLOAD_DIR` | `data/downloads` (container: `/data/downloads`) | cartella con `arenalive-agent.exe` e `arenalive-agent.json` (da `scripts/costruisci-agente.sh`); relativa alla cartella di avvio; vuota: il portale dice che l'agente non è pubblicato |
 | `RATE_LIMIT_LEAGUE_SYNC` | `6` | «Aggiorna ora» dei campionati al minuto per IP su `POST /api/admin/leagues/:id/sync` (intero da 1 a 100000) |
 | `RATE_LIMIT_PASSWORD_RESET` | `10` | richieste al minuto per IP su `/api/auth/links/:token`, `/api/auth/invite/accept`, `/api/auth/password-reset/request` e `/confirm` (intero da 1 a 100000) |
 | `SETTINGS_ENCRYPTION_KEY` | assente | chiave di 32 byte in base64 che cifra la password del server di posta in `mail_settings`. Senza, la pagina «Posta» funziona ma non salva la password (409). Se non è di 32 byte l'avvio fallisce. Se cambia, la password salvata non si legge più: va reinserita in «Posta» |
@@ -1139,7 +1142,7 @@ vecchio limite: oltre 120 richieste al minuto dallo stesso IP gli spettatori son
 connessi su 1000). Va tolto o alzato, poi `docker
 compose up -d` per ricreare il servizio `server`.
 
-Variabili solo per Docker Compose: `POSTGRES_DB` (`sir`), `POSTGRES_USER` (`sir`), `POSTGRES_PASSWORD` (obbligatoria),
+Variabili solo per Docker Compose: `POSTGRES_DB` (`arenalive`), `POSTGRES_USER` (`arenalive`), `POSTGRES_PASSWORD` (obbligatoria),
 `SERVER_BIND` (`127.0.0.1`, indirizzo su cui è pubblicata la 8090), `WEB_BIND` (`127.0.0.1`) e `WEB_PORT` (`8080`) per il
 portale (`docs/portale.md`) e `AGENT_DOWNLOAD_HOST_DIR` (cartella dell'host montata in sola lettura su `/data/downloads`
 del server, cioè `AGENT_DOWNLOAD_DIR`; senza, il volume Docker `downloads`, vuoto finché non lo si riempie). Va impostata
@@ -1185,7 +1188,7 @@ CHECK `tenants_agent_quota_check`.
 La migrazione `0002_tenants.sql` crea il cliente «Predefinito» (slug `predefinito`), gli assegna tutti i dati esistenti e
 solo dopo rende `tenant_id` NOT NULL.
 
-Le migrazioni generate (`pnpm --filter @sir/server db:generate`) stanno in `apps/server/drizzle` e sono applicate
+Le migrazioni generate (`pnpm --filter @arenalive/server db:generate`) stanno in `apps/server/drizzle` e sono applicate
 all'avvio (`database.migrate()` in `src/main.ts`). Il driver dipende da `DATABASE_URL` (`src/db/index.ts`,
 `createDatabase`): `pg` per `postgres://…`, PGlite per `pglite:`. I token sono salvati solo come hash sha256.
 
@@ -1206,7 +1209,7 @@ corepack enable
 pnpm install
 DATABASE_URL="pglite:memory" COOKIE_SECURE="false" \
   ADMIN_EMAIL="$ADMIN_EMAIL_DEV" ADMIN_PASSWORD="$ADMIN_PASSWORD_DEV" \
-  pnpm --filter @sir/server dev
+  pnpm --filter @arenalive/server dev
 ```
 
 Secondo terminale (login con cookie, token agente, link pubblico, stato):
@@ -1216,7 +1219,7 @@ Secondo terminale (login con cookie, token agente, link pubblico, stato):
 SERVER="http://127.0.0.1:8090"           # indirizzo del server (PORT di default 8090)
 ADMIN_EMAIL_DEV="admin@example.com"      # la stessa email usata all'avvio
 ADMIN_PASSWORD_DEV="password-di-prova-1" # la stessa password usata all'avvio
-COOKIE_JAR="/tmp/sir-cookie.txt"         # file dove curl salva il cookie di sessione
+COOKIE_JAR="/tmp/arenalive-cookie.txt"         # file dove curl salva il cookie di sessione
 TENANT_ID="<id>"                         # campo "id" del cliente in cui entrare, da GET /api/admin/tenants (il superadmin fuori da un cliente riceve 409)
 
 # --- comandi ---
@@ -1254,7 +1257,7 @@ Prova dell'auto-registrazione (stesso server e stesso `COOKIE_JAR`; l'abilitazio
 ```bash
 # --- variabili ---
 SERVER="http://127.0.0.1:8090"   # indirizzo del server
-COOKIE_JAR="/tmp/sir-cookie.txt" # cookie di sessione admin ottenuto con il login sopra
+COOKIE_JAR="/tmp/arenalive-cookie.txt" # cookie di sessione admin ottenuto con il login sopra
 NOME_AGENTE="PC scout"           # nome dell'agente che chiede la registrazione
 SEGRETO="<secret>"               # campo "secret" della risposta alla prima chiamata
 ID_REGISTRAZIONE="<id>"          # campo "id" della richiesta in GET /api/admin/agent-registrations
@@ -1275,11 +1278,11 @@ Il token agente va nell'intestazione `Authorization: Bearer <token>` di `POST /a
 
 | Comando | Cosa fa |
 |---|---|
-| `pnpm --filter @sir/server dev` | `tsx watch --conditions=@sir/source src/main.ts` (legge i sorgenti) |
-| `pnpm --filter @sir/server build` | compila in `dist/` |
-| `pnpm --filter @sir/server start` | `node dist/main.js` (serve la build) |
-| `pnpm --filter @sir/server test` | `vitest run` con PGlite in memoria, non serve Postgres |
-| `pnpm --filter @sir/server db:generate` | `drizzle-kit generate` dopo una modifica a `schema.ts` |
+| `pnpm --filter @arenalive/server dev` | `tsx watch --conditions=@arenalive/source src/main.ts` (legge i sorgenti) |
+| `pnpm --filter @arenalive/server build` | compila in `dist/` |
+| `pnpm --filter @arenalive/server start` | `node dist/main.js` (serve la build) |
+| `pnpm --filter @arenalive/server test` | `vitest run` con PGlite in memoria, non serve Postgres |
+| `pnpm --filter @arenalive/server db:generate` | `drizzle-kit generate` dopo una modifica a `schema.ts` |
 
 I test (`apps/server/test/`: `auth`, `config`, `hub`, `ingest`, `limits`, `migration`, `public`, `registration`, `shortCodes`, `tenants`, `leagues`, `leaguesHtml`, `leagueFetcher`, `legavolley`, `club`, `fixtureMatch`) usano PGlite; `startServer` (`apps/server/test/helpers.ts`) accetta come terzo argomento l'opzione `startAt` (una `Date`):
 l'orologio del server parte da quella data invece che da quella vera, per i test che dipendono dal giorno; i campionati non scaricano
@@ -1287,7 +1290,7 @@ nulla: i test di `legavolley` leggono le pagine vere salvate in `apps/server/tes
 di vitest vedi `docs/infrastruttura.md`.
 
 ### Docker Compose
-`docker-compose.yml` (nome progetto `sir-realtime`) ha tre servizi:
+`docker-compose.yml` (nome progetto `arenalive`) ha tre servizi:
 
 - `postgres` (immagine `postgres:17`, volume `pgdata`, healthcheck `pg_isready`);
 - `server` (build da `docker/server.Dockerfile`, parte quando Postgres è sano, healthcheck su `/api/health`, porta
@@ -1356,13 +1359,13 @@ o cambiano rotte. Le regole per i falsi positivi motivati sono in `scripts/dast/
 
 - Lo script avvia il server con PGlite in memoria con i `RATE_LIMIT_*` a 100000 tranne `RATE_LIMIT_LEAGUE_SYNC`, che resta al valore predefinito perché le rotte di scelta e aggiornamento della serie scaricano davvero da legavolley.it, e con `LEAGUE_SYNC=off` (nessun aggiornamento automatico), aspetta `/api/health`, lo ferma alla
   fine (trap).
-- Crea con le API un **admin del cliente «Predefinito»** (`scan@sir.local`; non il superadmin, che fuori da un cliente
-  avrebbe 409 su ogni rotta admin) e un token agente; fa il login e passa a ZAP il cookie `sir_session` e l'intestazione
+- Crea con le API un **admin del cliente «Predefinito»** (`scan@arenalive.local`; non il superadmin, che fuori da un cliente
+  avrebbe 409 su ogni rotta admin) e un token agente; fa il login e passa a ZAP il cookie `arenalive_session` e l'intestazione
   `Authorization: Bearer <token agente>` (regole `replacer` di ZAP) per raggiungere anche `/api/ingest`.
   `/api/auth/logout` non è nella specifica ed è escluso anche in ZAP. Le rotte del solo superadmin rispondono 403.
 - I WebSocket (`/ws/public/:token`, `/ws/admin`) e il portale web **non sono coperti** (le intestazioni del portale le
   mette nginx, non il server di prova).
-- Report in `~/sir-dast-report/` (`DAST_REPORT_DIR` per cambiarlo): `zap-report.html`, `zap-report.json`, `zap.log`.
+- Report in `~/arenalive-dast-report/` (`DAST_REPORT_DIR` per cambiarlo): `zap-report.html`, `zap-report.json`, `zap.log`.
   Uscita 0 pulito, 1 se restano avvisi di rischio Alto o Medio non ignorati, 2 errore di preparazione.
 
 Esito storico del 2026-10-14 (StackHawk): 3 scansioni, soglia PASS. Due risultati di gravità Low sono segnati come falsi positivi:
@@ -1379,7 +1382,7 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
 ## Riferimenti
 - `scripts/dast_zap.sh`, `scripts/dast/openapi.yaml`, `scripts/dast/zap-regole.tsv`
 - `apps/server/src/main.ts` (avvio), `app.ts` (`buildApp`, plugin, gestione errori), `config.ts` (`loadConfig`),
-  `context.ts` (limiti, cache, cookie `sir_session`), `ingest.ts` (`IngestService`), `hub.ts` (`LiveHub`, `Frame`,
+  `context.ts` (limiti, cache, cookie `arenalive_session`), `ingest.ts` (`IngestService`), `hub.ts` (`LiveHub`, `Frame`,
   `StatePublisher`, codici di chiusura), `lib/resync.ts` (`ResyncScheduler`), `lib/failureLimiter.ts` (`FailureLimiter`),
   `security.ts` (`requireRole`, `browserWriteGuard`, `sameOriginGuard`, `authenticateAgent`, `bearerHash` condivisa con
   l'ingest), `lib/tokens.ts` (`generatePairingCode`), `state.ts`, `seed.ts`

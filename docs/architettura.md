@@ -43,14 +43,14 @@ simulatore (`docs/agente.md`) o con i test del server (`apps/server/test/ingest.
 
 | Pacchetto | Cartella | Dipende da | Ruolo |
 |---|---|---|---|
-| `@sir/dvw-parser` | `packages/dvw-parser` | - | legge il file DVW (`parseDvw`, `extractScoutLines`) |
-| `@sir/volley-stats` | `packages/volley-stats` | dvw-parser | punteggio e statistiche (`computeMatchState`) |
-| `@sir/shared` | `packages/shared` | dvw-parser, volley-stats | contratti: tipi e schemi zod |
-| `@sir/server` | `apps/server` | dvw-parser, volley-stats, shared | backend |
-| `@sir/agent` | `apps/agent` | dvw-parser, shared | agente Windows (`docs/agente.md`); dev-dependency: dvw-simulator, server, volley-stats (per i test) |
-| `@sir/web` | `apps/web` | shared, volley-stats | portale: pagina pubblica `/live/:token` e `/l/:token` (codice breve) e area `/admin` (`docs/portale.md`); dev-dependency: agent, server, dvw-parser, dvw-simulator (solo per la demo) |
-| `@sir/carico` | `tools/carico` | dvw-parser, volley-stats, shared | prova di carico dei WebSocket pubblici (`docs/infrastruttura.md`) |
-| `@sir/dvw-simulator` | `tools/dvw-simulator` | dvw-parser | genera e "suona" file DVW sintetici; è anche dev-dependency di volley-stats e shared (per i test); il server lo usa anche a runtime per la simulazione di una partita (`planPlayback`, `generateMatch`) |
+| `@arenalive/dvw-parser` | `packages/dvw-parser` | - | legge il file DVW (`parseDvw`, `extractScoutLines`) |
+| `@arenalive/volley-stats` | `packages/volley-stats` | dvw-parser | punteggio e statistiche (`computeMatchState`) |
+| `@arenalive/shared` | `packages/shared` | dvw-parser, volley-stats | contratti: tipi e schemi zod |
+| `@arenalive/server` | `apps/server` | dvw-parser, volley-stats, shared | backend |
+| `@arenalive/agent` | `apps/agent` | dvw-parser, shared | agente Windows (`docs/agente.md`); dev-dependency: dvw-simulator, server, volley-stats (per i test) |
+| `@arenalive/web` | `apps/web` | shared, volley-stats | portale: pagina pubblica `/live/:token` e `/l/:token` (codice breve) e area `/admin` (`docs/portale.md`); dev-dependency: agent, server, dvw-parser, dvw-simulator (solo per la demo) |
+| `@arenalive/carico` | `tools/carico` | dvw-parser, volley-stats, shared | prova di carico dei WebSocket pubblici (`docs/infrastruttura.md`) |
+| `@arenalive/dvw-simulator` | `tools/dvw-simulator` | dvw-parser | genera e "suona" file DVW sintetici; è anche dev-dependency di volley-stats e shared (per i test); il server lo usa anche a runtime per la simulazione di una partita (`planPlayback`, `generateMatch`) |
 
 ### Contratti di `packages/shared`
 Esportati da `packages/shared/src/index.ts` (`admin.ts`, `assets.ts`, `colors.ts`, `ingest.ts`, `intermissions.ts`, `layout.ts`, `messages.ts`, `ourTeam.ts`, `overlays.ts`, `patch.ts`, `registration.ts`, `simulation.ts`, `templates.ts`, `tenant.ts`, `graphicsExport.ts`).
@@ -157,9 +157,9 @@ predefinito `standard`, `ourTeam` predefinito `{ code: null, name: null }`, `dis
 `colors` con `primary`, `accent`, `home`, `away`, `background` in `#rrggbb` facoltativi, `logoMain`, `logoMark`,
 `sponsorLogo`; `TENANT_CONFIG_VERSION` resta 1 perché ogni campo è facoltativo e `{}` è valido), `BrandColorsSchema`,
 `BRANDING_IMAGE_SLOTS`, `defaultBranding`, `resolveBranding`, `publicAssetPath` (pagina pubblica), `adminAssetPath` (`/api/admin/assets/<id>/file`, area riservata, indipendente
-dall'hostname; i documenti salvati contengono solo gli id), `DEFAULT_BRAND_NAME` («SIRRealtime»),
+dall'hostname; i documenti salvati contengono solo gli id), `DEFAULT_BRAND_NAME` («ArenaLive»),
 `PublicTenantResponseSchema` (`GET /api/public/tenant`), `BrandingResponseSchema` (`GET`/`PUT /api/admin/branding`).
-Pacchetto di esportazione della grafica (`graphicsExport.ts`): `GraphicsExportSchema` (`format: "sirrealtime-grafica"`, `version: 1`,
+Pacchetto di esportazione della grafica (`graphicsExport.ts`): `GraphicsExportSchema` (`format: "arenalive-grafica"` (`GRAPHICS_EXPORT_FORMAT`; si importa ancora il vecchio `sirrealtime-grafica`, `LEGACY_GRAPHICS_EXPORT_FORMATS`), `version: 1`,
 `exportedAt`, `sourceName`, `branding`, `layout`, `intermissions`, `overlays`, `images` con id, tipo, mime e base64; nessun dato di
 partite, utenti, agenti, link o hostname), `GraphicsImportResponseSchema`, i limiti `GRAPHICS_EXPORT_MAX_IMAGES`,
 `GRAPHICS_IMPORT_BODY_LIMIT`, `GRAPHICS_EXPORT_MAX_BASE64` e le funzioni pure `graphicsImageIds` e `remapGraphicsImageIds`.
@@ -220,7 +220,7 @@ modello, superfici scure `darkSurface` / `darkInkSurface` / `darkBackground`, im
 - **Generazione del CSS**: `themeCss` (`packages/shared/src/themeCss.ts`) trasforma il documento `css` in regole sotto
   `[data-template='<id>']`; lo script `apps/web/scripts/gen-themes.ts` le scrive in
   `apps/web/src/styles/themes.generated.css` (importato da `styles/index.css`, file **generato**, ma versionato). Comando:
-  `pnpm --filter @sir/web themes` (con `--check` non scrive e fallisce se il file non è aggiornato; lo controlla anche
+  `pnpm --filter @arenalive/web themes` (con `--check` non scrive e fallisce se il file non è aggiornato; lo controlla anche
   un test, `lib/themes.test.ts`). Il CSS si genera in anticipo e arriva al browser come file statico, non come stile
   inserito a runtime, perché la CSP del portale ammette solo `style-src 'self'`.
 - Procedura per un nuovo tema personalizzato: «Come aggiungere un tema personalizzato per un cliente» in
@@ -252,7 +252,7 @@ stesse delle diapositive omonime): `period` (`STAT_PERIODS`: `set` predefinito, 
 (`SCORERS_MIN` 3 - `SCORERS_MAX` 8, predefinito 5) e in `attack` (`ATTACKERS_MIN` 1 - `ATTACKERS_MAX` 5, predefinito 3);
 `role` in `roleDuel` (`DUEL_ROLE_CHOICES`: `rotate` predefinito, cioè un duello per ogni ruolo, oppure
 `opposite`/`outside`/`middle`/`setter`/`libero`); `rows` in `teamDuel` (`TEAM_DUEL_KEYS` di volley-stats, chiavi delle righe di `teamDuel`
-di `@sir/volley-stats`; vuoto = tutte); `qr` in `nextMatch` (booleano, predefinito `true`); `scope` in `standings`
+di `@arenalive/volley-stats`; vuoto = tutte); `qr` in `nextMatch` (booleano, predefinito `true`); `scope` in `standings`
 (`STANDINGS_SCOPES`: `top` le prime `count` righe, `all` tutta, `around` la nostra squadra ±`STANDINGS_AROUND` = 2;
 predefinito `around`) e `count` (`STANDINGS_MIN_ROWS` 3 - `STANDINGS_MAX_ROWS` 16, predefinito 5, usato solo da `top`). Regole sull'elenco
 (`DeviceBlocksSchema`): id unici, un solo `scoreboard`, larghezze ammesse. `{}` vale il predefinito
@@ -286,7 +286,7 @@ tutto schermo su ogni dispositivo, ritardo 5 s, con `finalResult`, `mvp`, `setSc
 `period: 'match'`, `standings`, `nextMatch`, un messaggio `THANKS_MESSAGE` («Grazie per aver seguito la partita», grande) e sponsor.
 `milestone` (`MilestoneIntermissionSchema`) ha in più `every` (punti fra due pause, somma dei due punteggi del set:
 `MILESTONE_MIN_EVERY` 4 - `MILESTONE_MAX_EVERY` 25, predefinito 8) e `stopBeforeEnd` K (predefinito 5: nessuna pausa se una
-squadra è a K punti o meno dal traguardo del set, 25 o 15 al tie-break, calcolato da `@sir/volley-stats`, non nel
+squadra è a K punti o meno dal traguardo del set, 25 o 15 al tie-break, calcolato da `@arenalive/volley-stats`, non nel
 contratto); predefiniti: attiva per tutti i clienti, banda su tablet e telefono e tutto schermo su TV, ritardo 3 s,
 diapositive `setScorers` e `teamDuel` del set in corso. Funzioni pure:
 `resolveIntermissions` (un documento non valido vale i predefiniti), `intermissionFor(config, kind, set?)` (la pausa da
@@ -313,7 +313,7 @@ propri (facoltativi) e `overlayPlacement(config, overlay)` dà i valori in uso. 
 (`GET`/`PUT /api/admin/overlays`); `PublicTenantResponseSchema` contiene anche `overlays`. `TENANT_CONFIG_VERSION` resta 1.
 Server in `docs/server.md` («Avvisi sugli eventi»), portale ed editor in `docs/portale.md`.
 
-Agente scaricabile (`agentDownload.ts`): `AgentReleaseSchema` (`sir-agent.json`: `version`, `builtAt`, `sha256`,
+Agente scaricabile (`agentDownload.ts`): `AgentReleaseSchema` (`arenalive-agent.json`: `version`, `builtAt`, `sha256`,
 `nodeVersion` facoltativa), `AgentDownloadInfoSchema` (`GET /api/admin/agent/info`: `available` e, se vero, `version`,
 `builtAt`, `bytes`, `sha256`, `fileName`), `AgentBrandingSchema` (`branding.json` versione `AGENT_BRANDING_VERSION` 1: nome e
 sei colori `#rrggbb`, strict) con `agentBranding(nome, colori)`, `agentDownloadConfig(serverUrl)` (`config.json` dello zip:
@@ -407,7 +407,7 @@ Ogni schema ha il tipo omonimo senza `Schema` (`z.infer`). Dettagli d'uso: `docs
 
 **Schemi per l'agente C#**: l'agente in C# (`apps/agent-dotnet`, `docs/agente.md`) non può importare gli schemi zod, quindi
 `packages/shared/scripts/agent-schemas.ts` elenca quelli che lo riguardano (ingest, registrazione, errore API, grafica
-dell'agente) e `pnpm --filter @sir/shared schemi:agente` (`genera-schemi-agente.ts`) li scrive come JSON Schema in
+dell'agente) e `pnpm --filter @arenalive/shared schemi:agente` (`genera-schemi-agente.ts`) li scrive come JSON Schema in
 `apps/agent-dotnet/schemas/`, con `agent-constants.json`. Sono file generati, da non modificare; `agent-schemas.test.ts`
 fallisce se non sono aggiornati. Chi cambia quei contratti rigenera gli schemi e ricostruisce l'agente C#.
 
@@ -429,9 +429,9 @@ RADICE="/percorso/del/repository"   # radice del repository o del worktree del j
 # --- comandi ---
 cd "$RADICE"
 pnpm install
-pnpm --filter @sir/shared test      # test dei contratti (ingest.test.ts, messages.test.ts, agent-schemas.test.ts)
-pnpm --filter @sir/shared schemi:agente   # rigenera gli schemi JSON dell'agente C#
-pnpm --filter @sir/server test      # il flusso completo agente→server→WebSocket con PGlite
+pnpm --filter @arenalive/shared test      # test dei contratti (ingest.test.ts, messages.test.ts, agent-schemas.test.ts)
+pnpm --filter @arenalive/shared schemi:agente   # rigenera gli schemi JSON dell'agente C#
+pnpm --filter @arenalive/server test      # il flusso completo agente→server→WebSocket con PGlite
 ```
 
 ## Riferimenti

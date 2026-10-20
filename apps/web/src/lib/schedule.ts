@@ -1,5 +1,5 @@
-import type { BlockType, ScheduleFixture, ScheduleResponse, TenantIntermissions } from '@sir/shared';
-import { allIntermissions, ScheduleResponseSchema } from '@sir/shared';
+import type { BlockType, ScheduleFixture, ScheduleResponse, TenantIntermissions } from '@arenalive/shared';
+import { allIntermissions, ScheduleResponseSchema } from '@arenalive/shared';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 
 /**

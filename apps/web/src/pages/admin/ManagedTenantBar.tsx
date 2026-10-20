@@ -1,4 +1,4 @@
-import type { TenantRef } from '@sir/shared';
+import type { TenantRef } from '@arenalive/shared';
 
 /**
  * Bar at the top of every page while a superadmin manages a client: warning colour (`--sir-warn`, distinct from the

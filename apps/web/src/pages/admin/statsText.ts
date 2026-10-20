@@ -1,4 +1,4 @@
-import type { StatsOverview } from '@sir/shared';
+import type { StatsOverview } from '@arenalive/shared';
 
 /** Pure: seconds as «4 min 20 s», «1 h 05 min», «45 s»; 0 or less as «–». */
 export function formatDuration(seconds: number): string {

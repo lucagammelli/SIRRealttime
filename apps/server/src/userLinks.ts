@@ -1,5 +1,11 @@
-import type { InviteDelivery } from '@sir/shared';
-import { DEFAULT_BRAND_NAME, INVITE_TTL_HOURS, publicAssetPath, resolveBranding, RESET_TTL_HOURS } from '@sir/shared';
+import type { InviteDelivery } from '@arenalive/shared';
+import {
+  DEFAULT_BRAND_NAME,
+  INVITE_TTL_HOURS,
+  publicAssetPath,
+  resolveBranding,
+  RESET_TTL_HOURS,
+} from '@arenalive/shared';
 import { and, desc, eq, gt, inArray } from 'drizzle-orm';
 import type { AppContext } from './context.js';
 import { userTokens, users } from './db/index.js';

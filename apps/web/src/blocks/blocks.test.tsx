@@ -1,6 +1,6 @@
-import type { LayoutBlockInput, TenantLayout } from '@sir/shared';
-import { BLOCK_OPTIONS, BLOCK_TYPES, BLOCK_WIDTHS, TenantLayoutSchema } from '@sir/shared';
-import { topPlayers } from '@sir/volley-stats';
+import type { LayoutBlockInput, TenantLayout } from '@arenalive/shared';
+import { BLOCK_OPTIONS, BLOCK_TYPES, BLOCK_WIDTHS, TenantLayoutSchema } from '@arenalive/shared';
+import { topPlayers } from '@arenalive/volley-stats';
 import { act, cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MatchView } from '../components/MatchView.tsx';

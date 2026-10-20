@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ArenaLive.Agent.Core/ArenaLive.Agent.Core.csproj" />
+    <Project Path="src/ArenaLive.Agent.App/ArenaLive.Agent.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ArenaLive.Agent.Core.Tests/ArenaLive.Agent.Core.Tests.csproj" />
+  </Folder>
+</Solution>

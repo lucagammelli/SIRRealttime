@@ -5,7 +5,7 @@ import type {
   ClubResponse,
   LeagueSummary,
   ShareTokenSummary,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderAs } from '../../test/adminPage.tsx';

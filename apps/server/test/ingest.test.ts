@@ -1,9 +1,9 @@
-import { parseDvw } from '@sir/dvw-parser';
-import { applyCorrection, generateMatch, renderDvw } from '@sir/dvw-simulator';
-import type { GeneratedMatch } from '@sir/dvw-simulator';
-import type { IngestResponse, MatchDetail, ServerMessage } from '@sir/shared';
-import { hashScoutLines } from '@sir/shared';
-import { computeMatchState } from '@sir/volley-stats';
+import { parseDvw } from '@arenalive/dvw-parser';
+import { applyCorrection, generateMatch, renderDvw } from '@arenalive/dvw-simulator';
+import type { GeneratedMatch } from '@arenalive/dvw-simulator';
+import type { IngestResponse, MatchDetail, ServerMessage } from '@arenalive/shared';
+import { hashScoutLines } from '@arenalive/shared';
+import { computeMatchState } from '@arenalive/volley-stats';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { matches, scoutLines } from '../src/db/index.js';

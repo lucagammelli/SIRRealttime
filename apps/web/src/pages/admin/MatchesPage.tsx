@@ -1,4 +1,4 @@
-import { MatchSummarySchema } from '@sir/shared';
+import { MatchSummarySchema } from '@arenalive/shared';
 import { useCallback, useEffect } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';

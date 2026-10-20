@@ -2,7 +2,7 @@ import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promi
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
-import { AGENT_QUOTA_MAX, AgentQuotaSchema, DEFAULT_AGENT_QUOTA, DEFAULT_TENANT_SLUG } from '@sir/shared';
+import { AGENT_QUOTA_MAX, AgentQuotaSchema, DEFAULT_AGENT_QUOTA, DEFAULT_TENANT_SLUG } from '@arenalive/shared';
 import { eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';

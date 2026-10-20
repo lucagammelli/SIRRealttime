@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import type { HealthResponse } from '@sir/shared';
+import type { HealthResponse } from '@arenalive/shared';
 import { buildInfo } from '../buildInfo.js';
 import type { AppContext } from '../context.js';
 

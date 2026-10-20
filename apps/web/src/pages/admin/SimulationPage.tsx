@@ -6,7 +6,7 @@ import type {
   SimulationSpeed,
   SimulationStatus,
   SimulationSummary,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   SIMULATION_BREAK_SECONDS,
   SIMULATION_SET_SECONDS,
@@ -14,7 +14,7 @@ import {
   SIMULATION_UPLOAD_MAX_BYTES,
   SimulationResponseSchema,
   StartSimulationRequestSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Card, Empty, ErrorBox, Segmented, Spinner } from '../../components/ui.tsx';

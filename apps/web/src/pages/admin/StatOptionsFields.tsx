@@ -1,7 +1,14 @@
-import type { BlockOptions, DuelRoleChoice, StatPeriod } from '@sir/shared';
-import type { TeamDuelKey } from '@sir/volley-stats';
-import { TEAM_DUEL_KEYS } from '@sir/volley-stats';
-import { ATTACKERS_MAX, ATTACKERS_MIN, DUEL_ROLE_CHOICES, SCORERS_MAX, SCORERS_MIN, STAT_PERIODS } from '@sir/shared';
+import type { BlockOptions, DuelRoleChoice, StatPeriod } from '@arenalive/shared';
+import type { TeamDuelKey } from '@arenalive/volley-stats';
+import { TEAM_DUEL_KEYS } from '@arenalive/volley-stats';
+import {
+  ATTACKERS_MAX,
+  ATTACKERS_MIN,
+  DUEL_ROLE_CHOICES,
+  SCORERS_MAX,
+  SCORERS_MIN,
+  STAT_PERIODS,
+} from '@arenalive/shared';
 import { useId } from 'react';
 import { SHORT_ROW } from '../../blocks/StatSlides.tsx';
 import { inputClass } from './forms.tsx';
@@ -19,7 +26,7 @@ export const isStatType = (type: string): type is StatType => (STAT_TYPES as rea
 
 /**
  * The options edited back on the block or the slide they come from (same type: the options of a statistics block and
- * of the slide of the same type are the same schema of @sir/shared).
+ * of the slide of the same type are the same schema of @arenalive/shared).
  */
 export function withStatOptions<T extends { type: string; options: unknown }>(target: T, item: StatItem): T {
   return item.type === target.type ? { ...target, options: item.options } : target;

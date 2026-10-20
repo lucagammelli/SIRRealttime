@@ -2,7 +2,7 @@
 
 Una riga per decisione: data, scelta, motivo.
 
-- 2026-10-14: monorepo con pnpm workspaces e condizione di export `@sir/source`, perché typecheck e test leggono i
+- 2026-10-14: monorepo con pnpm workspaces e condizione di export `@arenalive/source`, perché typecheck e test leggono i
   sorgenti senza compilare le dipendenze mentre build e runtime usano `dist` (`docs/infrastruttura.md`).
 - 2026-10-14: TypeScript `~6.0.3` al posto di 7, perché typescript-eslint 8.71 non è compatibile con la 7.
 - 2026-10-14: layout DV4 delle righe `[3SCOUT]` e `[3PLAYERS-*]` secondo il progetto openvolley/datavolley, perché è la
@@ -110,7 +110,7 @@ Una riga per decisione: data, scelta, motivo.
 - 2026-10-15: rotazione delle schermate TV con pulsante «Ferma rotazione», perché un cambio automatico va sempre
   fermabile (WCAG 2.2.2) (`docs/portale.md`).
 - 2026-10-15: layout della pagina come elenco di blocchi per dispositivo (`defaultLayouts`), perché è la forma che
-  produrrà l'editor a blocchi, poi realizzato come contratto in `@sir/shared` (`docs/portale.md`).
+  produrrà l'editor a blocchi, poi realizzato come contratto in `@arenalive/shared` (`docs/portale.md`).
 - 2026-10-15: larghezza dei blocchi da 1 a 12 su una griglia a 12 colonne (con i valori ammessi per tipo), perché 12 si
   divide in metà, terzi e quarti e le impaginazioni di prima (12/8/6/4) restano esprimibili (`docs/architettura.md`).
 - 2026-10-15: layout come unione discriminata chiusa con opzioni per tipo (schema strict), perché il server non accetta mai
@@ -145,7 +145,7 @@ Una riga per decisione: data, scelta, motivo.
   (`docs/statistiche.md`).
 - 2026-10-15: avvisi scartati sopra una pausa a tutto schermo (e nessun avviso all'apertura, dopo resync o riconnessione),
   perché non devono coprire il riepilogo né raccontare cose già successe (`docs/portale.md`).
-- 2026-10-16: un solo `sir-agent.exe` per tutti i clienti e zip generato al volo per ognuno (config, grafica, logo), perché
+- 2026-10-16: un solo `arenalive-agent.exe` per tutti i clienti e zip generato al volo per ognuno (config, grafica, logo), perché
   l'exe pesa ~95 MB e non si ricostruisce per cliente (`docs/server.md`, «Agente scaricabile»).
 - 2026-10-16: zip «store» (senza compressione) scritto in casa, senza dipendenze, perché l'exe è già un binario poco
   comprimibile, la dimensione è nota in anticipo (`Content-Length`) e non serve una libreria in più (`apps/server/src/lib/zip.ts`).
@@ -163,7 +163,7 @@ Una riga per decisione: data, scelta, motivo.
 - 2026-10-16: `pointMilestone` deterministica (dipende solo dallo stato) e il portale tiene per set la soglia più alta già
   mostrata, perché due spettatori vedano la stessa pausa «ogni N punti» e un salto di più soglie ne mostri una sola,
   senza orologio (`docs/statistiche.md`).
-- 2026-10-16: modelli grafici (template) come elenco chiuso in `@sir/shared` (`TEMPLATES`) con i colori scelti dal cliente
+- 2026-10-16: modelli grafici (template) come elenco chiuso in `@arenalive/shared` (`TEMPLATES`) con i colori scelti dal cliente
   sopra, perché il server non accetta modelli sconosciuti e il cliente può comunque personalizzare i colori
   (`docs/architettura.md`, `docs/portale.md`).
 - 2026-10-16: il modello SIR VOLLEY è solo scuro (tema forzato, niente pulsante del tema), perché le specifiche grafiche di
@@ -289,12 +289,12 @@ Una riga per decisione: data, scelta, motivo.
   perché sul server non si installa .NET e il disco è poco: container, cache e immagine si rimuovono alla fine.
 - 2026-10-17: servizio dell'agente C# creato dall'exe stesso con `--service` e `New-Service`, senza NSSM, perché toglie una
   dipendenza esterna da scaricare e il servizio gestisce da sé stop e codici di uscita.
-- 2026-10-17: contratti dell'agente C# come JSON Schema generati da zod (`pnpm --filter @sir/shared schemi:agente`) con test
+- 2026-10-17: contratti dell'agente C# come JSON Schema generati da zod (`pnpm --filter @arenalive/shared schemi:agente`) con test
   che fallisce se sono vecchi, perché `packages/shared` resta l'unica fonte e il C# non può importare zod.
 - 2026-10-17: fedeltà al Node garantita da un riferimento generato dal codice Node (`riferimento-node.json`), perché hash,
   `seq` e `matchKey` devono coincidere byte per byte e un confronto automatico evita di rifare i calcoli a mano.
 - 2026-10-17: librerie del C#: JsonSchema.Net (solo test), xunit.v3 (test), System.ServiceProcess.ServiceController
-  (servizio); `tsx` come devDependency di `@sir/shared` per generare gli schemi.
+  (servizio); `tsx` come devDependency di `@arenalive/shared` per generare gli schemi.
 - 2026-10-17: quota agenti limitata solo alla lettura (`clampAgentQuota`) e schema di risposta stretto (0-100, più CHECK
   nel database), perché la migrazione 0007 aveva lasciato valori fuori limite (378) che rendevano illeggibile l'elenco dei clienti.
 - 2026-10-17: un utente disattivato riceve lo stesso 401 «Credenziali non valide» della password sbagliata, perché la
@@ -384,13 +384,13 @@ Una riga per decisione: data, scelta, motivo.
   Scuro sportivo, Alto contrasto per TV), perché SIR VOLLEY è il look di un solo cliente; lo assegna il superadmin e il
   server rifiuta (403) chi non lo è (`docs/architettura.md`, `docs/portale.md`, `docs/server.md`).
 - 2026-10-18: i temi personalizzati sono documenti JSON in `packages/shared/src/themes/` con il CSS generato da
-  `pnpm --filter @sir/web themes` in un file versionato, perché un nuovo cliente costa un file e non codice, e la CSP
+  `pnpm --filter @arenalive/web themes` in un file versionato, perché un nuovo cliente costa un file e non codice, e la CSP
   `style-src 'self'` non ammette stili inseriti a runtime (`docs/architettura.md`).
 - 2026-10-18: `ErrorBoundary` con ricarica automatica una sola volta per sessione quando un file del portale non esiste
   più, perché dopo un aggiornamento una scheda lasciata aperta resta bianca, ma un guasto vero non deve andare in ciclo
   (`docs/portale.md`).
 - 2026-10-18: Caddy invece di nginx + certbot per l'HTTPS di produzione, perché ottiene e rinnova da solo i certificati
-  Let's Encrypt per un elenco di hostname (`SIR_HOSTNAMES`) senza cron né script di rinnovo (`docs/infrastruttura.md`).
+  Let's Encrypt per un elenco di hostname (`ARENALIVE_HOSTNAMES`) senza cron né script di rinnovo (`docs/infrastruttura.md`).
 - 2026-10-18: Caddy senza access log, perché nel percorso ci sono i token dei link (`/live/<token>`, `/l/<codice>`) che
   nginx maschera nei suoi log e Caddy non saprebbe mascherare.
 - 2026-10-18: aggiornamento in uno script separato (`aggiorna-produzione.sh`) con backup prima, verifica di salute e
@@ -409,8 +409,8 @@ Una riga per decisione: data, scelta, motivo.
   `scripts/dast/zap-regole.tsv` (oggi vuoto: prima scansione pulita, 0 avvisi Alto/Medio/Basso); portale e WebSocket non coperti.
 - 2026-10-18: in produzione, finché non ci sono domini pubblici, `CERTIFICATI="interno"` usa la CA locale di Caddy (`tls internal`) e la sua radice si installa sui PC Windows (anche per l'agente, che continua a validare il TLS); si passa a Let's Encrypt rilanciando lo script con `CERTIFICATI="letsencrypt"` (`docs/infrastruttura.md`).
 - 2026-10-18: `installa-produzione.sh` accetta Ubuntu 24.04 e 26.04; la suite apt di Docker è il nome in codice della release (`noble`, `resolute`: verificato che esiste su download.docker.com) e, se manca, lo script si ferma con un errore chiaro invece di ripiegare su un'altra suite.
-- 2026-10-18: «Esporta / Importa configurazione» della grafica: pacchetto JSON versionato (`sirrealtime-grafica`, v1) con branding, pagina, pause, avvisi e immagini (`GET /api/admin/branding/export`, `POST /api/admin/branding/import`, scheda nello Studio); l'importazione ricontrolla le immagini come un caricamento, rimappa gli id e sostituisce tutto in una transazione; un tema personalizzato lo importa solo il superadmin (altrimenti 403 chiaro, non si importa con un altro tema in silenzio).
-- 2026-10-18: versione unica = campo `version` del `package.json` alla radice (1.0.0, tag `v1.0.0`); i `package.json` dei workspace restano a `0.0.0` (privati, mai pubblicati: allinearli sarebbe un secondo posto da tenere in pari senza alcun beneficio, e lo script di rilascio ne cambia uno solo). Server (`dist/build-info.json`), portale (Vite `define`), agente Node e C# (Version/FileVersion/InformationalVersion) la leggono al build con il commit corto (`SIR_COMMIT` nei build Docker, che non hanno `.git`); `GET /api/health` espone solo `version` e `commit`. Ogni rilascio ha un tag annotato `vX.Y.Z` creato da `scripts/rilascia.sh` (PR con versione e `CHANGELOG.md`, poi `--tagga` dopo il merge) e la produzione si aggiorna al tag.
+- 2026-10-18: «Esporta / Importa configurazione» della grafica: pacchetto JSON versionato (`arenalive-grafica`, v1; dal 2026-10-20 il nome, prima `sirrealtime-grafica`, che si importa ancora) con branding, pagina, pause, avvisi e immagini (`GET /api/admin/branding/export`, `POST /api/admin/branding/import`, scheda nello Studio); l'importazione ricontrolla le immagini come un caricamento, rimappa gli id e sostituisce tutto in una transazione; un tema personalizzato lo importa solo il superadmin (altrimenti 403 chiaro, non si importa con un altro tema in silenzio).
+- 2026-10-18: versione unica = campo `version` del `package.json` alla radice (1.0.0, tag `v1.0.0`); i `package.json` dei workspace restano a `0.0.0` (privati, mai pubblicati: allinearli sarebbe un secondo posto da tenere in pari senza alcun beneficio, e lo script di rilascio ne cambia uno solo). Server (`dist/build-info.json`), portale (Vite `define`), agente Node e C# (Version/FileVersion/InformationalVersion) la leggono al build con il commit corto (`ARENALIVE_COMMIT` nei build Docker, che non hanno `.git`); `GET /api/health` espone solo `version` e `commit`. Ogni rilascio ha un tag annotato `vX.Y.Z` creato da `scripts/rilascia.sh` (PR con versione e `CHANGELOG.md`, poi `--tagga` dopo il merge) e la produzione si aggiorna al tag.
 - 2026-10-20: «Link e QR per singola partita» è un'opzione per cliente (`tenants.match_links_enabled`) che accende solo il
   superadmin; spenta di base, perché la maggior parte dei club si serve del solo canale con un QR; spegnerla revoca per
   sempre i link per partita (nessun ritorno a link vecchi, riaccendendo ne nascono di nuovi); la migrazione `0014` la
@@ -439,3 +439,19 @@ Una riga per decisione: data, scelta, motivo.
   `installa-produzione.sh` insieme all'aggiornamento a v1.2.0; tolti i nomi privati `realtime.local` e
   `rt.sirsafetyperugia.it`, perché un nome senza DNS pubblico farebbe fallire certificato e rinnovi; gli agenti vanno
   puntati a `https://sir.istante.info/` (non seguono redirect) e la radice della CA interna si può togliere dai PC.
+  (Superata dalla voce seguente: i domini sono poi diventati `*.arenalive.studio`.)
+- 2026-10-20: il prodotto si chiama **ArenaLive** (sito arenalive.studio) e la rinomina riguarda anche i nomi tecnici
+  (pacchetti `@arenalive/*`, condizione `@arenalive/source`, progetto compose, volumi, database e utente, variabili
+  `ARENALIVE_*`, cookie `arenalive_session`, percorsi `/opt|/etc|/var/backups/arenalive`, unità systemd, file di backup,
+  `arenalive-agent`, progetti .NET `ArenaLive.Agent.*`, formato `arenalive-grafica`, User-Agent `ArenaLive/<ver>`), perché
+  è un cambio di marchio e la produzione si rifà da zero (`admin.arenalive.studio`, cliente SIR `sir.arenalive.studio`,
+  stesso server, Let's Encrypt) senza nessun agente installato: non c'è compatibilità da mantenere, e nomi misti
+  confonderebbero. I dati della vecchia produzione passano con `scripts/ripristina-produzione.sh` (`docs/infrastruttura.md`).
+  Restano come erano, di proposito: l'etichetta HMAC dei codici brevi in `apps/server/src/lib/shortCode.ts` (cambiarla
+  invaliderebbe i QR dei link ripristinati); il nome del repository GitHub `SIRRealttime`; i prefissi `sir-`, `--sir-`,
+  `data-sir-` di CSS e localStorage (non sono il nome del prodotto); il modello grafico `sir-volley` (è il cliente SIR);
+  l'import dei pacchetti grafica `sirrealtime-grafica`.
+- 2026-10-20: marchio ArenaLive in `apps/web/public/brand/` (loghi positivo e negativo; icone generate da
+  `apps/web/scripts/brand-icons.ts`, `favicon.svg` rimosso), scelto in automatico dalla luminanza dello sfondo come i loghi
+  di sistema; il modello `sir-volley` usa il logo negativo e le vecchie immagini «sir real time» sono state tolte
+  (`docs/portale.md`, `docs/agente.md`).

@@ -1,4 +1,4 @@
-import type { MatchState } from '@sir/volley-stats';
+import type { MatchState } from '@arenalive/volley-stats';
 import { useState } from 'react';
 import type { ComparisonRow } from '../charts/compare.ts';
 import { barShares, leader, teamComparison } from '../charts/compare.ts';

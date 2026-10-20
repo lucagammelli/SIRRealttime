@@ -1,5 +1,5 @@
-import type { CreateRegistrationResponse, RegistrationStatusResponse } from '@sir/shared';
-import { CreateRegistrationRequestSchema } from '@sir/shared';
+import type { CreateRegistrationResponse, RegistrationStatusResponse } from '@arenalive/shared';
+import { CreateRegistrationRequestSchema } from '@arenalive/shared';
 import { and, count, eq, gt, lt, sql } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';

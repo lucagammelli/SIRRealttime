@@ -1,4 +1,4 @@
-import type { BlockOptions } from '@sir/shared';
+import type { BlockOptions } from '@arenalive/shared';
 import type {
   MatchState,
   Period,
@@ -10,8 +10,8 @@ import type {
   Scorer,
   Side,
   TeamDuelKey,
-} from '@sir/volley-stats';
-import { periodSummary, roleDuels, scorers, teamDuel } from '@sir/volley-stats';
+} from '@arenalive/volley-stats';
+import { periodSummary, roleDuels, scorers, teamDuel } from '@arenalive/volley-stats';
 import type { ReactNode } from 'react';
 import { barShares, leader } from '../charts/compare.ts';
 import { BreakableName, Card, Empty } from '../components/ui.tsx';
@@ -23,7 +23,7 @@ import { useImageRotation } from './BrandBlocks.tsx';
 /**
  * Statistics of a period in television style, for the slides of the pauses and the blocks of the page: partial and
  * scorers, aces, blocks, attack, player against player of a role, team against team. Every number comes from
- * @sir/volley-stats (`periodSummary`, `scorers`, `roleDuels`, `teamDuel`): here they are only laid out. Home team on
+ * @arenalive/volley-stats (`periodSummary`, `scorers`, `roleDuels`, `teamDuel`): here they are only laid out. Home team on
  * the left, away team on the right, in the colours of the two sides (they follow «nostra squadra» of the template:
  * lib/teamColors.ts); values with tabular figures; the two sides come in from their edge and the mirrored bars grow
  * from the centre in 500 ms, nothing moves with reduced motion. Only React text: names come from the scout file.
@@ -513,7 +513,7 @@ export function CountView({
 
 /**
  * Best attackers of a team in the period: the players with attacks, by attack points (then percentage). Only the
- * order of the lines of `periodSummary` changes here, every number comes from @sir/volley-stats.
+ * order of the lines of `periodSummary` changes here, every number comes from @arenalive/volley-stats.
  */
 function bestAttackers(lines: readonly PlayerPeriodLine[], limit: number): PlayerPeriodLine[] {
   const pct = (r: Ratio): number => r ?? -1;

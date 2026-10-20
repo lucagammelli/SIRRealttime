@@ -2,10 +2,8 @@ import type { TenantSummary } from '@sir/shared';
 import type { ReactElement } from 'react';
 import { lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
-import { BrandMark } from '../../components/BrandMark.tsx';
 import { MenuButton } from '../../components/MenuButton.tsx';
 import { StatusScreen } from '../../components/StatusScreen.tsx';
-import { SystemLogosBar } from '../../components/SystemLogosBar.tsx';
 import { ThemeToggle } from '../../components/ThemeToggle.tsx';
 import { ErrorBoundary } from '../../components/ErrorBoundary.tsx';
 import { Button, ErrorBox, Spinner } from '../../components/ui.tsx';
@@ -13,6 +11,7 @@ import { useTemplate } from '../../lib/branding.ts';
 import { useTitlePrefix } from '../../lib/titlePrefix.ts';
 import { useAsync } from '../../lib/useAsync.ts';
 import { useViewportWidth } from '../../lib/useLayout.ts';
+import { AdminBrand } from './AdminBrand.tsx';
 import { AdminSidebar, Icon, menuGroups } from './AdminSidebar.tsx';
 import { AccountPage } from './AccountPage.tsx';
 import { AgentsPage } from './AgentsPage.tsx';
@@ -162,12 +161,12 @@ function AdminLayout() {
         managed ? '[--sir-admin-bar:3.5rem] md:[--sir-admin-bar:2.5rem]' : ''
       }`}
     >
-      {/* Top: the bar of the managed client (every width) and, on the phone, ☰ and the logo. */}
+      {/* Top: the bar of the managed client (every width) and, on the phone, ☰ and the logo (AdminBrand). */}
       <div className="sticky top-0 z-40">
         {managed && <ManagedTenantBar tenant={managed} onLeave={() => void leave()} busy={exit.busy} />}
         <header className="sir-navbar flex items-center gap-3 border-b border-border bg-surface px-3 md:hidden">
           <MenuButton ref={menuButton} open={menuOpen} controls={menuId} onToggle={() => setMenuOpen((o) => !o)} />
-          <BrandMark to={home} />
+          <AdminBrand to={home} />
         </header>
       </div>
       <div className="flex min-w-0 flex-1 flex-col md:flex-row">
@@ -187,8 +186,6 @@ function AdminLayout() {
         {/* With the drawer open (phone) the page under it is out of reach (`inert`). */}
         <main inert={menuOpen} className="sir-page min-w-0 flex-1 px-3 py-4 sm:px-5 lg:px-8 lg:py-6">
           <div className={`mx-auto w-full ${studio ? '' : 'max-w-7xl'}`}>
-            {/* Logos of the platform at the top of every page (nothing without them). */}
-            <SystemLogosBar className="mb-4" />
             {exit.error && <ErrorBox>{exit.error}</ErrorBox>}
             {/* First setup of a client not configured yet (admin; the superadmin only gets a link). */}
             {!superadminHome && user.role !== 'viewer' && user.tenant && (

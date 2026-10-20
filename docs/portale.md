@@ -143,7 +143,7 @@ Le voci:
 | Simulazione | `/admin/simulazione` | solo admin (il superadmin dentro un cliente) | «Nuova simulazione», «Avanzamento», «Link della simulazione» (con QR): una partita giocata dal server su un link a parte, vedi «Simulazione» |
 | Agenti | `/admin/agenti` | admin e viewer (il viewer in sola lettura) | «Agente per Windows» (vedi sotto), «Nuovo agente» («Crea token», mostrato una sola volta con «Copia config.json»), «Richieste in attesa» (vedi sotto), «Agenti» (stato «Attivo»/«Scaduto»/«Revocato», «Prolunga» con «Salva validità», «Revoca»), con la riga «N di M agenti in uso (limite dato dal superadmin)» |
 | Posta | `/admin/posta` | solo superadmin (fuori da un cliente) | server di posta per inviti e recupero password, uguale per tutti i clienti, vedi «Posta» |
-| Loghi di sistema | `/admin/loghi-di-sistema` | solo superadmin (fuori da un cliente) | i due loghi della piattaforma, vedi «Loghi di sistema» |
+| Loghi di sistema | `/admin/loghi-di-sistema` | solo superadmin (fuori da un cliente) | i loghi della piattaforma (sinistro e destro, positivo e negativo), vedi «Loghi di sistema» |
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, «Password (facoltativa)» di almeno 12 caratteri, «Ruolo»: «Lettura e scrittura» o «Sola lettura»; «Crea e invita» se la password è vuota, altrimenti «Crea utente»), scheda «Ruoli» (cosa può fare ciascun ruolo), «Utenti» (per ognuno stato «Attivo»/«Disattivato», ruolo, data di creazione e i comandi descritti sotto), vedi «Utenti del cliente» |
 | Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`) | solo admin (il superadmin dentro un cliente) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
 | Sponsor | `/admin/sponsor` | solo admin (il superadmin dentro un cliente) | anagrafica degli sponsor, vedi «Sponsor» |
@@ -640,18 +640,37 @@ aperto l'utente non può accedere. Un utente che ha già la password (e non è i
 mostra un link di un'ora, monouso, da mandare a mano, con «Copia link» (utile senza posta o se la mail non arriva). Il
 primo utente di un cliente si invita già dalla pagina «Clienti» (campo password lasciato vuoto).
 
-### Loghi di sistema (`pages/admin/SystemLogosPage.tsx`, `components/SystemLogosBar.tsx`, `lib/systemLogos.ts`)
-Solo il superadmin, fuori da un cliente (`/admin/loghi-di-sistema`, voce «Loghi di sistema» di «Amministrazione»). Due
-loghi della piattaforma, uno a sinistra e uno a destra, uguali per tutti i clienti. Una scheda per slot («Logo a
-sinistra», «Logo a destra») con l'anteprima (o «Nessun logo»), le misure in px, «Carica logo» / «Sostituisci logo» (PNG,
+### Loghi di sistema (`pages/admin/SystemLogosPage.tsx`, `components/SystemLogo.tsx`, `components/SystemLogosBar.tsx`, `pages/admin/AdminBrand.tsx`, `lib/backgroundTone.ts`, `lib/systemLogos.ts`)
+Solo il superadmin, fuori da un cliente (`/admin/loghi-di-sistema`, voce «Loghi di sistema» di «Amministrazione»). Quattro
+loghi della piattaforma, uguali per tutti i clienti: lato sinistro e destro, ciascuno in due varianti, **positivo**
+(per sfondi chiari) e **negativo** (per sfondi scuri). In alto la scheda con l'anteprima della testata in due riquadri,
+«Tema chiaro» e «Tema scuro» (superfici con i token chiari/scuri propri, indipendenti dal tema della pagina), oppure
+«Nessun logo: le testate restano come sono.» se non ce n'è nessuno. Poi una scheda per lato («Logo a sinistra», «Logo a
+destra»), con una griglia 2×2 in tutto: per ogni variante «Positivo · per sfondi chiari» / «Negativo · per sfondi
+scuri», l'anteprima (o «Nessun logo») su sfondo chiaro o scuro, le misure in px, «Carica logo» / «Sostituisci logo» (PNG,
 JPEG, WebP o SVG, al massimo 2 MB e 150×50 px: uno più grande è rifiutato con il messaggio del server) e «Rimuovi» con
-«Conferma rimozione». In alto la striscia così come la vede il pubblico. Rotte e limiti: `docs/server.md` («Loghi di sistema»).
+«Conferma rimozione». Rotte e limiti: `docs/server.md` («Loghi di sistema»).
 
-- **`SystemLogosBar`**: riga con il logo di sinistra e quello di destra; ogni immagine sta in un box di al massimo
-  `min(150px, 25vw)` × `min(50px, 8.33vw)` (niente scorrimento orizzontale su un telefono da 360 px), `object-contain`,
-  `alt` vuoto (decorativa). Senza loghi non disegna nulla; con un solo logo l'altro lato resta vuoto.
-- **Dove compare**: nella pagina live (`LivePage.tsx`) come riga sopra la testata, anche in TV (solo a partita caricata);
-  nell'area riservata (`AdminApp.tsx`) in cima al contenuto.
+- **Scelta della variante**: automatica, dallo sfondo reale dietro al logo. `useBackgroundBehind` (`lib/backgroundTone.ts`)
+  legge `background-color` calcolato dal browser sull'elemento e sui suoi antenati fino al primo opaco, fonde le
+  semitrasparenze (`blendLayers`) e si ricalcola al montaggio, quando cambiano gli attributi `style`/`class`/`data-theme`/
+  `data-template` di `<html>` e `<body>` (palette del cliente, modello grafico, tema), sugli eventi del tema e a fine
+  transizione di `background-color`. Conta solo il colore di fondo, non le sfumature (`background-image`). Poi
+  `pickSystemLogo` (`packages/shared`): luminanza < 0,5 → negativo, altrimenti positivo; se la variante voluta manca usa
+  l'altra; se lo sfondo non si legge usa il positivo.
+- **`SystemLogo`**: un lato (`pair`, `side`); immagine con `object-contain`, `alt` vuoto (decorativa), box al massimo
+  `min(150px, 25vw)` × `min(50px, 8.33vw)` in riga (niente scorrimento orizzontale su un telefono da 360 px) oppure 150×50
+  px pieni (`SYSTEM_LOGO_FULL_SIZE`). Non disegna nulla se il lato non ha loghi.
+- **`SystemLogosBar`**: riga con il lato sinistro e il destro (solo pagina live e anteprima della pagina). Senza loghi non
+  disegna nulla; con un solo lato l'altro resta vuoto.
+- **`AdminBrand`**: marchio dell'area riservata. Se c'è il logo di sinistra (una variante qualsiasi) lo mostra, con
+  precedenza su logo del modello, logo o nome del cliente e scritta; altrimenti `BrandMark`. Con `to` è un link «Partita
+  live» alla prima pagina dell'utente, senza `to` è solo decorativo.
+- **Dove compare**: nella pagina live (`LivePage.tsx`) come riga sopra la testata, con entrambi i lati, su TV, tablet e
+  telefono, **sempre** (anche a partita non ancora caricata); in cima alla barra laterale (`AdminSidebar.tsx`) e
+  nell'intestazione mobile (`AdminApp.tsx`) dell'area riservata, che non ha più la riga dei loghi; nella pagina di
+  accesso (`LoginPage.tsx`) e nelle pagine dei link account (`AccountLinkPages.tsx`: «Password dimenticata», invito,
+  reimposta password), senza link.
 - **Dati**: lo store `lib/systemLogos.ts` (`initSystemLogos`, `useSystemLogos`, `setSystemLogos`) legge `GET
   /api/public/system-logos` una volta all'avvio (`main.tsx`); la pagina lo aggiorna dopo ogni modifica.
 

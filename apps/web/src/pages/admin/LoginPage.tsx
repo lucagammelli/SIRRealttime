@@ -3,11 +3,11 @@ import { LoginRequestSchema, MeResponseSchema } from '@sir/shared';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { BrandMark } from '../../components/BrandMark.tsx';
 import { ThemeToggle } from '../../components/ThemeToggle.tsx';
 import { Button, ErrorBox } from '../../components/ui.tsx';
 import { ApiError, apiRequest, errorText } from '../../lib/api.ts';
 import { Field, inputClass } from './forms.tsx';
+import { AdminBrand } from './AdminBrand.tsx';
 
 /** Login with email and password; the server sets the httpOnly session cookie. */
 export function LoginPage({ onLogin, notice }: { onLogin: (user: MeResponse) => void; notice: string | null }) {
@@ -44,7 +44,7 @@ export function LoginPage({ onLogin, notice }: { onLogin: (user: MeResponse) => 
         noValidate
       >
         <div>
-          <BrandMark />
+          <AdminBrand />
           <h1 className="mt-1 text-lg font-semibold text-text">Area riservata</h1>
         </div>
         {notice && <p className="rounded-card bg-surface-2 px-3 py-2 text-sm text-muted">{notice}</p>}

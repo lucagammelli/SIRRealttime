@@ -15,6 +15,7 @@ import {
   matches,
   MIGRATIONS_FOLDER,
   shareTokens,
+  systemLogos,
   tenants,
   users,
 } from '../src/db/index.js';
@@ -284,6 +285,40 @@ describe('migration 0015: sponsors', () => {
       client.exec(
         `insert into sponsors (tenant_id, name, website) select id, 'Altro', 'http://x.it' from tenants where slug = 'club'`,
       ),
+    ).rejects.toThrow();
+  });
+});
+
+describe('migration 0017: variants of the system logos', () => {
+  it('makes the logos already loaded positive and allows one logo per side and variant', async () => {
+    const client = new PGlite();
+    cleanup.push(() => client.close());
+    const db = drizzle({ client, schema });
+    await migrate(db, { migrationsFolder: await migrationsUpTo('0016_loghi_sistema') });
+    await client.exec(`
+      insert into system_logos (slot, sha256, mime, width, height, bytes)
+        values ('left', repeat('a', 64), 'image/png', 150, 50, 100), ('right', repeat('b', 64), 'image/svg+xml', 120, 40, 90);
+    `);
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    const rows = await db
+      .select({ slot: systemLogos.slot, variant: systemLogos.variant, sha256: systemLogos.sha256 })
+      .from(systemLogos)
+      .orderBy(systemLogos.slot);
+    expect(rows).toEqual([
+      { slot: 'left', variant: 'positive', sha256: 'a'.repeat(64) },
+      { slot: 'right', variant: 'positive', sha256: 'b'.repeat(64) },
+    ]);
+    await client.exec(`
+      insert into system_logos (slot, variant, sha256, mime, width, height, bytes)
+        values ('left', 'negative', repeat('a', 64), 'image/png', 150, 50, 100);
+    `);
+    await expect(
+      client.exec(`insert into system_logos (slot, sha256, mime, width, height, bytes)
+        values ('left', repeat('c', 64), 'image/png', 10, 10, 10)`),
+    ).rejects.toThrow();
+    await expect(
+      client.exec(`insert into system_logos (slot, variant, sha256, mime, width, height, bytes)
+        values ('right', 'grey', repeat('c', 64), 'image/png', 10, 10, 10)`),
     ).rejects.toThrow();
   });
 });

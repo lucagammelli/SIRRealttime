@@ -120,6 +120,13 @@
       "when": 1792500822999,
       "tag": "0016_loghi_sistema",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792520965765,
+      "tag": "0017_loghi_sistema_varianti",
+      "breakpoints": true
     }
   ]
 }

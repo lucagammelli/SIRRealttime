@@ -134,7 +134,7 @@ paths:
   /api/public/system-logos:
     get:
       responses:
-        '200': { description: loghi di sistema (sinistra e destra), uguali per tutti i clienti }
+        '200': { description: loghi di sistema (sinistra e destra, positivo e negativo), uguali per tutti i clienti }
   /api/public/system-logos/{id}:
     get:
       parameters:
@@ -145,13 +145,17 @@ paths:
       responses:
         '200': { description: file del logo di sistema (PNG, JPEG, WebP o SVG) }
         '404': { description: logo inesistente }
-  /api/admin/system-logos/{slot}:
+  /api/admin/system-logos/{slot}/{variant}:
     put:
       parameters:
         - name: slot
           in: path
           required: true
           schema: { type: string, enum: [left, right], example: left }
+        - name: variant
+          in: path
+          required: true
+          schema: { type: string, enum: [positive, negative], example: positive }
       requestBody:
         required: true
         content:
@@ -177,6 +181,10 @@ paths:
           in: path
           required: true
           schema: { type: string, enum: [left, right], example: right }
+        - name: variant
+          in: path
+          required: true
+          schema: { type: string, enum: [positive, negative], example: negative }
       responses:
         '200': { description: logo rimosso, elenco aggiornato }
         '403': { description: solo superadmin }

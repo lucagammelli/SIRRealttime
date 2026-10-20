@@ -176,8 +176,8 @@ non ha più un selettore del cliente nella barra: lavora solo **dentro** un clie
 Un'unica pagina, solo per l'admin (titolo scheda «Studio grafico · Area riservata»), al posto delle vecchie pagine
 «Grafica», «Pagina pubblica», «Pause» e «Avvisi», che ora sono le sue quattro sezioni. Le rotte vecchie (`/admin/grafica`,
 `/admin/pagina`, `/admin/pause`, `/admin/avvisi`) rimandano alla sezione (`LEGACY_PAGES` in `model.ts`); `/admin/studio`
-senza sezione apre «Colori e loghi». Nell'area riservata, dentro lo Studio, il menu laterale parte ridotto alle icone sotto
-i 1600 px (`STUDIO_WIDE_MENU_MIN` in `AdminApp.tsx`) e si può riaprire. Dati e rotte del server non cambiano
+senza sezione apre «Colori e loghi». Entrando nello Studio il menu laterale resta come l'ha lasciato l'utente (aperto o
+ridotto alle icone). Dati e rotte del server non cambiano
 (`docs/server.md`): ogni sezione legge e scrive il suo documento.
 
 **Tre colonne** (da 768 px; `StudioPage.tsx`):
@@ -280,7 +280,7 @@ Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome»
 #### Sezione «Pagina live»
 Ex pagina «Pagina pubblica» (`PageSection.tsx`, vedi «Pagina pubblica a blocchi»). Tre schede «TV», «Tablet», «Telefono»
 (le stesse del dispositivo dell'anteprima: cambiare l'una cambia l'altra). Per ogni blocco: maniglia ⠿ (trascinamento),
-↑ e ↓ («Sposta su», «Sposta giù»), interruttore «Visibile» e «Rimuovi», tutti nella riga del blocco; «Rimuovi» chiede
+↑ e ↓ («Sposta su», «Sposta giù»), interruttore «Visibile» e «Rimuovi» (icona «−», nome nell'aria-label e nel tooltip), tutti nella riga del blocco; «Rimuovi» chiede
 «Conferma rimozione» (con «Annulla») solo se il blocco ha opzioni diverse da quelle predefinite del tipo
 (`blockHasSettings` in `studio/model.ts`; componente `RemoveButton` di `StudioUi.tsx`, su `ConfirmButton`). Sotto
 «Opzioni» (con la larghezza): «Larghezza» (non sul
@@ -302,7 +302,7 @@ con la casella «Pausa propria per la fine del N° set» (senza, quel set usa «
 «Regola» con «Ogni quanti punti» (4-25) e «Non negli ultimi punti del set» (`stopBeforeEnd`, con il traguardo da
 `setTarget` di volley-stats). Per ogni pausa, «Quando e come»: «Pausa attiva» e «Come si mostra» (per TV, tablet e
 telefono «Tutto schermo» o «Banda in basso»); «Diapositive»: elenco riordinabile con «Sposta su» e «Sposta giù» (niente
-trascinamento); nella riga di ogni diapositiva l'interruttore «Attiva: <tipo>» e «Rimuovi» (con «Conferma rimozione» solo
+trascinamento); nella riga di ogni diapositiva l'interruttore «Attiva: <tipo>» e «Rimuovi» (icona «−»; con «Conferma rimozione» solo
 se la diapositiva ha opzioni diverse da quelle predefinite, `slideHasSettings`). Una diapositiva disattivata (campo
 `enabled` della diapositiva, predefinito attivo: i documenti salvati prima restano tutti attivi) resta nell'elenco con le
 sue opzioni, segnata «(disattivata)», ma non compare né sulla pagina pubblica né nell'anteprima (`visibleSlides`); se

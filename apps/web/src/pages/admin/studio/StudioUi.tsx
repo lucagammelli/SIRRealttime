@@ -245,21 +245,22 @@ export function SwitchRow({
 }
 
 /**
- * «Rimuovi» of an element of a list (block of the page, slide of a pause), always visible in its row. With
+ * «Rimuovi» (icon «−», named by aria-label and tooltip) of an element of a list (block of the page, slide of a pause), always visible in its row. With
  * `confirm` (the element has options of its own that would be lost) it asks «Conferma rimozione» first.
  */
 export function RemoveButton({ name, confirm, onRemove }: { name: string; confirm: boolean; onRemove: () => void }) {
   return confirm ? (
     <ConfirmButton
-      label="Rimuovi"
+      label="−"
+      className="px-2"
       confirmLabel="Conferma rimozione"
       ariaLabel={`Rimuovi ${name}`}
       busy={false}
       onConfirm={onRemove}
     />
   ) : (
-    <Button variant="ghost" aria-label={`Rimuovi ${name}`} onClick={onRemove}>
-      Rimuovi
+    <Button variant="ghost" aria-label={`Rimuovi ${name}`} title={`Rimuovi ${name}`} onClick={onRemove} className="px-2">
+      −
     </Button>
   );
 }

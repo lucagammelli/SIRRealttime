@@ -43,8 +43,6 @@ const StudioPage = lazy(() => import('./studio/StudioPage.tsx').then((m) => ({ d
 /** From this width the side menu is beside the page (below it is a drawer); from the second one it is full at first. */
 const PHONE_MAX = 768;
 const WIDE_MENU_MIN = 1200;
-/** The «Studio grafico» uses the whole width: below this one the menu is reduced to the icons when it opens. */
-const STUDIO_WIDE_MENU_MIN = 1600;
 
 /** Role under the email of the account (the names of the «Utenti» page, in lower case). */
 const ROLE_TEXT = { superadmin: 'superadmin', admin: 'lettura e scrittura', viewer: 'sola lettura' } as const;
@@ -119,6 +117,8 @@ function AdminLayout() {
   // Phone: the menu is a drawer behind the ☰ button (target of 44 px). Tablet: reduced to the icons at first.
   const [menuOpen, setMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => width >= PHONE_MAX && width < WIDE_MENU_MIN);
+  const { pathname } = useLocation();
+  const studio = pathname.startsWith('/admin/studio');
   const menuId = useId();
   const menuButton = useRef<HTMLButtonElement>(null);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
@@ -126,12 +126,6 @@ function AdminLayout() {
   useEffect(() => {
     if (width >= PHONE_MAX) setMenuOpen(false);
   }, [width]);
-  // Entering the Studio (three columns and a big preview) the menu makes room, once: it can be opened again.
-  const { pathname } = useLocation();
-  const studio = pathname.startsWith('/admin/studio');
-  useEffect(() => {
-    if (studio && window.innerWidth < STUDIO_WIDE_MENU_MIN) setCollapsed(true);
-  }, [studio]);
 
   const tenant = user.tenant && (
     <p className="truncate text-sm font-semibold text-text" title={user.tenant.name}>

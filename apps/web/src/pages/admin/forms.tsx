@@ -22,19 +22,27 @@ export function ConfirmButton({
   onConfirm,
   busy,
   ariaLabel,
+  className,
 }: {
-  label: string;
+  label: ReactNode;
   confirmLabel: string;
   onConfirm: () => void;
   busy: boolean;
   /** Accessible name of the first button when `label` alone is ambiguous (one button for every row of a list). */
   ariaLabel?: string;
+  /** Classes of the first button (e.g. narrow padding when `label` is an icon). */
+  className?: string;
 }) {
   const [armed, setArmed] = useState(false);
   if (busy) return <Button disabled>Attendere…</Button>;
   if (!armed)
     return (
-      <Button variant="ghost" onClick={() => setArmed(true)} {...(ariaLabel ? { 'aria-label': ariaLabel } : {})}>
+      <Button
+        variant="ghost"
+        onClick={() => setArmed(true)}
+        {...(ariaLabel ? { 'aria-label': ariaLabel, title: ariaLabel } : {})}
+        {...(className ? { className } : {})}
+      >
         {label}
       </Button>
     );

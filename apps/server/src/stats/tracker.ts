@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { HelloMessage, VisitDevice, VisitSource } from '@sir/shared';
+import type { HelloMessage, VisitDevice, VisitSource } from '@arenalive/shared';
 import { romeDay } from './days.js';
 
 /** A reconnection within this time with the same visit id is the same visit. */

@@ -1,4 +1,4 @@
-import type { ActionEntry, ParsedMatch, Skill } from '@sir/dvw-parser';
+import type { ActionEntry, ParsedMatch, Skill } from '@arenalive/dvw-parser';
 import type { LastPoint, LiveState, MatchStatus, Side, SetSummary } from './types.js';
 import type { PointEvent, Timeline } from './timeline.js';
 import { SIDES, other, timeToSeconds } from './util.js';

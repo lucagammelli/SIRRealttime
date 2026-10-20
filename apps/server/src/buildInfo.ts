@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { BuildCommitSchema, BuildVersionSchema } from '@sir/shared';
+import { BuildCommitSchema, BuildVersionSchema } from '@arenalive/shared';
 
 export interface BuildInfo {
   version: string;

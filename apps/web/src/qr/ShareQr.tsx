@@ -1,4 +1,4 @@
-import { formatShortCode, QR_QUERY_PARAM } from '@sir/shared';
+import { formatShortCode, QR_QUERY_PARAM } from '@arenalive/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, CopyButton } from '../components/ui.tsx';
 import { useTenantLook } from '../lib/branding.ts';

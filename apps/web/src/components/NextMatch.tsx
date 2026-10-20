@@ -1,4 +1,4 @@
-import type { ClubFixtureTeam, UpcomingFixture } from '@sir/shared';
+import type { ClubFixtureTeam, UpcomingFixture } from '@arenalive/shared';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { formatFixtureDate } from '../lib/format.ts';

@@ -1,5 +1,5 @@
-import type { SystemLogo, SystemLogos } from '@sir/shared';
-import { NO_SYSTEM_LOGOS } from '@sir/shared';
+import type { SystemLogo, SystemLogos } from '@arenalive/shared';
+import { NO_SYSTEM_LOGOS } from '@arenalive/shared';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setSystemLogos, useSystemLogos } from '../../lib/systemLogos.ts';

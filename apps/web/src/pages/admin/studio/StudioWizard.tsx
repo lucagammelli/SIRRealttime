@@ -5,8 +5,8 @@ import type {
   TenantBranding,
   TenantIntermissions,
   TenantLayout,
-} from '@sir/shared';
-import { LAYOUT_DEVICES, templateOf } from '@sir/shared';
+} from '@arenalive/shared';
+import { LAYOUT_DEVICES, templateOf } from '@arenalive/shared';
 import type { ReactNode } from 'react';
 import { useId, useState } from 'react';
 import { BLOCKS } from '../../../blocks/registry.tsx';

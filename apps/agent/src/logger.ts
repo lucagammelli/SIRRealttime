@@ -6,7 +6,7 @@ import type { LogLevel } from './config.js';
 
 export type { Logger };
 
-const FILE_PATTERN = /^sir-agent-(\d{4}-\d{2}-\d{2})(?:\.(\d+))?\.log$/;
+const FILE_PATTERN = /^arenalive-agent-(\d{4}-\d{2}-\d{2})(?:\.(\d+))?\.log$/;
 
 export interface RotatingFileOptions {
   dir: string;
@@ -18,7 +18,7 @@ export interface RotatingFileOptions {
 }
 
 /**
- * Minimal rotating destination for pino: `sir-agent-YYYY-MM-DD.log` per UTC day, a new part beyond `maxBytes`,
+ * Minimal rotating destination for pino: `arenalive-agent-YYYY-MM-DD.log` per UTC day, a new part beyond `maxBytes`,
  * files older than `keepDays` deleted. Synchronous writes (few lines per second); a write error is swallowed:
  * logging must never stop the agent.
  */
@@ -65,7 +65,7 @@ export class RotatingFileStream {
   }
 
   private fileName(day: string, part: number): string {
-    return `sir-agent-${day}${part > 0 ? `.${part}` : ''}.log`;
+    return `arenalive-agent-${day}${part > 0 ? `.${part}` : ''}.log`;
   }
 
   private rotate(day: string): void {
@@ -132,7 +132,7 @@ export function createLogger(options: LoggerOptions): { logger: Logger; close: (
   const logger = pino(
     {
       level: options.level,
-      base: { app: 'sir-agent' },
+      base: { app: 'arenalive-agent' },
       timestamp: pino.stdTimeFunctions.isoTime,
       redact: { paths: REDACT_PATHS, censor: '[nascosto]' },
     },

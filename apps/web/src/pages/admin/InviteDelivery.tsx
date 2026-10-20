@@ -1,4 +1,4 @@
-import type { InviteDelivery } from '@sir/shared';
+import type { InviteDelivery } from '@arenalive/shared';
 import { CopyButton } from '../../components/ui.tsx';
 import { formatDateTime } from '../../lib/format.ts';
 

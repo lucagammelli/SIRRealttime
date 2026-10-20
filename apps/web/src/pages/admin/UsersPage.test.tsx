@@ -1,4 +1,4 @@
-import type { UserSummary } from '@sir/shared';
+import type { UserSummary } from '@arenalive/shared';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Call } from '../../test/adminPage.tsx';

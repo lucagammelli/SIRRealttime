@@ -4,7 +4,7 @@
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "module": "ESNext",
-    // Browser bundle built by Vite; the `@sir/source` condition of the base config still applies.
+    // Browser bundle built by Vite; the `@arenalive/source` condition of the base config still applies.
     "moduleResolution": "bundler",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",

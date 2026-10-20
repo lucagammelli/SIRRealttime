@@ -216,8 +216,8 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
         kind: 'steps',
         items: [
           'Apri la pagina «Agenti» e premi «Scarica l’agente per Windows».',
-          'Scompatta il file zip scaricato in C:\\SIRAgent. Non metterla sulla pennina.',
-          'Fai doppio clic su sir-agent.exe: si apre la finestra dell’agente, con il nome e il logo del club.',
+          'Scompatta il file zip scaricato in C:\\ArenaLiveAgent. Non metterla sulla pennina.',
+          'Fai doppio clic su arenalive-agent.exe: si apre la finestra dell’agente, con il nome e il logo del club.',
           'In «Nome agente» scrivi il nome del computer (per esempio «Palazzetto») e premi «Registra».',
           'Nella finestra compare un codice grande e la scritta «In attesa di abilitazione nel portale». La richiesta scade dopo un po’: la data e l’ora sono scritte lì.',
           'Su un altro schermo apri «Agenti», vai in «Richieste in attesa», controlla che il codice sia lo stesso e premi «Abilita».',

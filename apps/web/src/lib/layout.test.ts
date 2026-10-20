@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { LayoutBlockInput, TenantLayout } from '@sir/shared';
-import { LayoutBlockSchema, TenantLayoutSchema } from '@sir/shared';
+import type { LayoutBlockInput, TenantLayout } from '@arenalive/shared';
+import { LayoutBlockSchema, TenantLayoutSchema } from '@arenalive/shared';
 import type { LayoutBlock } from './layout.ts';
 import {
   blockMinRem,

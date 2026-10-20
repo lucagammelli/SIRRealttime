@@ -1,5 +1,5 @@
-import type { ScheduleResponse } from '@sir/shared';
-import { ScheduleResponseSchema } from '@sir/shared';
+import type { ScheduleResponse } from '@arenalive/shared';
+import { ScheduleResponseSchema } from '@arenalive/shared';
 
 /**
  * Example schedule of the previews in the editors «Pagina pubblica» and «Pause»: invented teams, a fixed

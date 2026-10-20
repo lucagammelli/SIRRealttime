@@ -1,6 +1,6 @@
-import { generateMatch } from '@sir/dvw-simulator';
-import type { CreateShareTokenResponse, HelloMessage, IngestRequest } from '@sir/shared';
-import { StatsCurveSchema, StatsNowSchema, StatsOverviewSchema } from '@sir/shared';
+import { generateMatch } from '@arenalive/dvw-simulator';
+import type { CreateShareTokenResponse, HelloMessage, IngestRequest } from '@arenalive/shared';
+import { StatsCurveSchema, StatsNowSchema, StatsOverviewSchema } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { matches, pageViews, viewDaily, viewerPeaks } from '../src/db/index.js';

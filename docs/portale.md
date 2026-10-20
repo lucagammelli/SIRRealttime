@@ -1,17 +1,17 @@
 # Portale
 
 ## A cosa serve
-`@sir/web` (`apps/web/`) è il portale di SIRRealtime: una applicazione a pagina singola (React, Vite, Tailwind 4,
+`@arenalive/web` (`apps/web/`) è il portale di ArenaLive: una applicazione a pagina singola (React, Vite, Tailwind 4,
 ECharts) che mostra la partita in tempo reale. Ha due parti: la **pagina pubblica** `/live/:token`, raggiunta con un
 link di condivisione e senza accesso, e l'**area riservata** `/admin` per chi gestisce partite, link, agenti e utenti.
-Non calcola nulla: riceve dal server lo `MatchState` di `@sir/volley-stats` (`docs/statistiche.md`) e lo disegna.
+Non calcola nulla: riceve dal server lo `MatchState` di `@arenalive/volley-stats` (`docs/statistiche.md`) e lo disegna.
 
 ## Come funziona
 
 ### Pagina pubblica `/live/:token` e `/l/:token` (`src/pages/LivePage.tsx`)
 La stessa pagina risponde a due rotte (`src/App.tsx`): `/live/:token` (token lungo) e `/l/:token` (codice breve, come
 `/l/K7M2QX9P`; accettati anche minuscole e il trattino a metà). Un valore che non rispetta `SHARE_TOKEN_PATTERN`
-(`@sir/shared`: token di almeno 22 caratteri o codice breve) mostra subito «Link non valido o scaduto», senza aprire
+(`@arenalive/shared`: token di almeno 22 caratteri o codice breve) mostra subito «Link non valido o scaduto», senza aprire
 connessioni. Con un valore valido la pagina si collega a `/ws/public/<token o codice>` e mostra (`src/components/MatchView.tsx`):
 
 | Blocco | Contenuto |
@@ -35,7 +35,7 @@ La pagina pubblica non ha nessun collegamento all'area riservata.
 aggiornamento porta più punti (il simulatore veloce, oppure la coda dell'agente che si svuota dopo un'interruzione,
 vedi `docs/agente.md`), tabellone, andamento, «Ultimo punto», avvisi e pause li mostrano **uno alla volta**, perché i due
 punteggi non saltino insieme. È solo presentazione: lo stato resta quello del server e la sequenza finisce sempre su di
-esso; gli stati intermedi vengono da `matchStateUntilPoint` di `@sir/volley-stats` (`docs/statistiche.md`), il portale
+esso; gli stati intermedi vengono da `matchStateUntilPoint` di `@arenalive/volley-stats` (`docs/statistiche.md`), il portale
 non calcola nulla.
 - `planPointSequence(mostrato, nuovo, { live, reducedMotion })` decide i passi (uno per punto nuovo, l'ultimo è lo stato
   del server); `PointSequencer` li riproduce: ogni punto resta a video `POINT_STEP_MS` (600 ms) prima del successivo,
@@ -62,7 +62,7 @@ tra tre impaginazioni, con gli stessi blocchi della tabella sopra:
 
 I breakpoint sono quelli delle specifiche grafiche (`docs/grafica/`) e valgono per **tutti** i modelli. Un monitor
 desktop 4:3 o 16:10 basso resta quindi tablet/desktop e mantiene lo scorrimento. `defaultLayouts` è l'elenco predefinito dei
-blocchi per dispositivo del modello standard (da `defaultDeviceBlocks` di `@sir/shared`, larghezze 12/8/6/4 su 12
+blocchi per dispositivo del modello standard (da `defaultDeviceBlocks` di `@arenalive/shared`, larghezze 12/8/6/4 su 12
 colonne come prima); `templateLayouts` ha quelli di ogni modello e `blocksFor(layout, dispositivo, modello)` sceglie quello
 giusto quando il cliente non ha un layout. Il cliente può cambiarlo nella sezione «Pagina live» dello Studio (vedi «Pagina pubblica a blocchi»). Nell'area riservata `MatchView` usa al massimo l'impaginazione tablet.
 
@@ -98,7 +98,7 @@ Fullscreen API non è disponibile o fallisce, «Schermo intero» attiva comunque
 | link revocato, scaduto o inesistente | «Link non valido o scaduto» (indicatore «Link non valido») |
 | sessione admin terminata (solo area riservata) | «Sessione terminata» (indicatore «Sessione terminata») |
 | errore del server sullo stato | riquadro «Aggiornamento non disponibile: …» sopra la partita |
-| qualsiasi altro indirizzo | «SIRRealtime»: «Per seguire una partita apri il link che ti è stato inviato.» |
+| qualsiasi altro indirizzo | pagina principale (`HomeScreen` in `App.tsx`): il logo di sistema sinistro al centro o, se non c'è, il logo ArenaLive (`ProductLogo`, variante automatica), titolo «ArenaLive» per i lettori di schermo e «Per seguire una partita apri il link che ti è stato inviato.» |
 
 ### Area riservata `/admin` (`src/pages/admin/`)
 Prima si verifica la sessione («Verifica della sessione…»); senza sessione compare il login
@@ -388,11 +388,11 @@ Lavoro «guida-utente». Le due voci stanno nel gruppo di menu «Account e aiuto
   locali usano `ChangeOwnPasswordRequestSchema`, poi `POST /api/auth/password`. Dopo il cambio gli altri dispositivi
   devono accedere di nuovo; «Password cambiata.» conferma. Password attuale sbagliata: errore `WRONG_PASSWORD` mostrato.
 - **Versione**: «Versione» in «Chi sei» (`1.0.0`; al superadmin anche il commit, `1.0.0 (85952d0)`) e, in piccolo in fondo
-  al menu laterale, «SIRRealtime 1.0.0» (`data-testid="app-version"`, nascosto con il menu ridotto alle icone; il commit
+  al menu laterale, «ArenaLive 1.0.0» (`data-testid="app-version"`, nascosto con il menu ridotto alle icone; il commit
   sta nel `title` solo per il superadmin). Viene dal `package.json` alla radice: Vite lo inserisce al build
-  (`define` `__SIR_VERSION__`/`__SIR_COMMIT__` in `vite.config.ts`, `src/lib/version.ts`); il commit è `SIR_COMMIT` nei
+  (`define` `__ARENALIVE_VERSION__`/`__ARENALIVE_COMMIT__` in `vite.config.ts`, `src/lib/version.ts`); il commit è `ARENALIVE_COMMIT` nei
   build Docker o git.
-- **Pagina aperta prima di un aggiornamento**: ogni build ha un id (`__SIR_BUILD__`) scritto anche in `dist/version.json`
+- **Pagina aperta prima di un aggiornamento**: ogni build ha un id (`__ARENALIVE_BUILD__`) scritto anche in `dist/version.json`
   (`{"build": "<id>"}`, servito da nginx senza cache). Se una risposta non rispetta lo schema del portale (`apiRequest`
   in `src/lib/api.ts`), il portale rilegge `/version.json` (`newBuildAvailable` in `src/lib/version.ts`): con un altro id
   mostra «Il portale è stato aggiornato: ricarica la pagina per usare la nuova versione.» (`OUTDATED_MESSAGE`), altrimenti
@@ -589,11 +589,11 @@ il `.dvw` arriva (o l'admin lo conferma) la pagina diventa la partita senza rica
 questo portale, con i colori e il logo del cliente.»): legge `GET /api/admin/agent/info` (`docs/server.md`, «Agente
 scaricabile»). Se l'agente è pubblicato mostra versione, data, dimensione in MB e il pulsante «Scarica l’agente per
 Windows», un normale link a `/api/admin/agent/download` (`AGENT_DOWNLOAD_PATH`: il browser scarica lo zip del cliente con
-il cookie di sessione, senza passare dal codice della pagina), poi i passi: scompatta lo zip in `C:\SIRAgent` (non sulla
-pennina); doppio clic su `sir-agent.exe` (non è firmato: «Ulteriori informazioni» e «Esegui comunque»); scrivi il nome
+il cookie di sessione, senza passare dal codice della pagina), poi i passi: scompatta lo zip in `C:\ArenaLiveAgent` (non sulla
+pennina); doppio clic su `arenalive-agent.exe` (non è firmato: «Ulteriori informazioni» e «Esegui comunque»); scrivi il nome
 dell'agente e premi «Registra»; abilitalo in «Richieste in attesa» controllando il codice mostrato sul PC. Se l'exe non è
-pubblicato: «L’agente non è ancora stato pubblicato sul server.» con il comando `scripts/costruisci-agente.sh`
-(`docs/infrastruttura.md`). Il resto della finestra dell'agente è in `docs/agente.md`.
+pubblicato: «L’agente non è ancora stato pubblicato sul server.» con il comando `scripts/costruisci-agente.sh` (agente Node; in produzione lo
+pubblica `scripts/pubblica-agente-produzione.sh`, agente C#; `docs/infrastruttura.md`). Il resto della finestra dell'agente è in `docs/agente.md`.
 
 **Richieste in attesa** (`PendingRegistrations` in `apps/web/src/pages/admin/AgentsPage.tsx`): i PC che si sono
 auto-registrati come agenti (`docs/server.md`). Ogni richiesta mostra nome, «Codice di abbinamento» (6 caratteri, in
@@ -674,6 +674,20 @@ JPEG, WebP o SVG, al massimo 2 MB e 150×50 px: uno più grande è rifiutato con
 - **Dati**: lo store `lib/systemLogos.ts` (`initSystemLogos`, `useSystemLogos`, `setSystemLogos`) legge `GET
   /api/public/system-logos` una volta all'avvio (`main.tsx`); la pagina lo aggiorna dopo ogni modifica.
 
+#### Marchio ArenaLive (`components/ProductLogo.tsx`, `public/brand/`)
+- **Loghi**: `public/brand/arenalive-positivo.png` (testo scuro, per sfondi chiari) e `arenalive-negativo.png` (testo
+  bianco, per sfondi scuri), descritti in `PRODUCT_LOGO` (150×35 e 150×36 px). `ProductLogo` li mostra con `VariantLogo`
+  (`components/SystemLogo.tsx`), che sceglie la variante dallo sfondo reale come per i loghi di sistema (sopra); alt
+  «ArenaLive», attributo `data-product-logo`.
+- **Dove compare**: `BrandMark` quando il cliente non ha né logo orizzontale né nome proprio (testate di pagina pubblica,
+  area riservata e login) e la pagina principale (`HomeScreen`) quando non c'è il logo di sistema sinistro, che altrimenti
+  ha la precedenza. Il modello `sir-volley` usa invece sempre il logo negativo (`navbarLogo`).
+- **Icone** (`apps/web/scripts/brand-icons.ts`): dal simbolo verde del logo positivo genera `public/icons/favicon-32.png`,
+  `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png` (collegate da `index.html` e usate come
+  `DEFAULT_MANIFEST_ICONS`) e `arenalive-agent.ico` a 7 misure (16, 24, 32, 48, 64, 128, 256 px) per l'agente C#; copia poi
+  i due loghi e l'icona negli agenti (`apps/agent-dotnet/src/ArenaLive.Agent.App/`, `apps/agent/src/gui/brand/`,
+  `docs/agente.md`). Si rigenerano con `pnpm --filter @arenalive/web exec tsx scripts/brand-icons.ts`; `favicon.svg` non c'è più.
+
 ### Posta (`MailSettingsPage.tsx`)
 Solo il superadmin, fuori da un cliente (`/admin/posta`, voce «Posta» di «Amministrazione»). Scheda «Posta»: «Il server
 che spedisce le mail di invito e di recupero password, uguale per tutti i clienti.» Campi: «Server SMTP», «Porta»,
@@ -707,7 +721,7 @@ il browser non ha l'API non succede nulla.
 - **Manifest** (`GET /api/public/manifest.webmanifest`, `webManifest` di `packages/shared/src/manifest.ts`; `index.html` lo
   collega): `display` `fullscreen` con `display_override` `fullscreen` e `standalone`, `scope` `/`; nome, colori e icona
   sono quelli del cliente dell'hostname (logo quadrato per primo), seguito dalle icone generiche di `public/icons/`
-  (`DEFAULT_MANIFEST_ICONS`, le sole quando manca il logo); senza cliente il nome è «SIRRealtime». Il vecchio `public/manifest.webmanifest` statico è ancora nel
+  (`DEFAULT_MANIFEST_ICONS`, le sole quando manca il logo); senza cliente il nome è «ArenaLive». Il vecchio `public/manifest.webmanifest` statico è ancora nel
   repository ma non è più collegato. Non c'è `start_url`, così Chrome riapre il link da
   cui si installa. `index.html` ha il manifest, `apple-touch-icon` e i meta.
 - **Service worker** (`public/sw.js`, registrato da `registerServiceWorker`): minimo, solo perché il browser consideri la
@@ -726,7 +740,7 @@ il browser non ha l'API non succede nulla.
 ### Connessione WebSocket (`src/lib/liveConnection.ts`, `useLiveSocket.ts`)
 - `LiveConnection` tiene aperto il socket e, a ogni (ri)connessione, il server rimanda lo stato intero.
 - **Patch**: dopo lo stato intero arrivano messaggi `patch`. `applyPatchMessage` li applica con `applyPatch`
-  (`@sir/shared`) solo se la `baseVersion` è la versione a video; se non combacia, la partita è un'altra o il patch non
+  (`@arenalive/shared`) solo se la `baseVersion` è la versione a video; se non combacia, la partita è un'altra o il patch non
   è applicabile (o il risultato non `looksLikeMatchState`) il client manda `{ "type": "resync" }` e ignora i patch finché
   non arriva lo stato intero. Il `resync` è rimandato se nessuna risposta arriva entro 8 s (`resyncRetryMs`; il server
   risponde al massimo ogni 5 s per socket). Patch con versione non maggiore di quella a video sono ignorati.
@@ -767,7 +781,7 @@ compare.
 
 ### Modelli grafici (template)
 Il cliente sceglie il **modello grafico** nella procedura guidata (passo «I colori») e nella sezione «Colori e loghi»
-dello Studio («Modello grafico», in «Avanzate»); l'elenco è chiuso in `@sir/shared` (`TEMPLATES`, `docs/architettura.md`).
+dello Studio («Modello grafico», in «Avanzate»); l'elenco è chiuso in `@arenalive/shared` (`TEMPLATES`, `docs/architettura.md`).
 I modelli offerti a **tutti** i clienti sono quattro, con questi testi (`TemplatePicker`, `ColorsSection.tsx`):
 - «Standard»: aspetto predefinito del portale, tema chiaro o scuro a scelta;
 - «Chiaro e pulito»: sempre chiaro, bianco e verde acqua, schede piatte e sobrie, leggibile anche in sala stampa;
@@ -788,8 +802,8 @@ parla di «SIR VOLLEY» si intende questo tema personalizzato.
    (`vars`, `media`, `tvVars`, `rules`; `docs/architettura.md`). Eventuali immagini vanno in `apps/web/public/templates/<id>/`.
 2. In `packages/shared/src/templates.ts` importa il JSON, aggiungi `'<id>'` a `TEMPLATE_IDS` e la voce
    `'<id>': customTheme('<id>', <json>)` in `TEMPLATES` (lancia un errore se l'`id` del file è diverso).
-3. Rigenera il CSS: `pnpm --filter @sir/web themes` e versiona `apps/web/src/styles/themes.generated.css`.
-4. Prova con `pnpm --filter @sir/shared test` e `pnpm --filter @sir/web test` (i test controllano schema, CSS aggiornato e
+3. Rigenera il CSS: `pnpm --filter @arenalive/web themes` e versiona `apps/web/src/styles/themes.generated.css`.
+4. Prova con `pnpm --filter @arenalive/shared test` e `pnpm --filter @arenalive/web test` (i test controllano schema, CSS aggiornato e
    che il tema non sia tra i modelli pubblici), poi `scripts/ci_locale.sh`.
 5. Il superadmin entra nel cliente e sceglie il tema in «Colori e loghi» > «Modello grafico»; il cliente non lo può cambiare
    da solo, ma lo mantiene.
@@ -819,24 +833,12 @@ ciclo e mostra l'avviso.
   pagina pubblica del modello standard, che in `tokens.css` nominava già Inter, ora lo scarica davvero.
 - **Colori**: la palette si calcola con `brandPalette(colori, modello)`. Il rosso `#E30613` su `#151518` ha solo 3,7:1: il
   testo piccolo usa la variante `-ink` (`#eb515a`), il rosso pieno resta per sfondi, pulsanti e testo grande.
-- **Logo** (`public/templates/sir-volley/`): `logo-sir-realtime.png` (1200×269, senza la riga «Powered by Istante»),
-  nella testata via `BrandMark`. Non c'è più nessun piè di pagina «Powered by Istante®» (tolto su richiesta di Luca:
-  `TemplateFooter` e `powered-by-istante.png` non esistono più). Si rigenera dall'originale di `docs/grafica/` con
-  `apps/web/scripts/trim-logo.ts` (solo `node:zlib`, PNG RGBA 8 bit):
-
-  ```bash
-  # --- variabili ---
-  RADICE="/percorso/del/repository"                                  # radice del repository o del worktree del job
-  LOGO_ORIGINALE="docs/grafica/sir real time logo-02.png"            # originale del logo SIR Real Time (relativo a RADICE)
-  USCITA="apps/web/public/templates/sir-volley"                      # cartella del logo del modello (relativa a RADICE)
-
-  # --- comandi ---
-  cd "$RADICE/apps/web"
-  pnpm exec tsx scripts/trim-logo.ts "../../$LOGO_ORIGINALE" "../../$USCITA/logo-sir-realtime.png" 1200 0 top
-  ```
-
-  Argomenti: `<input> <output> [larghezza=1200] [margine=0] [all|top|bottom]` (`top`: il logo senza la riga di testo
-  sotto; `bottom`: solo la riga).
+- **Logo**: il modello usa il **logo ArenaLive negativo** (`/brand/arenalive-negativo.png`, `navbarLogo` di
+  `packages/shared/src/themes/sir-volley.json`, scuro quindi sempre il negativo), nella testata via `BrandMark`. Le vecchie
+  immagini «sir real time» (cartella `public/templates/sir-volley/` e gli originali del logo in `docs/grafica/`) sono state rimosse.
+  Non c'è più nessun piè di pagina «Powered by Istante®» (tolto su richiesta di Luca: `TemplateFooter` e
+  `powered-by-istante.png` non esistono più). `apps/web/scripts/trim-logo.ts` (solo `node:zlib`, PNG RGBA 8 bit) ritaglia
+  un logo (`<input> <output> [larghezza=1200] [margine=0] [all|top|bottom]`) ed è usato anche da `brand-icons.ts`.
 - **Nostra squadra** (`lib/branding.ts` `useOurTeamColors`, `lib/teamColors.ts` `teamColorVars`): con il codice e/o il testo
   nel nome scelti in «Colori e loghi» (scheda «Squadra»; `ourTeamSide`, `docs/architettura.md`) i colori «casa» e «ospite» del portale sono puntati
   sulla **nostra** squadra (colore di casa nello standard, colore di risalto in SIR VOLLEY) e sull'avversaria (colore ospite)
@@ -875,7 +877,7 @@ controlli in `docs/server.md`, «Grafica per cliente»).
 - **Caricamento all'avvio** (`src/lib/branding.ts`, `initBranding` chiamata in `main.tsx`): `GET /api/public/tenant`
   (`PublicTenantResponseSchema`). Se la richiesta fallisce, o la risposta non è valida, restano i predefiniti di
   `tokens.css`: la pagina funziona lo stesso.
-- **Colori come variabili CSS**: `brandPalette` (`@sir/shared`, `colors.ts`) calcola dai cinque colori le variabili,
+- **Colori come variabili CSS**: `brandPalette` (`@arenalive/shared`, `colors.ts`) calcola dai cinque colori le variabili,
   anche le varianti per il tema scuro (colori schiariti e sfondo scurito fino al contrasto minimo 4,5:1 del WCAG,
   `ensureContrast`; il testo sui colori pieni è bianco o nero, `textColorOn`). `writePalette` le scrive su `:root` con il
   CSSOM (`style.setProperty`), consentito dalla CSP senza `unsafe-inline`, e segue il cambio tema chiaro/scuro. Valgono
@@ -884,8 +886,9 @@ controlli in `docs/server.md`, «Grafica per cliente»).
   barra di risalto nel colore d'accento (predefinito `#c2410c`).
 - **Nome e loghi**: il titolo della pagina pubblica usa il nome del cliente (`useBrandName`: «… · Diretta»); `BrandMark` (`src/components/BrandMark.tsx`, nelle
   testate di pagina pubblica, area riservata e login) mostra il logo orizzontale in un `<img>` (SVG compresi, mai
-  markup in linea), altrimenti il nome, altrimenti la scritta «SIRRealtime». Il cliente predefinito senza nome
-  visualizzato è mostrato come «SIRRealtime». Il favicon è il logo quadrato. La CSP resta quella di prima
+  markup in linea), altrimenti il nome, altrimenti il **logo ArenaLive** (`ProductLogo`). Il cliente predefinito senza nome
+  visualizzato è mostrato come «ArenaLive» (con il suo logo). Il favicon è `public/icons/favicon-32.png` (non più
+  `favicon.svg`, rimosso; vedi «Marchio ArenaLive»). La CSP resta quella di prima
   (`img-src 'self' data:`, le immagini sono servite dalla stessa origine).
 - **Editor**: sezione «Colori e loghi» dello «Studio grafico» (`studio/ColorsSection.tsx`; opzioni, testi e avvisi di
   contrasto descritti lì). Lo Studio mostra la bozza nell'anteprima (che ha un proprio ambito di colori), senza cambiare
@@ -929,7 +932,7 @@ Le sei viste statistiche (`blocks/StatSlides.tsx`) hanno tre misure: `full` (tut
 spenta con `prefers-reduced-motion`. I testi (nomi dei giocatori) sono sempre testo React, mai HTML. Le opzioni si modificano con
 `pages/admin/StatOptionsFields.tsx`, usato sia da «Pagina live» sia da «Pause». Il registro (`registry.tsx`) disegna
 queste viste anche come blocchi della pagina, con le stesse etichette di `SLIDE_LABELS`; la pagina usa il set in corso
-(`statPeriod`), il confronto di `charts/compare.ts` usa `teamDuel` di `@sir/volley-stats` (niente più calcoli copiati).
+(`statPeriod`), il confronto di `charts/compare.ts` usa `teamDuel` di `@arenalive/volley-stats` (niente più calcoli copiati).
 
 #### Blocchi del calendario («Prossima partita» e «Classifica»)
 Dati del club scelto in «Club» (`docs/portale.md`, «Club e Calendario»); rotta, regole di scelta e cache in
@@ -967,7 +970,7 @@ Sono blocchi della pagina (larghezze 4/6/8/12) e diapositive delle pause (stesse
   1024×768, 390×845) e ridotta, non interattiva (si può solo cliccare un elemento per aprirne l'impostazione), con le
   modifiche non ancora salvate. Usa la partita live del cliente (`/ws/admin`: «Dati della partita live.») oppure, se non c'è,
   la «Partita d'esempio» (`src/blocks/sampleMatch.json`, caricata solo dall'editor in un suo file separato; si rigenera con
-  `pnpm --filter @sir/web sample-match`).
+  `pnpm --filter @arenalive/web sample-match`).
 - **Limiti noti**: un'immagine singola di un blocco sponsor non si può eliminare finché non viene tolta dal blocco. Un layout salvato e poi non più valido (per esempio di versione futura) si legge come
   predefinito.
 
@@ -1004,7 +1007,7 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   alta, anche se non ha aperto nulla; una correzione dello scout che la abbassa non la riapre). Non si apre: al primo stato,
   dopo una riconnessione o un `resync` (solo aggiornamenti `live`), con un time-out, una fine set o una fine partita in corso
   (che hanno la precedenza e la chiudono), né vicino al traguardo del set: con `stopBeforeEnd` K (predefinito 5) niente pausa
-  se una squadra è a K punti dal traguardo (25, 15 al tie-break; il traguardo viene da `@sir/volley-stats`). Mostra le sue
+  se una squadra è a K punti dal traguardo (25, 15 al tie-break; il traguardo viene da `@arenalive/volley-stats`). Mostra le sue
   diapositive una volta e si chiude da sola; se time-out e fine set sono disattivati resta fino al suo timer. Titolo
   (`pauseTitle`): «2° set: 9-7». È attiva di default per tutti i clienti e si spegne da «Pause».
 - **Quando compare** (`components/Intermission.tsx`, montato da `LivePage.tsx` sotto la pagina): per `timeout`, `setBreak` e
@@ -1042,7 +1045,7 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
 - **Editor**: sezione «Pause» dello «Studio grafico» (`studio/PausesSection.tsx`; schede, diapositive, regola «ogni N
   punti», ritardo e ripristino descritti lì). La pausa è mostrata subito nell'anteprima, con le modifiche non salvate
   (`previewState` mette nello stato la fase della pausa aperta). La «Partita d'esempio» (`src/blocks/sampleMatch.json`,
-  rigenerata con `pnpm --filter @sir/web sample-match`) è in 2° set con un set chiuso.
+  rigenerata con `pnpm --filter @arenalive/web sample-match`) è in 2° set con un set chiuso.
 - **Sponsor**: la diapositiva «Sponsor» sceglie gli sponsor come il blocco (stesse opzioni e stessa rotazione, `docs/portale.md`
   «Sponsor»); un'immagine singola di una diapositiva non si può eliminare finché non viene tolta.
 - **Limiti noti**: un'immagine singola di una diapositiva sponsor non si può eliminare finché non viene tolta. Da provare su dispositivi veri (TV a 4-5 m, telefono con la banda).
@@ -1054,11 +1057,11 @@ configurazione del cliente da `overlays` di `GET /api/public/tenant` (`docs/arch
 `docs/server.md`).
 
 - **Quando compare** (`components/Overlay.tsx`, montato da `LivePage.tsx` accanto a `Intermission`): per ogni evento nuovo
-  il cui avviso è acceso e ammesso sul dispositivo; testo da `overlayText` (`fillOverlayText` di `@sir/shared`), sempre testo
+  il cui avviso è acceso e ammesso sul dispositivo; testo da `overlayText` (`fillOverlayText` di `@arenalive/shared`), sempre testo
   semplice, mai HTML. Il riquadro ha il colore della squadra dell'evento (neutro senza squadra), cade dall'alto con
   l'animazione `.sir-overlay` (450 ms, spenta con `prefers-reduced-motion`) e resta per i secondi scelti.
 - **Posizione e dimensione** (`position`: `top`, `center`, `bottom`, predefinito `top`; `size`: `small`, `medium`,
-  `large`, predefinita `medium`; `overlayPlacement` di `@sir/shared`): impostazioni generali del documento e override
+  `large`, predefinita `medium`; `overlayPlacement` di `@arenalive/shared`): impostazioni generali del documento e override
   facoltativo per ogni avviso. In alto al 12 % dal bordo, al centro, in basso al 14 % sopra la banda delle pause; tre
   dimensioni per dispositivo. L'avviso non intercetta mai i clic (`pointer-events-none`).
 - **Nessun avviso per ciò che è già successo**: non compaiono all'apertura della pagina, dopo una riconnessione né dopo un
@@ -1103,7 +1106,7 @@ nell'URL), `X-Frame-Options: DENY`, `Cross-Origin-Opener-Policy` e `Permissions-
 - i tooltip sono nel canvas (sopra) e gli stili vengono da file della build, non da attributi `style` scritti a mano.
 
 ### Stub di `iconv-lite`
-`@sir/shared` raggiunge il parser DVW attraverso gli schemi di ingest e il parser usa `iconv-lite`, che in un browser non
+`@arenalive/shared` raggiunge il parser DVW attraverso gli schemi di ingest e il parser usa `iconv-lite`, che in un browser non
 funziona (richiede il `Buffer` di Node). Il portale non legge file DVW, quindi in `vite.config.ts` l'alias `iconv-lite`
 punta a `src/lib/iconv-browser.ts`, che lancia un errore se chiamato. Inoltre `treeshake.moduleSideEffects` scarta dal
 bundle i pacchetti del monorepo non usati.
@@ -1112,12 +1115,12 @@ bundle i pacchetti del monorepo non usati.
 
 ### Sviluppo (`apps/web/vite.config.ts`)
 - `vite dev` ascolta sulla porta **5173** (`strictPort`: se è occupata non ne cerca un'altra).
-- Proxy verso il server: `/api` e `/ws` (con WebSocket) vanno a `SIR_SERVER_URL`, default `http://localhost:8090`. Il
+- Proxy verso il server: `/api` e `/ws` (con WebSocket) vanno a `ARENALIVE_SERVER_URL`, default `http://localhost:8090`. Il
   browser vede una sola origine, quindi cookie di sessione e controllo `Origin` funzionano con `CORS_ORIGIN` e
   `PUBLIC_BASE_URL` = `http://localhost:5173` (default del server, `docs/server.md`).
-- `define`: `__SIR_VERSION__` e `__SIR_COMMIT__` (versione del `package.json` alla radice e commit corto, vuoto se ignoto)
-  e `__SIR_BUILD__` (id casuale di ogni `vite build`, vuoto in sviluppo; il build lo scrive anche in `version.json`).
-- Build: `pnpm --filter @sir/web build` scrive in `apps/web/dist`; ECharts ha un chunk a parte (`echarts`).
+- `define`: `__ARENALIVE_VERSION__` e `__ARENALIVE_COMMIT__` (versione del `package.json` alla radice e commit corto, vuoto se ignoto)
+  e `__ARENALIVE_BUILD__` (id casuale di ogni `vite build`, vuoto in sviluppo; il build lo scrive anche in `version.json`).
+- Build: `pnpm --filter @arenalive/web build` scrive in `apps/web/dist`; ECharts ha un chunk a parte (`echarts`).
 
 ### Demo (`apps/web/scripts/demo.ts`)
 Avvia in un solo processo un server con PGlite in memoria, un agente vero e il simulatore che suona una partita sintetica.
@@ -1128,15 +1131,15 @@ Tutto si perde con Ctrl+C. Variabili, tutte facoltative:
 | `DEMO_SPEED` | `15` | accelerazione del simulatore (numero positivo, massimo 10000) |
 | `DEMO_SEED` | `1` | seme della partita generata (intero da 0) |
 | `DEMO_SETS` | `4` | numero di set: `3`, `4` o `5` |
-| `DEMO_PORT` | `8090` | porta del server della demo (deve coincidere con `SIR_SERVER_URL` di vite) |
-| `DEMO_ADMIN_EMAIL` | `admin@sir.local` | email dell'admin di prova |
-| `DEMO_ADMIN_PASSWORD` | `password-demo-sir` | password dell'admin di prova (almeno 12 caratteri) |
+| `DEMO_PORT` | `8090` | porta del server della demo (deve coincidere con `ARENALIVE_SERVER_URL` di vite) |
+| `DEMO_ADMIN_EMAIL` | `admin@arenalive.local` | email dell'admin di prova |
+| `DEMO_ADMIN_PASSWORD` | `password-demo-arenalive` | password dell'admin di prova (almeno 12 caratteri) |
 
-L'admin di prova (`admin@sir.local` / `password-demo-sir`) esiste solo nel database in memoria della demo. La demo
+L'admin di prova (`admin@arenalive.local` / `password-demo-arenalive`) esiste solo nel database in memoria della demo. La demo
 usa `COOKIE_SECURE=false`, `CORS_ORIGIN` e `PUBLIC_BASE_URL` = `http://localhost:5173` e limiti di richieste molto alti.
 
 ### Docker
-- `docker/web.Dockerfile`: build arg `SIR_COMMIT` (commit corto per la versione; il contesto non ha `.git`), stadio `build` (Node 24, `pnpm install --frozen-lockfile`, `pnpm --filter @sir/web build`),
+- `docker/web.Dockerfile`: build arg `ARENALIVE_COMMIT` (commit corto per la versione; il contesto non ha `.git`), stadio `build` (Node 24, `pnpm install --frozen-lockfile`, `pnpm --filter @arenalive/web build`),
   stadio `runtime` `nginxinc/nginx-unprivileged` (utente 101, porta 8080 nel container, healthcheck su `/healthz`).
 - `docker/web.nginx.main.conf`: `nginx.conf` principale, copiata da `docker/web.Dockerfile` in `/etc/nginx/nginx.conf`.
   Come quella di nginx-unprivileged (pid e file temporanei in `/tmp`, utente non root) ma con `worker_processes auto`,
@@ -1178,8 +1181,8 @@ DEMO_SPEED="15"                          # accelerazione della partita simulata
 DEMO_SEED="1"                            # seme della partita
 DEMO_SETS="4"                            # set: 3, 4 o 5
 DEMO_PORT="8090"                         # porta del server della demo
-DEMO_ADMIN_EMAIL="admin@sir.local"       # email dell'admin di prova
-DEMO_ADMIN_PASSWORD="password-demo-sir" # password dell'admin di prova, almeno 12 caratteri
+DEMO_ADMIN_EMAIL="admin@arenalive.local"       # email dell'admin di prova
+DEMO_ADMIN_PASSWORD="password-demo-arenalive" # password dell'admin di prova, almeno 12 caratteri
 
 # --- comandi ---
 cd "$RADICE"
@@ -1187,7 +1190,7 @@ corepack enable
 pnpm install
 DEMO_SPEED="$DEMO_SPEED" DEMO_SEED="$DEMO_SEED" DEMO_SETS="$DEMO_SETS" DEMO_PORT="$DEMO_PORT" \
   DEMO_ADMIN_EMAIL="$DEMO_ADMIN_EMAIL" DEMO_ADMIN_PASSWORD="$DEMO_ADMIN_PASSWORD" \
-  pnpm --filter @sir/web demo
+  pnpm --filter @arenalive/web demo
 ```
 
 La demo stampa l'indirizzo della pagina pubblica (`http://localhost:5173/live/<token>`), quello per il maxischermo
@@ -1200,7 +1203,7 @@ DEMO_PORT="8090"                         # la stessa porta usata dalla demo
 
 # --- comandi ---
 cd "$RADICE"
-SIR_SERVER_URL="http://localhost:$DEMO_PORT" pnpm --filter @sir/web dev
+ARENALIVE_SERVER_URL="http://localhost:$DEMO_PORT" pnpm --filter @arenalive/web dev
 ```
 
 Poi si apre `http://localhost:5173` nel browser, con l'indirizzo stampato dalla demo.
@@ -1213,12 +1216,12 @@ Variabili e comandi di `docker compose` sono in `docs/server.md`; il portale è 
 
 | Comando | Cosa fa |
 |---|---|
-| `pnpm --filter @sir/web dev` | Vite in sviluppo su 5173 |
-| `pnpm --filter @sir/web build` | build in `apps/web/dist` |
-| `pnpm --filter @sir/web preview` | serve la build sulla 5173 |
-| `pnpm --filter @sir/web demo` | demo (sopra) |
-| `pnpm --filter @sir/web test` | `vitest run` (jsdom) |
-| `pnpm --filter @sir/web sample-match` | rigenera `src/blocks/sampleMatch.json` (partita d'esempio dell'anteprima); un test ne verifica la coerenza |
+| `pnpm --filter @arenalive/web dev` | Vite in sviluppo su 5173 |
+| `pnpm --filter @arenalive/web build` | build in `apps/web/dist` |
+| `pnpm --filter @arenalive/web preview` | serve la build sulla 5173 |
+| `pnpm --filter @arenalive/web demo` | demo (sopra) |
+| `pnpm --filter @arenalive/web test` | `vitest run` (jsdom) |
+| `pnpm --filter @arenalive/web sample-match` | rigenera `src/blocks/sampleMatch.json` (partita d'esempio dell'anteprima); un test ne verifica la coerenza |
 
 ### Kiosk per le TV (Windows)
 Crea nella cartella «Esecuzione automatica» di Windows un collegamento che apre il browser a schermo intero sul link
@@ -1228,7 +1231,7 @@ pubblico, a ogni accensione del PC. Va eseguito in PowerShell sul PC della TV, d
 # ---- VARIABILI (compila solo questo blocco) ----
 $Browser          = "C:\Program Files\Google\Chrome\Application\chrome.exe"   # percorso di chrome.exe; per Edge: "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 $Url              = "<link pubblico del canale o della partita, da «Link pubblici»>"
-$NomeCollegamento = "SIRRealtime TV"                                          # nome del collegamento nella cartella Esecuzione automatica
+$NomeCollegamento = "ArenaLive TV"                                          # nome del collegamento nella cartella Esecuzione automatica
 # ---- FINE VARIABILI ----
 
 $Argomenti = "--kiosk `"$Url`" --noerrdialogs --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required"
@@ -1258,11 +1261,11 @@ tempo reale (`--remote-debugging-port`, poi `Page.captureScreenshot` dopo qualch
 
 ```bash
 # --- variabili ---
-CARTELLA="/tmp/sir-chrome"                       # cartella temporanea per Chrome e librerie (si cancella a fine lavoro)
+CARTELLA="/tmp/arenalive-chrome"                       # cartella temporanea per Chrome e librerie (si cancella a fine lavoro)
 URL="http://localhost:5173/"                     # pagina da fotografare (con la demo: l'URL stampato dal comando demo)
 LARGHEZZA=1920                                   # larghezza della finestra in px
 ALTEZZA=1080                                     # altezza della finestra in px
-FILE="/tmp/sir-chrome/schermata.png"             # file PNG di uscita
+FILE="/tmp/arenalive-chrome/schermata.png"             # file PNG di uscita
 
 # --- comandi ---
 mkdir -p "$CARTELLA/librerie"
@@ -1280,7 +1283,7 @@ Il nome del pacchetto delle librerie audio cambia con la distribuzione (`libasou
 dell'area riservata chiedono il login: per queste serve una pagina pubblica o la demo.
 
 ### Collaudo del 2026-10-14
-- **Compose**: `docker compose -p sirrealtime up -d --build` con `.env` da `.env.example` (`POSTGRES_PASSWORD`, `ADMIN_*`,
+- **Compose**: `docker compose -p arenalive up -d --build` con `.env` da `.env.example` (`POSTGRES_PASSWORD`, `ADMIN_*`,
   `WEB_PORT=8085` perché la 8080 era occupata, `COOKIE_SECURE=false` in http locale). `postgres`, `server` e `web` healthy;
   health diretto e attraverso nginx, intestazioni di sicurezza, login, token agente e link pubblico (URL sulla porta del
   portale) funzionano.
@@ -1368,7 +1371,7 @@ API del server: il portale non è scansionato.
 - Modelli grafici: `apps/web/src/lib/branding.ts` (`applyTemplate`, `initTemplate`, `useTemplate`, `useOurTeamColors`),
   `lib/teamColors.ts` (`teamColorVars`), `lib/theme.ts` (`forcedTheme`, `useForcedTheme`), `lib/layout.ts` (`viewportClass`,
   `templateLayouts`), `MenuButton.tsx`, `BrandMark.tsx`,
-  `styles/tokens.css` (`[data-template='sir-volley']`), `styles/fonts.css`, `scripts/trim-logo.ts`, `public/templates/sir-volley/`;
+  `styles/tokens.css` (`[data-template='sir-volley']`), `styles/fonts.css`, `scripts/trim-logo.ts`, `scripts/brand-icons.ts`, `public/brand/`, `public/icons/`, `components/ProductLogo.tsx`;
   contratti in `packages/shared/src/templates.ts`, `ourTeam.ts` (`docs/architettura.md`); originali in `docs/grafica/`
 - Link breve e QR: `apps/web/src/qr/` (`qrImage.ts`, `qrCanvas.ts`, `ShareQr.tsx`), `pages/admin/ShareLinksPage.tsx`;
   `packages/shared/src/admin.ts` (`SHARE_TOKEN_PATTERN`, `formatShortCode`); server in `docs/server.md`

@@ -1,6 +1,6 @@
-import { decodeDvw, parseDvw } from '@sir/dvw-parser';
-import type { PlaybackLine } from '@sir/dvw-simulator';
-import { generateMatch, renderDvw } from '@sir/dvw-simulator';
+import { decodeDvw, parseDvw } from '@arenalive/dvw-parser';
+import type { PlaybackLine } from '@arenalive/dvw-simulator';
+import { generateMatch, renderDvw } from '@arenalive/dvw-simulator';
 import {
   INGEST_MAX_LINES,
   INGEST_PROTOCOL,
@@ -8,7 +8,7 @@ import {
   SCOUT_SECTION_MARKER,
   SIMULATION_UPLOAD_MAX_BYTES,
   splitDvwText,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { HttpError } from '../lib/errors.js';
 
 /** A match ready to be replayed: the header of the file, its scout lines and what the timing needs of them. */

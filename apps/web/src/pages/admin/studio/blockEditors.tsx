@@ -5,7 +5,7 @@ import type {
   LayoutDevice,
   Sponsor,
   TenantLayout,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   MESSAGE_MAX_LENGTH,
   adminAssetPath,
@@ -14,8 +14,8 @@ import {
   SPONSOR_MAX_SECONDS,
   SPONSOR_MIN_SECONDS,
   TOP_PLAYERS_MAX,
-} from '@sir/shared';
-import type { MatchState } from '@sir/volley-stats';
+} from '@arenalive/shared';
+import type { MatchState } from '@arenalive/volley-stats';
 import type { ReactNode, RefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';

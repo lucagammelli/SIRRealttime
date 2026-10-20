@@ -1,4 +1,4 @@
-import { parseDvw } from '@sir/dvw-parser';
+import { parseDvw } from '@arenalive/dvw-parser';
 import type {
   CalendarResponse,
   ClubFixture,
@@ -9,7 +9,7 @@ import type {
   ClubTeamsResponse,
   PendingMatch,
   ScheduleResponse,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   adminAssetPath,
   clubFixtureState,
@@ -22,7 +22,7 @@ import {
   suggestedOurTeamName,
   UpdateClubProfileRequestSchema,
   UpdateClubRequestSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { and, asc, count, desc, eq, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { adminLogos, broadcastOf, clubLook, effectiveStartSql, publicSchedule, upcomingOf } from '../club.js';

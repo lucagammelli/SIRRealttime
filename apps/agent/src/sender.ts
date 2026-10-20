@@ -1,6 +1,6 @@
 import { gzipSync } from 'node:zlib';
-import type { IngestRequest, IngestResponse } from '@sir/shared';
-import { AGENT_EXPIRED_ERROR, ApiErrorSchema, IngestResponseSchema } from '@sir/shared';
+import type { IngestRequest, IngestResponse } from '@arenalive/shared';
+import { AGENT_EXPIRED_ERROR, ApiErrorSchema, IngestResponseSchema } from '@arenalive/shared';
 import { errorMessage } from './util.js';
 
 /** Bodies larger than this are sent with `Content-Encoding: gzip`. */

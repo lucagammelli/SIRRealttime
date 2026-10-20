@@ -1,11 +1,11 @@
 {
-  "name": "@sir/agent",
+  "name": "@arenalive/agent",
   "version": "0.0.0",
   "private": true,
   "description": "Agente Windows: legge il .dvw di DataVolley, calcola il diff delle righe [3SCOUT] e lo invia al server.",
   "type": "module",
   "bin": {
-    "sir-agent": "./dist/main.js"
+    "arenalive-agent": "./dist/main.js"
   },
   "files": [
     "dist"
@@ -15,19 +15,19 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
-    "bundle": "esbuild src/main.ts --bundle --platform=node --format=cjs --target=node24 --conditions=@sir/source --loader:.ps1=text --outfile=build/sir-agent.cjs",
-    "dev": "tsx --conditions=@sir/source src/main.ts --console"
+    "bundle": "esbuild src/main.ts --bundle --platform=node --format=cjs --target=node24 --conditions=@arenalive/source --loader:.ps1=text --loader:.png=binary --loader:.ico=binary --outfile=build/arenalive-agent.cjs",
+    "dev": "tsx --conditions=@arenalive/source src/main.ts --console"
   },
   "dependencies": {
-    "@sir/dvw-parser": "workspace:*",
-    "@sir/shared": "workspace:*",
+    "@arenalive/dvw-parser": "workspace:*",
+    "@arenalive/shared": "workspace:*",
     "pino": "^10.4.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@sir/dvw-simulator": "workspace:*",
-    "@sir/server": "workspace:*",
-    "@sir/volley-stats": "workspace:*",
+    "@arenalive/dvw-simulator": "workspace:*",
+    "@arenalive/server": "workspace:*",
+    "@arenalive/volley-stats": "workspace:*",
     "esbuild": "0.28.2",
     "tsx": "^4.23.15"
   }

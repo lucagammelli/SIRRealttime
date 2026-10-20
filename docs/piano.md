@@ -1,4 +1,4 @@
-# SIRRealtime – Piano di progetto
+# ArenaLive (già SIRRealtime) – Piano di progetto
 
 ## Context
 DataVolley 4 (Windows) produce in tempo reale, durante la partita, un file di scout `.dvw` su una pennina USB locale.
@@ -68,7 +68,7 @@ Funzioni pure `computeMatchState(parsed)`:
   `seq` crescente + hash del contenuto → ingest idempotente.
 - **Coda offline** su file locale: se la rete cade i messaggi restano in coda e vengono reinviati in ordine.
 - Gestione rimozione/reinserimento pennina senza crash; log su file ruotato.
-- Distribuzione: Node SEA (single executable) → `sir-agent.exe`; installazione come servizio con NSSM o
+- Distribuzione: Node SEA (single executable) → `arenalive-agent.exe`; installazione come servizio con NSSM o
   `node-windows`, più modalità console per test.
 
 ## 4. Backend (`apps/server`)
@@ -136,14 +136,14 @@ dall'hostname (`docs/server.md`, `docs/decisioni.md`). Lavori, uno per job, in q
    point, match point, pareggio, sorpasso, time-out, cambio, fine set, fine partita), con testo a segnaposto, durata,
    dispositivi e priorità per cliente; eventi calcolati in `volley-stats`, pagina «Avvisi», `GET`/`PUT
    /api/admin/overlays` (`docs/statistiche.md`, `docs/architettura.md`, `docs/server.md`, `docs/portale.md`).
-9. `agente-scaricabile` (**fatto**): `sir-agent.exe` costruito da Linux (`scripts/costruisci-agente.sh`) e scaricabile
+9. `agente-scaricabile` (**fatto**): `arenalive-agent.exe` costruito da Linux (`scripts/costruisci-agente.sh`) e scaricabile
    dalla pagina «Agenti» come zip per cliente, con `config.json` del cliente (senza token), `branding.json` e logo che la
    finestra dell'agente mostra (`docs/server.md`, «Agente scaricabile»; `docs/agente.md`, `docs/portale.md`,
    `docs/infrastruttura.md`, `docs/architettura.md`); da provare su Windows.
 10. `template-sir-volley` (**fatto**, 2026-10-16): primo modello grafico (template) scelto dal cliente nella pagina
     «Grafica» («Modello grafico»): SIR VOLLEY (dal job `wizard-temi`, 2026-10-18, non più pubblico ma tema personalizzato
     assegnato dal superadmin; ai clienti si offrono quattro modelli), tema scuro forzato, rosso e bianco, font Google Sans Code self-hosted, logo
-    SIR Real Time, pagina predefinita come il mockup (specifiche e originali in
+    del prodotto (dal 2026-10-20 il logo ArenaLive negativo, `apps/web/public/brand/`; le vecchie immagini «sir real time» sono state rimosse), pagina predefinita come il mockup (specifiche e originali in
     `docs/grafica/`), «Nostra squadra» che segue i colori del cliente e breakpoint telefono/tablet/desktop per tutti i
     modelli (`docs/portale.md`, `docs/architettura.md`, `docs/server.md`); da provare su dispositivi veri.
 11. `diapositive-tv` (**fatto**, 2026-10-16): sei viste statistiche in stile TV (parziale e marcatori, ace, muri, attacco,
@@ -232,7 +232,7 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
    `docs/architettura.md`).
 12. `wizard-temi` (**fatto**, 2026-10-18): quattro modelli grafici per tutti i clienti (Standard, Chiaro e pulito, Scuro
    sportivo, Alto contrasto per TV) nella procedura guidata e nello Studio; SIR VOLLEY diventa tema personalizzato (JSON in
-   `packages/shared/src/themes/`, CSS generato con `pnpm --filter @sir/web themes`) assegnato dal superadmin, con 403 del
+   `packages/shared/src/themes/`, CSS generato con `pnpm --filter @arenalive/web themes`) assegnato dal superadmin, con 403 del
    server per gli altri; avviso «La pagina non si è caricata» con ricarica automatica una volta; «Apri lo Studio grafico»
    nel passo finale (`docs/portale.md`, `docs/architettura.md`, `docs/server.md`).
 13. `guida-utente` (**fatto**, 2026-10-18): pagina «Guida» (`/admin/guida`, 11 sezioni più una per il superadmin, ricerca,

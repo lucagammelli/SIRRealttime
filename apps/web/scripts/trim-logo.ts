@@ -3,14 +3,13 @@
  * scales it down to a width (area average with premultiplied alpha, transparency kept) and writes a new PNG.
  * Only PNG RGBA 8 bit without interlace (the originals); no dependency besides node:zlib.
  *
- *   pnpm --filter @sir/web exec tsx scripts/trim-logo.ts <input.png> <output.png> [width=1200] [margin=0] [part=all]
+ *   pnpm --filter @arenalive/web exec tsx scripts/trim-logo.ts <input.png> <output.png> [width=1200] [margin=0] [part=all]
  *
  * `margin`: transparent border kept around the drawing, as a share of the final width. `part`: `all` the whole
  * drawing; `top` only what is above the last fully transparent band of rows (the logo without the line of text under
  * it); `bottom` only what is under it (the line of text).
  *
- * Template «SIR VOLLEY» (originals in docs/grafica):
- *   tsx scripts/trim-logo.ts "../../docs/grafica/sir real time logo-02.png" public/templates/sir-volley/logo-sir-realtime.png 1200 0 top
+ * Example: tsx scripts/trim-logo.ts <original.png> public/templates/<template>/<logo>.png 1200 0 top
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { deflateSync, inflateSync } from 'node:zlib';

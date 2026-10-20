@@ -1,7 +1,7 @@
 /**
  * Pauses of the public page (pure functions, no DOM): which pause the phase of the match opens with the
- * configuration of the client (`TenantIntermissions` of @sir/shared), and the slides it can really show. The phase
- * and every number come from @sir/volley-stats: nothing is computed here.
+ * configuration of the client (`TenantIntermissions` of @arenalive/shared), and the slides it can really show. The phase
+ * and every number come from @arenalive/volley-stats: nothing is computed here.
  */
 import type {
   Intermission,
@@ -12,9 +12,9 @@ import type {
   ScheduleResponse,
   StatPeriod,
   TenantIntermissions,
-} from '@sir/shared';
-import { intermissionFor } from '@sir/shared';
-import type { MatchPhase, MatchState, Period, PointMilestone, Side } from '@sir/volley-stats';
+} from '@arenalive/shared';
+import { intermissionFor } from '@arenalive/shared';
+import type { MatchPhase, MatchState, Period, PointMilestone, Side } from '@arenalive/volley-stats';
 import {
   DUEL_ROLES,
   MATCH_PERIOD,
@@ -25,7 +25,7 @@ import {
   setPeriod,
   setRecap,
   teamDuel,
-} from '@sir/volley-stats';
+} from '@arenalive/volley-stats';
 import { hasScheduleData } from './schedule.ts';
 import { sponsorItems } from './sponsors.ts';
 
@@ -103,7 +103,7 @@ export function duelRoles(state: MatchState, period: Period): (typeof DUEL_ROLES
   return DUEL_ROLES.filter((role) => duels.some((d) => d.role === role));
 }
 
-/** Whether the statistics slide has something to show in its period (every number from @sir/volley-stats). */
+/** Whether the statistics slide has something to show in its period (every number from @arenalive/volley-stats). */
 function hasStatistics(state: MatchState, slide: IntermissionSlide, set: number): boolean {
   if (!('period' in slide.options)) return true;
   const period = statPeriod(slide.options.period, set);
@@ -191,7 +191,7 @@ export interface MilestoneInput {
 }
 
 /**
- * Pure: the «ogni N punti» rule of `pointMilestone` (@sir/volley-stats) for a new state. A threshold opens the pause
+ * Pure: the «ogni N punti» rule of `pointMilestone` (@arenalive/volley-stats) for a new state. A threshold opens the pause
  * only when it is higher than the highest one already met in that set (a scout correction that takes a point back
  * gives a lower threshold: nothing), the state is a live update, no more important pause is on and the set is not in
  * its last `stopBeforeEnd` points (`toTarget` of `pointMilestone`: points to win the set − the higher score). Every threshold met is remembered, also when it does not open (it is never shown later); the

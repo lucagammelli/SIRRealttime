@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Installa SIRRealtime in produzione su un Ubuntu Server 24.04 o 26.04 LTS minimale (anche «minimized»), come root.
+# Installa ArenaLive in produzione su un Ubuntu Server 24.04 o 26.04 LTS minimale (anche «minimized»), come root.
 # Idempotente: si può rilanciare per riallineare sistema e configurazione; chiama scripts/aggiorna-produzione.sh per
 # backup, build, avvio e verifica. Non sovrascrive mai un .env esistente (aggiunge solo le variabili mancanti).
 #
 # Uso:  1) copia questo file sul server, 2) compila il blocco «variabili» qui sotto, 3) sudo bash installa-produzione.sh
-# Log: /var/log/sir-realtime-installazione.log
+# Log: /var/log/arenalive-installazione.log
 
 # --- variabili (le uniche da modificare; ogni "<…>" va sostituito) ---
 CERTIFICATI="interno"                              # «interno» = certificato firmato da una CA locale di Caddy (radice generata sul server; da installare sui PC): per hostname non pubblici, es. realtime.local risolti dal file hosts. «letsencrypt» = certificato pubblico (serve DNS pubblico e porte 80/443 raggiungibili). Si passa da uno all'altro rilanciando lo script
@@ -17,17 +17,17 @@ REPO_URL="git@github.com:lucagammelli/SIRRealttime.git"  # GitHub, pulsante «Co
 REPO_RIFERIMENTO="main"                            # ramo o tag da installare (GitHub, «Branches» / «Tags»)
 CHIAVE_DEPLOY=""                                   # percorso di una chiave privata SSH di deploy già pronta sul server; vuoto = ne creo una io e ti mostro la parte pubblica da inserire su GitHub (Settings > Deploy keys, sola lettura)
 HOSTKEY_GITHUB_SHA256="SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU"  # impronta ed25519 del server git, da docs.github.com «GitHub's SSH key fingerprints» (controllala); vuota con repo https
-CARTELLA_INSTALLAZIONE="/opt/sir-realtime"         # dove sta il codice (e il file .env di produzione)
-CARTELLA_BACKUP="/var/backups/sir-realtime"        # dove finiscono i backup giornalieri (database, immagini, .env)
+CARTELLA_INSTALLAZIONE="/opt/arenalive"         # dove sta il codice (e il file .env di produzione)
+CARTELLA_BACKUP="/var/backups/arenalive"        # dove finiscono i backup giornalieri (database, immagini, .env)
 BACKUP_DA_TENERE="14"                              # quanti backup di ogni tipo conservare (i più vecchi vengono cancellati)
 FUSO_ORARIO="Europe/Rome"                          # elenco: timedatectl list-timezones
 PORTA_SSH="22"                                     # porta su cui ascolta sshd (ss -tlnp | grep sshd): resta aperta nel firewall
-UTENTE_SERVIZIO="sir"                              # utente di sistema senza login, proprietario di codice e chiave di deploy
+UTENTE_SERVIZIO="arenalive"                              # utente di sistema senza login, proprietario di codice e chiave di deploy
 SPAZIO_MIN_GB="20"                                 # spazio libero minimo su /var/lib e su / (immagini Docker, database, build dell'agente: ~5 GB temporanei)
 MEMORIA_MIN_MB="1800"                              # RAM + swap minimi: la build del portale ne usa circa 1,5 GB
 DOCKER_GPG_FPR="9DC858229FC7DD38854AE2D88D81803C0EBFCD88"  # impronta della chiave apt di Docker, da docs.docker.com/engine/install/ubuntu
-CONFIG_SISTEMA="/etc/sir-realtime/produzione.conf" # impostazioni non segrete lette da aggiorna-produzione.sh, backup e systemd
-LOG="/var/log/sir-realtime-installazione.log"      # registro di questa installazione
+CONFIG_SISTEMA="/etc/arenalive/produzione.conf" # impostazioni non segrete lette da aggiorna-produzione.sh, backup e systemd
+LOG="/var/log/arenalive-installazione.log"      # registro di questa installazione
 
 # --- codice ---
 set -Eeuo pipefail
@@ -174,7 +174,7 @@ configura_daemon_docker() {
     nuovo="$(mktemp)"
     jq '. + {"ip6tables": true, "userland-proxy": false}' "$f" >"$nuovo" || { rm -f "$nuovo"; fallisci "$f non è un JSON valido."; }
     if ! cmp -s "$f" "$nuovo"; then
-        cp -a "$f" "$f.sir-bak" 2>/dev/null || true
+        cp -a "$f" "$f.arenalive-bak" 2>/dev/null || true
         cat "$nuovo" >"$f"
         DOCKER_DA_RIAVVIARE=si
     fi
@@ -257,7 +257,7 @@ prepara_accesso_git() {
             || fallisci "Non riesco a leggere la chiave $CHIAVE_DEPLOY (protetta da passphrase? Serve una chiave senza)."
         chown "$UTENTE_SERVIZIO:$UTENTE_SERVIZIO" "$CHIAVE_EFFETTIVA.pub"
     elif [[ ! -f "$CHIAVE_EFFETTIVA" ]]; then
-        runuser -u "$UTENTE_SERVIZIO" -- ssh-keygen -q -t ed25519 -N '' -C "sir-realtime-deploy@$(hostname -s)" -f "$CHIAVE_EFFETTIVA"
+        runuser -u "$UTENTE_SERVIZIO" -- ssh-keygen -q -t ed25519 -N '' -C "arenalive-deploy@$(hostname -s)" -f "$CHIAVE_EFFETTIVA"
     fi
     # known_hosts: la chiave del server git deve avere l'impronta indicata nelle variabili.
     # Una sola scansione: l'impronta controllata e la chiave scritta in known_hosts sono la stessa.
@@ -310,9 +310,9 @@ CONF
     install -d -m 0700 "$CARTELLA_BACKUP"
 }
 
-# Radice pubblica della CA interna di Caddy (solo certificato, mai la chiave): servita dal portale su /sirrealtime-ca.crt.
+# Radice pubblica della CA interna di Caddy (solo certificato, mai la chiave): servita dal portale su /arenalive-ca.crt.
 CARTELLA_CA_PUBBLICA="$(dirname "$CONFIG_SISTEMA")/ca-pubblica"
-FILE_CA="$CARTELLA_CA_PUBBLICA/sirrealtime-ca.crt"
+FILE_CA="$CARTELLA_CA_PUBBLICA/arenalive-ca.crt"
 IMPRONTA_CA=""
 
 # Crea .env solo se manca; altrimenti aggiunge soltanto le variabili mancanti o vuote.
@@ -322,15 +322,15 @@ prepara_env() {
     local f="$CARTELLA_INSTALLAZIONE/.env" nuovo=no
     if [[ ! -f "$f" ]]; then
         nuovo=yes
-        (umask 077; printf '# SIRRealtime, produzione. Generato da installa-produzione.sh. Contiene segreti: non copiarlo né condividerlo.\n# Riferimento delle variabili: .env.example\n' >"$f")
+        (umask 077; printf '# ArenaLive, produzione. Generato da installa-produzione.sh. Contiene segreti: non copiarlo né condividerlo.\n# Riferimento delle variabili: .env.example\n' >"$f")
     fi
     chmod 0600 "$f"
     chown "$UTENTE_SERVIZIO:$UTENTE_SERVIZIO" "$f"
     local url="https://$DOMINIO_PORTALE" lista
     lista="$(IFS=,; printf '%s' "${HOSTNAMES[*]}" | sed 's/,/, /g')"
     # Segreti e valori di sicurezza: solo se mancano.
-    env_se_manca "$f" POSTGRES_DB sir
-    env_se_manca "$f" POSTGRES_USER sir
+    env_se_manca "$f" POSTGRES_DB arenalive
+    env_se_manca "$f" POSTGRES_USER arenalive
     env_se_manca "$f" POSTGRES_PASSWORD "$(segreto_hex 24)"
     env_se_manca "$f" SHARE_CODE_SECRET "$(segreto_base64 48)"
     env_se_manca "$f" SETTINGS_ENCRYPTION_KEY "$(segreto_base64 32)"
@@ -347,14 +347,14 @@ prepara_env() {
         env_forza "$f" ADMIN_PASSWORD "${ADMIN_PASSWORD:-$(password_casuale)}"
     fi
     # Impostazioni di distribuzione governate da questo script: si riallineano a ogni esecuzione.
-    env_forza "$f" SIR_HOSTNAMES "\"$lista\""
+    env_forza "$f" ARENALIVE_HOSTNAMES "\"$lista\""
     # Derivati da DOMINIO_PORTALE: si riallineano a ogni esecuzione (serve cambiando dominio o modalità).
     env_forza "$f" PUBLIC_BASE_URL "$url"
     env_forza "$f" CORS_ORIGIN "$url"
-    env_forza "$f" SIR_TLS_MODE "$CERTIFICATI"
+    env_forza "$f" ARENALIVE_TLS_MODE "$CERTIFICATI"
     env_forza "$f" ACME_EMAIL "$EMAIL_LETSENCRYPT"
     env_forza "$f" CA_PUBBLICA_DIR "$CARTELLA_CA_PUBBLICA"
-    env_forza "$f" COMPOSE_PROJECT_NAME sir-realtime
+    env_forza "$f" COMPOSE_PROJECT_NAME arenalive
     env_forza "$f" COMPOSE_FILE docker-compose.yml:docker/compose.produzione.yml
     # Agente per Windows offerto dal portale: cartella dell'host montata in sola lettura nel server (la riempie pubblica-agente-produzione.sh).
     env_se_manca "$f" AGENT_DOWNLOAD_HOST_DIR "/var/lib/$UTENTE_SERVIZIO/downloads"
@@ -368,7 +368,7 @@ prepara_env() {
 
 controlla_porte_libere() {
     # Prima installazione: 80 e 443 devono essere libere (le occuperà Caddy). Se Caddy c'è già, va bene.
-    docker ps --format '{{.Names}}' | grep -q '^sir-realtime-caddy-' && return 0
+    docker ps --format '{{.Names}}' | grep -q '^arenalive-caddy-' && return 0
     local occupate
     occupate="$(ss -ltnpH '( sport = :80 or sport = :443 )' | grep -v docker-proxy || true)"
     [[ -z "$occupate" ]] || fallisci "Le porte 80/443 sono già usate da un altro servizio:
@@ -377,9 +377,9 @@ $occupate"
 
 installa_servizi_systemd() {
     stampa "Servizi systemd (avvio automatico e backup giornaliero)"
-    cat >/etc/systemd/system/sir-realtime.service <<UNIT
+    cat >/etc/systemd/system/arenalive.service <<UNIT
 [Unit]
-Description=SIRRealtime (stack docker compose)
+Description=ArenaLive (stack docker compose)
 Requires=docker.service
 After=docker.service network-online.target
 Wants=network-online.target
@@ -396,9 +396,9 @@ TimeoutStopSec=120
 [Install]
 WantedBy=multi-user.target
 UNIT
-    cat >/etc/systemd/system/sir-backup.service <<UNIT
+    cat >/etc/systemd/system/arenalive-backup.service <<UNIT
 [Unit]
-Description=Backup di SIRRealtime (database, immagini, .env)
+Description=Backup di ArenaLive (database, immagini, .env)
 Requires=docker.service
 After=docker.service
 
@@ -408,9 +408,9 @@ EnvironmentFile=$CONFIG_SISTEMA
 ExecStart=/bin/bash $CARTELLA_INSTALLAZIONE/scripts/backup-produzione.sh
 Nice=10
 UNIT
-    cat >/etc/systemd/system/sir-backup.timer <<UNIT
+    cat >/etc/systemd/system/arenalive-backup.timer <<UNIT
 [Unit]
-Description=Backup giornaliero di SIRRealtime
+Description=Backup giornaliero di ArenaLive
 
 [Timer]
 OnCalendar=*-*-* 03:30:00
@@ -421,14 +421,14 @@ Persistent=true
 WantedBy=timers.target
 UNIT
     systemctl daemon-reload
-    systemctl enable sir-realtime.service >/dev/null
-    systemctl enable --now sir-backup.timer >/dev/null
+    systemctl enable arenalive.service >/dev/null
+    systemctl enable --now arenalive-backup.timer >/dev/null
 }
 
 avvia_stack() {
     stampa "Backup, build, avvio e verifica (aggiorna-produzione.sh)"
     bash "$CARTELLA_INSTALLAZIONE/scripts/aggiorna-produzione.sh" "$REPO_RIFERIMENTO"
-    systemctl start sir-realtime.service
+    systemctl start arenalive.service
 }
 
 # Con CERTIFICATI=interno copia la radice pubblica generata da Caddy (appare al primo certificato emesso).
@@ -474,7 +474,7 @@ riepilogo() {
     cat <<RIEPILOGO
 
 =====================================================================
- SIRRealtime è installato.
+ ArenaLive è installato.
 =====================================================================
  Portale:          https://$DOMINIO_PORTALE
  Area admin:       https://$DOMINIO_PORTALE/admin   (accesso: $ADMIN_EMAIL)
@@ -487,17 +487,17 @@ riepilogo() {
 
  Aggiornare:       sudo $CARTELLA_INSTALLAZIONE/scripts/aggiorna-produzione.sh [ramo-o-tag]
                    (backup, build, avvio, verifica; se fallisce torna alla versione precedente)
- Backup a mano:    sudo systemctl start sir-backup.service
+ Backup a mano:    sudo systemctl start arenalive-backup.service
  Vedere i log:     cd $CARTELLA_INSTALLAZIONE && sudo docker compose logs -f --tail 100 server
                    (servizi: server, web, postgres, caddy)   Stato: sudo docker compose ps
- Riavviare:        sudo systemctl restart sir-realtime.service
+ Riavviare:        sudo systemctl restart arenalive.service
  Firewall:         sudo ufw status   (aperte: SSH $PORTA_SSH, 80, 443)
 RIEPILOGO
     if [[ "$CERTIFICATI" == "interno" ]]; then
         cat <<CA
 
  Certificato:      INTERNO (CA locale di Caddy). Browser e agente Windows lo accettano solo dopo aver installato la radice.
- Radice pubblica:  $FILE_CA   (scaricabile da https://$DOMINIO_PORTALE/sirrealtime-ca.crt)
+ Radice pubblica:  $FILE_CA   (scaricabile da https://$DOMINIO_PORTALE/arenalive-ca.crt)
  Impronta SHA-256: ${IMPRONTA_CA:-non ancora disponibile, rilancia lo script}
  Installazione:    sul PC Windows, PowerShell come amministratore, con lo script di docs/infrastruttura.md
                    («Radice della CA interna su Windows»): confronta l'impronta sopra con quella del file.
@@ -526,7 +526,7 @@ principale() {
     touch "$LOG" && chmod 0600 "$LOG"
     exec > >(tee -a "$LOG") 2>&1
     trap 'su_errore "$LINENO" "$BASH_COMMAND"' ERR
-    printf 'Installazione SIRRealtime del %s\n' "$(date '+%Y-%m-%d %H:%M:%S %z')"
+    printf 'Installazione ArenaLive del %s\n' "$(date '+%Y-%m-%d %H:%M:%S %z')"
     controlla_sistema
     installa_pacchetti
     installa_docker

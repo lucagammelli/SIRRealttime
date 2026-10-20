@@ -7,7 +7,7 @@ import type {
   ManualFixtureKind,
   ManualFixtureRequest,
   PendingMatch,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   adminAssetPath,
   CalendarResponseSchema,
@@ -16,7 +16,7 @@ import {
   FixtureDateRequestSchema,
   formatShortCode,
   ManualFixtureRequestSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';

@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import type { CreatedFixtureResponse } from '@sir/shared';
+import type { CreatedFixtureResponse } from '@arenalive/shared';
 import {
   FixtureDateRequestSchema,
   FixtureSettingsRequestSchema,
   IdParamSchema,
   MANUAL_FIXTURE_LABEL,
   ManualFixtureRequestSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { fixtureLabel, ourTeamForManual } from '../club.js';

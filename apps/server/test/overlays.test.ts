@@ -1,5 +1,5 @@
-import type { OverlaysResponse, PublicTenantResponse } from '@sir/shared';
-import { defaultOverlays } from '@sir/shared';
+import type { OverlaysResponse, PublicTenantResponse } from '@arenalive/shared';
+import { defaultOverlays } from '@arenalive/shared';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';

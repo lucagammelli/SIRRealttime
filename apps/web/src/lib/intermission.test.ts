@@ -1,5 +1,5 @@
-import { defaultIntermissions, TenantIntermissionsSchema } from '@sir/shared';
-import type { MatchState } from '@sir/volley-stats';
+import { defaultIntermissions, TenantIntermissionsSchema } from '@arenalive/shared';
+import type { MatchState } from '@arenalive/volley-stats';
 import { describe, expect, it } from 'vitest';
 import { midMatchState, scoreAt } from '../test/fixtures.ts';
 import type { MilestoneMemory } from './intermission.ts';

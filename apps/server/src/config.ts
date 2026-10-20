@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import { DEFAULT_TENANT_SLUG, PASSWORD_MIN_LENGTH, TenantSlugSchema } from '@sir/shared';
+import { DEFAULT_TENANT_SLUG, PASSWORD_MIN_LENGTH, TenantSlugSchema } from '@arenalive/shared';
 import { z } from 'zod';
 import { decodeEncryptionKey } from './mail/crypto.js';
 import type { RateLimits, SocketLimits } from './context.js';
@@ -18,7 +18,7 @@ export const SHARE_CODE_SECRET_MIN_LENGTH = 32;
  * Development only (public, so not a secret): used when SHARE_CODE_SECRET is not set and NODE_ENV is not
  * `production`, with a warning in the log. In production the variable is required.
  */
-export const DEV_SHARE_CODE_SECRET = 'sirrealtime-sviluppo-segreto-dei-codici-brevi-non-usare';
+export const DEV_SHARE_CODE_SECRET = 'arenalive-sviluppo-segreto-dei-codici-brevi-non-usare';
 
 /** Environment variables of the server (documented in `.env.example`). */
 const EnvSchema = z
@@ -104,7 +104,7 @@ export interface Config {
   assetsDir: string;
   /** Most bytes of images per client. */
   assetsQuotaBytes: number;
-  /** Absolute folder with `sir-agent.exe` and `sir-agent.json` (scripts/costruisci-agente.sh), offered in the portal. */
+  /** Absolute folder with `arenalive-agent.exe` and `arenalive-agent.json` (scripts/costruisci-agente.sh), offered in the portal. */
   agentDownloadDir: string;
   /**
    * Key of the HMAC that derives the short code of each public link from its id: changing it changes every short

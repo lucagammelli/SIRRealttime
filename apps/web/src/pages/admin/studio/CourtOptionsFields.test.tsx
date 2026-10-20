@@ -1,5 +1,5 @@
-import type { LayoutBlock } from '@sir/shared';
-import { newBlock } from '@sir/shared';
+import type { LayoutBlock } from '@arenalive/shared';
+import { newBlock } from '@arenalive/shared';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CourtOptionsFields } from './CourtOptionsFields.tsx';

@@ -1,4 +1,4 @@
-import type { TenantLayout } from '@sir/shared';
+import type { TenantLayout } from '@arenalive/shared';
 import type { ReactNode } from 'react';
 import type { BlockBrand } from '../blocks/env.ts';
 import type { Device } from '../lib/layout.ts';

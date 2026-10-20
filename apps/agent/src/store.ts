@@ -1,6 +1,6 @@
 import { mkdir, open, readFile, readdir, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { IngestRequestSchema, MatchKeySchema } from '@sir/shared';
+import { IngestRequestSchema, MatchKeySchema } from '@arenalive/shared';
 import { z } from 'zod';
 import { errorCode, sleep } from './util.js';
 

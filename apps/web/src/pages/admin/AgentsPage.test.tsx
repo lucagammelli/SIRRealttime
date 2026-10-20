@@ -1,4 +1,4 @@
-import type { AgentDownloadInfo, AgentRegistrationSummary } from '@sir/shared';
+import type { AgentDownloadInfo, AgentRegistrationSummary } from '@arenalive/shared';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router';
@@ -164,15 +164,15 @@ describe('agent for Windows', () => {
       builtAt: '2026-10-16T08:30:00.000Z',
       bytes: 94_659_584,
       sha256: 'a'.repeat(64),
-      fileName: 'SIRRealtime-agente-club-a-1.2.3-abc1234.zip',
+      fileName: 'ArenaLive-agente-club-a-1.2.3-abc1234.zip',
     });
     renderAgents();
     const section = await card();
     const link = await within(section).findByRole('link', { name: 'Scarica l’agente per Windows' });
     expect(link.getAttribute('href')).toBe(AGENT_DOWNLOAD_PATH);
-    expect(link.getAttribute('download')).toBe('SIRRealtime-agente-club-a-1.2.3-abc1234.zip');
+    expect(link.getAttribute('download')).toBe('ArenaLive-agente-club-a-1.2.3-abc1234.zip');
     expect(within(section).getByTestId('agent-release').textContent).toMatch(/1\.2\.3-abc1234 · .+ · 90,3 MB/);
-    expect(within(section).getByText(/C:\\SIRAgent/)).toBeTruthy();
+    expect(within(section).getByText(/C:\\ArenaLiveAgent/)).toBeTruthy();
     expect(within(section).getByText(/«Registra»/)).toBeTruthy();
     expect(within(section).getByText(/Richieste in attesa/)).toBeTruthy();
     expect(within(section).getByText(/Esegui comunque/)).toBeTruthy();

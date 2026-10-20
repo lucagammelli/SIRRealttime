@@ -1,7 +1,7 @@
-import { parseDvw } from '@sir/dvw-parser';
-import { generateMatch, renderDvw } from '@sir/dvw-simulator';
-import type { MatchState } from '@sir/volley-stats';
-import { computeMatchState, matchPoints } from '@sir/volley-stats';
+import { parseDvw } from '@arenalive/dvw-parser';
+import { generateMatch, renderDvw } from '@arenalive/dvw-simulator';
+import type { MatchState } from '@arenalive/volley-stats';
+import { computeMatchState, matchPoints } from '@arenalive/volley-stats';
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {

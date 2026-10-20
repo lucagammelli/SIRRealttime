@@ -1,20 +1,20 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SystemLogo } from '@sir/shared';
+import type { SystemLogo } from '@arenalive/shared';
 import {
   defaultBranding,
   defaultIntermissions,
   defaultOverlays,
   NO_SYSTEM_LOGOS,
   TenantLayoutSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { initBranding, setTenantLook, tenantLookOf } from '../lib/branding.ts';
 import { setSystemLogos } from '../lib/systemLogos.ts';
 import type { LiveSnapshot } from '../lib/liveConnection.ts';
 import { TV_ROOT_CLASS } from '../lib/tvScreen.ts';
 import { previewState } from '../lib/intermission.ts';
-import { matchPoints, matchStateUntilPoint } from '@sir/volley-stats';
+import { matchPoints, matchStateUntilPoint } from '@arenalive/volley-stats';
 import { midMatchState } from '../test/fixtures.ts';
 import { LivePage } from './LivePage.tsx';
 

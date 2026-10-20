@@ -1,4 +1,4 @@
-import type { MeResponse, UserSummary } from '@sir/shared';
+import type { MeResponse, UserSummary } from '@arenalive/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SESSION_COOKIE } from '../src/context.js';
 import type { TestServer } from './helpers.js';

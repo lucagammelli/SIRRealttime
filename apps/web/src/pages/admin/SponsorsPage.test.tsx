@@ -1,5 +1,5 @@
-import type { AssetListResponse, AssetSummary, LayoutBlock, Sponsor } from '@sir/shared';
-import { LayoutBlockSchema } from '@sir/shared';
+import type { AssetListResponse, AssetSummary, LayoutBlock, Sponsor } from '@arenalive/shared';
+import { LayoutBlockSchema } from '@arenalive/shared';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderAs } from '../../test/adminPage.tsx';

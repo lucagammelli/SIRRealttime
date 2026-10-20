@@ -6,13 +6,13 @@ import { BLOCK_OPTIONS, BlockIdSchema } from './layout.js';
 /**
  * Pauses of the public page chosen by a client (jsonb `tenants.intermissions`): what the portal shows during a
  * time-out, at the end of a set and at the end of the match (`phase` of the match state, computed by
- * `@sir/volley-stats` from the scout lines only). For every pause: on/off, full screen or banner for every device, a
+ * `@arenalive/volley-stats` from the scout lines only). For every pause: on/off, full screen or banner for every device, a
  * delay before it shows and an ordered list of slides shown in turn, each for its seconds. A pause always ends by
  * itself when the play starts again (first action or point after it: the phase goes back to `rally`); the end of the
  * match stays until the viewer goes back to the page. The end of set can be different for every set (1st-4th: the
  * 5th set ends the match); a set without its own pause uses the generic one, as a whole.
  * `milestone` («ogni N punti») is not a phase: a short pause during the set every `every` points (sum of the two
- * scores, `pointMilestone` of @sir/volley-stats), never in the last `stopBeforeEnd` points of the set; it shows its slides once.
+ * scores, `pointMilestone` of @arenalive/volley-stats), never in the last `stopBeforeEnd` points of the set; it shows its slides once.
  */
 
 /** Pauses of the match: the kinds of `MatchPhase` with a pause, and the «ogni N punti» during the set. */

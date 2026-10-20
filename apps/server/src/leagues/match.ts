@@ -1,5 +1,5 @@
-import type { ParsedMatch, Side } from '@sir/dvw-parser';
-import type { FixtureCandidate } from '@sir/shared';
+import type { ParsedMatch, Side } from '@arenalive/dvw-parser';
+import type { FixtureCandidate } from '@arenalive/shared';
 import { romeParts } from './romeTime.js';
 
 /**

@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { PAIRING_CODE_ALPHABET, SHORT_CODE_LENGTH } from '@sir/shared';
+import { PAIRING_CODE_ALPHABET, SHORT_CODE_LENGTH } from '@arenalive/shared';
 
 /** Bits of a short code: 8 characters of a 32-letter alphabet, 5 bits each. */
 export const SHORT_CODE_BITS = SHORT_CODE_LENGTH * 5;
@@ -23,7 +23,11 @@ export function deriveShortCode(secret: string, id: string, salt = 0): string {
   return code;
 }
 
-/** Pure: key of the lookup hashes, derived from SHARE_CODE_SECRET (separate from the derivation of the codes). */
+/**
+ * Pure: key of the lookup hashes, derived from SHARE_CODE_SECRET (separate from the derivation of the codes). The label
+ * keeps the old name of the product on purpose: the lookup hashes of the short codes are saved in the database and
+ * restored from the old production; another label would break every short link (QR codes) already given out.
+ */
 function lookupKey(secret: string): Buffer {
   return createHmac('sha256', secret).update('sirrealtime:short-code-lookup-key', 'utf8').digest();
 }

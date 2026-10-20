@@ -1,12 +1,12 @@
 {
-  "name": "@sir/dvw-simulator",
+  "name": "@arenalive/dvw-simulator",
   "version": "0.0.0",
   "private": true,
   "description": "Genera e riproduce nel tempo file .dvw sintetici per simulare DataVolley.",
   "type": "module",
   "exports": {
     ".": {
-      "@sir/source": "./src/index.ts",
+      "@arenalive/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -24,7 +24,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@sir/dvw-parser": "workspace:*",
+    "@arenalive/dvw-parser": "workspace:*",
     "iconv-lite": "^0.7.3"
   }
 }

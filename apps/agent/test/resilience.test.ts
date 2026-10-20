@@ -1,9 +1,9 @@
 import { mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { decodeDvw } from '@sir/dvw-parser';
-import type { GeneratedMatch } from '@sir/dvw-simulator';
-import { applyCorrection, generateMatch, renderDvw } from '@sir/dvw-simulator';
-import { AGENT_EXPIRED_ERROR, hashScoutLines, splitDvwText } from '@sir/shared';
+import { decodeDvw } from '@arenalive/dvw-parser';
+import type { GeneratedMatch } from '@arenalive/dvw-simulator';
+import { applyCorrection, generateMatch, renderDvw } from '@arenalive/dvw-simulator';
+import { AGENT_EXPIRED_ERROR, hashScoutLines, splitDvwText } from '@arenalive/shared';
 import { afterEach, describe, expect, it } from 'vitest';
 import { agents } from '../../server/src/db/index.js';
 import { createAgent, startServer } from '../../server/test/helpers.js';

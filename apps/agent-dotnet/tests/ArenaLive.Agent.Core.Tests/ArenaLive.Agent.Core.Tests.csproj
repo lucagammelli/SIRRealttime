@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Test xUnit della libreria core (girano su Linux, nel container dello script di build). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>ArenaLive.Agent.Core.Tests</RootNamespace>
+    <!-- Nomi dei test in italiano con underscore e metodi pubblici senza documentazione: regole di stile non utili qui. -->
+    <NoWarn>$(NoWarn);CA1707;CA1515;CA1861;CA2007</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="4.0.2" />
+    <!-- Validatore JSON Schema 2020-12 per controllare le richieste contro apps/agent-dotnet/schemas (solo nei test). -->
+    <PackageReference Include="JsonSchema.Net" Version="9.4.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ArenaLive.Agent.Core\ArenaLive.Agent.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="riferimento-node.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\schemas\*.json" LinkBase="schemas" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

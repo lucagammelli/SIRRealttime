@@ -1,5 +1,5 @@
-import type { LeagueSummary } from '@sir/shared';
-import { LeagueListResponseSchema, LeagueSummarySchema } from '@sir/shared';
+import type { LeagueSummary } from '@arenalive/shared';
+import { LeagueListResponseSchema, LeagueSummarySchema } from '@arenalive/shared';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Card, Empty, ErrorBox, Spinner } from '../../components/ui.tsx';

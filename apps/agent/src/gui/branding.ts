@@ -1,7 +1,7 @@
 import { lstat, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { AgentBranding } from '@sir/shared';
-import { AGENT_LOGO_FILES, AGENT_LOGO_MAX_BYTES, AGENT_LOGO_MAX_SIDE, AgentBrandingSchema } from '@sir/shared';
+import type { AgentBranding } from '@arenalive/shared';
+import { AGENT_LOGO_FILES, AGENT_LOGO_MAX_BYTES, AGENT_LOGO_MAX_SIDE, AgentBrandingSchema } from '@arenalive/shared';
 import { errorCode } from '../util.js';
 
 /** Name of the graphics file of the client, next to the executable (in the zip downloaded from the portal). */

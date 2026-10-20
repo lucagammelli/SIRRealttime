@@ -1,5 +1,5 @@
-import type { AssetSummary, LayoutResponse, PublicTenantResponse } from '@sir/shared';
-import { defaultLayout } from '@sir/shared';
+import type { AssetSummary, LayoutResponse, PublicTenantResponse } from '@arenalive/shared';
+import { defaultLayout } from '@arenalive/shared';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';

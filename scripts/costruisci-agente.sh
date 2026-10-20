@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Costruisce sir-agent.exe (Node SEA per Windows x64) da Linux e lo pubblica nella cartella che il server offre in
+# Costruisce arenalive-agent.exe (Node SEA per Windows x64) da Linux e lo pubblica nella cartella che il server offre in
 # download dal portale (AGENT_DOWNLOAD_DIR). Stessi passi di apps/agent/scripts/build-exe.ps1, ma con il node.exe
 # scaricato da nodejs.org e verificato con lo sha256 di SHASUMS256.txt.
 #
 # Uso: scripts/costruisci-agente.sh            (variabili qui sotto; USCITA e NODE_VERSIONE si possono passare
-#      USCITA=/srv/sir/downloads scripts/costruisci-agente.sh            anche dall'ambiente)
+#      USCITA=/srv/arenalive/downloads scripts/costruisci-agente.sh            anche dall'ambiente)
 # Serve: Node della stessa versione di NODE_VERSIONE (node --version), pnpm (corepack enable), curl, sha256sum,
 # `pnpm install` già fatto. Scarica circa 30 MB e crea circa 95 MB in USCITA.
 
@@ -13,9 +13,9 @@ RADICE="$(realpath "$(dirname "${BASH_SOURCE[0]}")/..")"                # radice
 NODE_VERSIONE="${NODE_VERSIONE:-$(node --version | sed 's/^v//')}"      # versione di node.exe: deve essere quella del node locale (il blob SEA dipende dalla versione)
 NODE_URL="https://nodejs.org/dist/v${NODE_VERSIONE}"                    # cartella di nodejs.org con node.exe e SHASUMS256.txt
 NODE_FILE="win-x64/node.exe"                                            # percorso di node.exe dentro NODE_URL (come in SHASUMS256.txt)
-USCITA="${USCITA:-$HOME/sir-agent-download}"                            # cartella d'uscita (sir-agent.exe e sir-agent.json): quella di AGENT_DOWNLOAD_DIR, mai dentro il repository
-PACCHETTO="@sir/agent"                                                  # nome del pacchetto in apps/agent/package.json
-BUNDLE="$RADICE/apps/agent/build/sir-agent.cjs"                         # bundle CJS prodotto dallo script "bundle" di package.json
+USCITA="${USCITA:-$HOME/arenalive-agent-download}"                            # cartella d'uscita (arenalive-agent.exe e arenalive-agent.json): quella di AGENT_DOWNLOAD_DIR, mai dentro il repository
+PACCHETTO="@arenalive/agent"                                                  # nome del pacchetto in apps/agent/package.json
+BUNDLE="$RADICE/apps/agent/build/arenalive-agent.cjs"                         # bundle CJS prodotto dallo script "bundle" di package.json
 POSTJECT="postject@1.0.0-alpha.6"                                       # strumento che inietta il blob nell'exe (npmjs.com/package/postject)
 RISORSA="NODE_SEA_BLOB"                                                 # nome fisso della risorsa SEA (docs Node, «Single executable applications»)
 SENTINELLA="NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2"             # valore fisso di Node SEA (stessa pagina della documentazione)
@@ -53,28 +53,28 @@ fi
 
 echo "4/6 Blob SEA"
 cat > "$TEMP/sea-config.json" <<EOF
-{ "main": "$BUNDLE", "output": "$TEMP/sir-agent.blob", "disableExperimentalSEAWarning": true, "useCodeCache": false, "useSnapshot": false }
+{ "main": "$BUNDLE", "output": "$TEMP/arenalive-agent.blob", "disableExperimentalSEAWarning": true, "useCodeCache": false, "useSnapshot": false }
 EOF
 node --experimental-sea-config "$TEMP/sea-config.json"
 
 echo "5/6 Iniezione del blob in una copia di node.exe"
-cp "$TEMP/node.exe" "$TEMP/sir-agent.exe"
-npx --yes "$POSTJECT" "$TEMP/sir-agent.exe" "$RISORSA" "$TEMP/sir-agent.blob" --sentinel-fuse "$SENTINELLA"
+cp "$TEMP/node.exe" "$TEMP/arenalive-agent.exe"
+npx --yes "$POSTJECT" "$TEMP/arenalive-agent.exe" "$RISORSA" "$TEMP/arenalive-agent.blob" --sentinel-fuse "$SENTINELLA"
 
 echo "6/6 Pubblicazione in $USCITA"
 base="$(node scripts/versione.mjs)"   # versione del package.json alla radice (unica fonte)
 commit="$(git rev-parse --short HEAD 2>/dev/null || echo locale)"
 versione="$base-$commit"
-sha="$(sha256sum "$TEMP/sir-agent.exe" | awk '{ print $1 }')"
+sha="$(sha256sum "$TEMP/arenalive-agent.exe" | awk '{ print $1 }')"
 data="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
 mkdir -p "$USCITA"
 # Prima le due copie temporanee, poi i rename exe → json: il server non vede mai un file a metà e, nell'istante tra
 # i due, trova il nuovo exe con il vecchio json (sha256 diverso: «non disponibile» per un attimo, mai un exe sbagliato).
-cp "$TEMP/sir-agent.exe" "$USCITA/.sir-agent.exe.tmp"
+cp "$TEMP/arenalive-agent.exe" "$USCITA/.arenalive-agent.exe.tmp"
 printf '{\n  "version": "%s",\n  "builtAt": "%s",\n  "sha256": "%s",\n  "nodeVersion": "%s"\n}\n' \
-    "$versione" "$data" "$sha" "$NODE_VERSIONE" > "$USCITA/.sir-agent.json.tmp"
-mv -f "$USCITA/.sir-agent.exe.tmp" "$USCITA/sir-agent.exe"
-mv -f "$USCITA/.sir-agent.json.tmp" "$USCITA/sir-agent.json"
+    "$versione" "$data" "$sha" "$NODE_VERSIONE" > "$USCITA/.arenalive-agent.json.tmp"
+mv -f "$USCITA/.arenalive-agent.exe.tmp" "$USCITA/arenalive-agent.exe"
+mv -f "$USCITA/.arenalive-agent.json.tmp" "$USCITA/arenalive-agent.json"
 
 fine=$(date +%s)
-echo "Creato $USCITA/sir-agent.exe (versione $versione, $(du -h "$USCITA/sir-agent.exe" | cut -f1), sha256 $sha) in $((fine - inizio)) s"
+echo "Creato $USCITA/arenalive-agent.exe (versione $versione, $(du -h "$USCITA/arenalive-agent.exe" | cut -f1), sha256 $sha) in $((fine - inizio)) s"

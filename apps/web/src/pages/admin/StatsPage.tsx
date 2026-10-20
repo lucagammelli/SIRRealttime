@@ -1,5 +1,5 @@
-import type { StatsCurve, StatsMatchRow, StatsNow, StatsOverview } from '@sir/shared';
-import { StatsCurveSchema, StatsNowSchema, StatsOverviewSchema } from '@sir/shared';
+import type { StatsCurve, StatsMatchRow, StatsNow, StatsOverview } from '@arenalive/shared';
+import { StatsCurveSchema, StatsNowSchema, StatsOverviewSchema } from '@arenalive/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { curveOption, dailyOption } from '../../charts/stats.ts';
 import { EChart } from '../../charts/EChart.tsx';

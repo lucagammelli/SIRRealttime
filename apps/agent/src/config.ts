@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
-import { isPrivateIPv4 } from '@sir/shared';
+import { isPrivateIPv4 } from '@arenalive/shared';
 import { z } from 'zod';
 
 /** Error of the agent configuration: the process cannot start. */

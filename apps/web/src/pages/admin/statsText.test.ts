@@ -1,4 +1,4 @@
-import type { StatsOverview } from '@sir/shared';
+import type { StatsOverview } from '@arenalive/shared';
 import { describe, expect, it } from 'vitest';
 import { csvCell, dayText, formatDuration, shiftDay, statsCsv, withShare } from './statsText.ts';
 

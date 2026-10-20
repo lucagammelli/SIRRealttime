@@ -1,7 +1,7 @@
-import { parseDvw } from '@sir/dvw-parser';
-import { generateMatch, renderDvw } from '@sir/dvw-simulator';
-import type { MatchState } from '@sir/volley-stats';
-import { computeMatchState } from '@sir/volley-stats';
+import { parseDvw } from '@arenalive/dvw-parser';
+import { generateMatch, renderDvw } from '@arenalive/dvw-simulator';
+import type { MatchState } from '@arenalive/volley-stats';
+import { computeMatchState } from '@arenalive/volley-stats';
 
 const match = generateMatch({ seed: 1 });
 

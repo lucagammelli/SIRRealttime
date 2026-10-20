@@ -1,5 +1,5 @@
-import type { IngestKind } from '@sir/shared';
-import { INGEST_MAX_LINES, diffScoutLines, hashScoutLines } from '@sir/shared';
+import type { IngestKind } from '@arenalive/shared';
+import { INGEST_MAX_LINES, diffScoutLines, hashScoutLines } from '@arenalive/shared';
 import type { DvwContent } from './dvw.js';
 
 /** A request still without `protocol`, `matchKey` and `seq` (assigned when it is queued). */

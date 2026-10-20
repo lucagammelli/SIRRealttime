@@ -1,6 +1,6 @@
-import type { JsonValue, PatchMessage, ServerMessage, TeamLogoPair, UpcomingFixture } from '@sir/shared';
-import { applyPatch } from '@sir/shared';
-import type { MatchState } from '@sir/volley-stats';
+import type { JsonValue, PatchMessage, ServerMessage, TeamLogoPair, UpcomingFixture } from '@arenalive/shared';
+import { applyPatch } from '@arenalive/shared';
+import type { MatchState } from '@arenalive/volley-stats';
 import { gunzipFrame, supportsGzip, withGzip } from './frames.ts';
 import { looksLikeMatchState, parseServerMessage } from './messages.ts';
 

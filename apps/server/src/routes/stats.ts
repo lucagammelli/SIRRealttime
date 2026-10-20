@@ -1,5 +1,5 @@
-import type { StatsCurve, StatsNow, StatsOverview } from '@sir/shared';
-import { StatsPeriodQuerySchema } from '@sir/shared';
+import type { StatsCurve, StatsNow, StatsOverview } from '@arenalive/shared';
+import { StatsPeriodQuerySchema } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';

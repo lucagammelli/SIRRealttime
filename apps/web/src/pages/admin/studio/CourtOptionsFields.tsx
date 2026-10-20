@@ -1,5 +1,5 @@
-import type { CourtOptions, LayoutBlock } from '@sir/shared';
-import { COURT_WIDTH_MAX, COURT_WIDTH_MIN } from '@sir/shared';
+import type { CourtOptions, LayoutBlock } from '@arenalive/shared';
+import { COURT_WIDTH_MAX, COURT_WIDTH_MIN } from '@arenalive/shared';
 import { Button } from '../../../components/ui.tsx';
 import { inputClass } from '../forms.tsx';
 

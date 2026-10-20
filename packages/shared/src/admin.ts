@@ -1,4 +1,4 @@
-import type { MatchState, MatchStatus } from '@sir/volley-stats';
+import type { MatchState, MatchStatus } from '@arenalive/volley-stats';
 import { z } from 'zod';
 import { MatchKeySchema } from './ingest.js';
 import { MatchStateSchema } from './messages.js';

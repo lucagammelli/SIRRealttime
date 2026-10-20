@@ -6,8 +6,8 @@ import type {
   PublicTenantResponse,
   Sponsor,
   SponsorListResponse,
-} from '@sir/shared';
-import { publicAssetPath, SPONSOR_IMAGES_MAX } from '@sir/shared';
+} from '@arenalive/shared';
+import { publicAssetPath, SPONSOR_IMAGES_MAX } from '@arenalive/shared';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';

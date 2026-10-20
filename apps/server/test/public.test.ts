@@ -1,5 +1,5 @@
-import { generateMatch } from '@sir/dvw-simulator';
-import type { CreateShareTokenResponse, IngestRequest, ServerMessage, ShareTokenSummary } from '@sir/shared';
+import { generateMatch } from '@arenalive/dvw-simulator';
+import type { CreateShareTokenResponse, IngestRequest, ServerMessage, ShareTokenSummary } from '@arenalive/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
 import { ADMIN, createAgent, fileAt, ingest, login, ORIGIN, requestFor, startServer } from './helpers.js';

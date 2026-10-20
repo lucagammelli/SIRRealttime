@@ -1,4 +1,4 @@
-import type { ClubFixture, ClubResponse, MatchSummary, ShareTokenSummary } from '@sir/shared';
+import type { ClubFixture, ClubResponse, MatchSummary, ShareTokenSummary } from '@arenalive/shared';
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderAs } from '../../test/adminPage.tsx';

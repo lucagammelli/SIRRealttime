@@ -1,8 +1,8 @@
 /**
  * Live demo for development: server in-process (in-memory PGlite), synthetic match played by the simulator and sent
- * by the real agent, as in production. Then `pnpm --filter @sir/web dev` shows it at http://localhost:5173.
+ * by the real agent, as in production. Then `pnpm --filter @arenalive/web dev` shows it at http://localhost:5173.
  *
- *   pnpm --filter @sir/web demo
+ *   pnpm --filter @arenalive/web demo
  *
  * Variables (all optional): DEMO_SPEED (time acceleration of the simulator, default 15), DEMO_SEED (default 1),
  * DEMO_SETS (3, 4 or 5; default 4), DEMO_PORT (default 8090), DEMO_ADMIN_EMAIL, DEMO_ADMIN_PASSWORD.
@@ -11,12 +11,12 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Agent } from '@sir/agent/src/agent.ts';
-import { parseConfig } from '@sir/agent/src/config.ts';
-import { createLogger } from '@sir/agent/src/logger.ts';
-import { generateMatch, play } from '@sir/dvw-simulator';
-import { buildApp, createDatabase, loadConfig, seedAdmin, SESSION_COOKIE } from '@sir/server';
-import { CreateAgentResponseSchema, CreateShareTokenResponseSchema } from '@sir/shared';
+import { Agent } from '@arenalive/agent/src/agent.ts';
+import { parseConfig } from '@arenalive/agent/src/config.ts';
+import { createLogger } from '@arenalive/agent/src/logger.ts';
+import { generateMatch, play } from '@arenalive/dvw-simulator';
+import { buildApp, createDatabase, loadConfig, seedAdmin, SESSION_COOKIE } from '@arenalive/server';
+import { CreateAgentResponseSchema, CreateShareTokenResponseSchema } from '@arenalive/shared';
 import { z } from 'zod';
 
 const PORTAL = 'http://localhost:5173';
@@ -30,8 +30,8 @@ const EnvSchema = z.object({
     .transform((v) => Number(v) as 3 | 4 | 5),
   DEMO_PORT: z.coerce.number().int().min(1).max(65535).default(8090),
   // Development credentials of a throw-away in-memory database, not a secret.
-  DEMO_ADMIN_EMAIL: z.email().default('admin@sir.local'),
-  DEMO_ADMIN_PASSWORD: z.string().min(12).default('password-demo-sir'),
+  DEMO_ADMIN_EMAIL: z.email().default('admin@arenalive.local'),
+  DEMO_ADMIN_PASSWORD: z.string().min(12).default('password-demo-arenalive'),
 });
 
 async function main(): Promise<void> {
@@ -79,7 +79,7 @@ async function main(): Promise<void> {
   );
 
   // Simulator writes on the "USB stick" folder; the agent keeps its queue and logs elsewhere (as required by its config).
-  const dir = await mkdtemp(join(tmpdir(), 'sir-demo-'));
+  const dir = await mkdtemp(join(tmpdir(), 'arenalive-demo-'));
   const stick = join(dir, 'pennina');
   await mkdir(stick, { recursive: true });
   const agentConfig = parseConfig(
@@ -115,14 +115,14 @@ async function main(): Promise<void> {
   process.stdout.write(
     [
       '',
-      'Demo SIRRealtime avviata',
+      'Demo ArenaLive avviata',
       `  Pagina pubblica: ${share.url}`,
       `  Maxischermo:     ${share.url}?tv=1`,
       `  Area riservata:  ${PORTAL}/admin   (${env.DEMO_ADMIN_EMAIL} / ${env.DEMO_ADMIN_PASSWORD})`,
       `  Server:          http://127.0.0.1:${config.port}`,
       `  Partita:         ${match.home.name} - ${match.away.name}, ${env.DEMO_SETS} set, velocità ×${env.DEMO_SPEED}`,
       '',
-      'In un altro terminale avvia il portale: pnpm --filter @sir/web dev',
+      'In un altro terminale avvia il portale: pnpm --filter @arenalive/web dev',
       '',
     ].join('\n'),
   );

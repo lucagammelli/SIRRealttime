@@ -1,4 +1,4 @@
-import type { AssetMime } from '@sir/shared';
+import type { AssetMime } from '@arenalive/shared';
 
 /** Image recognized from its bytes. */
 export interface ImageInfo {

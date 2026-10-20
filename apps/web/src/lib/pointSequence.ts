@@ -1,11 +1,11 @@
 /**
  * Points shown one at a time on the public page. A single live update can carry several new points (DataVolley saved
  * the file after more rallies, a slow send): applied at once both scores would jump together. The intermediate states
- * come from @sir/volley-stats (`matchStateUntilPoint`), never computed here; the state of the server stays the truth,
+ * come from @arenalive/volley-stats (`matchStateUntilPoint`), never computed here; the state of the server stays the truth,
  * the sequence is only how it is shown and always ends on it.
  */
-import type { MatchState } from '@sir/volley-stats';
-import { matchPoints, matchStateUntilPoint, pointsExtend } from '@sir/volley-stats';
+import type { MatchState } from '@arenalive/volley-stats';
+import { matchPoints, matchStateUntilPoint, pointsExtend } from '@arenalive/volley-stats';
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from './theme.ts';
 
@@ -35,7 +35,7 @@ export interface PointPlan {
  * States to show, in order, going from `shown` (on screen, null: nothing yet) to `incoming` (the new state of the
  * server). Not paced (only `incoming`, at once) for the first state, a state that is not a live update, reduced
  * motion, points taken away or changed (the scout corrected the history), no new point, or more than
- * POINT_SEQUENCE_MAX_POINTS new points. Otherwise one step per new point, from @sir/volley-stats.
+ * POINT_SEQUENCE_MAX_POINTS new points. Otherwise one step per new point, from @arenalive/volley-stats.
  */
 export function planPointSequence(
   shown: MatchState | null,

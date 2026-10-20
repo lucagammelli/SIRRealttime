@@ -1,5 +1,5 @@
-import type { TeamLogoPair } from '@sir/shared';
-import type { MatchState, Side } from '@sir/volley-stats';
+import type { TeamLogoPair } from '@arenalive/shared';
+import type { MatchState, Side } from '@arenalive/volley-stats';
 import type { ReactNode } from 'react';
 import { useRef, useState } from 'react';
 import { useTemplate } from '../lib/branding.ts';

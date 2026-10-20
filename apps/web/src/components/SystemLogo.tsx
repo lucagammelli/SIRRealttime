@@ -1,5 +1,5 @@
-import type { SystemLogoPair } from '@sir/shared';
-import { hasSystemLogo, pickSystemLogo } from '@sir/shared';
+import type { SystemLogoPair } from '@arenalive/shared';
+import { hasSystemLogo, pickSystemLogo } from '@arenalive/shared';
 import { useRef } from 'react';
 import { useBackgroundBehind } from '../lib/backgroundTone.ts';
 
@@ -9,9 +9,44 @@ export const SYSTEM_LOGO_ROW_SIZE = 'max-h-[min(50px,8.33vw)] max-w-[min(150px,2
 export const SYSTEM_LOGO_FULL_SIZE = 'max-h-[50px] max-w-[150px]';
 
 /**
- * One side of the system logos, in the variant meant for the background really behind it (negative on a dark one,
- * positive on a light one or when it cannot be told; the other variant when that one is missing). Nothing when the
- * side has no logo. Proportions kept (`object-contain`); decorative by default (empty `alt`).
+ * A logo in two variants, the one meant for the background really behind it (negative on a dark one, positive on a
+ * light one or when it cannot be told; the other variant when that one is missing). Nothing when there is none.
+ * Proportions kept (`object-contain`); `marker`: data attributes of the image (tests, styles).
+ */
+export function VariantLogo({
+  pair,
+  alt,
+  size,
+  marker,
+}: {
+  pair: SystemLogoPair;
+  alt: string;
+  size: string;
+  marker: (variant: string) => Record<`data-${string}`, string>;
+}) {
+  const box = useRef<HTMLSpanElement>(null);
+  // The box is rendered only with a logo: read again when the pair goes from no logo to a logo.
+  const background = useBackgroundBehind(box, hasSystemLogo(pair));
+  const picked = pickSystemLogo(pair, background);
+  if (!picked) return null;
+  const { logo, variant } = picked;
+  return (
+    <span ref={box} className="inline-flex min-w-0 items-center">
+      <img
+        src={logo.url}
+        alt={alt}
+        {...marker(variant)}
+        width={logo.width}
+        height={logo.height}
+        className={`block h-auto w-auto object-contain ${size}`}
+      />
+    </span>
+  );
+}
+
+/**
+ * One side of the system logos, in the variant meant for the background behind it (VariantLogo); decorative by
+ * default (empty `alt`).
  */
 export function SystemLogo({
   pair,
@@ -24,23 +59,12 @@ export function SystemLogo({
   alt?: string;
   size?: string;
 }) {
-  const box = useRef<HTMLSpanElement>(null);
-  // The box is rendered only with a logo: read again when the side goes from no logo to a logo.
-  const background = useBackgroundBehind(box, hasSystemLogo(pair));
-  const picked = pickSystemLogo(pair, background);
-  if (!picked) return null;
-  const { logo, variant } = picked;
   return (
-    <span ref={box} className="inline-flex min-w-0 items-center">
-      <img
-        src={logo.url}
-        alt={alt}
-        data-system-logo={side}
-        data-system-logo-variant={variant}
-        width={logo.width}
-        height={logo.height}
-        className={`block h-auto w-auto object-contain ${size}`}
-      />
-    </span>
+    <VariantLogo
+      pair={pair}
+      alt={alt}
+      size={size}
+      marker={(variant) => ({ 'data-system-logo': side, 'data-system-logo-variant': variant })}
+    />
   );
 }

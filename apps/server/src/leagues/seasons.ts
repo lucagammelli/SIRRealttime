@@ -1,5 +1,5 @@
-import type { ClubProfile, LeagueSeries } from '@sir/shared';
-import { CLUB_MAX_LEAGUES, resolveClubProfile, seriesById } from '@sir/shared';
+import type { ClubProfile, LeagueSeries } from '@arenalive/shared';
+import { CLUB_MAX_LEAGUES, resolveClubProfile, seriesById } from '@arenalive/shared';
 import { eq, inArray, isNotNull, notInArray } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import type { AppContext } from '../context.js';

@@ -3,9 +3,9 @@ import { APP_BUILD, APP_VERSION, isOtherBuild, newBuildAvailable, versionLabel }
 
 describe('versionLabel', () => {
   it('shows the commit only when asked for and known', () => {
-    expect(versionLabel('1.0.0', '85952d0', false)).toBe('SIRRealtime 1.0.0');
-    expect(versionLabel('1.0.0', '85952d0', true)).toBe('SIRRealtime 1.0.0 (85952d0)');
-    expect(versionLabel('1.0.0', '', true)).toBe('SIRRealtime 1.0.0');
+    expect(versionLabel('1.0.0', '85952d0', false)).toBe('ArenaLive 1.0.0');
+    expect(versionLabel('1.0.0', '85952d0', true)).toBe('ArenaLive 1.0.0 (85952d0)');
+    expect(versionLabel('1.0.0', '', true)).toBe('ArenaLive 1.0.0');
   });
 });
 

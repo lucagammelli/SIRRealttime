@@ -1,6 +1,6 @@
-import type { CourtOptions } from '@sir/shared';
-import { CourtOptionsSchema } from '@sir/shared';
-import type { MatchState, Side } from '@sir/volley-stats';
+import type { CourtOptions } from '@arenalive/shared';
+import { CourtOptionsSchema } from '@arenalive/shared';
+import type { MatchState, Side } from '@arenalive/volley-stats';
 import { useId, useMemo, useState } from 'react';
 import type { ZoneArrow, ZoneSkill } from '../charts/zones.ts';
 import { COURT, EVALUATION_NAMES, ZONES, zoneCenter, zonePlayers, zoneRect, zoneView } from '../charts/zones.ts';

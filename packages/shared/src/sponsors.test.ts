@@ -88,7 +88,7 @@ describe('sponsor contracts', () => {
 
 describe('sponsors in the graphics package', () => {
   const base = () => ({
-    format: 'sirrealtime-grafica',
+    format: 'arenalive-grafica',
     version: 1,
     exportedAt: '2026-10-18T10:00:00.000Z',
     sourceName: 'SIR VOLLEY',

@@ -1,4 +1,4 @@
-import type { MatchState, PlayerRef, Ratio, Side, StatLine } from '@sir/volley-stats';
+import type { MatchState, PlayerRef, Ratio, Side, StatLine } from '@arenalive/volley-stats';
 import { playerName } from '../lib/format.ts';
 
 export interface PlayerRow {

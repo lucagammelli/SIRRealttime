@@ -1,4 +1,4 @@
-import type { PlayerRole } from '@sir/dvw-parser';
+import type { PlayerRole } from '@arenalive/dvw-parser';
 import { setTarget } from './events.js';
 import { emptyStatLine } from './stats.js';
 import type { MatchState, PlayerRef, Ratio, Side, StatLine } from './types.js';

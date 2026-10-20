@@ -1,5 +1,5 @@
-import type { MailSettings, MailTestResponse } from '@sir/shared';
-import { UpdateMailSettingsRequestSchema } from '@sir/shared';
+import type { MailSettings, MailTestResponse } from '@arenalive/shared';
+import { UpdateMailSettingsRequestSchema } from '@arenalive/shared';
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../context.js';
 import { perMinute } from '../context.js';

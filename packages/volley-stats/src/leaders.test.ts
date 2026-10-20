@@ -1,5 +1,5 @@
-import { parseDvw } from '@sir/dvw-parser';
-import { generateMatch, renderDvw } from '@sir/dvw-simulator';
+import { parseDvw } from '@arenalive/dvw-parser';
+import { generateMatch, renderDvw } from '@arenalive/dvw-simulator';
 import { describe, expect, it } from 'vitest';
 import type { MatchState, PlayerStats, StatLine } from './index.js';
 import { computeMatchState, topPlayers } from './index.js';

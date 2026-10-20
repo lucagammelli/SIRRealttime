@@ -1,5 +1,5 @@
-import type { ClubLeagueStatus, ClubResponse, MeResponse, TenantBranding } from '@sir/shared';
-import { defaultBranding, defaultIntermissions, defaultLayout, defaultOverlays } from '@sir/shared';
+import type { ClubLeagueStatus, ClubResponse, MeResponse, TenantBranding } from '@arenalive/shared';
+import { defaultBranding, defaultIntermissions, defaultLayout, defaultOverlays } from '@arenalive/shared';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

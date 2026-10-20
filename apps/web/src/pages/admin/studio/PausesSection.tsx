@@ -10,7 +10,7 @@ import type {
   SetBreakSet,
   SlideType,
   TenantIntermissions,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   INTERMISSION_MAX_DELAY_SECONDS,
   INTERMISSION_MAX_SLIDES,
@@ -22,8 +22,8 @@ import {
   MILESTONE_MIN_STOP_BEFORE_END,
   SET_BREAK_SETS,
   SLIDE_TYPES,
-} from '@sir/shared';
-import { setTarget } from '@sir/volley-stats';
+} from '@arenalive/shared';
+import { setTarget } from '@arenalive/volley-stats';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { SLIDE_LABELS } from '../../../blocks/IntermissionSlides.tsx';

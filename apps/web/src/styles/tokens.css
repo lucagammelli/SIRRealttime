@@ -4,9 +4,9 @@
  * Light theme by default, dark with prefers-color-scheme or with the switch (`data-theme` on <html>).
  * Text colours have a contrast of at least 4.5:1 on --sir-bg, --sir-surface and --sir-surface-2.
  * Each client can change primary, accent, home, away and background (lib/branding.ts writes them on <html>, light or
- * dark variant, from the palette of @sir/shared); the values here are the defaults (DEFAULT_BRAND_COLORS).
+ * dark variant, from the palette of @arenalive/shared); the values here are the defaults (DEFAULT_BRAND_COLORS).
  *
- * Templates (TEMPLATES of @sir/shared): `data-template` on <html> picks the base look; the blocks
+ * Templates (TEMPLATES of @arenalive/shared): `data-template` on <html> picks the base look; the blocks
  * `[data-template='…']` at the end of this file change the tokens of the standard look (the colours of the client still
  * go over them). `[data-sir-scope]`: an element with its own tokens (preview of «Grafica», with its own `data-theme`
  * and `data-template`), independent of the page around it.
@@ -234,7 +234,7 @@
 }
 
 /*
- * Built-in template «Chiaro e pulito» (`pulito`, always light, see TEMPLATES of @sir/shared): white and teal, flat
+ * Built-in template «Chiaro e pulito» (`pulito`, always light, see TEMPLATES of @arenalive/shared): white and teal, flat
  * cards with a thin border, no shadow and no gradients. Contrast checked by lib/templates.test.tsx.
  */
 :root[data-template='pulito'],

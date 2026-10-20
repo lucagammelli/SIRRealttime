@@ -1,4 +1,4 @@
-# Finestra di sir-agent.exe (WinForms). La avvia l'agente con:
+# Finestra di arenalive-agent.exe (WinForms). La avvia l'agente con:
 #   powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File <dataDir>\gui\window.ps1
 # L'agente riscrive questo file a ogni avvio (dal testo incluso nell'eseguibile): le modifiche fatte qui si perdono.
 #
@@ -9,7 +9,7 @@
 # Su stdout non deve finire nient'altro: ogni valore non usato va scartato con [void].
 
 # --- testi e dimensioni ---
-$Titolo        = 'SIRRealtime – Agente'
+$Titolo        = 'ArenaLive – Agente'
 $MaxMessaggi   = 200          # righe tenute nella lista degli ultimi messaggi
 $IntervalloMs  = 100          # ogni quanto la finestra legge i messaggi arrivati dall'agente
 $Margine       = 12
@@ -17,7 +17,7 @@ $ColonnaCampi  = 170
 $LarghezzaForm = 640
 $AltezzaRiga   = 32
 $FineInput     = '::fine-input::'
-$AltezzaTestata = 64          # testata colorata del cliente (solo con branding.json accanto all'exe)
+$AltezzaTestata = 64          # testata: colorata con branding.json del cliente accanto all'exe, altrimenti logo di ArenaLive
 $LarghezzaLogo = 140          # spazio del logo nella testata (l'immagine è ridotta per starci)
 $LogoMaxByte   = 2MB          # logo più grande: ignorato (lo controlla anche l'agente)
 $LogoMaxLato   = 1024         # pixel per lato del logo, oltre: ignorato
@@ -27,18 +27,18 @@ Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 # --- console nera nascosta ---
-# È la console di sir-agent.exe, condivisa con questo processo. Si nasconde solo se l'hanno aperta per noi (doppio
-# clic: nella console ci sono solo sir-agent.exe e powershell.exe), non se l'agente è stato lanciato da un prompt.
-Add-Type -Namespace SirAgent -Name NativeConsole -MemberDefinition @'
+# È la console di arenalive-agent.exe, condivisa con questo processo. Si nasconde solo se l'hanno aperta per noi (doppio
+# clic: nella console ci sono solo arenalive-agent.exe e powershell.exe), non se l'agente è stato lanciato da un prompt.
+Add-Type -Namespace ArenaLiveAgent -Name NativeConsole -MemberDefinition @'
 [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
 [DllImport("kernel32.dll")] public static extern uint GetConsoleProcessList(uint[] processList, uint processCount);
 [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 '@
-$consoleWindow = [SirAgent.NativeConsole]::GetConsoleWindow()
+$consoleWindow = [ArenaLiveAgent.NativeConsole]::GetConsoleWindow()
 $consoleProcesses = New-Object 'uint32[]' 16
-$consoleCount = [SirAgent.NativeConsole]::GetConsoleProcessList($consoleProcesses, 16)
+$consoleCount = [ArenaLiveAgent.NativeConsole]::GetConsoleProcessList($consoleProcesses, 16)
 if ($consoleWindow -ne [IntPtr]::Zero -and $consoleCount -le 2) {
-    [void][SirAgent.NativeConsole]::ShowWindow($consoleWindow, 0)
+    [void][ArenaLiveAgent.NativeConsole]::ShowWindow($consoleWindow, 0)
 }
 
 # --- canali con l'agente (UTF-8 senza BOM) ---
@@ -380,7 +380,7 @@ function Set-Branding($branding) {
     $name = ([string]$branding.name -replace '[\x00-\x1F\x7F]', ' ').Trim()
     if ($name.Length -gt 100) { $name = $name.Substring(0, 100) }
     if ($name -ne '') {
-        $script:Titolo = $name + ' – Agente SIRRealtime'
+        $script:Titolo = $name + ' – Agente ArenaLive'
         $form.Text = $script:Titolo
     }
     $form.SuspendLayout()
@@ -401,7 +401,7 @@ function Set-Branding($branding) {
         $x = $Margine + $LarghezzaLogo + $Margine
     }
     $lblHeader = New-Object System.Windows.Forms.Label
-    if ($name -ne '') { $lblHeader.Text = $name } else { $lblHeader.Text = 'Agente SIRRealtime' }
+    if ($name -ne '') { $lblHeader.Text = $name } else { $lblHeader.Text = 'Agente ArenaLive' }
     $lblHeader.ForeColor = $onPrimary
     $lblHeader.BackColor = $primary
     $lblHeader.Font = New-Object System.Drawing.Font('Segoe UI', 13, [System.Drawing.FontStyle]::Bold)
@@ -419,6 +419,48 @@ function Set-Branding($branding) {
     $form.ResumeLayout()
 }
 
+# Icona della finestra (arenalive-agent.ico scritto dall'agente accanto a questo script); senza file resta quella di sistema.
+function Set-WindowIcon($path) {
+    if ($null -eq $path -or [string]$path -eq '' -or -not (Test-Path -LiteralPath ([string]$path))) { return }
+    try { $form.Icon = New-Object System.Drawing.Icon([string]$path) } catch { }
+}
+
+# Luminanza relativa WCAG di un colore (0 nero, 1 bianco), come relativeLuminance di @arenalive/shared.
+function Get-Luminance($color) {
+    $canali = foreach ($c in @($color.R, $color.G, $color.B)) {
+        $s = $c / 255.0
+        if ($s -le 0.04045) { $s / 12.92 } else { [Math]::Pow(($s + 0.055) / 1.055, 2.4) }
+    }
+    return 0.2126 * $canali[0] + 0.7152 * $canali[1] + 0.0722 * $canali[2]
+}
+
+# Senza grafica del cliente (una volta sola): testata con il logo di ArenaLive in alto a sinistra, sullo sfondo della
+# finestra, nella versione adatta (positivo su sfondo chiaro, negativo su sfondo scuro; l'altra se manca).
+function Set-ProductHeader($product) {
+    if ($script:brandingApplied -or $null -eq $product) { return }
+    $scuro = (Get-Luminance $form.BackColor) -lt 0.5
+    if ($scuro) { $percorsi = @($product.logoNegative, $product.logoPositive) } else { $percorsi = @($product.logoPositive, $product.logoNegative) }
+    $logo = $null
+    foreach ($percorso in $percorsi) { if ($null -eq $logo) { $logo = Read-Logo $percorso } }
+    if ($null -eq $logo) { return }
+    $script:brandingApplied = $true
+    $form.SuspendLayout()
+    foreach ($control in @($form.Controls)) { $control.Top += $AltezzaTestata }
+    $header = New-Object System.Windows.Forms.Panel
+    $header.Location = New-Object System.Drawing.Point(0, 0)
+    $header.Size = New-Object System.Drawing.Size($LarghezzaForm, $AltezzaTestata)
+    $header.BackColor = $form.BackColor
+    $picture = New-Object System.Windows.Forms.PictureBox
+    $picture.SizeMode = [System.Windows.Forms.PictureBoxSizeMode]::Zoom
+    $picture.Location = New-Object System.Drawing.Point($Margine, 8)
+    $picture.Size = New-Object System.Drawing.Size($LarghezzaLogo, ($AltezzaTestata - 16))
+    $picture.Image = $logo
+    $header.Controls.Add($picture)
+    $form.Controls.Add($header)
+    $form.ClientSize = New-Object System.Drawing.Size($LarghezzaForm, ($form.ClientSize.Height + $AltezzaTestata))
+    $form.ResumeLayout()
+}
+
 function Receive-AgentMessage($message) {
     switch ([string]$message.type) {
         'init' {
@@ -432,7 +474,9 @@ function Receive-AgentMessage($message) {
             }
             $txtToken.Text = ''
             if ($message.configError) { Show-Error $message.configError }
+            if ($message.product) { Set-WindowIcon $message.product.icon }
             if ($message.branding) { Set-Branding $message.branding }
+            if ($message.product) { Set-ProductHeader $message.product }
             Update-Controls
         }
         'state' { Show-State $message.phase $message.status }

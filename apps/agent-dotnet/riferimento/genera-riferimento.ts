@@ -2,10 +2,10 @@
  * Reference of the Node agent for the tests of the C# agent: for some files derived from the example
  * `packages/dvw-parser/test/fixtures/partita.dvw` (encodings, line endings, truncations, odd spaces), what the Node
  * agent computes (decoded header and scout lines, matchKey, suspicion, planned requests with seq-free content hash).
- * The C# tests (`tests/SirAgent.Core.Tests/RiferimentoNodeTests.cs`) must give the same results.
+ * The C# tests (`tests/ArenaLive.Agent.Core.Tests/RiferimentoNodeTests.cs`) must give the same results.
  *
  * Uso (dalla radice del repository, dopo pnpm install):
- *   pnpm --filter @sir/agent exec tsx --conditions=@sir/source ../agent-dotnet/riferimento/genera-riferimento.ts
+ *   pnpm --filter @arenalive/agent exec tsx --conditions=@arenalive/source ../agent-dotnet/riferimento/genera-riferimento.ts
  */
 import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -16,7 +16,7 @@ import { planRequests } from '../../agent/src/sync.ts';
 
 const root = join(import.meta.dirname, '..', '..', '..');
 const source = join(root, 'packages', 'dvw-parser', 'test', 'fixtures', 'partita.dvw');
-const output = join(import.meta.dirname, '..', 'tests', 'SirAgent.Core.Tests', 'riferimento-node.json');
+const output = join(import.meta.dirname, '..', 'tests', 'ArenaLive.Agent.Core.Tests', 'riferimento-node.json');
 
 /** Windows-1252 encoding of a text that only uses characters of the code page (the fixture does). */
 function win1252(text: string): Buffer {

@@ -1,11 +1,11 @@
 # Agente Windows
 
 ## A cosa serve
-`apps/agent` (`@sir/agent`, comando `sir-agent`) gira sul PC di DataVolley. Legge il file `.dvw`, che DataVolley riscrive
+`apps/agent` (`@arenalive/agent`, comando `arenalive-agent`) gira sul PC di DataVolley. Legge il file `.dvw`, che DataVolley riscrive
 per intero a ogni azione, ne estrae le righe `[3SCOUT]`, calcola la differenza rispetto a quanto già inviato e la manda
 al server con `POST /api/ingest` (token agente, HTTPS). Se la rete manca, i dati restano in una coda su disco e vengono
 inviati appena possibile. Il server e il suo protocollo sono in `docs/server.md`; i contratti in `packages/shared`.
-Il modo più semplice di usarlo è la **finestra** (doppio clic su `sir-agent.exe`): registrazione automatica
+Il modo più semplice di usarlo è la **finestra** (doppio clic su `arenalive-agent.exe`): registrazione automatica
 dell'agente, cartella del `.dvw`, START e STOP, senza console. Il servizio NSSM (`--config`) resta per l'avvio automatico.
 Esiste anche una riscrittura in C# (.NET 10) con le stesse funzioni: sezione «Agente C# (.NET 10)» più sotto.
 
@@ -105,7 +105,7 @@ visti come la **stessa partita**. L'agente si riallinea con uno snapshot (il ser
   zod sono `.strict()`; le righe oltre 8 KB (`MAX_GUI_LINE`) o non valide sono scartate (nel log solo la lunghezza).
   Se la finestra muore l'agente si ferma; se l'agente muore la finestra si chiude.
 - **Console**: quella nera di Node è nascosta solo se l'ha aperta il doppio clic (nella console ci sono soltanto
-  `sir-agent.exe` e `powershell.exe`); lanciato da un prompt, resta visibile.
+  `arenalive-agent.exe` e `powershell.exe`); lanciato da un prompt, resta visibile.
 - **Cosa si vede**: «Cartella del .dvw» e «Sfoglia…» (menu: cartella, oppure singolo file `.dvw`; la ricerca parte dalla
   prima pennina), «Server» (sola lettura, da `config.json`), la riga di registrazione (sotto), «Token agente (alternativa)»
   (mascherato) con a fianco «salvato (…abcd)» o «mancante: incollalo», START, STOP, lo stato («Fermo: premi START per leggere il .dvw», «Avvio…», «In lettura: <file>»,
@@ -147,15 +147,20 @@ visti come la **stessa partita**. L'agente si riallinea con uno snapshot (il ser
   `#rrggbb`, schema `.strict()`, al massimo 16 KB) e un logo `logo.png` o `logo.jpg` (al massimo 2 MB e 1024×1024 px,
   controllati sui byte, non sull'estensione). L'agente li legge a ogni avvio della finestra e manda colori, nome e percorso
   del logo nel messaggio `init`; `window.ps1` (`Set-Branding`) mostra una testata col colore primario, il logo, il nome del
-  cliente e il titolo «<Cliente> – Agente SIRRealtime», con START colorato. Senza `branding.json`, o se non è valido, la
-  finestra ha la grafica predefinita; se è il logo a mancare o non essere valido (troppo grande, rotto, non PNG/JPEG) si
+  cliente e il titolo «<Cliente> – Agente ArenaLive», con START colorato. Senza `branding.json`, o se non è valido, la
+  finestra ha la grafica predefinita **del prodotto**: una testata con il logo ArenaLive (`Set-ProductHeader` in
+  `window.ps1`), nella variante positivo su sfondo chiaro e negativo su sfondo scuro (luminanza WCAG del colore di fondo
+  < 0,5, come `pickSystemLogo` di `packages/shared`), e l'icona della finestra (`Set-WindowIcon`). Le immagini
+  (`arenalive-positivo.png`, `arenalive-negativo.png`, `arenalive-agent.ico` in `apps/agent/src/gui/brand/`) sono incluse
+  nell'exe (`--loader:.png=binary --loader:.ico=binary` nello script `bundle`), scritte a ogni avvio accanto a `window.ps1`
+  (`productAssets.ts`) e passate col campo `product` del messaggio `init`; se è il logo a mancare o non essere valido (troppo grande, rotto, non PNG/JPEG) si
   vedono i colori senza logo. I colori che il cliente non ha scelto vengono dal suo template (`resolveBrandColors`, via `agentBranding` nel server). Un file scartato è scritto nel log con il motivo e non ferma mai la finestra.
 - **Pennina intatta** (`assertNotOnStick`, `src/config.ts`): START, «Registra» e la ripresa dell'attesa sono rifiutati
   se `dataDir` o `logDir` stanno dentro `watchPath`. In modalità finestra, in quel caso, lo script e i log vanno in
-  `%TEMP%\SIRAgent` (`data`, `logs`) e la finestra mostra l'errore. **Avvertenza**: non avviare l'agente dalla pennina:
+  `%TEMP%\ArenaLiveAgent` (`data`, `logs`) e la finestra mostra l'errore. **Avvertenza**: non avviare l'agente dalla pennina:
   `config.json` (che contiene il token) e, con i percorsi relativi predefiniti, `data/` e `logs/` finirebbero lì.
 - **`config.json` mancante**: la finestra si apre ma mostra «config.json non trovato (…): scaricalo dall'area admin,
-  pagina «Agenti», e mettilo accanto a sir-agent.exe». Il file non è creato dalla finestra.
+  pagina «Agenti», e mettilo accanto a arenalive-agent.exe». Il file non è creato dalla finestra.
 - **START** (`GuiController`): salva `agentToken` (se incollato) e `watchPath` in `config.json` (`saveTokenToFile`,
   `saveWatchPath` in `src/gui/config-file.ts`): conservano gli altri campi, validano prima con `parseConfig` (se non
   è valido non scrivono nulla) e scrivono in modo atomico (`writeFileAtomic`). Poi prende il lucchetto e avvia
@@ -169,7 +174,7 @@ visti come la **stessa partita**. L'agente si riallinea con uno snapshot (il ser
   Lo prendono la lettura continua (console e servizio) e la finestra; **non** `--once` (`installa-servizio.ps1` lo
   lancia mentre il servizio può essere attivo).
 - **Finestra**: START è rifiutato se il lucchetto appartiene a un'altra istanza attiva («Un'altra istanza dell'agente è
-  già in lettura (pid N, per esempio il servizio SIRAgent): fermala prima di avviare questa»).
+  già in lettura (pid N, per esempio il servizio ArenaLiveAgent): fermala prima di avviare questa»).
 - **Console e servizio**: non escono; scrivono nel log «un'altra istanza dell'agente è attiva (pid N): attendo» e
   riprovano ogni 30 s fino allo stop (`waitForLock`), così NSSM non riavvia il servizio a ripetizione.
 - **Lucchetto stantio** (sostituito): pid uguale a quello del processo stesso; scritto prima dell'avvio del PC (margine
@@ -179,7 +184,7 @@ visti come la **stessa partita**. L'agente si riallinea con uno snapshot (il ser
   incrociarsi (non succede con un servizio e una finestra).
 
 ### Log (`src/logger.ts`)
-- File giornalieri `sir-agent-AAAA-MM-GG.log` (giorno UTC) in `logDir`, formato JSON (pino); oltre 10 MB il file continua in
+- File giornalieri `arenalive-agent-AAAA-MM-GG.log` (giorno UTC) in `logDir`, formato JSON (pino); oltre 10 MB il file continua in
   `.1`, `.2`…; i file più vecchi di 14 giorni sono cancellati.
 - Ogni 60 s una riga `stato`: `file`, `matchKey`, `lines`, `queue`, `lastSuccessAt`, `serverReachable`.
 - Token e segreto di registrazione non compaiono mai nei log (`REDACT_PATHS`: `agentToken`, `authorization`, `secret`,
@@ -200,7 +205,7 @@ visti come la **stessa partita**. L'agente si riallinea con uno snapshot (il ser
 | `agentToken` | obbligatorio | 20-200 caratteri `A-Za-z0-9_-`, copiato intero dall'area admin |
 | `pollIntervalMs` | `1000` | intero 10-60000 |
 | `stableMs` | `700` | intero 0-60000 |
-| `dataDir` | `data` accanto all'eseguibile | coda, stato, `agent.lock`, `registration.json` e `gui/window.ps1`; **non dentro `watchPath`**; **non deve essere scrivibile da altri utenti**, perché la finestra esegue lì uno script con `-ExecutionPolicy Bypass` (`C:\SIRAgent\data` va bene) |
+| `dataDir` | `data` accanto all'eseguibile | coda, stato, `agent.lock`, `registration.json` e `gui/window.ps1`; **non dentro `watchPath`**; **non deve essere scrivibile da altri utenti**, perché la finestra esegue lì uno script con `-ExecutionPolicy Bypass` (`C:\ArenaLiveAgent\data` va bene) |
 | `logDir` | `logs` accanto all'eseguibile | log; **non dentro `watchPath`** (se `watchPath` è un file, vale la sua cartella) |
 | `logLevel` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
 | `snapshotRetryMs` | `300000` | intero 1000-86400000; nuovo tentativo dello snapshot rifiutato (4xx/413) anche senza modifiche del file |
@@ -211,7 +216,7 @@ finale, e mantiene un eventuale prefisso di percorso (`apiUrl`, usata anche dall
 del portale inoltra al server; la porta 8090 del server non si espone in rete (`docs/portale.md`, `docs/server.md`).
 L'area admin (pagina «Agenti») propone un `config.json` già compilato con l'indirizzo del portale come `serverUrl`; lo zip
 «Scarica l'agente per Windows» ne contiene uno senza token: `watchPath` `E:\`, `serverUrl` del cliente, `dataDir`
-`C:\SIRAgent\data`, `logDir` `C:\SIRAgent\logs` (il token arriva con la registrazione).
+`C:\ArenaLiveAgent\data`, `logDir` `C:\ArenaLiveAgent\logs` (il token arriva con la registrazione).
 
 I percorsi relativi sono risolti rispetto alla cartella dell'eseguibile (in sviluppo, la cartella corrente). Un BOM
 iniziale nel JSON è tollerato. Configurazione non valida: messaggio chiaro e codice di uscita 1.
@@ -219,7 +224,7 @@ iniziale nel JSON è tollerato. Configurazione non valida: messaggio chiaro e co
 ## Come si usa / si prova
 
 ### CLI (`src/cli.ts`)
-`sir-agent` (finestra) · `sir-agent --gui [--config <file>]` · `sir-agent [--config <file>] [--console] [--once] [--help]`
+`arenalive-agent` (finestra) · `arenalive-agent --gui [--config <file>]` · `arenalive-agent [--config <file>] [--console] [--once] [--help]`
 
 | Opzione | Effetto |
 |---|---|
@@ -243,14 +248,14 @@ configurazione non valida o errore. Senza `--once` il processo gira finché rice
 
    ```powershell
    # --- variabili ---
-   $Repo = "C:\SIRRealtime"   # radice del repository clonato sul PC di build
-   $Dest = "C:\SIRAgent"      # cartella di installazione (mai la pennina)
+   $Repo = "C:\ArenaLive"   # radice del repository clonato sul PC di build
+   $Dest = "C:\ArenaLiveAgent"      # cartella di installazione (mai la pennina)
 
    # --- comandi ---
    powershell -ExecutionPolicy Bypass -File (Join-Path $Repo "apps\agent\scripts\build-exe.ps1")
    if ($LASTEXITCODE -ne 0) { throw "build fallita" } else { Write-Host "Build completata" }
    New-Item -ItemType Directory -Force -Path $Dest | Out-Null
-   Copy-Item (Join-Path $Repo "apps\agent\build\sir-agent.exe") $Dest -Force
+   Copy-Item (Join-Path $Repo "apps\agent\build\arenalive-agent.exe") $Dest -Force
    Copy-Item (Join-Path $Repo "apps\agent\scripts\installa-servizio.ps1") $Dest -Force
    ```
 
@@ -258,9 +263,9 @@ configurazione non valida o errore. Senza `--once` il processo gira finché rice
 
    ```powershell
    # --- variabili ---
-   $Dest      = "C:\SIRAgent"                       # cartella di installazione
+   $Dest      = "C:\ArenaLiveAgent"                       # cartella di installazione
    $WatchPath = "E:\"                               # pennina o cartella dei .dvw
-   $ServerUrl = "https://sir.example.it/"           # indirizzo pubblico del portale (nginx, https); l'agente aggiunge api/ingest
+   $ServerUrl = "https://arenalive.example.it/"           # indirizzo pubblico del portale (nginx, https); l'agente aggiunge api/ingest
    $Token     = "<token agente dell'area admin>"    # campo "token" della risposta di /api/admin/agents
 
    # --- comandi ---
@@ -276,17 +281,17 @@ configurazione non valida o errore. Senza `--once` il processo gira finché rice
    }
    $Json = $Config | ConvertTo-Json
    [System.IO.File]::WriteAllText((Join-Path $Dest "config.json"), $Json)
-   & (Join-Path $Dest "sir-agent.exe") --config (Join-Path $Dest "config.json") --once --console
+   & (Join-Path $Dest "arenalive-agent.exe") --config (Join-Path $Dest "config.json") --once --console
    Write-Host "Codice di uscita: $LASTEXITCODE (0 inviato, 2 dati in coda, 3 nessun .dvw, 1 errore)"
    ```
 
 4. **Uso con il doppio clic** (senza servizio), passo per passo:
    1. Dal portale (area admin, pagina «Agenti», riquadro «Agente per Windows») premi «Scarica l'agente per Windows» e
-      scompatta lo zip `SIRRealtime-agente-<cliente>-<versione>.zip` in `C:\SIRAgent` (non sulla pennina): dentro ci sono
-      `sir-agent.exe`, `config.json` con `serverUrl` già compilato, `branding.json`, il logo e `LEGGIMI.txt`. L'exe non è
-      firmato: se Windows mostra SmartScreen, «Ulteriori informazioni» e poi «Esegui comunque». In alternativa, `sir-agent.exe`
+      scompatta lo zip `ArenaLive-agente-<cliente>-<versione>.zip` in `C:\ArenaLiveAgent` (non sulla pennina): dentro ci sono
+      `arenalive-agent.exe`, `config.json` con `serverUrl` già compilato, `branding.json`, il logo e `LEGGIMI.txt`. L'exe non è
+      firmato: se Windows mostra SmartScreen, «Ulteriori informazioni» e poi «Esegui comunque». In alternativa, `arenalive-agent.exe`
       costruito a mano e il `config.json` della pagina «Agenti».
-   2. Doppio clic su `sir-agent.exe`: si apre la finestra (la console nera sparisce).
+   2. Doppio clic su `arenalive-agent.exe`: si apre la finestra (la console nera sparisce).
    3. Controlla «Server». Poi o **registra l'agente**: controlla «Nome agente», premi «Registra», comunica il codice di
       abbinamento a chi gestisce il portale (area admin, pagina «Agenti», «Richieste in attesa») e aspetta
       «Abilitato: token salvato. Premi START»; oppure incolla in «Token agente (alternativa)» il token dell'area admin
@@ -295,18 +300,18 @@ configurazione non valida o errore. Senza `--once` il processo gira finché rice
    5. START: lo stato diventa «In lettura: <file>»; righe, coda e ultimo invio si aggiornano. Gli errori compaiono in rosso.
    6. STOP per fermare la lettura (la coda resta su disco e riparte al prossimo START). Per chiudere la finestra durante
       la lettura si conferma la domanda.
-   Se il servizio `SIRAgent` è attivo, START è rifiutato: fermare prima il servizio.
+   Se il servizio `ArenaLiveAgent` è attivo, START è rifiutato: fermare prima il servizio.
 
-5. **Servizio** (PowerShell come amministratore): `apps\agent\scripts\installa-servizio.ps1` installa il servizio `SIRAgent`
+5. **Servizio** (PowerShell come amministratore): `apps\agent\scripts\installa-servizio.ps1` installa il servizio `ArenaLiveAgent`
    con NSSM (avvio automatico, riavvio dopo 5 s, uscita standard in `logs\servizio.log`). Prima di lanciarlo si
    compilano le variabili in cima allo script: `$Nssm` (percorso di `nssm.exe`, da nssm.cc, cartella `win64`),
-   `$CartellaAgente` (`C:\SIRAgent`) e, se serve, `$NomeServizio`, `$NomeVisibile`, `$Descrizione`, `$TipoAvvio`,
+   `$CartellaAgente` (`C:\ArenaLiveAgent`) e, se serve, `$NomeServizio`, `$NomeVisibile`, `$Descrizione`, `$TipoAvvio`,
    `$AzioneUscita`, `$RitardoRiavvio`, `$RuotaFile`, `$RuotaByte`.
    Lo script prova prima la configurazione con `--once`, poi installa e avvia; rilanciarlo reinstalla il servizio.
 
    ```powershell
    # --- variabili ---
-   $Script = "C:\SIRAgent\installa-servizio.ps1"   # copia dello script con le variabili in cima già compilate
+   $Script = "C:\ArenaLiveAgent\installa-servizio.ps1"   # copia dello script con le variabili in cima già compilate
 
    # --- comandi ---
    powershell -ExecutionPolicy Bypass -File $Script
@@ -320,16 +325,16 @@ Serve il server in sviluppo (`docs/server.md`, un terminale) e un token agente. 
 RADICE="/percorso/del/repository"      # radice del repository o del worktree
 SERVER="http://127.0.0.1:8090"         # server in sviluppo (http ammesso solo verso localhost); con Docker, il portale http://localhost:8080
 TOKEN_AGENTE="<token agente>"          # campo "token" della risposta di POST /api/admin/agents
-CARTELLA_DVW="/tmp/sir-dvw"            # cartella osservata, dove il simulatore scrive il .dvw
-DATI="/tmp/sir-agent/data"             # dataDir (fuori da CARTELLA_DVW)
-LOG="/tmp/sir-agent/logs"              # logDir (fuori da CARTELLA_DVW)
-CONFIG="/tmp/sir-agent/config.json"    # file di configurazione generato
+CARTELLA_DVW="/tmp/arenalive-dvw"            # cartella osservata, dove il simulatore scrive il .dvw
+DATI="/tmp/arenalive-agent/data"             # dataDir (fuori da CARTELLA_DVW)
+LOG="/tmp/arenalive-agent/logs"              # logDir (fuori da CARTELLA_DVW)
+CONFIG="/tmp/arenalive-agent/config.json"    # file di configurazione generato
 VELOCITA="20"                          # velocità di riproduzione del simulatore
 
 # --- comandi ---
 cd "$RADICE"
 pnpm install
-pnpm --filter @sir/dvw-simulator build
+pnpm --filter @arenalive/dvw-simulator build
 mkdir -p "$CARTELLA_DVW" "$DATI" "$LOG"
 cat > "$CONFIG" <<EOF
 {
@@ -343,13 +348,13 @@ cat > "$CONFIG" <<EOF
 EOF
 node tools/dvw-simulator/dist/cli.js play --out "$CARTELLA_DVW/partita.dvw" --seed 1 --sets 3 \
   --speed "$VELOCITA" --corrections &
-pnpm --filter @sir/agent dev --config "$CONFIG"      # sir-agent da sorgente, con log anche sulla console
+pnpm --filter @arenalive/agent dev --config "$CONFIG"      # arenalive-agent da sorgente, con log anche sulla console
 ```
 
-`dev` esegue `tsx --conditions=@sir/source src/main.ts --console` (`apps/agent/package.json`). In alternativa
-`pnpm --filter @sir/agent bundle` produce `apps/agent/build/sir-agent.cjs`, avviabile con `node` e le stesse opzioni.
+`dev` esegue `tsx --conditions=@arenalive/source src/main.ts --console` (`apps/agent/package.json`). In alternativa
+`pnpm --filter @arenalive/agent bundle` produce `apps/agent/build/arenalive-agent.cjs`, avviabile con `node` e le stesse opzioni.
 Con `--corrections` il simulatore riscrive righe passate: l'agente invia uno snapshot. Lo stato si legge con
-`GET /api/public/:token/state` (`docs/server.md`). Test dell'agente: `pnpm --filter @sir/agent test`.
+`GET /api/public/:token/state` (`docs/server.md`). Test dell'agente: `pnpm --filter @arenalive/agent test`.
 
 ### Prova in LAN senza https
 Per un portale raggiungibile solo in http su rete locale (es. `http://192.168.104.102:8085`), `config.json` su Windows:
@@ -380,7 +385,7 @@ Mai provati fuori da Linux; da verificare:
 - START salva `watchPath` e `agentToken` in `config.json` senza perdere gli altri campi; il token non compare né nella
   finestra (solo «…abcd») né nel log;
 - STOP e chiusura durante la lettura (domanda di conferma), la coda resta su disco;
-- finestra aperta con il servizio `SIRAgent` attivo: START rifiutato; servizio avviato con la finestra in lettura: nel
+- finestra aperta con il servizio `ArenaLiveAgent` attivo: START rifiutato; servizio avviato con la finestra in lettura: nel
   log «un'altra istanza dell'agente è attiva» e nessun riavvio a ripetizione di NSSM;
 - lucchetto stantio dopo spegnimento forzato del PC: START funziona senza intervento;
 - antivirus o SmartScreen che bloccano l'esecuzione di `window.ps1` da `dataDir\gui`;
@@ -388,7 +393,7 @@ Mai provati fuori da Linux; da verificare:
 - chiudere la finestra durante l'attesa e riaprirla → il codice di abbinamento torna visibile;
 - «Annulla» e poi una nuova registrazione;
 - server spento durante l'attesa → riga arancione con «nuovo tentativo tra 5 s», poi l'attesa riprende da sola;
-- agente avviato dalla pennina: errore mostrato nella finestra, script e log in `%TEMP%\SIRAgent`;
+- agente avviato dalla pennina: errore mostrato nella finestra, script e log in `%TEMP%\ArenaLiveAgent`;
 - agente scaricato dal portale: scompattare lo zip, doppio clic, avviso SmartScreen e «Esegui comunque»; testata, colori,
   nome e titolo del cliente; logo PNG e logo JPEG; logo troppo grande o rotto → colori senza logo; `branding.json` rotto o
   assente → grafica predefinita; «Registra» → «Abilita» nel portale → START.
@@ -396,28 +401,35 @@ Mai provati fuori da Linux; da verificare:
 ## Agente C# (.NET 10)
 `apps/agent-dotnet` è la riscrittura dell'agente in C# (.NET 10 LTS, scelta di Luca: linguaggio solido, exe nativo; motivi in
 `docs/decisioni.md`, 2026-10-17). **Stato**: codice fatto e testato su Linux (xUnit); **non ancora provato su Windows**.
-Il vecchio agente Node (sopra) resta, e il portale scarica ancora quello (`scripts/costruisci-agente.sh`,
-`docs/infrastruttura.md`) finché Luca non prova il C# su Windows. La firma del codice è ancora da fare: l'exe mostra
-«autore sconosciuto» (SmartScreen).
+L'agente Node (sopra) resta nel repository, ma **il portale serve l'agente C#**: in produzione
+`scripts/pubblica-agente-produzione.sh` (lanciato da `aggiorna-produzione.sh`) chiama `scripts/costruisci-agente-dotnet.sh`
+e pubblica `arenalive-agent.exe` e `arenalive-agent.json` nella cartella `AGENT_DOWNLOAD_HOST_DIR` (`docs/infrastruttura.md`,
+«Agente scaricabile»). `scripts/costruisci-agente.sh` costruisce invece l'exe Node (SEA) e resta per prove a mano. La firma
+del codice è ancora da fare: l'exe mostra «autore sconosciuto» (SmartScreen).
 
 ### Struttura
-- `apps/agent-dotnet/SirAgent.slnx`; `global.json` e `Directory.Build.props` (azienda «SIRRealtime», prodotto «SIRRealtime
+- `apps/agent-dotnet/ArenaLive.Agent.slnx`; `global.json` e `Directory.Build.props` (azienda «ArenaLive», prodotto «ArenaLive
   Agent», versione di default 0.1.0, sovrascritta da `-p:Version`).
-- `src/SirAgent.Core` (net10.0): tutta la logica, senza interfaccia: `Dvw.cs`, `DvwDecoder.cs`, `FileWatcher.cs`,
+- `src/ArenaLive.Agent.Core` (net10.0): tutta la logica, senza interfaccia: `Dvw.cs`, `DvwDecoder.cs`, `FileWatcher.cs`,
   `MatchStore.cs`, `Ingest.cs`, `IngestValidator.cs`, `Sender.cs`, `Registration.cs`, `AgentConfig.cs`, `AgentLock.cs`,
   `Logging.cs`, `Branding.cs`, `GuiController.cs`, `Agent.cs`, `Cli.cs`.
-- `src/SirAgent.App` (net10.0-windows, WinForms, `AssemblyName` `sir-agent`): `Program.cs`, `MainForm.cs`, `WindowHost.cs`,
-  `app.manifest`, `sir-agent.ico`. Unica dipendenza: `System.ServiceProcess.ServiceController`.
-- `tests/SirAgent.Core.Tests` (xUnit v3): comportamento dell'agente, confronto col Node, schemi, lettura condivisa.
-- **Exe unico** `sir-agent.exe` per win-x64, autosufficiente (runtime .NET incluso, compresso, niente trimming), circa 48 MB,
-  con informazioni di versione (`<versione>+<commit>`) e icona.
+- `src/ArenaLive.Agent.App` (net10.0-windows, WinForms, `AssemblyName` `arenalive-agent`): `Program.cs`, `MainForm.cs`, `WindowHost.cs`,
+  `app.manifest`, `arenalive-agent.ico`. Unica dipendenza: `System.ServiceProcess.ServiceController`.
+- `tests/ArenaLive.Agent.Core.Tests` (xUnit v3): comportamento dell'agente, confronto col Node, schemi, lettura condivisa.
+- **Exe unico** `arenalive-agent.exe` per win-x64, autosufficiente (runtime .NET incluso, compresso, niente trimming), circa 48 MB,
+  con informazioni di versione (`<versione>+<commit>`) e icona (`arenalive-agent.ico`, la stessa generata da
+  `apps/web/scripts/brand-icons.ts` per il portale, copiata negli agenti).
+- **Marchio nella finestra**: senza grafica del cliente (`branding.json` assente o non valido) la testata mostra il logo
+  ArenaLive, scelto in base alla luminanza dello sfondo (`Branding.ProductLogoFor(r, g, b)`: negativo sotto 0,5, positivo
+  altrimenti). I loghi sono **risorse incorporate** nell'exe (`brand\arenalive-positivo.png` e `brand\arenalive-negativo.png`
+  in `ArenaLive.Agent.App.csproj`, copie di `apps/web/public/brand/`); titolo predefinito «ArenaLive – Agente <versione>».
 
 ### Cosa fa (stesse funzioni dell'agente Node)
 - **Finestra** con le stesse voci e gli stessi testi (cartella del `.dvw`, «Sfoglia…», registrazione con codice di
   abbinamento e scadenza, «Registrazione scaduta: registrati di nuovo», START e STOP, «Ultimi messaggi»), `GuiController`
   nel Core come `GuiController` del Node.
 - **Dati**: coda offline con lo stesso JSON (`<dataDir>/matches/<matchKey>.json`), diff `append`/`snapshot` con `seq` e
-  `contentHash` identici, decodifica windows-1252, `agent.lock`, log a rotazione (`sir-agent-AAAA-MM-GG.log`, 10 MB, 14
+  `contentHash` identici, decodifica windows-1252, `agent.lock`, log a rotazione (`arenalive-agent-AAAA-MM-GG.log`, 10 MB, 14
   giorni), `registration.json`. `config.json` identico (stessi campi, stessi limiti, stesso `apps/agent/config.example.json`).
 - **Grafica del cliente**: `branding.json` (al massimo 16 KB) e logo PNG/JPEG (al massimo 2 MB e 1024×1024 px, controllati
   sui byte) validati con gli stessi limiti dell'agente Node (`apps/agent/src/gui/branding.ts`; `MaxBrandingBytes` in `Branding.cs`, logo con `AGENT_LOGO_MAX_BYTES` e `AGENT_LOGO_MAX_SIDE` di `packages/shared/src/agentDownload.ts`), stessi messaggi nel log.
@@ -428,17 +440,17 @@ Il vecchio agente Node (sopra) resta, e il portale scarica ancora quello (`scrip
 
 ### Modi dell'exe (`Cli.cs`)
 Come il Node (nessun argomento o `--gui`: finestra; `--config`, `--console`, `--once`, `--help`, stessi codici di uscita di
-`--once`) più `--service` (servizio di Windows `SIRAgent`, non con `--once` o `--gui`). `--help` e gli errori di riga di
+`--once`) più `--service` (servizio di Windows `ArenaLiveAgent`, non con `--once` o `--gui`). `--help` e gli errori di riga di
 comando scrivono nella console del chiamante (`AttachConsole`). **L'exe è a finestra**: da PowerShell o prompt non
-aspetta la fine né restituisce il codice di uscita, quindi si usa `start /wait sir-agent.exe --once --console` oppure
+aspetta la fine né restituisce il codice di uscita, quindi si usa `start /wait arenalive-agent.exe --once --console` oppure
 `Start-Process -Wait -PassThru`.
 
 ### Servizio senza NSSM
 `apps/agent-dotnet/scripts/installa-servizio.ps1` (PowerShell come amministratore) prova la configurazione con `--once`, poi
-crea il servizio `SIRAgent` con `New-Service` (`sir-agent.exe --service --config …`, avvio automatico, riavvio dopo 5 s
+crea il servizio `ArenaLiveAgent` con `New-Service` (`arenalive-agent.exe --service --config …`, avvio automatico, riavvio dopo 5 s
 con `sc.exe failure`), sostituendo un eventuale servizio NSSM con lo stesso nome. Il servizio gira come LocalSystem.
 **Permessi** (`icacls`, con SID validi in ogni lingua di Windows): perché chi sostituisce l'exe non esegua codice come
-SYSTEM, lo script toglie l'ereditarietà dei permessi dalla cartella dell'agente (`$CartellaAgente`, `C:\SIRAgent`) e la
+SYSTEM, lo script toglie l'ereditarietà dei permessi dalla cartella dell'agente (`$CartellaAgente`, `C:\ArenaLiveAgent`) e la
 restringe a controllo completo per Administrators e SYSTEM e lettura/esecuzione per Users (variabili `$SidAdmin`,
 `$SidSystem`, `$SidUtenti`). Restano modificabili dagli utenti solo `$CartellaDati` (`data`) e `$CartellaLog` (`logs`),
 perché li scrive anche la finestra. **Conseguenze**: dopo l'installazione `config.json` (token, cartella del `.dvw`) si
@@ -454,7 +466,7 @@ log («errore nel nuovo tentativo dello snapshot», «errore nella gestione dell
 - **Riferimento**: `apps/agent-dotnet/riferimento/genera-riferimento.ts` usa `apps/agent/src/dvw.ts` e `sync.ts` per
   calcolare, su varianti di `packages/dvw-parser/test/fixtures/partita.dvw` (codifiche, fine riga, troncamenti, spazi),
   intestazione e righe decodificate, `matchKey`, sospetto e richieste pianificate; scrive
-  `tests/SirAgent.Core.Tests/riferimento-node.json`. `RiferimentoNodeTests.cs` esige gli stessi risultati in C#.
+  `tests/ArenaLive.Agent.Core.Tests/riferimento-node.json`. `RiferimentoNodeTests.cs` esige gli stessi risultati in C#.
   **Da rigenerare se cambiano `apps/agent/src/dvw.ts` o `sync.ts`**:
 
   ```bash
@@ -464,30 +476,30 @@ log («errore nel nuovo tentativo dello snapshot», «errore nella gestione dell
   # --- comandi ---
   cd "$RADICE"
   pnpm install
-  pnpm --filter @sir/agent exec tsx --conditions=@sir/source ../agent-dotnet/riferimento/genera-riferimento.ts
+  pnpm --filter @arenalive/agent exec tsx --conditions=@arenalive/source ../agent-dotnet/riferimento/genera-riferimento.ts
   ```
 - **Contratti**: gli schemi JSON in `apps/agent-dotnet/schemas/` (`ingest-request`, `ingest-response`,
   `create-registration-request`/`-response`, `registration-status-response`, `api-error`, `agent-branding`, più
-  `agent-constants.json`) sono **generati** da zod con `pnpm --filter @sir/shared schemi:agente`; non si modificano a mano.
+  `agent-constants.json`) sono **generati** da zod con `pnpm --filter @arenalive/shared schemi:agente`; non si modificano a mano.
   `packages/shared/test/agent-schemas.test.ts` fallisce se non sono aggiornati («schemi non aggiornati: lancia pnpm --filter
-  @sir/shared schemi:agente»); `SchemaTests.cs` valida i messaggi del C# con JsonSchema.Net. `docs/architettura.md`.
+  @arenalive/shared schemi:agente»); `SchemaTests.cs` valida i messaggi del C# con JsonSchema.Net. `docs/architettura.md`.
 
 ### Costruzione e prova
 **Versione**: è quella del `package.json` alla radice (la stessa del rilascio). `scripts/costruisci-agente-dotnet.sh` la passa
 a `dotnet publish` come `Version` (`a.b.c`), `FileVersion` (`a.b.c.0`) e `InformationalVersion` (`a.b.c+commit`): compaiono nelle
 Proprietà → Dettagli dell'exe di Windows (`Directory.Build.props` ha solo i valori di ripiego per build a mano). La finestra
-la mostra nel titolo («SIRRealtime – Agente 1.0.0 (85952d0)», con la grafica del cliente «<Cliente> – Agente SIRRealtime 1.0.0 (…)»;
+la mostra nel titolo («ArenaLive – Agente 1.0.0 (85952d0)», con la grafica del cliente «<Cliente> – Agente ArenaLive 1.0.0 (…)»;
 `AppVersion.cs`, test `AppVersionTests.cs`). Lo zip scaricato dal portale ha già la versione nel nome
-(`SIRRealtime-agente-<cliente>-<versione>.zip`, da `sir-agent.json`).
+(`ArenaLive-agente-<cliente>-<versione>.zip`, da `arenalive-agent.json`).
 L'exe si costruisce da Linux con `scripts/costruisci-agente-dotnet.sh` (test xUnit + `dotnet publish` in un container,
-`docs/infrastruttura.md`) e finisce in `dist/sir-agent-<versione>.exe`. Su Windows: rinominarlo `sir-agent.exe` in
-`C:\SIRAgent` con `config.json`, poi doppio clic (finestra) o `installa-servizio.ps1` (copiato accanto all'exe).
+`docs/infrastruttura.md`) e finisce in `dist/arenalive-agent-<versione>.exe`. Su Windows: rinominarlo `arenalive-agent.exe` in
+`C:\ArenaLiveAgent` con `config.json`, poi doppio clic (finestra) o `installa-servizio.ps1` (copiato accanto all'exe).
 Da provare su Windows: finestra e testi, registrazione, lettura con DataVolley che scrive (nessun blocco del `.dvw`),
 servizio come LocalSystem e visibilità di `E:\`, `logs\servizio-errori.log`, SmartScreen, `--once` con `start /wait`.
 
 ## Riferimenti
-- Agente C#: `apps/agent-dotnet/src/SirAgent.Core/` (`Cli.cs`, `Agent.cs`, `FileWatcher.cs`, `Dvw.cs`, `MatchStore.cs`,
-  `Ingest.cs`, `Registration.cs`, `Branding.cs`, `AppVersion.cs`), `src/SirAgent.App/` (`Program.cs`, `MainForm.cs`),
+- Agente C#: `apps/agent-dotnet/src/ArenaLive.Agent.Core/` (`Cli.cs`, `Agent.cs`, `FileWatcher.cs`, `Dvw.cs`, `MatchStore.cs`,
+  `Ingest.cs`, `Registration.cs`, `Branding.cs`, `AppVersion.cs`), `src/ArenaLive.Agent.App/` (`Program.cs`, `MainForm.cs`, `WindowHost.cs`),
   `scripts/installa-servizio.ps1`, `riferimento/genera-riferimento.ts`, `schemas/`, `packages/shared/scripts/agent-schemas.ts`,
   `packages/shared/scripts/genera-schemi-agente.ts`
 - `apps/agent/src/`: `main.ts` (ingresso), `cli.ts` (`runCli`), `config.ts` (`parseConfig`, `loadConfig`),
@@ -501,7 +513,8 @@ servizio come LocalSystem e visibilità di `E:\`, `logs\servizio-errori.log`, Sm
   (`GuiController`), `protocol.ts` (`GuiInMessageSchema`, `GuiOutMessageSchema`, `MAX_GUI_LINE`), `config-file.ts`
   (`saveTokenToFile`, `saveWatchPath`, `registrationServerUrl`, `registrationDataDir`, `guiWritablePaths`), `log-sink.ts` (`LogSink`), `window.ps1`, `window-script.ts`,
   `branding.ts` (`readWindowBranding`, `imageSize`); test `apps/agent/test/gui-branding.test.ts`
-- agente scaricabile: costruzione dell'exe in `docs/infrastruttura.md` (`scripts/costruisci-agente.sh`), zip in
+- agente scaricabile: costruzione dell'exe in `docs/infrastruttura.md` (`scripts/pubblica-agente-produzione.sh` →
+  `scripts/costruisci-agente-dotnet.sh`; Node: `scripts/costruisci-agente.sh`), zip in
   `docs/server.md`, pulsante in `docs/portale.md`; contratti `packages/shared/src/agentDownload.ts` (`AgentBrandingSchema`,
   `isPrivateIPv4`, spostata qui dall'agente)
 - `apps/agent/config.example.json`, `apps/agent/scripts/build-exe.ps1`, `apps/agent/scripts/installa-servizio.ps1`

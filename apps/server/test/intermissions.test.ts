@@ -1,5 +1,5 @@
-import type { AssetSummary, IntermissionsResponse, PublicTenantResponse } from '@sir/shared';
-import { defaultIntermissions } from '@sir/shared';
+import type { AssetSummary, IntermissionsResponse, PublicTenantResponse } from '@arenalive/shared';
+import { defaultIntermissions } from '@arenalive/shared';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';

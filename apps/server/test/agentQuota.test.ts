@@ -1,6 +1,10 @@
-import { generateMatch } from '@sir/dvw-simulator';
-import type { AgentQuotaResponse, AgentSummary, CreateRegistrationResponse, TenantSummary } from '@sir/shared';
-import { AGENT_EXPIRED_ERROR, CreateRegistrationResponseSchema, RegistrationStatusResponseSchema } from '@sir/shared';
+import { generateMatch } from '@arenalive/dvw-simulator';
+import type { AgentQuotaResponse, AgentSummary, CreateRegistrationResponse, TenantSummary } from '@arenalive/shared';
+import {
+  AGENT_EXPIRED_ERROR,
+  CreateRegistrationResponseSchema,
+  RegistrationStatusResponseSchema,
+} from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';

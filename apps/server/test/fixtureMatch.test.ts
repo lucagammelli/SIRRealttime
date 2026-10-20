@@ -1,4 +1,4 @@
-import { parseDvw } from '@sir/dvw-parser';
+import { parseDvw } from '@arenalive/dvw-parser';
 import { describe, expect, it } from 'vitest';
 import type { CalendarCandidate, DvwFacts } from '../src/leagues/match.js';
 import {

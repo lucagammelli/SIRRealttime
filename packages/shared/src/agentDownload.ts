@@ -6,7 +6,7 @@ import { plainText } from './strings.js';
 
 /**
  * Agent for Windows offered by the portal: the zip `GET /api/admin/agent/download` holds the executable (the same for
- * every client, described by `sir-agent.json` in AGENT_DOWNLOAD_DIR) and, for the client of the session,
+ * every client, described by `arenalive-agent.json` in AGENT_DOWNLOAD_DIR) and, for the client of the session,
  * `config.json`, `branding.json` and the logo read by the window of the agent.
  */
 
@@ -23,12 +23,12 @@ export function isPrivateIPv4(hostname: string): boolean {
 /** Version of the agent build: letters, digits, dots, dashes and plus, 1-64 characters (it ends up in a file name). */
 export const AgentVersionSchema = z.string().regex(/^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$/);
 
-/** `sir-agent.json` written by `scripts/costruisci-agente.sh` next to `sir-agent.exe`. */
+/** `arenalive-agent.json` written by `scripts/costruisci-agente.sh` next to `arenalive-agent.exe`. */
 export const AgentReleaseSchema = z.object({
   version: AgentVersionSchema,
   /** ISO 8601 UTC. */
   builtAt: z.iso.datetime(),
-  /** sha256 (hex) of `sir-agent.exe`: the server offers the file only when it matches. */
+  /** sha256 (hex) of `arenalive-agent.exe`: the server offers the file only when it matches. */
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
   nodeVersion: z.string().max(32).optional(),
 });
@@ -41,7 +41,7 @@ export const AgentDownloadInfoSchema = z.discriminatedUnion('available', [
     available: z.literal(true),
     version: AgentVersionSchema,
     builtAt: z.iso.datetime(),
-    /** Bytes of `sir-agent.exe`. */
+    /** Bytes of `arenalive-agent.exe`. */
     bytes: z.number().int().positive(),
     sha256: z.string().regex(/^[0-9a-f]{64}$/),
     /** Name of the zip the download gives. */
@@ -52,10 +52,10 @@ export type AgentDownloadInfo = z.infer<typeof AgentDownloadInfoSchema>;
 
 /** Name of the downloaded zip (slug and version are already safe for a file name). */
 export const agentDownloadFileName = (slug: string, version: string): string =>
-  `SIRRealtime-agente-${slug}-${version}.zip`;
+  `ArenaLive-agente-${slug}-${version}.zip`;
 
 /** Folder of the zip with the executable and the files of the client. */
-export const AGENT_ZIP_FOLDER = 'SIRRealtime-agente';
+export const AGENT_ZIP_FOLDER = 'ArenaLive-agente';
 
 /** Version of `branding.json`. */
 export const AGENT_BRANDING_VERSION = 1;
@@ -66,7 +66,7 @@ export const AGENT_LOGO_MAX_SIDE = 1024;
 export const AGENT_LOGO_FILES = { 'image/png': 'logo.png', 'image/jpeg': 'logo.jpg' } as const;
 
 /**
- * `branding.json` next to `sir-agent.exe`: name of the client and its colours, already resolved (those of its
+ * `branding.json` next to `arenalive-agent.exe`: name of the client and its colours, already resolved (those of its
  * template for the missing ones) with the colour of the text on each of them. Only `#rrggbb`.
  */
 export const AgentBrandingSchema = z.strictObject({
@@ -84,7 +84,11 @@ export const AgentBrandingSchema = z.strictObject({
 export type AgentBranding = z.infer<typeof AgentBrandingSchema>;
 
 /** Pure: `branding.json` of a client from its display name, chosen colours and template (missing: standard). */
-export function agentBranding(name: string, colors: BrandColorChoice, template: TemplateId = 'standard'): AgentBranding {
+export function agentBranding(
+  name: string,
+  colors: BrandColorChoice,
+  template: TemplateId = 'standard',
+): AgentBranding {
   const all = resolveBrandColors(colors, template);
   return AgentBrandingSchema.parse({
     version: AGENT_BRANDING_VERSION,
@@ -111,7 +115,7 @@ export function agentDownloadConfig(serverUrl: string): Record<string, unknown> 
     watchPath: 'E:\\',
     serverUrl,
     ...(lan ? { allowHttpPrivateNetwork: true } : {}),
-    dataDir: 'C:\\SIRAgent\\data',
-    logDir: 'C:\\SIRAgent\\logs',
+    dataDir: 'C:\\ArenaLiveAgent\\data',
+    logDir: 'C:\\ArenaLiveAgent\\logs',
   };
 }

@@ -1,4 +1,4 @@
-import type { MatchLogoInfo, ScheduleResponse, UserRole } from '@sir/shared';
+import type { MatchLogoInfo, ScheduleResponse, UserRole } from '@arenalive/shared';
 import type { Config } from './config.js';
 import type { Db } from './db/index.js';
 import type { LiveHub, StatePublisher } from './hub.js';
@@ -113,7 +113,7 @@ export interface AppContext {
   now: () => Date;
 }
 
-export const SESSION_COOKIE = 'sir_session';
+export const SESSION_COOKIE = 'arenalive_session';
 
 export interface SessionUser {
   id: string;

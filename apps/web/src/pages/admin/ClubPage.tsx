@@ -6,7 +6,7 @@ import type {
   ClubResponse,
   TeamLogosMode,
   UpdateClubProfileRequest,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   CLUB_MAX_LEAGUES,
   ClubLeagueStatusSchema,
@@ -20,7 +20,7 @@ import {
   seasonLabel,
   seriesOfGender,
   UpdateClubProfileRequestSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';

@@ -18,9 +18,20 @@ const ps1Text: Plugin = {
   },
 };
 
+/** `import bytes from './x.png'` (or `.ico`) gives the bytes, as esbuild `--loader:.png=binary` in the bundle. */
+const binary: Plugin = {
+  name: 'binary',
+  enforce: 'pre',
+  load(id) {
+    const file = id.split('?')[0] ?? id;
+    if (!/\.(png|ico)$/.test(file)) return null;
+    return `export default Uint8Array.from(Buffer.from(${JSON.stringify(readFileSync(file).toString('base64'))}, 'base64'));`;
+  },
+};
+
 export default defineConfig({
   ...shared,
-  plugins: [ps1Text],
+  plugins: [ps1Text, binary],
   resolve: { conditions },
   ssr: { resolve: { conditions } },
   test: { ...shared.test, testTimeout: 30_000, hookTimeout: 30_000 },

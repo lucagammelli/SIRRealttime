@@ -1,4 +1,4 @@
-import type { MatchState, Side } from '@sir/volley-stats';
+import type { MatchState, Side } from '@arenalive/volley-stats';
 import { useMemo, useState } from 'react';
 import type { PlayerRow, PlayerSortKey, SortDirection } from '../charts/players.ts';
 import { playerRows, sortPlayerRows, statSets } from '../charts/players.ts';

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { MatchDetailSchema } from '@sir/shared';
+import { MatchDetailSchema } from '@arenalive/shared';
 import { useCallback, useEffect } from 'react';
 import { Link, useParams } from 'react-router';
 import { MatchView } from '../../components/MatchView.tsx';

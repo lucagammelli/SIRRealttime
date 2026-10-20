@@ -1,9 +1,9 @@
-import { plainText } from '@sir/shared';
+import { plainText } from '@arenalive/shared';
 import { z } from 'zod';
 
 /**
  * Messages between the window (PowerShell, `window.ps1`) and the agent: one JSON object per line on the stdin and
- * stdout of the window process. Internal to the agent (not an agent↔server contract, so not in `@sir/shared`).
+ * stdout of the window process. Internal to the agent (not an agent↔server contract, so not in `@arenalive/shared`).
  */
 
 /** Longest line accepted from the window. */
@@ -60,6 +60,10 @@ export const GuiOutMessageSchema = z.discriminatedUnion('type', [
         onPrimary: z.string().regex(/^#[0-9a-f]{6}$/),
         logoPath: z.string().nullable(),
       })
+      .optional(),
+    /** Images of ArenaLive written next to the window script (productAssets.ts); a null path: not available. */
+    product: z
+      .object({ logoPositive: z.string().nullable(), logoNegative: z.string().nullable(), icon: z.string().nullable() })
       .optional(),
   }),
   z.object({ type: z.literal('state'), phase: z.enum(GUI_PHASES), status: AgentStatusSchema.nullable() }),

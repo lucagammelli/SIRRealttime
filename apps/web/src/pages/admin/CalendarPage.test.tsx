@@ -1,4 +1,4 @@
-import type { CalendarResponse, ClubFixture } from '@sir/shared';
+import type { CalendarResponse, ClubFixture } from '@arenalive/shared';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router';

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { LeagueDetailResponse, LeagueListResponse, LeagueSummary } from '@sir/shared';
+import type { LeagueDetailResponse, LeagueListResponse, LeagueSummary } from '@arenalive/shared';
 import { and, eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -336,7 +336,7 @@ describe('lease and failures of the teams (service used directly)', () => {
     return new LeagueService({
       db: own.database.db,
       fetcher: new LeagueFetcher({
-        userAgent: 'SIRRealtime/test',
+        userAgent: 'ArenaLive/test',
         minIntervalMs: 0,
         fetch: async (url, init) => {
           await onCall(++calls);

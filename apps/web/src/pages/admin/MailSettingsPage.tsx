@@ -1,10 +1,10 @@
-import type { MailSettings, SmtpSecurity } from '@sir/shared';
+import type { MailSettings, SmtpSecurity } from '@arenalive/shared';
 import {
   MailSettingsSchema,
   MailTestResponseSchema,
   SMTP_SECURITIES,
   UpdateMailSettingsRequestSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Card, ErrorBox, Spinner } from '../../components/ui.tsx';

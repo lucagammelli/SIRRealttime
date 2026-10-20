@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MATCH_PERIOD, setPeriod, teamDuel } from '@sir/volley-stats';
+import { MATCH_PERIOD, setPeriod, teamDuel } from '@arenalive/volley-stats';
 import { midMatchState, stateAfter } from '../test/fixtures.ts';
 import { barShares, leader, teamComparison } from './compare.ts';
 import { breakPointCount, defaultMomentumSet, leadBound, momentumSeries, momentumSets } from './momentum.ts';
@@ -64,7 +64,7 @@ describe('team comparison', () => {
     expect(so?.home).toBe(final.momentum.home.sideOutPct);
   });
 
-  it('is teamDuel of @sir/volley-stats, for the match and for a set', () => {
+  it('is teamDuel of @arenalive/volley-stats, for the match and for a set', () => {
     expect(teamComparison(final, null)).toEqual(teamDuel(final, MATCH_PERIOD));
     expect(teamComparison(final, 2)).toEqual(teamDuel(final, setPeriod(2)));
   });

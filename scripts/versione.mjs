@@ -1,6 +1,6 @@
-// Unica fonte della versione di SIRRealtime: il campo "version" del package.json alla radice (docs/regole/test-job-rilasci.md).
+// Unica fonte della versione di ArenaLive: il campo "version" del package.json alla radice (docs/regole/test-job-rilasci.md).
 // Lo usano il build del server (scripts/scrivi-versione.mjs), la configurazione di Vite del portale e scripts/rilascia.sh.
-// Il commit corto viene da SIR_COMMIT (build Docker, dove non c'è .git) oppure da git; senza nessuno dei due è assente.
+// Il commit corto viene da ARENALIVE_COMMIT (build Docker, dove non c'è .git) oppure da git; senza nessuno dei due è assente.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -18,9 +18,9 @@ export function leggiVersione() {
   return pkg.version;
 }
 
-/** Commit corto (esadecimale) da SIR_COMMIT o da git, oppure stringa vuota. */
+/** Commit corto (esadecimale) da ARENALIVE_COMMIT o da git, oppure stringa vuota. */
 export function leggiCommit() {
-  const daAmbiente = (process.env.SIR_COMMIT ?? '').trim().toLowerCase();
+  const daAmbiente = (process.env.ARENALIVE_COMMIT ?? '').trim().toLowerCase();
   if (COMMIT.test(daAmbiente)) return daAmbiente;
   try {
     const out = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {

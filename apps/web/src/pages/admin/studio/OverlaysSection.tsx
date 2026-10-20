@@ -1,4 +1,4 @@
-import type { Overlay, OverlayKind, OverlayPosition, OverlaySize, TenantOverlays } from '@sir/shared';
+import type { Overlay, OverlayKind, OverlayPosition, OverlaySize, TenantOverlays } from '@arenalive/shared';
 import {
   defaultOverlay,
   LAYOUT_DEVICES,
@@ -12,8 +12,8 @@ import {
   OVERLAY_SIZES,
   OVERLAY_TEXT_MAX,
   OverlayTextSchema,
-} from '@sir/shared';
-import type { MatchState } from '@sir/volley-stats';
+} from '@arenalive/shared';
+import type { MatchState } from '@arenalive/volley-stats';
 import { useId, useState } from 'react';
 import { Button } from '../../../components/ui.tsx';
 import { overlayText, sampleEvent } from '../../../lib/overlay.ts';

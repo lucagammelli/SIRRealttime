@@ -1,4 +1,4 @@
-import { MATCH_EVENT_KINDS, MATCH_EVENT_PRIORITY } from '@sir/volley-stats';
+import { MATCH_EVENT_KINDS, MATCH_EVENT_PRIORITY } from '@arenalive/volley-stats';
 import { describe, expect, it } from 'vitest';
 import {
   defaultOverlay,

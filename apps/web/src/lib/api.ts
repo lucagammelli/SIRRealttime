@@ -1,4 +1,4 @@
-import { ApiErrorSchema } from '@sir/shared';
+import { ApiErrorSchema } from '@arenalive/shared';
 import type { z } from 'zod';
 import { newBuildAvailable } from './version.ts';
 

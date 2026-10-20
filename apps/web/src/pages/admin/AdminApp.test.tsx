@@ -1,7 +1,13 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { defaultBranding, defaultIntermissions, defaultLayout, defaultOverlays, NO_SYSTEM_LOGOS } from '@sir/shared';
+import {
+  defaultBranding,
+  defaultIntermissions,
+  defaultLayout,
+  defaultOverlays,
+  NO_SYSTEM_LOGOS,
+} from '@arenalive/shared';
 import { setTenantLook, tenantLookOf } from '../../lib/branding.ts';
 import { setSystemLogos } from '../../lib/systemLogos.ts';
 import { APP_VERSION } from '../../lib/version.ts';
@@ -70,7 +76,7 @@ describe('admin navigation', () => {
     mockServer('admin');
     renderAt('/admin/live');
     await screen.findByRole('navigation', { name: 'Area riservata' });
-    expect(screen.getByTestId('app-version').textContent).toBe(`SIRRealtime ${APP_VERSION}`);
+    expect(screen.getByTestId('app-version').textContent).toBe(`ArenaLive ${APP_VERSION}`);
   });
 
   it('goes to the right page from every menu item, always with absolute paths', async () => {
@@ -393,7 +399,7 @@ describe('loghi di sistema in the reserved area', () => {
     await screen.findByRole('navigation', { name: 'Area riservata' });
     expect(screen.queryByTestId('loghi-di-sistema')).toBeNull();
     expect(document.querySelector('[data-system-logo]')).toBeNull();
-    expect(within(sidebarBrand()).getByText('Realtime')).toBeTruthy();
+    expect(within(sidebarBrand()).getByRole('img', { name: 'ArenaLive' })).toBeTruthy();
   });
 
   it('the left logo at the top of the menu and of the phone header, before the logo of the client', async () => {

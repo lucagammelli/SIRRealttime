@@ -1,4 +1,4 @@
-import type { Evaluation, PlayerRole, Side, Skill } from '@sir/dvw-parser';
+import type { Evaluation, PlayerRole, Side, Skill } from '@arenalive/dvw-parser';
 
 export type { Side };
 

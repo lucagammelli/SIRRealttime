@@ -1,5 +1,5 @@
-import type { MeResponse } from '@sir/shared';
-import { LoginRequestSchema, MeResponseSchema } from '@sir/shared';
+import type { MeResponse } from '@arenalive/shared';
+import { LoginRequestSchema, MeResponseSchema } from '@arenalive/shared';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { Link } from 'react-router';

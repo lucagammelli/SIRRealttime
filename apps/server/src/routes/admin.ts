@@ -7,14 +7,14 @@ import type {
   MatchDetail,
   MatchSummary,
   ShareTokenSummary,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   AgentValidityRequestSchema,
   CreateAgentRequestSchema,
   CreateShareTokenRequestSchema,
   IdParamSchema,
   MATCH_LINKS_DISABLED_MESSAGE,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { desc, eq, gt } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { agentQuotaOf, agentsInUse, lockTenantAgents, requireAgentSlot } from '../agentQuota.js';

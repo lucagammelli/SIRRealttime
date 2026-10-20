@@ -1,8 +1,9 @@
-import type { GraphicsExport, GraphicsExportImage, GraphicsImportResponse } from '@sir/shared';
+import type { GraphicsExport, GraphicsExportImage, GraphicsImportResponse } from '@arenalive/shared';
 import {
   ASSET_MAX_BYTES,
   AssetMimeSchema,
   GRAPHICS_EXPORT_FORMAT,
+  isGraphicsExportFormat,
   GRAPHICS_EXPORT_MAX_BASE64,
   GRAPHICS_EXPORT_MAX_IMAGES,
   GRAPHICS_EXPORT_VERSION,
@@ -19,7 +20,7 @@ import {
   resolveIntermissions,
   resolveLayout,
   resolveOverlays,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { and, count, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { readAssetFile } from '../assetStore.js';
@@ -44,8 +45,7 @@ const imageRejected = (message: string): HttpError => new HttpError(422, 'IMAGE_
  */
 function checkEnvelope(body: unknown): void {
   const record = body !== null && typeof body === 'object' ? (body as Record<string, unknown>) : {};
-  if (record.format !== GRAPHICS_EXPORT_FORMAT)
-    throw badRequest('Il file non è una configurazione grafica di SIRRealtime');
+  if (!isGraphicsExportFormat(record.format)) throw badRequest('Il file non è una configurazione grafica di ArenaLive');
   if (record.version !== GRAPHICS_EXPORT_VERSION)
     throw badRequest('Versione della configurazione non supportata: esportala di nuovo da un portale aggiornato');
 }

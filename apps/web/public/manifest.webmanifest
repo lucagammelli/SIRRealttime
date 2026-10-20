@@ -1,6 +1,6 @@
 {
-  "name": "SIRRealtime",
-  "short_name": "SIRRealtime",
+  "name": "ArenaLive",
+  "short_name": "ArenaLive",
   "description": "Punteggio e statistiche della partita in diretta.",
   "lang": "it",
   "scope": "/",

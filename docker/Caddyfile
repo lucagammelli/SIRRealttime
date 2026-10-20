@@ -1,8 +1,8 @@
-# Proxy TLS di produzione (docker/compose.produzione.yml). SIR_HOSTNAMES e ACME_EMAIL arrivano dal .env.
-# SIR_TLS_MODE (nel .env, scritto da installa-produzione.sh) sceglie il certificato:
+# Proxy TLS di produzione (docker/compose.produzione.yml). ARENALIVE_HOSTNAMES e ACME_EMAIL arrivano dal .env.
+# ARENALIVE_TLS_MODE (nel .env, scritto da installa-produzione.sh) sceglie il certificato:
 #  - letsencrypt: Caddy ottiene e rinnova da solo i certificati Let's Encrypt per ogni hostname;
 #  - interno: certificati firmati dalla CA locale di Caddy (radice generata sul server), per hostname non pubblici;
-#    la radice pubblica (mai la chiave) è servita su /sirrealtime-ca.crt.
+#    la radice pubblica (mai la chiave) è servita su /arenalive-ca.crt.
 # In entrambi i modi 80 -> 443 è reindirizzato.
 # Nessun access log: nel percorso ci sono i token dei link (/live/<token>, /l/<codice>) che nginx maschera nei suoi log.
 {
@@ -21,7 +21,7 @@
 	}
 }
 
-# Snippet scelto da «import modo_{$SIR_TLS_MODE}». Con letsencrypt non aggiunge nulla (comportamento predefinito di Caddy).
+# Snippet scelto da «import modo_{$ARENALIVE_TLS_MODE}». Con letsencrypt non aggiunge nulla (comportamento predefinito di Caddy).
 (modo_letsencrypt) {
 }
 
@@ -29,15 +29,15 @@
 	tls internal
 
 	# Solo la radice pubblica, copiata da installa-produzione.sh in una cartella montata in sola lettura.
-	handle /sirrealtime-ca.crt {
+	handle /arenalive-ca.crt {
 		root * /srv/ca
 		header Content-Type application/x-x509-ca-cert
 		file_server
 	}
 }
 
-{$SIR_HOSTNAMES} {
-	import modo_{$SIR_TLS_MODE}
+{$ARENALIVE_HOSTNAMES} {
+	import modo_{$ARENALIVE_TLS_MODE}
 
 	header {
 		Strict-Transport-Security "max-age=31536000"

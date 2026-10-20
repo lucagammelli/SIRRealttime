@@ -11,7 +11,7 @@ import type {
   OverlaysResponse,
   PublicTenantResponse,
   TenantBranding,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   ASSET_MAX_BASE64_LENGTH,
   ASSET_MAX_BYTES,
@@ -35,7 +35,7 @@ import {
   TenantOverlaysSchema,
   UpdateAssetRequestSchema,
   UploadAssetRequestSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { desc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';

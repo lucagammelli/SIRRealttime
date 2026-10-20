@@ -1,5 +1,5 @@
-import type { OverlayPosition, OverlaySize, TenantOverlays } from '@sir/shared';
-import type { MatchState, Side } from '@sir/volley-stats';
+import type { OverlayPosition, OverlaySize, TenantOverlays } from '@arenalive/shared';
+import type { MatchState, Side } from '@arenalive/volley-stats';
 import { useEffect, useRef, useState } from 'react';
 import type { Device } from '../lib/layout.ts';
 import type { QueuedOverlay } from '../lib/overlay.ts';

@@ -9,11 +9,11 @@ import { waitForLock } from './lock.js';
 import { createLogger } from './logger.js';
 import { errorMessage } from './util.js';
 
-export const HELP = `sir-agent: legge il file .dvw di DataVolley e invia le azioni al server SIRRealtime
+export const HELP = `arenalive-agent: legge il file .dvw di DataVolley e invia le azioni al server ArenaLive
 
-Uso: sir-agent                      finestra (anche con doppio clic sull'eseguibile)
-     sir-agent --gui [--config <file>]
-     sir-agent [--config <file>] [--console] [--once]
+Uso: arenalive-agent                      finestra (anche con doppio clic sull'eseguibile)
+     arenalive-agent --gui [--config <file>]
+     arenalive-agent [--config <file>] [--console] [--once]
 
   --gui            finestra con cartella del .dvw, token, START e STOP (solo Windows; è il modo senza argomenti)
   --config <file>  configurazione (default: config.json accanto all'eseguibile)
@@ -63,7 +63,7 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
       return 1;
     }
     if (process.platform !== 'win32') {
-      io.err('La finestra è disponibile solo su Windows: qui usa sir-agent --config <file> --console\n');
+      io.err('La finestra è disponibile solo su Windows: qui usa arenalive-agent --config <file> --console\n');
       return 1;
     }
     const { runGui } = await import('./gui/main.js');

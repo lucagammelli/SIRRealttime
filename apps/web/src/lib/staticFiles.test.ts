@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DEFAULT_BRAND_NAME, webManifest } from '@sir/shared';
+import { DEFAULT_BRAND_NAME, webManifest } from '@arenalive/shared';
 import { describe, expect, it } from 'vitest';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -15,8 +15,8 @@ describe('manifest.webmanifest (installable app)', () => {
   it('opens full screen, with the standalone fallback, and has name, language and scope of the whole site', () => {
     expect(manifest.display).toBe('fullscreen');
     expect(manifest.display_override).toEqual(['fullscreen', 'standalone']);
-    expect(manifest.name).toBe('SIRRealtime');
-    expect(manifest.short_name).toBe('SIRRealtime');
+    expect(manifest.name).toBe('ArenaLive');
+    expect(manifest.short_name).toBe('ArenaLive');
     expect(manifest.lang).toBe('it');
     expect(manifest.scope).toBe('/');
   });
@@ -47,7 +47,7 @@ describe('manifest.webmanifest (installable app)', () => {
     }
   });
 
-  it('is the manifest of the server for a client without graphics (one source: webManifest of @sir/shared)', () => {
+  it('is the manifest of the server for a client without graphics (one source: webManifest of @arenalive/shared)', () => {
     expect(manifest).toEqual(webManifest({ name: DEFAULT_BRAND_NAME, colors: {}, logo: null }));
   });
 

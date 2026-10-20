@@ -1,4 +1,4 @@
-import type { UserRole } from '@sir/shared';
+import type { UserRole } from '@arenalive/shared';
 import type { RenderResult } from '@testing-library/react';
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';

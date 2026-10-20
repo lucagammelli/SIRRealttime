@@ -1,11 +1,11 @@
-import type { LinkInfo, MeResponse } from '@sir/shared';
+import type { LinkInfo, MeResponse } from '@arenalive/shared';
 import {
   ChangeOwnPasswordRequestSchema,
   LinkTokenSchema,
   LoginRequestSchema,
   PasswordResetRequestSchema,
   SetPasswordRequestSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { and, eq, lte } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';

@@ -1,4 +1,4 @@
-import type { Side } from '@sir/volley-stats';
+import type { Side } from '@arenalive/volley-stats';
 import { z } from 'zod';
 import { AssetIdSchema } from './assets.js';
 import {

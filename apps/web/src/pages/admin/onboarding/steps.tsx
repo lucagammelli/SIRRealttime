@@ -5,7 +5,7 @@ import type {
   TenantBranding,
   TenantIntermissions,
   TenantOverlays,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   brandContrastIssues,
   CalendarResponseSchema,
@@ -20,7 +20,7 @@ import {
   ShareTokenSummarySchema,
   suggestedOurTeamName,
   templateOf,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { MutableRefObject } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';

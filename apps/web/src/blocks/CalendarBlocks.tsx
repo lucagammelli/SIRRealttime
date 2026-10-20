@@ -1,5 +1,5 @@
-import type { BlockOptions, ScheduleFixture, ScheduleStandings, ScheduleStandingRow } from '@sir/shared';
-import { standingsRowsToShow } from '@sir/shared';
+import type { BlockOptions, ScheduleFixture, ScheduleStandings, ScheduleStandingRow } from '@arenalive/shared';
+import { standingsRowsToShow } from '@arenalive/shared';
 import { useState } from 'react';
 import { teamInitials } from '../components/NextMatch.tsx';
 import { BreakableName, Card } from '../components/ui.tsx';

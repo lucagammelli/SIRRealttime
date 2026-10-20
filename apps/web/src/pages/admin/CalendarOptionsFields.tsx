@@ -1,5 +1,5 @@
-import type { BlockOptions, LayoutBlock, StandingsScope } from '@sir/shared';
-import { STANDINGS_AROUND, STANDINGS_MAX_ROWS, STANDINGS_MIN_ROWS, STANDINGS_SCOPES } from '@sir/shared';
+import type { BlockOptions, LayoutBlock, StandingsScope } from '@arenalive/shared';
+import { STANDINGS_AROUND, STANDINGS_MAX_ROWS, STANDINGS_MIN_ROWS, STANDINGS_SCOPES } from '@arenalive/shared';
 import { inputClass } from './forms.tsx';
 
 const selectClass = `${inputClass} w-auto`;

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { PublicTenantResponse } from '@sir/shared';
+import type { PublicTenantResponse } from '@arenalive/shared';
 import {
   contrastRatio,
   defaultBranding,
@@ -9,7 +9,7 @@ import {
   defaultOverlays,
   MIN_TEXT_CONTRAST,
   TEMPLATES,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -91,7 +91,7 @@ describe('tokens of the template «SIR VOLLEY»', () => {
     expect(SIR['--sir-font-sans']).toMatch(/^'Google Sans Code'/);
   });
 
-  it('keeps the colours of the template in @sir/shared equal to the tokens', () => {
+  it('keeps the colours of the template in @arenalive/shared equal to the tokens', () => {
     const colors = TEMPLATES['sir-volley'].colors;
     expect(SIR['--sir-primary']).toBe(colors.primary);
     expect(SIR['--sir-accent']).toBe(colors.accent);
@@ -132,7 +132,7 @@ describe('tokens of the built-in models', () => {
   const MODELS = ['pulito', 'notte', 'contrasto'] as const;
   const tokens = (id: (typeof MODELS)[number]) => block(`:root[data-template='${id}'],`);
 
-  it('keeps the colours of each model in @sir/shared equal to its tokens', () => {
+  it('keeps the colours of each model in @arenalive/shared equal to its tokens', () => {
     for (const id of MODELS) {
       const t = tokens(id);
       const def = TEMPLATES[id];
@@ -239,8 +239,8 @@ describe('template of the client', () => {
         <BrandMark to="/admin/live" />
       </MemoryRouter>,
     );
-    const logo = screen.getByRole('img', { name: 'SIR Real Time' });
-    expect(logo.getAttribute('src')).toBe('/templates/sir-volley/logo-sir-realtime.png');
+    const logo = screen.getByRole('img', { name: 'ArenaLive' });
+    expect(logo.getAttribute('src')).toBe('/brand/arenalive-negativo.png');
     expect(logo.closest('a')?.getAttribute('href')).toBe('/admin/live');
     expect(screen.queryByRole('contentinfo')).toBeNull();
     expect(screen.queryByText(/Istante/)).toBeNull();
@@ -255,7 +255,7 @@ describe('template of the client', () => {
       </MemoryRouter>,
     );
     expect(screen.queryByRole('contentinfo')).toBeNull();
-    expect(screen.queryByRole('img', { name: 'SIR Real Time' })).toBeNull();
+    expect(screen.queryByRole('img', { name: 'ArenaLive' })).toBeNull();
   });
 });
 

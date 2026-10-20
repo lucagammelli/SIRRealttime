@@ -6,14 +6,14 @@ import type {
   SetBreakSet,
   SlideType,
   TenantIntermissions,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   defaultIntermission,
   INTERMISSION_MAX_SLIDES,
   IntermissionSlideSchema,
   SET_BREAK_SETS,
   TenantIntermissionsSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 
 /**
  * Pure editing of the pauses (editor «Pause»): every function returns a new value. A pause is addressed by

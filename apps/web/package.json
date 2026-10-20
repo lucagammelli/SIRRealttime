@@ -1,5 +1,5 @@
 {
-  "name": "@sir/web",
+  "name": "@arenalive/web",
   "version": "0.0.0",
   "private": true,
   "description": "Portale: partita in tempo reale (pagina pubblica) e area riservata.",
@@ -11,13 +11,13 @@
     "test": "vitest run",
     "dev": "vite",
     "preview": "vite preview",
-    "demo": "tsx --conditions=@sir/source scripts/demo.ts",
-    "sample-match": "tsx --conditions=@sir/source scripts/sample-match.ts",
-    "themes": "tsx --conditions=@sir/source scripts/gen-themes.ts"
+    "demo": "tsx --conditions=@arenalive/source scripts/demo.ts",
+    "sample-match": "tsx --conditions=@arenalive/source scripts/sample-match.ts",
+    "themes": "tsx --conditions=@arenalive/source scripts/gen-themes.ts"
   },
   "dependencies": {
-    "@sir/shared": "workspace:*",
-    "@sir/volley-stats": "workspace:*",
+    "@arenalive/shared": "workspace:*",
+    "@arenalive/volley-stats": "workspace:*",
     "echarts": "^6.0.0",
     "qrcode": "1.5.4",
     "react": "^19.2.0",
@@ -26,10 +26,10 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@sir/agent": "workspace:*",
-    "@sir/dvw-parser": "workspace:*",
-    "@sir/dvw-simulator": "workspace:*",
-    "@sir/server": "workspace:*",
+    "@arenalive/agent": "workspace:*",
+    "@arenalive/dvw-parser": "workspace:*",
+    "@arenalive/dvw-simulator": "workspace:*",
+    "@arenalive/server": "workspace:*",
     "@tailwindcss/vite": "^4.1.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.3.0",

@@ -1,4 +1,4 @@
-import { defaultIntermission, defaultIntermissions } from '@sir/shared';
+import { defaultIntermission, defaultIntermissions } from '@arenalive/shared';
 import { describe, expect, it } from 'vitest';
 import {
   addSlide,

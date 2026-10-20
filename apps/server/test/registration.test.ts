@@ -1,17 +1,17 @@
 import { Writable } from 'node:stream';
-import { generateMatch } from '@sir/dvw-simulator';
+import { generateMatch } from '@arenalive/dvw-simulator';
 import type {
   AgentRegistrationSummary,
   AgentSummary,
   CreateRegistrationResponse,
   RegistrationStatusResponse,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import {
   AgentRegistrationSummarySchema,
   CreateRegistrationResponseSchema,
   DEFAULT_TENANT_SLUG,
   RegistrationStatusResponseSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { LightMyRequestResponse } from 'fastify';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';

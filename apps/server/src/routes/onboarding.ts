@@ -1,4 +1,4 @@
-import type { OnboardingStatus } from '@sir/shared';
+import type { OnboardingStatus } from '@arenalive/shared';
 import { eq, isNull, and } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../context.js';

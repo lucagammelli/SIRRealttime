@@ -1,5 +1,5 @@
-import type { BlockType, LayoutBlock } from '@sir/shared';
-import { BLOCK_OPTIONS, BLOCK_TYPES, BLOCK_WIDTHS } from '@sir/shared';
+import type { BlockType, LayoutBlock } from '@arenalive/shared';
+import { BLOCK_OPTIONS, BLOCK_TYPES, BLOCK_WIDTHS } from '@arenalive/shared';
 import type { ReactNode } from 'react';
 import type { z } from 'zod';
 import { CourtMap } from '../components/CourtMap.tsx';

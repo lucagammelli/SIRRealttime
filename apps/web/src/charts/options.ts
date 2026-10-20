@@ -1,4 +1,4 @@
-import type { Side } from '@sir/volley-stats';
+import type { Side } from '@arenalive/volley-stats';
 import type { EChartsCoreOption } from 'echarts/core';
 import { formatPct } from '../lib/format.ts';
 import type { MomentumDatum } from './momentum.ts';

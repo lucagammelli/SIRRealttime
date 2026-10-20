@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Logica dell'agente senza Windows: lettura del .dvw, diff, coda, invio, registrazione, lucchetto, log.
+       Si compila e si testa anche su Linux. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>ArenaLive.Agent.Core</RootNamespace>
+    <AssemblyName>ArenaLive.Agent.Core</AssemblyName>
+    <IsTrimmable>false</IsTrimmable>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ArenaLive.Agent.Core.Tests" />
+  </ItemGroup>
+</Project>

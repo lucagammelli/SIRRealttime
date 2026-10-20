@@ -1,4 +1,4 @@
-import type { ActionEntry } from '@sir/dvw-parser';
+import type { ActionEntry } from '@arenalive/dvw-parser';
 import type { PlayerStats, Side, StatLine, TeamStats } from './types.js';
 import type { Resolved } from './timeline.js';
 import { ratio } from './util.js';

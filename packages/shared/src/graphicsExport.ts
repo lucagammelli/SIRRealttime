@@ -18,7 +18,13 @@ import {
 import { BRANDING_IMAGE_SLOTS, TenantBrandingSchema } from './tenant.js';
 
 /** Value of `format` of an export package of the graphics. */
-export const GRAPHICS_EXPORT_FORMAT = 'sirrealtime-grafica';
+export const GRAPHICS_EXPORT_FORMAT = 'arenalive-grafica';
+/** `format` of the packages exported before the product was called ArenaLive: still imported. */
+export const LEGACY_GRAPHICS_EXPORT_FORMATS = ['sirrealtime-grafica'] as const;
+
+/** Pure: whether `format` is the one of an export package of the graphics (current or older name). */
+export const isGraphicsExportFormat = (format: unknown): boolean =>
+  format === GRAPHICS_EXPORT_FORMAT || (LEGACY_GRAPHICS_EXPORT_FORMATS as readonly unknown[]).includes(format);
 /** Version of the package layout; a package of another version is refused (never guessed). */
 export const GRAPHICS_EXPORT_VERSION = 1;
 /** Most images of a package: logos, plus the sponsor images of the page and of every pause. */
@@ -133,7 +139,8 @@ export function remapGraphicsImageIds<
  */
 export const GraphicsExportSchema = z
   .strictObject({
-    format: z.literal(GRAPHICS_EXPORT_FORMAT),
+    // An older package is read as a current one.
+    format: z.enum([GRAPHICS_EXPORT_FORMAT, ...LEGACY_GRAPHICS_EXPORT_FORMATS]).transform(() => GRAPHICS_EXPORT_FORMAT),
     version: z.literal(GRAPHICS_EXPORT_VERSION),
     exportedAt: z.iso.datetime(),
     /** Name of the client the package comes from (informative). */

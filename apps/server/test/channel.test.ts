@@ -1,5 +1,5 @@
-import { generateMatch } from '@sir/dvw-simulator';
-import type { CreateShareTokenResponse, ServerMessage } from '@sir/shared';
+import { generateMatch } from '@arenalive/dvw-simulator';
+import type { CreateShareTokenResponse, ServerMessage } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';

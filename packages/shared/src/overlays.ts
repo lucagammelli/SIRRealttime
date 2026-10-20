@@ -1,5 +1,5 @@
-import type { MatchEventKind } from '@sir/volley-stats';
-import { MATCH_EVENT_KINDS, MATCH_EVENT_PRIORITY } from '@sir/volley-stats';
+import type { MatchEventKind } from '@arenalive/volley-stats';
+import { MATCH_EVENT_KINDS, MATCH_EVENT_PRIORITY } from '@arenalive/volley-stats';
 import { z } from 'zod';
 import { TENANT_CONFIG_VERSION } from './configVersion.js';
 import type { LayoutDevice } from './layout.js';
@@ -7,12 +7,12 @@ import { plainText } from './strings.js';
 
 /**
  * Overlays of the public page chosen by a client (jsonb `tenants.overlays`): short messages shown over the page for a
- * few seconds when an event of the match happens (`MatchState.events`, detected by `@sir/volley-stats` from the scout
+ * few seconds when an event of the match happens (`MatchState.events`, detected by `@arenalive/volley-stats` from the scout
  * lines only). For every kind of event: on/off, a plain text with controlled placeholders (never HTML), how many
  * seconds it stays, the devices that show it and its priority (the higher one is shown first).
  */
 
-/** Kinds of event that can have an overlay: the events of `@sir/volley-stats`. */
+/** Kinds of event that can have an overlay: the events of `@arenalive/volley-stats`. */
 export const OVERLAY_KINDS = MATCH_EVENT_KINDS;
 export type OverlayKind = MatchEventKind;
 
@@ -98,7 +98,7 @@ const ALL: Record<LayoutDevice, boolean> = { tv: true, tablet: true, phone: true
 const LARGE: Record<LayoutDevice, boolean> = { tv: true, tablet: true, phone: false };
 
 /**
- * Defaults: every event on, on every device, for OVERLAY_DEFAULT_SECONDS, with the priority of `@sir/volley-stats`;
+ * Defaults: every event on, on every device, for OVERLAY_DEFAULT_SECONDS, with the priority of `@arenalive/volley-stats`;
  * substitutions and long rallies not on the phone; the time-out off (the time-out pause already says it).
  */
 const DEFAULTS: Record<OverlayKind, OverlayDefaults> = {

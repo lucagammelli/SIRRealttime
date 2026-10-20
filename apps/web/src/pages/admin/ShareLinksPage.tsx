@@ -1,4 +1,4 @@
-import type { ClubFixture, CreateShareTokenResponse, MatchSummary, ShareTokenSummary } from '@sir/shared';
+import type { ClubFixture, CreateShareTokenResponse, MatchSummary, ShareTokenSummary } from '@arenalive/shared';
 import {
   CalendarResponseSchema,
   ClubResponseSchema,
@@ -6,7 +6,7 @@ import {
   CreateShareTokenResponseSchema,
   formatShortCode,
   ShareTokenSummarySchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';

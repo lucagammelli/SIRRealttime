@@ -25,8 +25,8 @@ describe('config.json of the downloaded agent', () => {
     expect(config).toEqual({
       watchPath: 'E:\\',
       serverUrl: 'https://club-a.sir.it',
-      dataDir: 'C:\\SIRAgent\\data',
-      logDir: 'C:\\SIRAgent\\logs',
+      dataDir: 'C:\\ArenaLiveAgent\\data',
+      logDir: 'C:\\ArenaLiveAgent\\logs',
     });
     expect(Object.keys(config)).not.toContain('agentToken');
   });
@@ -81,11 +81,11 @@ describe('branding.json', () => {
 });
 
 describe('release of the executable', () => {
-  it('validates sir-agent.json and builds a safe file name', () => {
+  it('validates arenalive-agent.json and builds a safe file name', () => {
     const release = { version: '0.0.0-2aa1465', builtAt: '2026-10-16T10:00:00.000Z', sha256: 'a'.repeat(64) };
     expect(AgentReleaseSchema.safeParse(release).success).toBe(true);
     expect(AgentReleaseSchema.safeParse({ ...release, version: '../x' }).success).toBe(false);
     expect(AgentReleaseSchema.safeParse({ ...release, version: 'a b' }).success).toBe(false);
-    expect(agentDownloadFileName('club-a', release.version)).toBe('SIRRealtime-agente-club-a-0.0.0-2aa1465.zip');
+    expect(agentDownloadFileName('club-a', release.version)).toBe('ArenaLive-agente-club-a-0.0.0-2aa1465.zip');
   });
 });

@@ -1,5 +1,5 @@
-import type { ClubLeagueStatus } from '@sir/shared';
-import { resolveClubProfile, SelectClubLeagueRequestSchema, seriesById } from '@sir/shared';
+import type { ClubLeagueStatus } from '@arenalive/shared';
+import { resolveClubProfile, SelectClubLeagueRequestSchema, seriesById } from '@arenalive/shared';
 import { asc, inArray } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../context.js';

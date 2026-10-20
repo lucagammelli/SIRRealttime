@@ -1,4 +1,4 @@
-import { extractScoutLines } from '@sir/dvw-parser';
+import { extractScoutLines } from '@arenalive/dvw-parser';
 import { z } from 'zod';
 import { hasNoNul } from './strings.js';
 

@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: SIRRealtime server
+  title: ArenaLive server
   version: 0.1.0
   description: >
     Specifica ricavata a mano dalle rotte di apps/server/src/routes/*.ts e dagli schemi di packages/shared,
@@ -22,7 +22,7 @@ paths:
               type: object
               required: [email, password]
               properties:
-                email: { type: string, example: admin@sir.local }
+                email: { type: string, example: admin@arenalive.local }
                 password: { type: string, example: password-di-prova }
       responses:
         '200': { description: utente autenticato }
@@ -248,7 +248,7 @@ paths:
     get:
       responses:
         '200':
-          description: zip dell'agente per il cliente (sir-agent.exe, config.json senza token, branding.json, logo, LEGGIMI.txt)
+          description: zip dell'agente per il cliente (arenalive-agent.exe, config.json senza token, branding.json, logo, LEGGIMI.txt)
           content:
             application/zip:
               schema: { type: string, format: binary }
@@ -333,7 +333,7 @@ paths:
               type: object
               required: [email, password, role]
               properties:
-                email: { type: string, example: viewer-dast@sir.local }
+                email: { type: string, example: viewer-dast@arenalive.local }
                 password: { type: string, example: password-lunga-di-prova }
                 role: { type: string, enum: [admin, viewer], example: viewer }
       responses:
@@ -354,7 +354,7 @@ paths:
               properties:
                 slug: { type: string, pattern: '^[a-z0-9](?:[a-z0-9-]{0,48}[a-z0-9])?$', example: cliente-dast }
                 name: { type: string, example: Cliente DAST }
-                hostnames: { type: array, items: { type: string }, example: [dast.sir.local] }
+                hostnames: { type: array, items: { type: string }, example: [dast.arenalive.local] }
       responses:
         '201': { description: cliente creato }
         '409': { description: slug o hostname già usati }
@@ -373,7 +373,7 @@ paths:
               type: object
               properties:
                 name: { type: string, example: Cliente DAST }
-                hostnames: { type: array, items: { type: string }, example: [dast.sir.local] }
+                hostnames: { type: array, items: { type: string }, example: [dast.arenalive.local] }
                 agentQuota: { type: integer, minimum: 0, maximum: 100, example: 1 }
                 matchLinksEnabled: { type: boolean, example: true }
       responses:
@@ -436,7 +436,7 @@ paths:
               type: object
               required: [format, version]
               properties:
-                format: { type: string, example: sirrealtime-grafica }
+                format: { type: string, example: arenalive-grafica }
                 version: { type: integer, example: 1 }
       responses:
         '200': { description: grafica sostituita }
@@ -772,7 +772,7 @@ paths:
               type: object
               required: [email]
               properties:
-                email: { type: string, example: nessuno@sir.local }
+                email: { type: string, example: nessuno@arenalive.local }
       responses:
         '200': { description: risposta identica, l'email esista o no }
   /api/auth/password-reset/confirm:
@@ -861,7 +861,7 @@ paths:
                 port: { type: integer, example: 587 }
                 security: { type: string, example: starttls }
                 username: { type: string, example: utente }
-                fromName: { type: string, example: SIRRealtime }
+                fromName: { type: string, example: ArenaLive }
                 fromEmail: { type: string, example: noreply@example.test }
       responses:
         '200': { description: impostazioni salvate }

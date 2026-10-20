@@ -1,4 +1,4 @@
-import type { MeResponse, TenantSummary } from '@sir/shared';
+import type { MeResponse, TenantSummary } from '@arenalive/shared';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';

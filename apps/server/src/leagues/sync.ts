@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { LeaguePhase } from '@sir/shared';
+import type { LeaguePhase } from '@arenalive/shared';
 import { and, eq, isNull, lt, notInArray, or, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { FastifyBaseLogger } from 'fastify';

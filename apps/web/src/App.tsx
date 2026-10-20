@@ -1,8 +1,30 @@
+import { hasSystemLogo } from '@arenalive/shared';
 import { Route, Routes } from 'react-router';
+import { PRODUCT_NAME, ProductLogo } from './components/ProductLogo.tsx';
 import { StatusScreen } from './components/StatusScreen.tsx';
+import { SYSTEM_LOGO_FULL_SIZE, SystemLogo } from './components/SystemLogo.tsx';
+import { useSystemLogos } from './lib/systemLogos.ts';
 import { AdminApp } from './pages/admin/AdminApp.tsx';
 import { ForgotPasswordPage, SetPasswordPage } from './pages/admin/AccountLinkPages.tsx';
 import { LivePage } from './pages/LivePage.tsx';
+
+/**
+ * Home page (any address without a link): the left system logo centred, otherwise the logo of ArenaLive, both in the
+ * variant meant for the background behind them; the name of the product stays as title for screen readers.
+ */
+function HomeScreen() {
+  const { left } = useSystemLogos();
+  const logo = hasSystemLogo(left) ? (
+    <SystemLogo pair={left} side="sinistra" size={SYSTEM_LOGO_FULL_SIZE} />
+  ) : (
+    <ProductLogo size={SYSTEM_LOGO_FULL_SIZE} />
+  );
+  return (
+    <StatusScreen title={PRODUCT_NAME} logo={logo}>
+      Per seguire una partita apri il link che ti è stato inviato.
+    </StatusScreen>
+  );
+}
 
 /** Routes: the public page of a link and the reserved area; nothing else is exposed. */
 export function App() {
@@ -16,12 +38,7 @@ export function App() {
       <Route path="/admin/invito/:token" element={<SetPasswordPage kind="invite" />} />
       <Route path="/admin/reimposta-password/:token" element={<SetPasswordPage kind="reset" />} />
       <Route path="/admin/*" element={<AdminApp />} />
-      <Route
-        path="*"
-        element={
-          <StatusScreen title="SIRRealtime">Per seguire una partita apri il link che ti è stato inviato.</StatusScreen>
-        }
-      />
+      <Route path="*" element={<HomeScreen />} />
     </Routes>
   );
 }

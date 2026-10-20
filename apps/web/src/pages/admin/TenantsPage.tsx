@@ -1,4 +1,4 @@
-import type { InviteDelivery, MeResponse, TenantSummary } from '@sir/shared';
+import type { InviteDelivery, MeResponse, TenantSummary } from '@arenalive/shared';
 import {
   AGENT_QUOTA_MAX,
   CreateTenantRequestSchema,
@@ -8,7 +8,7 @@ import {
   PASSWORD_MIN_LENGTH,
   TenantSummarySchema,
   UpdateTenantRequestSchema,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';

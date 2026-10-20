@@ -1,4 +1,4 @@
-import type { MatchSummary } from '@sir/shared';
+import type { MatchSummary } from '@arenalive/shared';
 
 const STATUS: Record<string, string> = { notStarted: 'Non iniziata', inProgress: 'In corso', finished: 'Conclusa' };
 

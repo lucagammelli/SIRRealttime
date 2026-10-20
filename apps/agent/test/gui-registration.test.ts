@@ -1,6 +1,6 @@
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { CreateRegistrationResponse, RegistrationStatusResponse } from '@sir/shared';
+import type { CreateRegistrationResponse, RegistrationStatusResponse } from '@arenalive/shared';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { AgentConfig } from '../src/config.js';
 import type { RunnableAgent } from '../src/gui/controller.js';

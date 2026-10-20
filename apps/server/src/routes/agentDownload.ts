@@ -1,4 +1,4 @@
-import type { AgentDownloadInfo, AgentRelease, TenantBranding } from '@sir/shared';
+import type { AgentDownloadInfo, AgentRelease, TenantBranding } from '@arenalive/shared';
 import {
   AGENT_LOGO_FILES,
   AGENT_LOGO_MAX_BYTES,
@@ -8,7 +8,7 @@ import {
   agentDownloadConfig,
   agentDownloadFileName,
   resolveBranding,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { AgentReleaseStore } from '../agentRelease.js';
@@ -29,16 +29,16 @@ const notPublished = (): HttpError =>
 /** Pure: `LEGGIMI.txt` of the zip (Windows line ends). */
 export function readmeText(o: { name: string; serverUrl: string; release: AgentRelease }): string {
   return [
-    'SIRRealtime - Agente per Windows',
+    'ArenaLive - Agente per Windows',
     '',
     `Cliente:  ${o.name}`,
     `Server:   ${o.serverUrl}`,
     `Versione: ${o.release.version}`,
     '',
     'INSTALLAZIONE',
-    '1. Scompatta la cartella in C:\\SIRAgent: sir-agent.exe, config.json, branding.json e il logo',
+    '1. Scompatta la cartella in C:\\ArenaLiveAgent: arenalive-agent.exe, config.json, branding.json e il logo',
     '   devono restare insieme. Non avviare l’agente dalla pennina di DataVolley.',
-    '2. Fai doppio clic su sir-agent.exe.',
+    '2. Fai doppio clic su arenalive-agent.exe.',
     '   L’eseguibile non è firmato: se Windows mostra «Windows ha protetto il PC» (SmartScreen),',
     '   premi «Ulteriori informazioni» e poi «Esegui comunque».',
     '3. Nella finestra scrivi il nome dell’agente (es. il nome del PC o della palestra) e premi «Registra».',
@@ -46,8 +46,8 @@ export function readmeText(o: { name: string; serverUrl: string; release: AgentR
     '   codice sia quello mostrato sul PC e premi «Abilita». L’agente riceve il suo token da solo.',
     '5. Con «Sfoglia…» scegli la pennina (o il file .dvw) di DataVolley e premi START.',
     '',
-    'Dati e log dell’agente: C:\\SIRAgent\\data e C:\\SIRAgent\\logs (in config.json).',
-    `Controllo dell’eseguibile, sha256 di sir-agent.exe: ${o.release.sha256}`,
+    'Dati e log dell’agente: C:\\ArenaLiveAgent\\data e C:\\ArenaLiveAgent\\logs (in config.json).',
+    `Controllo dell’eseguibile, sha256 di arenalive-agent.exe: ${o.release.sha256}`,
     '',
   ].join('\r\n');
 }
@@ -128,9 +128,12 @@ export function agentDownloadRoutes(app: FastifyInstance, ctx: AppContext): void
       const serverUrl = publicBaseUrlFor(ctx.config.publicBaseUrl, tenant.hostnames);
       const logo = await logoEntry(ctx, tenant.id, branding, request.log);
       const entries: ZipEntry[] = [
-        { name: `${AGENT_ZIP_FOLDER}/sir-agent.exe`, file, size: opened.bytes, crc32: opened.crc32 },
+        { name: `${AGENT_ZIP_FOLDER}/arenalive-agent.exe`, file, size: opened.bytes, crc32: opened.crc32 },
         { name: `${AGENT_ZIP_FOLDER}/config.json`, data: json(agentDownloadConfig(serverUrl)) },
-        { name: `${AGENT_ZIP_FOLDER}/branding.json`, data: json(agentBranding(name, branding.colors, branding.template)) },
+        {
+          name: `${AGENT_ZIP_FOLDER}/branding.json`,
+          data: json(agentBranding(name, branding.colors, branding.template)),
+        },
         ...(logo ? [logo] : []),
         {
           name: `${AGENT_ZIP_FOLDER}/LEGGIMI.txt`,

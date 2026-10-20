@@ -1,5 +1,5 @@
-import type { MeResponse } from '@sir/shared';
-import { OnboardingStatusSchema } from '@sir/shared';
+import type { MeResponse } from '@arenalive/shared';
+import { OnboardingStatusSchema } from '@arenalive/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Button, buttonClass } from '../../../components/ui.tsx';

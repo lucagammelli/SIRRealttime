@@ -1,12 +1,12 @@
-import type { GraphicsExport } from '@sir/shared';
-import { defaultBranding, defaultIntermissions, defaultLayout, defaultOverlays } from '@sir/shared';
+import type { GraphicsExport } from '@arenalive/shared';
+import { defaultBranding, defaultIntermissions, defaultLayout, defaultOverlays } from '@arenalive/shared';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderAs } from '../../../test/adminPage.tsx';
 import { exportFileName, GraphicsTransfer, readPackage } from './GraphicsTransfer.tsx';
 
 const pkg = (template = 'standard'): GraphicsExport => ({
-  format: 'sirrealtime-grafica',
+  format: 'arenalive-grafica',
   version: 1,
   exportedAt: '2026-10-18T10:00:00.000Z',
   sourceName: 'SIR VOLLEY',
@@ -76,7 +76,7 @@ describe('GraphicsTransfer', () => {
     expect(screen.queryByText('Riepilogo del file')).toBeNull();
     fireEvent.change(input, { target: { files: [fileOf('{"x":1}')] } });
     expect(
-      await screen.findByText(/non è una configurazione grafica di SIRRealtime/, {}, { timeout: 5000 }),
+      await screen.findByText(/non è una configurazione grafica di ArenaLive/, {}, { timeout: 5000 }),
     ).toBeTruthy();
     expect(calls).toHaveLength(0);
   });

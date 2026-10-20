@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ConfigError, loadConfig, parseConfig } from '../src/config.js';
 
-const BASE = join(tmpdir(), 'sir-agent-base');
+const BASE = join(tmpdir(), 'arenalive-agent-base');
 const valid = {
   watchPath: join(tmpdir(), 'pennina'),
   serverUrl: 'https://sir.example.it',
@@ -75,7 +75,7 @@ describe('configurazione', () => {
   });
 
   it('legge config.json (anche con BOM) e segnala file mancante o JSON rotto', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'sir-agent-config-'));
+    const dir = mkdtempSync(join(tmpdir(), 'arenalive-agent-config-'));
     const file = join(dir, 'config.json');
     writeFileSync(file, `\uFEFF${JSON.stringify({ ...valid, stableMs: 50 })}`);
     expect(loadConfig(file, dir).stableMs).toBe(50);

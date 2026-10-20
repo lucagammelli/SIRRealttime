@@ -4,7 +4,9 @@ import {
   defaultIntermissions,
   defaultLayout,
   defaultOverlays,
+  GRAPHICS_EXPORT_FORMAT,
   graphicsImageIds,
+  isGraphicsExportFormat,
   GraphicsExportSchema,
   remapGraphicsImageIds,
 } from './index.js';
@@ -16,7 +18,7 @@ const B2 = '44444444-4444-4444-8444-444444444444';
 const DATA = 'iVBORw0KGgo=';
 
 const base = () => ({
-  format: 'sirrealtime-grafica',
+  format: 'arenalive-grafica',
   version: 1,
   exportedAt: '2026-10-18T10:00:00.000Z',
   sourceName: 'SIR VOLLEY',
@@ -30,6 +32,14 @@ const base = () => ({
 describe('GraphicsExportSchema', () => {
   it('accepts a package without images', () => {
     expect(GraphicsExportSchema.safeParse(base()).success).toBe(true);
+  });
+
+  it('reads a package of the older name (before ArenaLive) as a current one', () => {
+    const parsed = GraphicsExportSchema.parse({ ...base(), format: 'sirrealtime-grafica' });
+    expect(parsed.format).toBe(GRAPHICS_EXPORT_FORMAT);
+    expect(isGraphicsExportFormat('sirrealtime-grafica')).toBe(true);
+    expect(isGraphicsExportFormat(GRAPHICS_EXPORT_FORMAT)).toBe(true);
+    expect(isGraphicsExportFormat('altro')).toBe(false);
   });
 
   it('refuses another format or version', () => {

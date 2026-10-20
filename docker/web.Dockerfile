@@ -8,13 +8,13 @@ ENV PNPM_HOME=/pnpm \
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 # Commit corto per la versione mostrata nel portale (in questo contesto non c'è .git): vuoto se non passato.
-ARG SIR_COMMIT=""
-ENV SIR_COMMIT=$SIR_COMMIT
+ARG ARENALIVE_COMMIT=""
+ENV ARENALIVE_COMMIT=$ARENALIVE_COMMIT
 WORKDIR /repo
 COPY . .
 RUN pnpm install --frozen-lockfile
-# Vite legge i sorgenti dei pacchetti del monorepo (condizione @sir/source): non serve compilarli prima.
-RUN pnpm --filter @sir/web build
+# Vite legge i sorgenti dei pacchetti del monorepo (condizione @arenalive/source): non serve compilarli prima.
+RUN pnpm --filter @arenalive/web build
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
 # Configurazione principale con worker_connections e descrittori alzati per migliaia di WebSocket.

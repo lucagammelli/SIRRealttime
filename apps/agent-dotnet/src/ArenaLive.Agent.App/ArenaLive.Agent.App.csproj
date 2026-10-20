@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- arenalive-agent.exe: finestra WinForms, console, esecuzione singola e servizio di Windows nello stesso eseguibile.
+       Pubblicato come exe unico autosufficiente win-x64 (scripts/costruisci-agente-dotnet.sh). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>arenalive-agent</AssemblyName>
+    <RootNamespace>ArenaLive.Agent.App</RootNamespace>
+    <ApplicationIcon>arenalive-agent.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+    <ApplicationVisualStyles>true</ApplicationVisualStyles>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Title>ArenaLive Agent</Title>
+    <Description>Agente ArenaLive: legge il file .dvw di DataVolley e invia le azioni al server</Description>
+    <!-- Exe unico: runtime incluso, compresso, librerie native estratte all'avvio. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <PublishTrimmed>false</PublishTrimmed>
+    <DebugType>embedded</DebugType>
+    <SatelliteResourceLanguages>it;en</SatelliteResourceLanguages>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Logos of ArenaLive for the header of the window without the graphics of a client (copies of apps/web/public/brand). -->
+    <EmbeddedResource Include="brand\arenalive-positivo.png" LogicalName="arenalive-positivo.png" />
+    <EmbeddedResource Include="brand\arenalive-negativo.png" LogicalName="arenalive-negativo.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ArenaLive.Agent.Core\ArenaLive.Agent.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- ServiceBase per la modalità servizio (pacchetto Microsoft, parte di dotnet/runtime). -->
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.13" />
+  </ItemGroup>
+</Project>

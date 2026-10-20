@@ -1,6 +1,6 @@
-import type { MatchState } from '@sir/volley-stats';
-import type { ServerMessage } from '@sir/shared';
-import { ServerMessageSchema } from '@sir/shared';
+import type { MatchState } from '@arenalive/volley-stats';
+import type { ServerMessage } from '@arenalive/shared';
+import { ServerMessageSchema } from '@arenalive/shared';
 
 /**
  * Parses a WebSocket frame or an HTTP body coming from the server with the shared schema;

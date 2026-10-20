@@ -1,15 +1,15 @@
-﻿# Installa l'agente C# (sir-agent.exe) come servizio di Windows, senza NSSM: è lo stesso exe con --service.
+﻿# Installa l'agente C# (arenalive-agent.exe) come servizio di Windows, senza NSSM: è lo stesso exe con --service.
 # Da lanciare in PowerShell come amministratore. Rilanciarlo reinstalla il servizio (lo ferma e lo ricrea).
 #
-#   powershell -ExecutionPolicy Bypass -File C:\SIRAgent\installa-servizio.ps1
+#   powershell -ExecutionPolicy Bypass -File C:\ArenaLiveAgent\installa-servizio.ps1
 
 # --- variabili ---
-$CartellaAgente = "C:\SIRAgent"                                   # cartella con sir-agent.exe e config.json (mai la pennina)
-$Eseguibile     = Join-Path $CartellaAgente "sir-agent.exe"        # exe dell'agente C# (dist/sir-agent-<versione>.exe rinominato)
+$CartellaAgente = "C:\ArenaLiveAgent"                                   # cartella con arenalive-agent.exe e config.json (mai la pennina)
+$Eseguibile     = Join-Path $CartellaAgente "arenalive-agent.exe"        # exe dell'agente C# (dist/arenalive-agent-<versione>.exe rinominato)
 $Config         = Join-Path $CartellaAgente "config.json"          # configurazione (con agentToken: la registrazione si fa prima dalla finestra)
-$NomeServizio   = "SIRAgent"                                       # nome del servizio (lo stesso del servizio NSSM dell'agente Node: si sostituiscono)
-$NomeVisibile   = "SIRRealtime Agent"                              # nome mostrato in Gestione servizi
-$Descrizione    = "Legge il file .dvw di DataVolley e invia le azioni al server SIRRealtime"
+$NomeServizio   = "ArenaLiveAgent"                                       # nome del servizio (lo stesso del servizio NSSM dell'agente Node: si sostituiscono)
+$NomeVisibile   = "ArenaLive Agent"                              # nome mostrato in Gestione servizi
+$Descrizione    = "Legge il file .dvw di DataVolley e invia le azioni al server ArenaLive"
 $TipoAvvio      = "Automatic"                                      # Automatic, Manual o Disabled
 $RitardoRiavvioMs = 5000                                           # riavvio automatico dopo un'uscita inattesa (millisecondi)
 $CartellaDati   = Join-Path $CartellaAgente "data"                 # dataDir di config.json (coda, lucchetto, registration.json): scrivibile anche dalla finestra
@@ -28,7 +28,7 @@ if (-not (Test-Path -LiteralPath $Eseguibile)) { throw "Non trovo $Eseguibile" }
 if (-not (Test-Path -LiteralPath $Config)) { throw "Non trovo $Config (scaricalo dall'area admin, pagina «Agenti»)" }
 
 Write-Host "Prova della configurazione con --once"
-# sir-agent.exe è un'applicazione a finestra: senza -Wait PowerShell non aspetta la fine né il codice di uscita.
+# arenalive-agent.exe è un'applicazione a finestra: senza -Wait PowerShell non aspetta la fine né il codice di uscita.
 $prova = Start-Process -FilePath $Eseguibile -ArgumentList @('--config', ('"' + $Config + '"'), '--once', '--console') -Wait -PassThru -NoNewWindow
 $codice = $prova.ExitCode
 if ($codice -eq 1) {

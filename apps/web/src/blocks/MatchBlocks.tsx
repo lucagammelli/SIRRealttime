@@ -1,6 +1,6 @@
-import type { BlockOptions } from '@sir/shared';
-import type { Side } from '@sir/volley-stats';
-import { topPlayers } from '@sir/volley-stats';
+import type { BlockOptions } from '@arenalive/shared';
+import type { Side } from '@arenalive/volley-stats';
+import { topPlayers } from '@arenalive/volley-stats';
 import { Partials } from '../components/Scoreboard.tsx';
 import { Card, Empty } from '../components/ui.tsx';
 import { playerName, teamName, teamShort } from '../lib/format.ts';
@@ -50,7 +50,7 @@ export function SetScoresBlock({ env }: { env: BlockEnv }) {
   );
 }
 
-/** Players with the most points (ranking of @sir/volley-stats), with attack, block and serve points. */
+/** Players with the most points (ranking of @arenalive/volley-stats), with attack, block and serve points. */
 export function TopPlayersBlock({ options, env }: { options: BlockOptions<'topPlayers'>; env: BlockEnv }) {
   const { state } = env;
   const rows = topPlayers(state, { limit: options.count, team: options.team });

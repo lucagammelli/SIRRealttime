@@ -1,4 +1,4 @@
-import type { StatsCurve, StatsNow, StatsOverview } from '@sir/shared';
+import type { StatsCurve, StatsNow, StatsOverview } from '@arenalive/shared';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderAs } from '../../test/adminPage.tsx';

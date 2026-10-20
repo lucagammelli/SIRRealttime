@@ -1,4 +1,4 @@
-import type { ParsedMatch } from '@sir/dvw-parser';
+import type { ParsedMatch } from '@arenalive/dvw-parser';
 import { detectEvents, recentEvents } from './events.js';
 import { computeMomentum } from './momentum.js';
 import { computePhase } from './phase.js';

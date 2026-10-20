@@ -1,4 +1,4 @@
-import type { MatchState, Side } from '@sir/volley-stats';
+import type { MatchState, Side } from '@arenalive/volley-stats';
 
 export interface MomentumDatum {
   /** 1-based rally number in the set. */

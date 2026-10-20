@@ -1,4 +1,4 @@
-import type { ShareTokenSummary } from '@sir/shared';
+import type { ShareTokenSummary } from '@arenalive/shared';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';

@@ -9,9 +9,9 @@ const conditions = [SOURCE_CONDITION, 'module', 'browser', 'import', 'default'];
 export default defineConfig({
   plugins: [react()],
   define: {
-    __SIR_VERSION__: JSON.stringify(leggiVersione()),
-    __SIR_COMMIT__: JSON.stringify(''),
-    __SIR_BUILD__: JSON.stringify('build-dei-test'),
+    __ARENALIVE_VERSION__: JSON.stringify(leggiVersione()),
+    __ARENALIVE_COMMIT__: JSON.stringify(''),
+    __ARENALIVE_BUILD__: JSON.stringify('build-dei-test'),
   },
   resolve: { conditions },
   ssr: { resolve: { conditions: [SOURCE_CONDITION, 'node', 'import', 'default'] } },

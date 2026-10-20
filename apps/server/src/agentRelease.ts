@@ -2,15 +2,15 @@ import { createHash } from 'node:crypto';
 import type { FileHandle } from 'node:fs/promises';
 import { lstat, open, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { AgentRelease } from '@sir/shared';
-import { AgentReleaseSchema } from '@sir/shared';
+import type { AgentRelease } from '@arenalive/shared';
+import { AgentReleaseSchema } from '@arenalive/shared';
 import type { FastifyBaseLogger } from 'fastify';
 import { fileCrc32 } from './lib/zip.js';
 
 /** Files written by `scripts/costruisci-agente.sh` in AGENT_DOWNLOAD_DIR. */
-export const AGENT_EXE_FILE = 'sir-agent.exe';
-export const AGENT_RELEASE_FILE = 'sir-agent.json';
-/** Largest `sir-agent.json` read. */
+export const AGENT_EXE_FILE = 'arenalive-agent.exe';
+export const AGENT_RELEASE_FILE = 'arenalive-agent.json';
+/** Largest `arenalive-agent.json` read. */
 const MAX_RELEASE_BYTES = 4096;
 
 /** The executable on offer, open (the zip reads exactly this file, even if it is replaced meanwhile). */
@@ -29,8 +29,8 @@ interface Digest {
 const errorCode = (err: unknown): unknown => (err instanceof Error && 'code' in err ? err.code : undefined);
 
 /**
- * Executable of the agent offered for download, the same for every client. `sir-agent.json` must describe the
- * `sir-agent.exe` next to it (same sha256): otherwise nothing is offered. sha256 and CRC-32 of the executable are
+ * Executable of the agent offered for download, the same for every client. `arenalive-agent.json` must describe the
+ * `arenalive-agent.exe` next to it (same sha256): otherwise nothing is offered. sha256 and CRC-32 of the executable are
  * computed once for every version of the file (identified by inode, size and modification time).
  */
 export class AgentReleaseStore {
@@ -38,7 +38,7 @@ export class AgentReleaseStore {
 
   constructor(private readonly dir: string) {}
 
-  /** The executable open, or null when it is missing or does not match `sir-agent.json` (with a log). */
+  /** The executable open, or null when it is missing or does not match `arenalive-agent.json` (with a log). */
   async open(log: FastifyBaseLogger): Promise<OpenRelease | null> {
     const release = await this.readRelease(log);
     if (!release) return null;
@@ -62,7 +62,7 @@ export class AgentReleaseStore {
       }
       const { sha256, crc32 } = await digest;
       if (sha256 !== release.sha256) {
-        log.error('sir-agent.exe non corrisponde allo sha256 di sir-agent.json: download non disponibile');
+        log.error('arenalive-agent.exe non corrisponde allo sha256 di arenalive-agent.json: download non disponibile');
         await file.close();
         return null;
       }
@@ -80,12 +80,12 @@ export class AgentReleaseStore {
     try {
       const stats = await lstat(path);
       if (!stats.isFile() || stats.size > MAX_RELEASE_BYTES) {
-        log.warn('sir-agent.json non valido: download dell’agente non disponibile');
+        log.warn('arenalive-agent.json non valido: download dell’agente non disponibile');
         return null;
       }
       text = await readFile(path, 'utf8');
     } catch (err) {
-      if (errorCode(err) !== 'ENOENT') log.warn({ code: errorCode(err) }, 'sir-agent.json illeggibile');
+      if (errorCode(err) !== 'ENOENT') log.warn({ code: errorCode(err) }, 'arenalive-agent.json illeggibile');
       return null;
     }
     let raw: unknown;
@@ -96,7 +96,7 @@ export class AgentReleaseStore {
     }
     const parsed = AgentReleaseSchema.safeParse(raw);
     if (!parsed.success) {
-      log.warn('sir-agent.json non valido: download dell’agente non disponibile');
+      log.warn('arenalive-agent.json non valido: download dell’agente non disponibile');
       return null;
     }
     return parsed.data;

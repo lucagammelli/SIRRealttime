@@ -1,9 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/SirAgent.Core/SirAgent.Core.csproj" />
-    <Project Path="src/SirAgent.App/SirAgent.App.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/SirAgent.Core.Tests/SirAgent.Core.Tests.csproj" />
-  </Folder>
-</Solution>

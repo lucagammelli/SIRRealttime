@@ -5,8 +5,8 @@ import { open, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { crc32 } from 'node:zlib';
-import type { AgentDownloadInfo, AssetSummary } from '@sir/shared';
-import { AgentBrandingSchema, AgentDownloadInfoSchema } from '@sir/shared';
+import type { AgentDownloadInfo, AssetSummary } from '@arenalive/shared';
+import { AgentBrandingSchema, AgentDownloadInfoSchema } from '@arenalive/shared';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { dosDateTime, isSafeEntryName, zipLayout, zipStream } from '../src/lib/zip.js';
@@ -108,11 +108,11 @@ async function downloadItems(host = HOST_A, cookie = cookieA): Promise<Map<strin
 }
 
 const jsonOf = (items: Map<string, ZipItem>, name: string): Record<string, unknown> =>
-  JSON.parse(items.get(`SIRRealtime-agente/${name}`)?.data.toString('utf8') ?? 'null') as Record<string, unknown>;
+  JSON.parse(items.get(`ArenaLive-agente/${name}`)?.data.toString('utf8') ?? 'null') as Record<string, unknown>;
 
 async function publish(exe = EXE, release: object = RELEASE): Promise<void> {
-  await writeFile(join(downloadDir, 'sir-agent.exe'), exe);
-  await writeFile(join(downloadDir, 'sir-agent.json'), JSON.stringify(release));
+  await writeFile(join(downloadDir, 'arenalive-agent.exe'), exe);
+  await writeFile(join(downloadDir, 'arenalive-agent.json'), JSON.stringify(release));
 }
 
 async function setLogos(host: string, cookie: string, logos: { logoMain?: Buffer; logoMark?: Buffer }): Promise<void> {
@@ -154,8 +154,8 @@ afterAll(async () => {
   rmSync(downloadDir, { recursive: true, force: true });
 });
 beforeEach(() => {
-  rmSync(join(downloadDir, 'sir-agent.exe'), { force: true });
-  rmSync(join(downloadDir, 'sir-agent.json'), { force: true });
+  rmSync(join(downloadDir, 'arenalive-agent.exe'), { force: true });
+  rmSync(join(downloadDir, 'arenalive-agent.json'), { force: true });
 });
 
 describe('agente scaricabile: disponibilità', () => {
@@ -176,19 +176,19 @@ describe('agente scaricabile: disponibilità', () => {
       builtAt: RELEASE.builtAt,
       bytes: EXE.length,
       sha256: RELEASE.sha256,
-      fileName: 'SIRRealtime-agente-club-a-1.2.3-abc1234.zip',
+      fileName: 'ArenaLive-agente-club-a-1.2.3-abc1234.zip',
     });
   });
 
-  it('exe diverso dallo sha256 di sir-agent.json, json non valido o solo uno dei due: non disponibile', async () => {
+  it('exe diverso dallo sha256 di arenalive-agent.json, json non valido o solo uno dei due: non disponibile', async () => {
     await publish(Buffer.from('altro eseguibile'));
     expect(await info()).toEqual({ available: false });
     expect((await download()).statusCode).toBe(404);
     await publish(EXE, { ...RELEASE, version: '../../etc' });
     expect(await info()).toEqual({ available: false });
-    await writeFile(join(downloadDir, 'sir-agent.json'), '{ rotto');
+    await writeFile(join(downloadDir, 'arenalive-agent.json'), '{ rotto');
     expect(await info()).toEqual({ available: false });
-    rmSync(join(downloadDir, 'sir-agent.json'));
+    rmSync(join(downloadDir, 'arenalive-agent.json'));
     expect(await info()).toEqual({ available: false });
   });
 
@@ -206,17 +206,15 @@ describe('agente scaricabile: lo zip del cliente', () => {
     const res = await download();
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toBe('application/zip');
-    expect(res.headers['content-disposition']).toBe(
-      'attachment; filename="SIRRealtime-agente-club-a-1.2.3-abc1234.zip"',
-    );
+    expect(res.headers['content-disposition']).toBe('attachment; filename="ArenaLive-agente-club-a-1.2.3-abc1234.zip"');
     expect(res.headers['cache-control']).toBe('no-store');
     expect(Number(res.headers['content-length'])).toBe(res.rawPayload.length);
     const items = readZip(res.rawPayload);
     expect(items.map((i) => i.name)).toEqual([
-      'SIRRealtime-agente/sir-agent.exe',
-      'SIRRealtime-agente/config.json',
-      'SIRRealtime-agente/branding.json',
-      'SIRRealtime-agente/LEGGIMI.txt',
+      'ArenaLive-agente/arenalive-agent.exe',
+      'ArenaLive-agente/config.json',
+      'ArenaLive-agente/branding.json',
+      'ArenaLive-agente/LEGGIMI.txt',
     ]);
     expect(items.every((i) => i.method === 0)).toBe(true);
     expect(items[0]?.data.equals(EXE)).toBe(true);
@@ -249,8 +247,8 @@ describe('agente scaricabile: lo zip del cliente', () => {
     expect(a).toEqual({
       watchPath: 'E:\\',
       serverUrl: 'http://a.sir.test',
-      dataDir: 'C:\\SIRAgent\\data',
-      logDir: 'C:\\SIRAgent\\logs',
+      dataDir: 'C:\\ArenaLiveAgent\\data',
+      logDir: 'C:\\ArenaLiveAgent\\logs',
     });
     expect(b['serverUrl']).toBe('http://b.sir.test');
     for (const config of [a, b]) {
@@ -268,7 +266,7 @@ describe('agente scaricabile: lo zip del cliente', () => {
     });
     expect(select.statusCode).toBe(200);
     const res = await download(HOST_A, cookieSuper);
-    expect(res.headers['content-disposition']).toContain('SIRRealtime-agente-palestra-');
+    expect(res.headers['content-disposition']).toContain('ArenaLive-agente-palestra-');
     const items = new Map(readZip(res.rawPayload).map((i) => [i.name, i]));
     expect(jsonOf(items, 'config.json')).toMatchObject({
       serverUrl: 'http://192.168.1.20',
@@ -307,13 +305,13 @@ describe('agente scaricabile: lo zip del cliente', () => {
     const logo = png(240, 80);
     await setLogos(HOST_A, cookieA, { logoMain: logo });
     let items = await downloadItems();
-    expect(items.get('SIRRealtime-agente/logo.png')?.data.equals(logo)).toBe(true);
+    expect(items.get('ArenaLive-agente/logo.png')?.data.equals(logo)).toBe(true);
 
     const mark = jpeg(64, 64);
     await setLogos(HOST_A, cookieA, { logoMain: svg('<rect width="10" height="10"/>'), logoMark: mark });
     items = await downloadItems();
-    expect(items.has('SIRRealtime-agente/logo.png')).toBe(false);
-    expect(items.get('SIRRealtime-agente/logo.jpg')?.data.equals(mark)).toBe(true);
+    expect(items.has('ArenaLive-agente/logo.png')).toBe(false);
+    expect(items.get('ArenaLive-agente/logo.jpg')?.data.equals(mark)).toBe(true);
 
     await setLogos(HOST_A, cookieA, { logoMain: webp(64, 64), logoMark: png(1500, 20) });
     items = await downloadItems();
@@ -353,7 +351,7 @@ describe('writer zip', () => {
     for (const name of ['', '/assoluto', 'a/../b', 'a\\b', 'a//b', './a', 'riga\na']) {
       expect(isSafeEntryName(name)).toBe(false);
     }
-    expect(isSafeEntryName('SIRRealtime-agente/config.json')).toBe(true);
+    expect(isSafeEntryName('ArenaLive-agente/config.json')).toBe(true);
     const entry = { name: 'a.txt', data: Buffer.from('a') };
     expect(() => zipLayout([entry, entry], new Date())).toThrow(/nome non valido/);
     expect(() => zipLayout([{ name: '../x', data: Buffer.alloc(0) }], new Date())).toThrow();
@@ -402,7 +400,7 @@ describe('writer zip', () => {
   it('LEGGIMI.txt con passi, avviso SmartScreen e righe Windows', () => {
     const text = readmeText({ name: 'Club A', serverUrl: 'https://a.sir.it', release: RELEASE });
     expect(text).toContain('Cliente:  Club A');
-    expect(text).toContain('C:\\SIRAgent');
+    expect(text).toContain('C:\\ArenaLiveAgent');
     expect(text).toContain('pennina');
     expect(text.split('\r\n').length).toBeGreaterThan(10);
     expect(text.replace(/\r\n/g, '')).not.toMatch(/[\r\n]/);

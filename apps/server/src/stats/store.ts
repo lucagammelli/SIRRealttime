@@ -1,4 +1,11 @@
-import type { StatsCurve, StatsDayRow, StatsLinkRow, StatsMatchRow, StatsOverview, StatsTotals } from '@sir/shared';
+import type {
+  StatsCurve,
+  StatsDayRow,
+  StatsLinkRow,
+  StatsMatchRow,
+  StatsOverview,
+  StatsTotals,
+} from '@arenalive/shared';
 import { asc, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import type { Db } from '../db/index.js';
 import { clientFixtures, matches, pageViews, shareTokens, viewDaily, viewerPeaks } from '../db/index.js';

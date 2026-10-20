@@ -1,12 +1,12 @@
 import { mkdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { CreateRegistrationResponse, RegistrationStatusResponse } from '@sir/shared';
+import type { CreateRegistrationResponse, RegistrationStatusResponse } from '@arenalive/shared';
 import {
   CreateRegistrationRequestSchema,
   CreateRegistrationResponseSchema,
   RegistrationStatusResponseSchema,
   plainText,
-} from '@sir/shared';
+} from '@arenalive/shared';
 import { z } from 'zod';
 import type { FetchLike } from './sender.js';
 import { apiUrl } from './sender.js';

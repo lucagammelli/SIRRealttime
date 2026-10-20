@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import type { SystemLogos } from '@sir/shared';
-import { NO_SYSTEM_LOGOS, SystemLogosSchema } from '@sir/shared';
+import type { SystemLogos } from '@arenalive/shared';
+import { NO_SYSTEM_LOGOS, SystemLogosSchema } from '@arenalive/shared';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { systemLogoFilePath } from '../src/assetStore.js';

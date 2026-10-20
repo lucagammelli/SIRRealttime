@@ -1,4 +1,4 @@
-import { generateMatch } from '@sir/dvw-simulator';
+import { generateMatch } from '@arenalive/dvw-simulator';
 import type {
   AssetSummary,
   CalendarResponse,
@@ -10,8 +10,8 @@ import type {
   ScheduleResponse,
   ServerMessage,
   UpdateClubProfileRequest,
-} from '@sir/shared';
-import { adminAssetPath, publicAssetPath } from '@sir/shared';
+} from '@arenalive/shared';
+import { adminAssetPath, publicAssetPath } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';

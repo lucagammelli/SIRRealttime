@@ -87,6 +87,8 @@ describe('tenant requests', () => {
     expect(UpdateTenantRequestSchema.parse({ name: 'Nuovo' })).toEqual({ name: 'Nuovo' });
     expect(UpdateTenantRequestSchema.parse({ hostnames: [] })).toEqual({ hostnames: [] });
     expect(UpdateTenantRequestSchema.parse({ agentQuota: 3 })).toEqual({ agentQuota: 3 });
+    expect(UpdateTenantRequestSchema.parse({ matchLinksEnabled: false })).toEqual({ matchLinksEnabled: false });
+    expect(UpdateTenantRequestSchema.safeParse({ matchLinksEnabled: 'no' }).success).toBe(false);
     expect(UpdateTenantRequestSchema.parse({ slug: 'altro', name: 'X' })).toEqual({ name: 'X' });
   });
 
@@ -123,6 +125,10 @@ describe('users and roles', () => {
     const me = { id: ID, email: 'a@b.it', role: 'superadmin' };
     expect(MeResponseSchema.safeParse({ ...me, tenant: null }).success).toBe(true);
     expect(MeResponseSchema.safeParse({ ...me, tenant: { id: ID, slug: 'sir', name: 'Sir' } }).success).toBe(true);
+    // An older answer without the option reads as off.
+    expect(MeResponseSchema.parse({ ...me, tenant: { id: ID, slug: 'sir', name: 'Sir' } }).tenant).toMatchObject({
+      matchLinksEnabled: false,
+    });
     expect(MeResponseSchema.safeParse(me).success).toBe(false);
   });
 });

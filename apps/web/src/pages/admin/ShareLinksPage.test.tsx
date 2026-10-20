@@ -135,7 +135,7 @@ describe('«Link pubblici» page', () => {
   it('shows the link a match of the calendar already has instead of creating another one', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(NOW);
     const calls = serve([], [fixture(1)]);
-    renderAs('admin', <ShareLinksPage />);
+    renderAs('admin', <ShareLinksPage />, { matchLinks: true });
     fireEvent.click(await screen.findByRole('radio', { name: 'Una partita fissa' }));
     const select = await screen.findByRole('combobox', { name: 'Partita' });
     await within(select).findByRole('option', { name: 'Perugia – Itas Trentino · dom 25/10, 18:00' });
@@ -152,7 +152,7 @@ describe('«Link pubblici» page', () => {
   it('says so when the link of the match was revoked', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(NOW);
     serve([], [fixture(1, { link: { id: ids(1), revoked: true, shortCode: null, shortUrl: null } })]);
-    renderAs('admin', <ShareLinksPage />);
+    renderAs('admin', <ShareLinksPage />, { matchLinks: true });
     fireEvent.click(await screen.findByRole('radio', { name: 'Una partita fissa' }));
     const select = await screen.findByRole('combobox', { name: 'Partita' });
     await within(select).findByRole('option', { name: /Itas Trentino/ });
@@ -163,7 +163,7 @@ describe('«Link pubblici» page', () => {
   it('says the link is not ready yet when the match has none', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(NOW);
     serve([], [fixture(1, { link: null })]);
-    renderAs('admin', <ShareLinksPage />);
+    renderAs('admin', <ShareLinksPage />, { matchLinks: true });
     fireEvent.click(await screen.findByRole('radio', { name: 'Una partita fissa' }));
     const select = await screen.findByRole('combobox', { name: 'Partita' });
     await within(select).findByRole('option', { name: /Itas Trentino/ });
@@ -190,7 +190,7 @@ describe('«Link pubblici» page', () => {
       if (url === '/api/admin/club') return { body: club };
       return { body: [] };
     });
-    renderAs('admin', <ShareLinksPage />);
+    renderAs('admin', <ShareLinksPage />, { matchLinks: true });
     fireEvent.change(await screen.findByRole('textbox', { name: /Etichetta/ }), { target: { value: 'Amichevole' } });
     fireEvent.click(screen.getByRole('radio', { name: 'Una partita fissa' }));
     const select = await screen.findByRole('combobox', { name: 'Partita' });
@@ -205,12 +205,33 @@ describe('«Link pubblici» page', () => {
     });
   });
 
+  it('offers only the channel without «Link e QR per singola partita», the revoked links of one match kept', async () => {
+    const calls = serve(
+      [
+        link(1, { label: 'Canale' }),
+        link(2, { label: 'Partita revocata', matchId: ids(7), revoked: true, shortCode: null, shortUrl: null }),
+      ],
+      [fixture(1)],
+    );
+    renderAs('admin', <ShareLinksPage />, { matchLinks: false });
+    expect(await screen.findByText('Canale')).toBeTruthy();
+    expect(screen.queryByRole('radio', { name: 'Una partita fissa' })).toBeNull();
+    expect(screen.getByRole('radio', { name: /canale del club/ })).toBeTruthy();
+    expect(screen.getByText(/Link per singola partita non attivi: usa il canale del club/)).toBeTruthy();
+    // The QR of the channel stays.
+    expect(await screen.findByRole('button', { name: 'Scarica QR (PNG)' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Mostra revocati (1)' }));
+    expect(screen.getByText('Partita revocata')).toBeTruthy();
+    // No calendar asked for: «Una partita fissa» is not offered.
+    expect(calls.some((c) => c.url === '/api/admin/calendar')).toBe(false);
+  });
+
   it('hides the revoked links behind «Mostra revocati (N)»', async () => {
     serve(
       [link(1, { label: 'Tribuna' }), link(2, { label: 'Vecchio', revoked: true, shortCode: null, shortUrl: null })],
       [],
     );
-    renderAs('admin', <ShareLinksPage />);
+    renderAs('admin', <ShareLinksPage />, { matchLinks: true });
     expect(await screen.findByText('Tribuna')).toBeTruthy();
     expect(screen.queryByText('Vecchio')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Mostra revocati (1)' }));

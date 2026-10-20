@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
+import { and, eq, isNotNull, notExists, or, sql } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import type { Db } from './db/index.js';
-import { shareTokens } from './db/index.js';
+import { matches, shareTokens } from './db/index.js';
 import { deriveShortCode, shortCodeLookupHash } from './lib/shortCode.js';
 import { hashesEqual } from './lib/tokens.js';
 
@@ -18,6 +19,23 @@ export const MAX_SHORT_CODE_SALT = 16;
 export class ShortCodeError extends Error {
   readonly code = 'SHORT_CODE_UNAVAILABLE';
 }
+
+/** SQL: the link is not the one of a simulated match (those are on the page «Simulazione» only, deleted with it). */
+export function notSimulationLink(db: Pick<Db, 'select'>): SQL {
+  return notExists(
+    db
+      .select({ id: matches.id })
+      .from(matches)
+      .where(and(eq(matches.id, shareTokens.matchId), eq(matches.simulated, true))),
+  );
+}
+
+/**
+ * SQL: link of one match («Link e QR per singola partita»: of a match of the calendar or «partita fissa»), not the
+ * channel of the club. The links of the simulations are links of one match too: add `notSimulationLink`.
+ */
+export const singleMatchLink = (): SQL =>
+  or(isNotNull(shareTokens.matchId), isNotNull(shareTokens.clientFixtureId)) ?? sql`false`;
 
 /** True for the PostgreSQL error of a unique constraint (also when wrapped by Drizzle in `cause`). */
 export function isUniqueViolation(err: unknown): boolean {

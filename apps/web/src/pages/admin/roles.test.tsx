@@ -218,7 +218,7 @@ describe('read-only users (viewer)', () => {
 describe('page «Calendario» of an admin', () => {
   it('shows a match not broadcast without its link, and one added by hand with its commands', async () => {
     const calls = api();
-    renderAs('admin', <CalendarPage />);
+    renderAs('admin', <CalendarPage />, { matchLinks: true });
     const [away, manual] = await screen.findAllByTestId('calendar-fixture');
     if (!away || !manual) throw new Error('missing');
     expect(within(away).getByTestId('broadcast-state').textContent).toBe('Non trasmessa');

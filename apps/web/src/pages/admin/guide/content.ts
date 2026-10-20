@@ -113,7 +113,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       {
         kind: 'list',
         items: [
-          'Ogni partita ha il suo link e il suo QR.',
+          'Se il tuo club ha i «Link e QR per singola partita», ogni partita ha il suo link e il suo QR. Altrimenti si usa il «Canale del club».',
           'Per aggiungere un’amichevole, una coppa o un’altra gara, premi «Nuova partita» e compila tipo, data, ora, avversario e dove si gioca.',
           'Se la data è sbagliata o è cambiata, apri la partita, premi «Cambia data e ora» e scrivi quelle giuste. La partita mostra «Modificata a mano».',
           'Per rimettere la data del sito della Lega premi «Torna alla data ufficiale».',
@@ -163,8 +163,12 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
         kind: 'list',
         items: [
           'Il «Canale del club»: un solo link per tutte le partite. Prima della gara mostra «Prossima partita», poi la partita in diretta.',
-          'Il link della singola partita: lo trovi nel «Calendario», accanto alla partita.',
+          'Il link della singola partita: lo trovi nel «Calendario», accanto alla partita. In «Link pubblici» puoi anche creare «Una partita fissa».',
         ],
+      },
+      {
+        kind: 'note',
+        text: 'I link e i QR della singola partita ci sono solo se il superadmin li ha attivati per il tuo club. Se non sono attivi, nel «Calendario» leggi «Link per singola partita non attivi: usa il canale del club.» e resta il «Canale del club» con il suo QR. Se vengono disattivati, i link e i QR per partita già creati smettono di funzionare per sempre, anche quelli stampati.',
       },
       {
         kind: 'steps',
@@ -348,6 +352,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
           'Apri «Clienti».',
           'Per un nuovo club premi «Nuovo cliente» e scrivi «Nome», «Identificativo» e «Hostname» (l’indirizzo web del cliente). Se vuoi, aggiungi l’email del primo utente: riceve l’invito.',
           'Per lavorare in un club premi «Entra nel cliente». In alto compare una barra con il nome del club.',
+          'Per dare a un club i link e i QR di ogni partita premi «Modifica» e, in «Link e QR per singola partita», premi «Attiva». Di base un club ha solo il «Canale del club». «Disattiva» chiede conferma: i link e i QR per partita già creati vengono revocati per sempre; se li riattivi, ogni partita riceve un link e un QR nuovi.',
           'Quando hai finito premi «Esci dal cliente».',
         ],
       },

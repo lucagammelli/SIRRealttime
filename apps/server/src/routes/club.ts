@@ -315,7 +315,8 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
       ctx.db
         .select()
         .from(shareTokens)
-        .where(tenantScope(shareTokens, tenantId, isNotNull(shareTokens.clientFixtureId))),
+        .where(tenantScope(shareTokens, tenantId, isNotNull(shareTokens.clientFixtureId)))
+        .orderBy(desc(shareTokens.createdAt)),
       ctx.db
         .select()
         .from(matches)
@@ -341,7 +342,10 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
     for (const l of links) {
       if (!l.clientFixtureId) continue;
       if (l.revoked) {
-        linkOf.set(l.clientFixtureId, { id: l.id, revoked: true, shortCode: null, shortUrl: null });
+        // A match whose link was revoked may have a new one (option switched on again): the valid one is shown,
+        // otherwise the newest revoked one.
+        if (!linkOf.has(l.clientFixtureId))
+          linkOf.set(l.clientFixtureId, { id: l.id, revoked: true, shortCode: null, shortUrl: null });
         continue;
       }
       const { code } = await ensureShortCode(ctx.db, ctx.config.shareCodeSecret, l);

@@ -169,7 +169,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     db,
     hub,
     publisher: hub,
-    ingest: new IngestService(db, config.matchMaxLines),
+    ingest: new IngestService(db, config.matchMaxLines, now),
     rateLimits,
     socketLimits: { ...config.socketLimits, ...options.socketLimits },
     caches: {

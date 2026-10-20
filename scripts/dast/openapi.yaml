@@ -252,6 +252,7 @@ paths:
                 expiresAt: { type: string, format: date-time, nullable: true, example: null }
       responses:
         '201': { description: 'link creato: token e url (una volta sola), shortCode e shortUrl' }
+        '403': { description: 'MATCH_LINKS_DISABLED: partita fissa senza «Link e QR per singola partita»' }
   /api/admin/share-tokens/{id}:
     delete:
       parameters:
@@ -316,8 +317,10 @@ paths:
               properties:
                 name: { type: string, example: Cliente DAST }
                 hostnames: { type: array, items: { type: string }, example: [dast.sir.local] }
+                agentQuota: { type: integer, minimum: 0, maximum: 100, example: 1 }
+                matchLinksEnabled: { type: boolean, example: true }
       responses:
-        '200': { description: cliente modificato }
+        '200': { description: 'cliente modificato (matchLinksEnabled false revoca per sempre i link per partita)' }
         '404': { description: non trovato }
         '409': { description: hostname di un altro cliente }
   /api/admin/active-tenant:

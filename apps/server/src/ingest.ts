@@ -69,6 +69,8 @@ export class IngestService {
   constructor(
     private readonly db: Db,
     private readonly maxLines: number,
+    /** Clock of the server (`ctx.now`): `updated_at` and `live_since` decide when a match leaves the channel. */
+    private readonly now: () => Date = () => new Date(),
   ) {}
 
   /**
@@ -127,7 +129,7 @@ export class IngestService {
         if (!simulated && header !== row.header && (row.fixtureLink === null || row.fixtureLink === 'pending')) {
           link = (await evaluateFixtureLink(tx, tenantId, parsed)) ?? link;
         }
-        const now = new Date();
+        const now = this.now();
         if (!simulated) await switchOffOthers(tx, tenantId, row.id, link.clientFixtureId);
         await tx
           .update(matches)

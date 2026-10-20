@@ -17,6 +17,7 @@ const tenant = (id: string, slug: string, name: string, hostnames: string[]): Te
   hostnames,
   createdAt: AT,
   agentQuota: 1,
+  matchLinksEnabled: false,
   userCount: 0,
 });
 
@@ -44,7 +45,12 @@ function mockServer(role: MeResponse['role'], start: string | null = null): { ca
   const calls: Call[] = [];
   const me = (): MeResponse => {
     const t = tenants.find((x) => x.id === active);
-    return { id: USER_ID, email: 'super@sir.it', role, tenant: t ? { id: t.id, slug: t.slug, name: t.name } : null };
+    return {
+      id: USER_ID,
+      email: 'super@sir.it',
+      role,
+      tenant: t ? { id: t.id, slug: t.slug, name: t.name, matchLinksEnabled: t.matchLinksEnabled } : null,
+    };
   };
   const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
   vi.stubGlobal('WebSocket', SilentSocket);
@@ -116,7 +122,9 @@ describe('«Clienti» page', () => {
   it('lists the clients and creates a new one', async () => {
     const { calls } = mockServer('superadmin');
     renderAt('/admin/clienti');
-    expect(await screen.findByText('a.sir.it · un agente · nessun utente · creato', { exact: false })).toBeTruthy();
+    expect(
+      await screen.findByText('a.sir.it · un agente · nessun utente · solo canale · creato', { exact: false }),
+    ).toBeTruthy();
     const form = (await screen.findByRole('heading', { name: 'Nuovo cliente' })).closest('section');
     if (!form) throw new Error('no form');
     fireEvent.change(within(form).getByLabelText('Nome'), { target: { value: 'Club C' } });
@@ -160,12 +168,37 @@ describe('«Clienti» page', () => {
     fireEvent.change(within(editor).getByLabelText('Nome'), { target: { value: 'Club B nuovo' } });
     fireEvent.change(within(editor).getByLabelText('Hostname', { exact: false }), { target: { value: 'b.sir.it' } });
     fireEvent.click(within(editor).getByRole('button', { name: 'Salva' }));
-    expect(await screen.findByText('b.sir.it · un agente · nessun utente · creato', { exact: false })).toBeTruthy();
+    expect(
+      await screen.findByText('b.sir.it · un agente · nessun utente · solo canale · creato', { exact: false }),
+    ).toBeTruthy();
     const patch = calls.find((c) => c.method === 'PATCH');
     expect(patch).toMatchObject({
       url: `/api/admin/tenants/${B}`,
       body: { name: 'Club B nuovo', hostnames: ['b.sir.it'] },
     });
+  });
+
+  it('switches «Link e QR per singola partita» on at once and off only after the confirmation', async () => {
+    const { calls } = mockServer('superadmin');
+    renderAt('/admin/clienti');
+    fireEvent.click(await screen.findByRole('button', { name: 'Modifica Club B' }));
+    const box = screen.getByRole('region', { name: 'Link e QR per singola partita' });
+    expect(box.textContent).toContain('non attivi');
+    fireEvent.click(within(box).getByRole('button', { name: 'Attiva' }));
+    await waitFor(() => expect(box.textContent).not.toContain('non attivi'));
+    expect(await within(box).findByRole('button', { name: 'Disattiva' })).toBeTruthy();
+    expect(calls.filter((c) => c.method === 'PATCH').map((c) => c.body)).toEqual([{ matchLinksEnabled: true }]);
+    // Off revokes the links for good: the first click only asks for the confirmation.
+    fireEvent.click(within(box).getByRole('button', { name: 'Disattiva' }));
+    expect(box.textContent).toContain('revocati per sempre');
+    expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(1);
+    fireEvent.click(within(box).getByRole('button', { name: 'Disattiva e revoca i link per partita' }));
+    await waitFor(() => expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(2));
+    expect(calls.filter((c) => c.method === 'PATCH')[1]).toMatchObject({
+      url: `/api/admin/tenants/${B}`,
+      body: { matchLinksEnabled: false },
+    });
+    expect(await within(box).findByRole('button', { name: 'Attiva' })).toBeTruthy();
   });
 
   it('creates a client with its first user «Lettura e scrittura»', async () => {

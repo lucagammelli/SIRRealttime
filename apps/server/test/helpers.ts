@@ -100,8 +100,13 @@ export async function startServer(
     .from(tenants)
     .where(eq(tenants.slug, DEFAULT_TENANT_SLUG));
   if (!tenant) throw new Error('default tenant missing');
-  // Most tests create several agents: the quota of the clients is tested on its own (agentQuota.test.ts).
-  await database.db.update(tenants).set({ agentQuota: TEST_AGENT_QUOTA }).where(eq(tenants.id, tenant.id));
+  // Most tests create several agents: the quota of the clients is tested on its own (agentQuota.test.ts). Many use
+  // the links of the matches of the calendar: «Link e QR per singola partita» (off for a new client) is tested on its
+  // own (matchLinks.test.ts).
+  await database.db
+    .update(tenants)
+    .set({ agentQuota: TEST_AGENT_QUOTA, matchLinksEnabled: true })
+    .where(eq(tenants.id, tenant.id));
   await database.db.insert(users).values([
     { tenantId: tenant.id, email: ADMIN.email, passwordHash: await hashPassword(ADMIN.password), role: 'admin' },
     { tenantId: tenant.id, email: VIEWER.email, passwordHash: await hashPassword(VIEWER.password), role: 'viewer' },
@@ -153,11 +158,11 @@ export async function createAgent(server: TestServer, revoked = false, tenantId 
   return token;
 }
 
-/** Client inserted directly in the database; returns its id. */
+/** Client inserted directly in the database (with «Link e QR per singola partita», as the default client); its id. */
 export async function createTenant(server: TestServer, slug: string, hostnames: string[]): Promise<string> {
   const [row] = await server.database.db
     .insert(tenants)
-    .values({ slug, name: slug.toUpperCase(), hostnames, agentQuota: TEST_AGENT_QUOTA })
+    .values({ slug, name: slug.toUpperCase(), hostnames, agentQuota: TEST_AGENT_QUOTA, matchLinksEnabled: true })
     .returning({ id: tenants.id });
   if (!row) throw new Error('tenant not inserted');
   return row.id;

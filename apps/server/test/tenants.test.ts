@@ -456,7 +456,8 @@ describe('superadmin', () => {
     });
     expect(created.statusCode).toBe(201);
     const c = created.json<TenantSummary>();
-    expect(c).toMatchObject({ slug: 'club-c', name: 'Club C', hostnames: ['c.sir.test'] });
+    // A new client has only the channel of the club: «Link e QR per singola partita» is off.
+    expect(c).toMatchObject({ slug: 'club-c', name: 'Club C', hostnames: ['c.sir.test'], matchLinksEnabled: false });
     const updated = await call(HOST_A, superCookie, {
       method: 'PATCH',
       url: `/api/admin/tenants/${c.id}`,

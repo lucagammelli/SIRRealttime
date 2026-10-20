@@ -25,7 +25,7 @@ import {
   SCHEDULE_MAX_FIXTURES,
   shownTeamLogo,
 } from '@sir/shared';
-import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lt, notInArray, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, notInArray, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { Db } from './db/index.js';
 import {
@@ -45,7 +45,7 @@ import { dvwFacts, linkFixture } from './leagues/match.js';
 import { romeParts } from './leagues/romeTime.js';
 import type { Tx } from './matchLock.js';
 import { canStayLive, lockTenantMatches } from './matchLock.js';
-import { ensureShortCode, insertShareToken } from './shareCodes.js';
+import { ensureShortCode, insertShareToken, notSimulationLink, singleMatchLink } from './shareCodes.js';
 import { tenantScope } from './tenancy.js';
 
 /**
@@ -417,14 +417,30 @@ const UPDATED_COLUMNS = [
 ] as const;
 
 /**
- * A public link for every match of the club without one (one per match: unique index). The long token is drawn and
- * thrown away (only its hash is stored, as for every link): these links are used by their short code and QR.
+ * A public link for every match of the club without one (one valid per match: unique index), only when the client has
+ * «Link e QR per singola partita». A link revoked by the admin is not created again at every update: only with
+ * `renewRevoked` (the option switched on again by the superadmin) a match whose links are all revoked gets a new one.
+ * The long token is drawn and thrown away (only its hash is stored, as for every link): these links are used by their
+ * short code and QR.
  */
-export async function ensureFixtureLinks(tx: Tx, secret: string, tenantId: string): Promise<void> {
+export async function ensureFixtureLinks(
+  tx: Tx,
+  secret: string,
+  tenantId: string,
+  options: { renewRevoked?: boolean } = {},
+): Promise<void> {
+  const [tenant] = await tx
+    .select({ enabled: tenants.matchLinksEnabled })
+    .from(tenants)
+    .where(eq(tenants.id, tenantId));
+  if (!tenant?.enabled) return;
+  const linkOf = options.renewRevoked
+    ? and(eq(shareTokens.clientFixtureId, clientFixtures.id), eq(shareTokens.revoked, false))
+    : eq(shareTokens.clientFixtureId, clientFixtures.id);
   const missing = await tx
     .select({ row: clientFixtures })
     .from(clientFixtures)
-    .leftJoin(shareTokens, eq(shareTokens.clientFixtureId, clientFixtures.id))
+    .leftJoin(shareTokens, linkOf)
     .where(tenantScope(clientFixtures, tenantId, isNull(shareTokens.id), isNull(clientFixtures.removedAt)));
   for (const { row } of missing) {
     await insertShareToken(tx, secret, {
@@ -436,6 +452,19 @@ export async function ensureFixtureLinks(tx: Tx, secret: string, tenantId: strin
       expiresAt: null,
     });
   }
+}
+
+/**
+ * «Link e QR per singola partita» switched off: every valid link of one match of the client (of the calendar and
+ * «partita fissa»; the simulations aside) is revoked for good. Returns their ids (to forget and disconnect them).
+ */
+export async function revokeMatchLinks(tx: Tx, tenantId: string): Promise<string[]> {
+  const rows = await tx
+    .update(shareTokens)
+    .set({ revoked: true })
+    .where(tenantScope(shareTokens, tenantId, eq(shareTokens.revoked, false), singleMatchLink(), notSimulationLink(tx)))
+    .returning({ id: shareTokens.id });
+  return rows.map((r) => r.id);
 }
 
 /** The `.dvw` still to confirm, looked for again in the calendar (it may have changed); the ones linked now. */
@@ -539,6 +568,35 @@ export async function comingFixtures(db: Db, tenantId: string, now: Date): Promi
 }
 
 /**
+ * Short URL of the channel of the club of a client (a valid link that follows its matches, the ones without expiry
+ * first, then the newest); null when it has none.
+ */
+async function channelShortUrl(
+  db: Db,
+  secret: string,
+  tenantId: string,
+  baseUrl: string,
+  now: Date,
+): Promise<string | null> {
+  const [link] = await db
+    .select()
+    .from(shareTokens)
+    .where(
+      tenantScope(
+        shareTokens,
+        tenantId,
+        isNull(shareTokens.matchId),
+        isNull(shareTokens.clientFixtureId),
+        eq(shareTokens.revoked, false),
+        or(isNull(shareTokens.expiresAt), gt(shareTokens.expiresAt, now)),
+      ),
+    )
+    .orderBy(sql`${shareTokens.expiresAt} is not null`, desc(shareTokens.createdAt))
+    .limit(1);
+  return link ? `${baseUrl}/l/${(await ensureShortCode(db, secret, link)).code}` : null;
+}
+
+/**
  * Public data of the club of a client for the blocks «Prossima partita» and «Classifica»: its next
  * SCHEDULE_MAX_FIXTURES matches still to play and broadcast (`comingFixtures`, the ones with a `.dvw` being played now
  * are flagged `live`) with their short link, and the standings of its main championship: the one of its next match of
@@ -555,25 +613,34 @@ export async function publicSchedule(
   const { rows: coming, live, look } = await comingFixtures(db, tenantId, now);
   const rows = coming.slice(0, SCHEDULE_MAX_FIXTURES);
   const ids = rows.map((r) => r.id);
-  const links = ids.length
-    ? await db
-        .select()
-        .from(shareTokens)
-        .where(
-          tenantScope(
-            shareTokens,
-            tenantId,
-            inArray(shareTokens.clientFixtureId, ids),
-            eq(shareTokens.revoked, false),
-            or(isNull(shareTokens.expiresAt), gt(shareTokens.expiresAt, now)),
-          ),
-        )
-    : [];
+  const [tenant] = await db
+    .select({ enabled: tenants.matchLinksEnabled })
+    .from(tenants)
+    .where(eq(tenants.id, tenantId));
+  const matchLinks = tenant?.enabled ?? false;
+  // Without «Link e QR per singola partita» the QR of every match is the one of the channel of the club.
+  const channelUrl = matchLinks || ids.length === 0 ? null : await channelShortUrl(db, secret, tenantId, baseUrl, now);
+  const links =
+    matchLinks && ids.length
+      ? await db
+          .select()
+          .from(shareTokens)
+          .where(
+            tenantScope(
+              shareTokens,
+              tenantId,
+              inArray(shareTokens.clientFixtureId, ids),
+              eq(shareTokens.revoked, false),
+              or(isNull(shareTokens.expiresAt), gt(shareTokens.expiresAt, now)),
+            ),
+          )
+      : [];
   const linkOf = new Map(links.map((l) => [l.clientFixtureId, l]));
   const fixtureList: ScheduleFixture[] = [];
   for (const row of rows) {
     const link = linkOf.get(row.id);
     const code = link ? (await ensureShortCode(db, secret, link)).code : null;
+    const shortUrl = matchLinks ? (code ? `${baseUrl}/l/${code}` : null) : channelUrl;
     const { startsAt, home, away, ourSide, venue, venueCity, roundLabel, leagueName } = upcomingOf(row, look);
     fixtureList.push({
       startsAt,
@@ -585,7 +652,7 @@ export async function publicSchedule(
       roundLabel,
       leagueName,
       live: live.has(row.id),
-      shortUrl: code ? `${baseUrl}/l/${code}` : null,
+      shortUrl,
     });
   }
   const choices = await db

@@ -6,7 +6,8 @@ import { tenantScope } from './tenancy.js';
 /**
  * Key of the transaction advisory lock that serializes the ingests of one client and every other change of its live
  * matches and of their link to the calendar (one live match per match of the calendar; no deadlocks: a transaction
- * takes only this lock); the second key is a hash of the client id.
+ * takes only this lock, or the lock of the clients of `routes/tenants.ts` before it); the second key is a hash of the
+ * client id.
  */
 const INGEST_LOCK_KEY = 0x53495231;
 

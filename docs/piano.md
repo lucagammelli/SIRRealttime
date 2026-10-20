@@ -168,8 +168,8 @@ Calendario, classifica, squadre e loghi dei campionati ufficiali, scaricati dai 
    squadra»), pagina «Calendario» con link breve e QR per ogni partita, abbinamento automatico del `.dvw` alla partita del
    calendario (con conferma dell'admin se dubbio), pagina pubblica «Prossima partita» prima della gara; una live per partita
    del calendario (`docs/server.md`, «Club, calendario e abbinamento»; `docs/portale.md`). Provato sulla SuperLega 2026/27
-   (999), Perugia: 22 partite con link. Limiti noti: le partite non abbinate si spengono a vicenda; revocando il link di una
-   partita non se ne crea uno nuovo.
+   (999), Perugia: 22 partite con link. Limiti noti: le partite non abbinate si spengono a vicenda. (Il limite «un link revocato non
+   si ricrea» è superato dal job `link-partita-opzione`, vedi sotto.)
 3. `blocchi-calendario` (**fatto**, 2026-10-16): blocchi della pagina e diapositive delle pause «Prossima partita» (con QR
    del link della partita) e «Classifica» (prime righe, tutta, intorno alla nostra squadra), rotta pubblica
    `GET /api/public/tenant/schedule` (`docs/server.md`; `docs/portale.md`, «Blocchi del calendario»). Limiti noti:
@@ -240,6 +240,11 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
    (`/admin/account`, cambio password con `POST /api/auth/password`) per tutti i ruoli, gruppo di menu «Account e aiuto»,
    link alla guida nell'ultimo passo della procedura guidata e nell'avviso «Configurazione da completare»
    (`docs/portale.md`, `docs/server.md`, `docs/architettura.md`).
+14. `link-partita-opzione` (**fatto**, 2026-10-20): opzione per cliente «Link e QR per singola partita»
+   (`tenants.match_links_enabled`, migrazione `0014`), solo superadmin dalla scheda cliente in «Clienti»; spenta per i
+   clienti nuovi (solo canale del club col suo QR), accesa per chi aveva già link per partita; spegnerla li revoca per
+   sempre, riaccenderla ne crea di nuovi; portale e calendario pubblico adeguati. Superato il limite noto «link
+   revocato non ricreato» (`docs/server.md`, `docs/portale.md`, `docs/architettura.md`).
 **Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
 PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo
 mostra con «autore sconosciuto».

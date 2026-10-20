@@ -18,7 +18,7 @@ import { apiRequest } from '../../lib/api.ts';
 import { formatDateTime } from '../../lib/format.ts';
 import type { AsyncState } from '../../lib/useAsync.ts';
 import { useApiError, useAuth } from './auth.tsx';
-import { Field, inputClass } from './forms.tsx';
+import { ConfirmButton, Field, inputClass } from './forms.tsx';
 import { InviteDeliveryBox } from './InviteDelivery.tsx';
 
 export const TenantListSchema = z.array(TenantSummarySchema);
@@ -50,6 +50,9 @@ function formProblem(issues: readonly { path: readonly PropertyKey[] }[]): strin
 
 /** Pure: the quota of agents of a client, as written in the list. */
 export const quotaText = (n: number): string => (n === 1 ? 'un agente' : `fino a ${n} agenti`);
+
+/** Pure: «Link e QR per singola partita» of a client, as written in the list. */
+export const matchLinksText = (enabled: boolean): string => (enabled ? 'link per partita' : 'solo canale');
 
 /** Pure: the users of a client, as written in the list. */
 export const userCountText = (n: number): string => (n === 0 ? 'nessun utente' : n === 1 ? '1 utente' : `${n} utenti`);
@@ -113,7 +116,7 @@ function QuotaField({ value, onChange }: { value: string; onChange: (v: string) 
 /**
  * Clients (superadmin only, its first page): list with the number of users and «Entra nel cliente» (the superadmin
  * manages that client, with all its pages, until «Esci dal cliente»), new client with an optional first user
- * («Lettura e scrittura»), change of name, hostnames and quota of agents.
+ * («Lettura e scrittura»), change of name, hostnames and quota of agents, «Link e QR per singola partita».
  */
 export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> }) {
   const errorMessage = useApiError();
@@ -275,6 +278,7 @@ export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> 
                       setEditing(null);
                       tenants.reload();
                     }}
+                    onLinksChanged={tenants.reload}
                   />
                 </li>
               ) : (
@@ -285,7 +289,8 @@ export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> 
                     </p>
                     <p className="break-all text-xs text-muted">
                       {t.hostnames.length > 0 ? t.hostnames.join(', ') : 'Nessun hostname'} · {quotaText(t.agentQuota)}{' '}
-                      · {userCountText(t.userCount)} · creato {formatDateTime(t.createdAt)}
+                      · {userCountText(t.userCount)} · {matchLinksText(t.matchLinksEnabled)} · creato{' '}
+                      {formatDateTime(t.createdAt)}
                     </p>
                   </div>
                   <span className="inline-flex flex-wrap gap-2">
@@ -311,14 +316,71 @@ export function TenantsPage({ tenants }: { tenants: AsyncState<TenantSummary[]> 
   );
 }
 
+/**
+ * «Link e QR per singola partita» of a client, saved at once: on, the links and QR of the matches of the calendar and
+ * «Una partita fissa»; off, only the channel of the club. Switching it off (two steps) revokes for good the links of
+ * single matches already made; on again, every match gets a new link.
+ */
+function MatchLinksSwitch({ tenant, onChanged }: { tenant: TenantSummary; onChanged: (t: TenantSummary) => void }) {
+  const errorMessage = useApiError();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const on = tenant.matchLinksEnabled;
+
+  const change = async (matchLinksEnabled: boolean): Promise<void> => {
+    setError(null);
+    setBusy(true);
+    try {
+      const saved = await apiRequest(`/api/admin/tenants/${encodeURIComponent(tenant.id)}`, TenantSummarySchema, {
+        method: 'PATCH',
+        body: { matchLinksEnabled },
+      });
+      onChanged(saved);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="space-y-2 rounded-card border border-border p-3" aria-label="Link e QR per singola partita">
+      <p className="text-sm font-medium text-text">
+        Link e QR per singola partita:{' '}
+        <span className={on ? 'text-live' : 'text-muted'}>{on ? 'attivi' : 'non attivi'}</span>
+      </p>
+      <p className="text-xs text-muted">
+        {on
+          ? 'Ogni partita del calendario ha il suo link e il suo QR, e si può creare «Una partita fissa». Disattivandoli, i link e i QR per partita già creati vengono revocati per sempre (anche quelli già stampati): resta solo il canale del club.'
+          : 'Il cliente ha solo il canale del club con il suo QR. Attivandoli, ogni partita del calendario riceve un link e un QR nuovi; quelli revocati restano revocati.'}
+      </p>
+      {on ? (
+        <ConfirmButton
+          label="Disattiva"
+          confirmLabel="Disattiva e revoca i link per partita"
+          busy={busy}
+          onConfirm={() => void change(false)}
+        />
+      ) : (
+        <Button onClick={() => void change(true)} disabled={busy}>
+          {busy ? 'Attivazione…' : 'Attiva'}
+        </Button>
+      )}
+      {error && <ErrorBox>{error}</ErrorBox>}
+    </section>
+  );
+}
+
 function TenantEditor({
   tenant,
   onClose,
   onSaved,
+  onLinksChanged,
 }: {
   tenant: TenantSummary;
   onClose: () => void;
   onSaved: () => void;
+  onLinksChanged: () => void;
 }) {
   const errorMessage = useApiError();
   const { user, updateUser } = useAuth();
@@ -356,29 +418,40 @@ function TenantEditor({
   };
 
   return (
-    <form onSubmit={(e) => void save(e)} className="space-y-3" noValidate aria-label={`Modifica ${tenant.name}`}>
-      <Field label="Nome">
-        <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
-      </Field>
-      <Field label="Hostname" hint={HOSTNAMES_HINT}>
-        <textarea
-          value={hostnames}
-          onChange={(e) => setHostnames(e.target.value)}
-          rows={3}
-          spellCheck={false}
-          className={inputClass}
-        />
-      </Field>
-      <QuotaField value={quota} onChange={setQuota} />
-      {error && <ErrorBox>{error}</ErrorBox>}
-      <div className="flex gap-2">
-        <Button type="submit" variant="primary" disabled={busy}>
-          {busy ? 'Salvataggio…' : 'Salva'}
-        </Button>
-        <Button onClick={onClose} disabled={busy}>
-          Annulla
-        </Button>
-      </div>
-    </form>
+    <div className="space-y-3">
+      <form onSubmit={(e) => void save(e)} className="space-y-3" noValidate aria-label={`Modifica ${tenant.name}`}>
+        <Field label="Nome">
+          <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+        </Field>
+        <Field label="Hostname" hint={HOSTNAMES_HINT}>
+          <textarea
+            value={hostnames}
+            onChange={(e) => setHostnames(e.target.value)}
+            rows={3}
+            spellCheck={false}
+            className={inputClass}
+          />
+        </Field>
+        <QuotaField value={quota} onChange={setQuota} />
+        {error && <ErrorBox>{error}</ErrorBox>}
+        <div className="flex gap-2">
+          <Button type="submit" variant="primary" disabled={busy}>
+            {busy ? 'Salvataggio…' : 'Salva'}
+          </Button>
+          <Button onClick={onClose} disabled={busy}>
+            Annulla
+          </Button>
+        </div>
+      </form>
+      <MatchLinksSwitch
+        tenant={tenant}
+        onChanged={(saved) => {
+          // The pages of the client the superadmin is in follow the change.
+          if (user.tenant?.id === saved.id)
+            updateUser({ ...user, tenant: { ...user.tenant, matchLinksEnabled: saved.matchLinksEnabled } });
+          onLinksChanged();
+        }}
+      />
+    </div>
   );
 }

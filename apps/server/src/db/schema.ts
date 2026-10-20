@@ -49,6 +49,11 @@ export const tenants = pgTable(
     clubProfile: tenantConfig('club_profile'),
     /** Most active agents of the client (given by the superadmin); past it a registration cannot be enabled. */
     agentQuota: integer('agent_quota').notNull().default(1),
+    /**
+     * «Link e QR per singola partita» (given by the superadmin): links of the matches of the calendar and «partita
+     * fissa». Off: only the channel of the club (switching it off revokes those links for good).
+     */
+    matchLinksEnabled: boolean('match_links_enabled').notNull().default(false),
     /** When the guided first setup was finished or dismissed for good by an admin; null: still to do. */
     onboardedAt: timestamp('onboarded_at', { withTimezone: true }),
     createdAt: createdAt(),
@@ -308,7 +313,8 @@ export const shareTokens = pgTable(
     index('share_tokens_tenant_idx').on(t.tenantId),
     uniqueIndex('share_tokens_client_fixture_idx')
       .on(t.clientFixtureId)
-      .where(sql`${t.clientFixtureId} is not null`),
+      // One valid link per match: a revoked one leaves room for a new one (option switched on again).
+      .where(sql`${t.clientFixtureId} is not null and not ${t.revoked}`),
   ],
 );
 

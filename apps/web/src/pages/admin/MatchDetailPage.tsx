@@ -8,6 +8,7 @@ import { apiRequest } from '../../lib/api.ts';
 import { looksLikeMatchState } from '../../lib/messages.ts';
 import { formatCount, formatDateTime } from '../../lib/format.ts';
 import { useAsync } from '../../lib/useAsync.ts';
+import { useMatchLinks } from '../../lib/useMatchLinks.ts';
 import { useApiError, useAuth } from './auth.tsx';
 import { matchStatus, matchTitle } from './matchText.ts';
 
@@ -15,6 +16,7 @@ import { matchStatus, matchTitle } from './matchText.ts';
 export function MatchDetailPage() {
   const { id = '' } = useParams();
   const { isAdmin } = useAuth();
+  const matchLinks = useMatchLinks();
   const errorMessage = useApiError();
   const load = useCallback(
     (signal: AbortSignal) => apiRequest(`/api/admin/matches/${encodeURIComponent(id)}`, MatchDetailSchema, { signal }),
@@ -39,7 +41,8 @@ export function MatchDetailPage() {
           <Card
             title={matchTitle(data)}
             actions={
-              isAdmin ? (
+              // A link of this match only: «Link e QR per singola partita» of the client.
+              isAdmin && matchLinks ? (
                 <Link
                   to={`/admin/link?partita=${data.id}`}
                   className="rounded-card border border-border px-3 py-1.5 text-sm font-medium text-text hover:bg-surface-2"

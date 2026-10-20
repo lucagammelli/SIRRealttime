@@ -212,6 +212,55 @@ describe('migration 0012: guided first setup', () => {
   });
 });
 
+describe('migration 0014: links of single matches as an option', () => {
+  it('switches the option on only for the clients with valid links of single matches (simulations aside)', async () => {
+    const client = new PGlite();
+    cleanup.push(() => client.close());
+    const db = drizzle({ client, schema });
+    await migrate(db, { migrationsFolder: await migrationsUpTo('0013_statistiche_visite') });
+    await client.exec(`
+      insert into tenants (slug, name) values ('canale', 'Canale'), ('fissa', 'Fissa'), ('calendario', 'Calendario'),
+        ('revocato', 'Revocato'), ('simulazione', 'Simulazione');
+      insert into share_tokens (tenant_id, token_hash, label) select id, 'c-' || slug, 'Canale' from tenants;
+      insert into matches (id, tenant_id, match_key)
+        select '33333333-3333-4333-8333-333333333333', id, 'gara' from tenants where slug = 'fissa';
+      insert into matches (id, tenant_id, match_key)
+        select '44444444-4444-4444-8444-444444444444', id, 'gara' from tenants where slug = 'revocato';
+      insert into matches (id, tenant_id, match_key, simulated)
+        select '55555555-5555-4555-8555-555555555555', id, 'sim', true from tenants where slug = 'simulazione';
+      insert into share_tokens (tenant_id, token_hash, label, match_id)
+        select tenant_id, 'm-' || id, 'Partita', id from matches;
+      update share_tokens set revoked = true where match_id = '44444444-4444-4444-8444-444444444444';
+      insert into client_fixtures (id, tenant_id, origin, fixture_external_id, our_side, home_name, away_name,
+        round_label, status)
+        select '66666666-6666-4666-8666-666666666666', id, 'manual', 'm1', 'home', 'Noi', 'Loro', '', 'scheduled'
+        from tenants where slug = 'calendario';
+      insert into share_tokens (tenant_id, token_hash, label, client_fixture_id)
+        select tenant_id, 'f-' || id, 'Loro', id from client_fixtures;
+    `);
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    const rows = await db.select({ slug: tenants.slug, on: tenants.matchLinksEnabled }).from(tenants);
+    expect(Object.fromEntries(rows.map((r) => [r.slug, r.on]))).toEqual({
+      [DEFAULT_TENANT_SLUG]: false,
+      canale: false,
+      fissa: true,
+      calendario: true,
+      revocato: false,
+      simulazione: false,
+    });
+    // A revoked link of a match leaves room for a new one (the unique index counts only the valid links).
+    await client.exec(`
+      update share_tokens set revoked = true where client_fixture_id is not null;
+      insert into share_tokens (tenant_id, token_hash, label, client_fixture_id)
+        select tenant_id, 'f2-' || id, 'Loro', id from client_fixtures;
+    `);
+    await expect(
+      client.exec(`insert into share_tokens (tenant_id, token_hash, label, client_fixture_id)
+        select tenant_id, 'f3-' || id, 'Loro', id from client_fixtures`),
+    ).rejects.toThrow();
+  });
+});
+
 describe('seed', () => {
   const config = (env: Record<string, string> = {}) =>
     loadConfig({

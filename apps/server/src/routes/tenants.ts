@@ -6,25 +6,25 @@ import {
   SetActiveTenantRequestSchema,
   UpdateTenantRequestSchema,
 } from '@sir/shared';
-import { and, arrayOverlaps, asc, count, eq, isNotNull, ne, sql } from 'drizzle-orm';
+import { and, arrayOverlaps, asc, count, eq, isNotNull, ne } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../context.js';
 import { perMinute, SESSION_COOKIE } from '../context.js';
+import { ensureFixtureLinks, revokeMatchLinks } from '../club.js';
 import { sessions, tenants, users } from '../db/index.js';
 import { conflict, notFound, unauthorized } from '../lib/errors.js';
 import { hashPassword, unusablePasswordHash } from '../lib/passwords.js';
 import { hashToken } from '../lib/tokens.js';
 import { validate } from '../lib/validate.js';
+import { lockTenantMatches } from '../matchLock.js';
 import { requireRole } from '../security.js';
-import { findTenant, forgetTenants, tenantRef } from '../tenancy.js';
+import { dropShareLinks, forgetClubCaches } from '../state.js';
+import { findTenant, forgetTenants, lockTenants, tenantRef } from '../tenancy.js';
 import { deliverInvite, issueLink } from '../userLinks.js';
 import { insertTenantUser } from '../users.js';
 
 type TenantRow = typeof tenants.$inferSelect;
 type Tx = Parameters<Parameters<AppContext['db']['transaction']>[0]>[0];
-
-/** Key of the transaction lock that serializes the writes of the clients (hostnames unique among all of them). */
-const TENANT_LOCK_KEY = 0x53495254;
 
 /**
  * The quota is brought within the limits of the schema: one value out of range (the database refuses it since the
@@ -37,6 +37,7 @@ const tenantSummary = (t: TenantRow, userCount: number): TenantSummary => ({
   hostnames: t.hostnames,
   createdAt: t.createdAt.toISOString(),
   agentQuota: clampAgentQuota(t.agentQuota),
+  matchLinksEnabled: t.matchLinksEnabled,
   userCount,
 });
 
@@ -84,7 +85,7 @@ export function tenantRoutes(app: FastifyInstance, ctx: AppContext): void {
         : await hashPassword(firstUser.password)
       : null;
     const { row, user, issued } = await ctx.db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(${TENANT_LOCK_KEY})`);
+      await lockTenants(tx);
       if (await hostnamesTaken(tx, body.hostnames, null)) throw hostnameTaken();
       const [inserted] = await tx
         .insert(tenants)
@@ -119,9 +120,14 @@ export function tenantRoutes(app: FastifyInstance, ctx: AppContext): void {
   app.patch('/api/admin/tenants/:id', superadmin, async (request): Promise<TenantSummary> => {
     const { id } = validate(IdParamSchema, request.params);
     const body = validate(UpdateTenantRequestSchema, request.body);
-    const row = await ctx.db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(${TENANT_LOCK_KEY})`);
+    const { row, linksChanged, revoked } = await ctx.db.transaction(async (tx) => {
+      await lockTenants(tx);
       if (body.hostnames && (await hostnamesTaken(tx, body.hostnames, id))) throw hostnameTaken();
+      const [before] = await tx
+        .select({ matchLinksEnabled: tenants.matchLinksEnabled })
+        .from(tenants)
+        .where(eq(tenants.id, id));
+      if (!before) throw notFound();
       const [updated] = await tx
         .update(tenants)
         .set({
@@ -129,14 +135,35 @@ export function tenantRoutes(app: FastifyInstance, ctx: AppContext): void {
           ...(body.hostnames === undefined ? {} : { hostnames: body.hostnames }),
           // A lower quota does not switch off the agents already there: it stops new approvals until they fit.
           ...(body.agentQuota === undefined ? {} : { agentQuota: body.agentQuota }),
+          ...(body.matchLinksEnabled === undefined ? {} : { matchLinksEnabled: body.matchLinksEnabled }),
         })
         .where(eq(tenants.id, id))
         .returning();
       if (!updated) throw notFound();
-      return updated;
+      const changed = body.matchLinksEnabled !== undefined && body.matchLinksEnabled !== before.matchLinksEnabled;
+      if (!changed) return { row: updated, linksChanged: false, revoked: [] };
+      // «Link e QR per singola partita»: off revokes the links of one match for good; on again gives every match of
+      // the calendar a new link (the revoked ones stay revoked). Under the lock of the matches, as the updates of the
+      // calendar (lock order: clients, then matches).
+      await lockTenantMatches(tx, id);
+      if (!updated.matchLinksEnabled)
+        return { row: updated, linksChanged: true, revoked: await revokeMatchLinks(tx, id) };
+      await ensureFixtureLinks(tx, ctx.config.shareCodeSecret, id, { renewRevoked: true });
+      return { row: updated, linksChanged: true, revoked: [] };
     });
     forgetTenants(ctx);
-    request.log.info({ tenantId: row.id, userId: request.user?.id }, 'cliente modificato');
+    if (linksChanged) {
+      forgetClubCaches(ctx, row.id);
+      dropShareLinks(ctx, revoked);
+    }
+    request.log.info(
+      {
+        tenantId: row.id,
+        userId: request.user?.id,
+        ...(linksChanged ? { matchLinksEnabled: row.matchLinksEnabled, linksRevoked: revoked.length } : {}),
+      },
+      'cliente modificato',
+    );
     return tenantSummary(row, (await userCounts(ctx.db, row.id)).get(row.id) ?? 0);
   });
 

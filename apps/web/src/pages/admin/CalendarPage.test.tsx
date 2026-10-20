@@ -69,7 +69,14 @@ const data: CalendarResponse = {
   ],
 };
 
-function mockServer(calendar: CalendarResponse = data) {
+/** Fake server; `matchLinks`: «Link e QR per singola partita» of the client of the admin. */
+function mockServer(calendar: CalendarResponse = data, matchLinks = true) {
+  const tenant = {
+    id: '2b7e1c4d-9f3a-4e8b-a6d2-5c0f8e1b3a79',
+    slug: 'club',
+    name: 'Club',
+    matchLinksEnabled: matchLinks,
+  };
   const calls: { url: string; method: string; body: unknown }[] = [];
   const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
   vi.stubGlobal(
@@ -78,7 +85,7 @@ function mockServer(calendar: CalendarResponse = data) {
       const method = init?.method ?? 'GET';
       const body: unknown = typeof init?.body === 'string' ? JSON.parse(init.body) : null;
       calls.push({ url, method, body });
-      if (url === '/api/auth/me') return json({ id: USER_ID, email: 'a@b.it', role: 'admin', tenant: null });
+      if (url === '/api/auth/me') return json({ id: USER_ID, email: 'a@b.it', role: 'admin', tenant });
       if (url === '/api/admin/calendar') return json(calendar);
       if (url.endsWith('/date')) return Promise.resolve(new Response(null, { status: 204 }));
       if (url === `/api/admin/matches/${MATCH}/fixture`) return Promise.resolve(new Response(null, { status: 204 }));
@@ -122,6 +129,18 @@ describe('page «Calendario»', () => {
     expect(within(items[1] as HTMLElement).getByText('Non più in calendario')).toBeTruthy();
     fireEvent.click(within(first).getByRole('button', { name: 'Scarica QR' }));
     expect(await within(first).findByRole('button', { name: 'Scarica QR (PNG)' })).toBeTruthy();
+  });
+
+  it('shows no link nor QR of single matches without «Link e QR per singola partita»', async () => {
+    mockServer(data, false);
+    renderCalendar();
+    const items = await screen.findAllByTestId('calendar-fixture');
+    expect(items).toHaveLength(2);
+    const first = items[0] as HTMLElement;
+    expect(within(first).queryByText('http://portale.test/l/K7M2QX9P')).toBeNull();
+    expect(within(first).queryByRole('button', { name: 'Copia link' })).toBeNull();
+    expect(within(first).queryByRole('button', { name: 'Scarica QR' })).toBeNull();
+    expect(screen.getByText(/Link per singola partita non attivi: usa il canale del club/)).toBeTruthy();
   });
 
   it('confirms a .dvw out of the calendar as «nessuna (amichevole)»', async () => {

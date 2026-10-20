@@ -136,7 +136,16 @@ export type PublicTenantResponse = z.infer<typeof PublicTenantResponseSchema>;
 export const BrandingResponseSchema = z.object({ tenantName: z.string(), branding: TenantBrandingSchema });
 export type BrandingResponse = z.infer<typeof BrandingResponseSchema>;
 /** Short reference to a client (current client of the session in `MeResponse`). */
-export const TenantRefSchema = z.object({ id: z.uuid(), slug: TenantSlugSchema, name: z.string() });
+export const TenantRefSchema = z.object({
+  id: z.uuid(),
+  slug: TenantSlugSchema,
+  name: z.string(),
+  /**
+   * «Link e QR per singola partita» (only the superadmin changes it): links of the matches of the calendar and «partita
+   * fissa». Off (missing in an older answer): only the channel of the club with its QR.
+   */
+  matchLinksEnabled: z.boolean().default(false),
+});
 export type TenantRef = z.infer<typeof TenantRefSchema>;
 
 /** Client as seen by the superadmin (`/api/admin/tenants`). */
@@ -172,10 +181,17 @@ export const UpdateTenantRequestSchema = z
     name: plainText(100).optional(),
     hostnames: HostnamesSchema.optional(),
     agentQuota: AgentQuotaSchema.optional(),
+    /** Off: the links of single matches of the client are revoked for good; on again: new links are created. */
+    matchLinksEnabled: z.boolean().optional(),
   })
-  .refine((r) => r.name !== undefined || r.hostnames !== undefined || r.agentQuota !== undefined, {
-    message: 'nessun campo da modificare',
-  });
+  .refine(
+    (r) =>
+      r.name !== undefined ||
+      r.hostnames !== undefined ||
+      r.agentQuota !== undefined ||
+      r.matchLinksEnabled !== undefined,
+    { message: 'nessun campo da modificare' },
+  );
 export type UpdateTenantRequest = z.infer<typeof UpdateTenantRequestSchema>;
 
 /**
@@ -184,6 +200,9 @@ export type UpdateTenantRequest = z.infer<typeof UpdateTenantRequestSchema>;
  */
 export const SetActiveTenantRequestSchema = z.object({ tenantId: z.uuid().nullable() });
 export type SetActiveTenantRequest = z.infer<typeof SetActiveTenantRequestSchema>;
+
+/** Error (403 MATCH_LINKS_DISABLED) of a link of one match asked for a client without «Link e QR per singola partita». */
+export const MATCH_LINKS_DISABLED_MESSAGE = 'Link per singola partita non attivi: usa il canale del club';
 
 /** Error (409 TENANT_REQUIRED) of every route with data of a client called by a superadmin with no client chosen. */
 export const TENANT_REQUIRED_MESSAGE = 'Scegli prima un cliente';

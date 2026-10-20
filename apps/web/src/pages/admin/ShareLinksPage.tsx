@@ -16,6 +16,7 @@ import { apiCommand, apiRequest } from '../../lib/api.ts';
 import { formatDateTime } from '../../lib/format.ts';
 import { useAsync } from '../../lib/useAsync.ts';
 import { READ_ONLY_TEXT, useCanEdit } from '../../lib/useCanEdit.ts';
+import { MATCH_LINKS_OFF_TEXT, useMatchLinks } from '../../lib/useMatchLinks.ts';
 import { ShareQr } from '../../qr/ShareQr.tsx';
 import { useApiError } from './auth.tsx';
 import { ConfirmButton, Field, inputClass } from './forms.tsx';
@@ -99,12 +100,14 @@ export function fixedChoices(input: {
 
 /**
  * Public links: create (channel of the club or fixed match, optional expiry), long URL shown once with Copy, short link and QR code
- * of every active link (copy, PNG and SVG download), revoke.
+ * of every active link (copy, PNG and SVG download), revoke. Without «Link e QR per singola partita» (option of the
+ * client) only the channel: no «Una partita fissa»; the links of one match revoked stay under «Mostra revocati».
  */
 export function ShareLinksPage() {
   const errorMessage = useApiError();
   const [search] = useSearchParams();
-  const preset = search.get('partita');
+  const matchLinks = useMatchLinks();
+  const preset = matchLinks ? search.get('partita') : null;
   const loadLinks = useCallback(
     (signal: AbortSignal) => apiRequest('/api/admin/share-tokens', ShareListSchema, { signal }),
     [],
@@ -114,12 +117,15 @@ export function ShareLinksPage() {
     [],
   );
   const loadCalendar = useCallback(
-    (signal: AbortSignal) =>
-      Promise.all([
-        apiRequest('/api/admin/calendar', CalendarResponseSchema, { signal }),
-        apiRequest('/api/admin/club', ClubResponseSchema, { signal }),
-      ]).then(([calendar, club]) => ({ fixtures: calendar.fixtures, ourName: club.name })),
-    [],
+    (signal: AbortSignal): Promise<{ fixtures: ClubFixture[]; ourName: string | null }> =>
+      // The calendar only gives the choices of «Una partita fissa».
+      matchLinks
+        ? Promise.all([
+            apiRequest('/api/admin/calendar', CalendarResponseSchema, { signal }),
+            apiRequest('/api/admin/club', ClubResponseSchema, { signal }),
+          ]).then(([calendar, club]) => ({ fixtures: calendar.fixtures, ourName: club.name }))
+        : Promise.resolve({ fixtures: [], ourName: null }),
+    [matchLinks],
   );
   const links = useAsync(loadLinks);
   const matches = useAsync(loadMatches);
@@ -127,7 +133,8 @@ export function ShareLinksPage() {
   const [showRevoked, setShowRevoked] = useState(false);
   const [label, setLabel] = useState('');
   const canEdit = useCanEdit();
-  const [mode, setMode] = useState<'channel' | 'match'>(preset ? 'match' : 'channel');
+  const [chosenMode, setMode] = useState<'channel' | 'match'>(preset ? 'match' : 'channel');
+  const mode = matchLinks ? chosenMode : 'channel';
   const [choiceKey, setChoiceKey] = useState(preset ? `m:${preset}` : '');
   const [expires, setExpires] = useState('');
   const [busy, setBusy] = useState(false);
@@ -238,10 +245,14 @@ export function ShareLinksPage() {
                   finita una partita resta su di essa fino al giorno della successiva.
                 </p>
               )}
-              <label className="flex items-center gap-2 text-sm text-text">
-                <input type="radio" name="mode" checked={mode === 'match'} onChange={() => setMode('match')} />
-                Una partita fissa
-              </label>
+              {matchLinks ? (
+                <label className="flex items-center gap-2 text-sm text-text">
+                  <input type="radio" name="mode" checked={mode === 'match'} onChange={() => setMode('match')} />
+                  Una partita fissa
+                </label>
+              ) : (
+                <p className="text-xs text-muted">{MATCH_LINKS_OFF_TEXT}</p>
+              )}
               {mode === 'match' && (
                 <select
                   value={choiceKey}

@@ -12,7 +12,7 @@ const css = readFileSync(join(process.cwd(), 'src/styles/tokens.css'), 'utf8');
 const values = (name: string): string[] =>
   [...css.matchAll(new RegExp(`${name}:\\s*(#[0-9a-f]{6});`, 'g'))].map((m) => m[1] ?? '');
 
-const TENANT = { id: '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c', slug: 'club-a', name: 'Club A' };
+const TENANT = { id: '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c', slug: 'club-a', name: 'Club A', matchLinksEnabled: false };
 
 afterEach(cleanup);
 

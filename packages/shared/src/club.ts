@@ -504,7 +504,10 @@ export const ScheduleFixtureSchema = UpcomingFixtureSchema.pick({
 }).extend({
   /** A `.dvw` of this match is being played now (the block «Prossima partita» skips it). */
   live: z.boolean(),
-  /** Short public link of the match (`<base>/l/<code>`), the one of its QR; null when revoked. */
+  /**
+   * Short public link of the match (`<base>/l/<code>`), the one of its QR; null when revoked. Without «Link e QR per
+   * singola partita» the short link of the channel of the club (null when the client has none).
+   */
   shortUrl: z.url().nullable(),
 });
 export type ScheduleFixture = z.infer<typeof ScheduleFixtureSchema>;

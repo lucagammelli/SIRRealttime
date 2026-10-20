@@ -384,10 +384,17 @@ una sola volta), compare anche «Link breve (sempre disponibile nell’elenco, c
 «Partita del calendario (creato dal «Calendario»)»; il link di tutte le partite compare con «Canale del club: tutte le
 partite del calendario» (`docs/server.md`, «Profilo del club, partite del cliente e canale»). Per un viewer la pagina è in sola lettura.
 
+**Opzione «Link e QR per singola partita»** (per cliente, la accende solo il superadmin, vedi «Pagina Clienti» e
+`docs/server.md`, «Clienti»; il portale la legge da `user.tenant.matchLinksEnabled` con `useMatchLinks`,
+`lib/useMatchLinks.ts`). Se è **spenta** il cliente ha solo il canale del club: «Link pubblici» non offre «Una partita
+fissa» e mostra «Link per singola partita non attivi: usa il canale del club.» (`MATCH_LINKS_OFF_TEXT`); il
+«Calendario» non mostra link né QR delle partite e ha la stessa nota; il dettaglio partita non ha «Crea un link
+pubblico». Il QR di «Prossima partita» del calendario pubblico porta al canale.
+
 **QR e statistiche** (`qr/ShareQr.tsx`). L'indirizzo codificato nel QR è il link con `?q=1` (`QR_QUERY_PARAM`), così le
 «Statistiche» distinguono le visite da QR; «Copia link» copia il link **senza** `?q=1`.
 
-**Creazione** (`ShareLinksPage.tsx`, `fixedChoices`). «Una partita fissa» propone un menu «Partita» con, prima, ciò che è in
+**Creazione** (`ShareLinksPage.tsx`, `fixedChoices`; con l'opzione «Link e QR per singola partita» accesa). «Una partita fissa» propone un menu «Partita» con, prima, ciò che è in
 diretta («In diretta: …», una partita del calendario o un `.dvw` live fuori calendario) e poi le **prossime partite
 trasmesse del calendario** (non nascoste né finite, per data; nessuna partita passata); una partita aperta da «Partite»
 (`?partita=`) resta nell'elenco. Se non c'è nulla: «Nessuna partita in programma». I link delle partite del calendario si
@@ -509,7 +516,9 @@ Partite del cliente (`docs/server.md`, «Profilo del club, partite del cliente e
 «Partita aggiunta a mano» (`ManualFixtureForm`: «Tipo di partita» Amichevole, Coppa o Altro, «Data», «Ora», «Avversario»,
 «Logo dell’avversario (facoltativo)», «Dove si gioca» «In casa»/«In trasferta», «Palazzetto (facoltativo)», «Città
 (facoltativa)»; «Aggiungi la partita» / «Salva la partita»). Dopo il salvataggio: «Partita aggiunta: il suo link e il QR sono
-qui sotto.». Una partita aggiunta a mano ha link breve e QR come le altre, si abbina ai `.dvw` allo stesso modo, e ha
+qui sotto.». Link, QR e il testo «il suo link e il QR sono qui sotto» compaiono solo con l'opzione «Link e QR per singola partita»
+(altrimenti «Partita aggiunta.» e la nota «Link per singola partita non attivi: usa il canale del club.»).
+Una partita aggiunta a mano ha link breve e QR come le altre, si abbina ai `.dvw` allo stesso modo, e ha
 «Modifica» e «Cancella» (con «Conferma cancellazione»). Una partita scaricata dal calendario si può solo «Nascondere»
 («Mostra» la rimette; le nascoste stanno in una scheda a parte, `Partite nascoste`). «Impostazioni» di ogni partita:
 «Trasmissione della partita» («Come il profilo», «Trasmessa», «Non trasmessa») e due `LogoPicker` («Logo della nostra
@@ -586,7 +595,11 @@ password»; con «Salva password»), «Disattiva» (conferma «Conferma disattiv
 come «Utente … creato.», «… disattivato.», «… riattivato.», «… eliminato.». Il server rifiuta (409) che un utente si tolga
 il ruolo, si disattivi o si elimini, e le modifiche che lasciano il cliente senza un admin attivo; cambio di ruolo,
 nuova password e disattivazione chiudono le sessioni dell'utente (chi cambia la propria password resta collegato). Regole e rotte: `docs/server.md`, «Utenti del cliente». Pagina «Clienti»: `TenantsPage.tsx`
-(`userCountText`, `useChooseTenant`).
+(`userCountText`, `useChooseTenant`). **Pagina Clienti, link per partita**: nell'elenco ogni cliente mostra «link per
+partita» o «solo canale» (`matchLinksText`); nella scheda del cliente il riquadro «Link e QR per singola partita»
+(`MatchLinksSwitch`) dice «attivi» / «non attivi» e ha «Attiva» oppure «Disattiva» con conferma «Disattiva e revoca i link
+per partita» (revoca per sempre, anche i QR stampati; riattivando nascono link nuovi, i revocati restano tali). Effetti:
+`docs/server.md`, «Clienti».
 
 **Inviti.** Nel modulo «Nuovo utente» la password è facoltativa (`NEW_PASSWORD_HINT`): lasciata vuota il pulsante diventa
 «Crea e invita» e l'utente riceve una mail con il link per scegliere la password; se scritta, vale come prima («Crea

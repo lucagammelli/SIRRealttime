@@ -24,6 +24,20 @@ export interface Tenant {
   overlays: Record<string, unknown>;
   /** Stored profile of the club (read it with `resolveClubProfile` of `@sir/shared`). */
   clubProfile: Record<string, unknown>;
+  /** «Link e QR per singola partita» (links of the matches of the calendar and «partita fissa»). */
+  matchLinksEnabled: boolean;
+}
+
+/** Key of the transaction lock that serializes the writes of the clients (hostnames unique among all of them). */
+const TENANT_LOCK_KEY = 0x53495254;
+
+/**
+ * Takes the lock of the clients until the end of the transaction: their changes (`routes/tenants.ts`) and what depends
+ * on an option of a client (a link «partita fissa» against «Link e QR per singola partita» switched off). Lock order:
+ * this one, then the one of the matches of a client (`lockTenantMatches`).
+ */
+export async function lockTenants(tx: { execute: (query: SQL) => Promise<unknown> }): Promise<void> {
+  await tx.execute(sql`select pg_advisory_xact_lock(${TENANT_LOCK_KEY})`);
 }
 
 const TENANT_COLUMNS = {
@@ -36,6 +50,7 @@ const TENANT_COLUMNS = {
   intermissions: tenants.intermissions,
   overlays: tenants.overlays,
   clubProfile: tenants.clubProfile,
+  matchLinksEnabled: tenants.matchLinksEnabled,
 };
 
 /**
@@ -132,7 +147,9 @@ export function adminTenantId(request: FastifyRequest): string {
 export async function tenantRef(ctx: AppContext, id: string | null): Promise<TenantRef | null> {
   if (!id) return null;
   const tenant = await findTenant(ctx, { id });
-  return tenant ? { id: tenant.id, slug: tenant.slug, name: tenant.name } : null;
+  return tenant
+    ? { id: tenant.id, slug: tenant.slug, name: tenant.name, matchLinksEnabled: tenant.matchLinksEnabled }
+    : null;
 }
 
 /**

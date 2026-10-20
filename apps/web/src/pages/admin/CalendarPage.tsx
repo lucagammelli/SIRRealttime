@@ -24,6 +24,7 @@ import { apiCommand, apiRequest } from '../../lib/api.ts';
 import { formatFixtureDate, romeDateTime, romeToIso } from '../../lib/format.ts';
 import { useAsync } from '../../lib/useAsync.ts';
 import { READ_ONLY_TEXT, useCanEdit } from '../../lib/useCanEdit.ts';
+import { MATCH_LINKS_OFF_TEXT, useMatchLinks } from '../../lib/useMatchLinks.ts';
 import { ShareQr } from '../../qr/ShareQr.tsx';
 import { useApiError } from './auth.tsx';
 import { ConfirmButton, Field, inputClass } from './forms.tsx';
@@ -275,6 +276,7 @@ function FixtureDateForm({ f, onSaved, onCancel }: { f: ClubFixture; onSaved: ()
 function FixtureItem({ f, onChanged }: { f: ClubFixture; onChanged: () => void }) {
   const errorMessage = useApiError();
   const canEdit = useCanEdit();
+  const matchLinks = useMatchLinks();
   const [qr, setQr] = useState(false);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -378,7 +380,7 @@ function FixtureItem({ f, onChanged }: { f: ClubFixture; onChanged: () => void }
           </span>
         </div>
       </div>
-      {!f.broadcasted ? (
+      {!matchLinks ? null : !f.broadcasted ? (
         <p className="text-sm text-muted">
           Link non attivo: la partita non è trasmessa
           {f.broadcast === 'auto' ? ' (il profilo del club trasmette solo le partite in casa).' : '.'}
@@ -568,12 +570,13 @@ function PendingItem({ m, fixtures, onDone }: { m: PendingMatch; fixtures: ClubF
 /**
  * «Calendario»: the matches of the club, from the calendars of its championships and added by hand (friendly, cup,
  * other), with date, time, teams with logos, venue, state and «Trasmessa» / «Non trasmessa», the link of each (copy,
- * QR), the `.dvw` to confirm and «Aggiorna calendario». The admin adds, changes and deletes the matches added by
+ * QR; only with «Link e QR per singola partita»), the `.dvw` to confirm and «Aggiorna calendario». The admin adds, changes and deletes the matches added by
  * hand, hides the downloaded ones, chooses the broadcast and the logos of each; a viewer only reads.
  */
 export function CalendarPage() {
   const errorMessage = useApiError();
   const canEdit = useCanEdit();
+  const matchLinks = useMatchLinks();
   const load = useCallback(
     (signal: AbortSignal) => apiRequest('/api/admin/calendar', CalendarResponseSchema, { signal }),
     [],
@@ -628,13 +631,17 @@ export function CalendarPage() {
       {canEdit && adding && (
         <Card
           title="Nuova partita"
-          subtitle="Amichevole, coppa o altro: compare nel calendario con il suo link e il suo QR, e il file .dvw si abbina da solo."
+          subtitle={
+            matchLinks
+              ? 'Amichevole, coppa o altro: compare nel calendario con il suo link e il suo QR, e il file .dvw si abbina da solo.'
+              : 'Amichevole, coppa o altro: compare nel calendario e il file .dvw si abbina da solo.'
+          }
         >
           <ManualFixtureForm
             initial={null}
             onSaved={() => {
               setAdding(false);
-              setNotice('Partita aggiunta: il suo link e il QR sono qui sotto.');
+              setNotice(matchLinks ? 'Partita aggiunta: il suo link e il QR sono qui sotto.' : 'Partita aggiunta.');
               calendar.reload();
             }}
             onCancel={() => setAdding(false)}
@@ -643,7 +650,11 @@ export function CalendarPage() {
       )}
       <Card
         title="Calendario"
-        subtitle="Le partite della squadra del club, ognuna con il suo link e il suo QR, pronti prima della gara."
+        subtitle={
+          matchLinks
+            ? 'Le partite della squadra del club, ognuna con il suo link e il suo QR, pronti prima della gara.'
+            : 'Le partite della squadra del club.'
+        }
         actions={
           canEdit ? (
             <span className="inline-flex flex-wrap gap-2">
@@ -658,6 +669,14 @@ export function CalendarPage() {
         }
       >
         {!canEdit && <p className="mb-2 text-sm text-muted">{READ_ONLY_TEXT}</p>}
+        {!matchLinks && (
+          <p className="mb-2 text-sm text-muted">
+            {MATCH_LINKS_OFF_TEXT}{' '}
+            <Link to="/admin/link" className="underline">
+              Vai ai link pubblici
+            </Link>
+          </p>
+        )}
         {calendar.loading && !data && <Spinner label="Caricamento del calendario…" />}
         {calendar.error !== null && <ErrorBox onRetry={calendar.reload}>{errorMessage(calendar.error)}</ErrorBox>}
         {error && <ErrorBox>{error}</ErrorBox>}

@@ -13,20 +13,21 @@ import {
   CreateAgentRequestSchema,
   CreateShareTokenRequestSchema,
   IdParamSchema,
+  MATCH_LINKS_DISABLED_MESSAGE,
 } from '@sir/shared';
-import { and, desc, eq, gt, notExists } from 'drizzle-orm';
+import { desc, eq, gt } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { agentQuotaOf, agentsInUse, lockTenantAgents, requireAgentSlot } from '../agentQuota.js';
 import type { AppContext } from '../context.js';
 import { perMinute, SESSION_COOKIE } from '../context.js';
-import { agentRegistrations, agents, matches, shareTokens } from '../db/index.js';
-import { badRequest, notFound } from '../lib/errors.js';
+import { agentRegistrations, agents, matches, shareTokens, tenants } from '../db/index.js';
+import { badRequest, HttpError, notFound } from '../lib/errors.js';
 import { generateToken, hashToken } from '../lib/tokens.js';
 import { validate } from '../lib/validate.js';
 import { requireRole, sameOriginGuard } from '../security.js';
-import { ensureShortCode, insertShareToken } from '../shareCodes.js';
-import { attachLiveSocket, encodingOf, forgetShareToken } from '../state.js';
-import { adminTenantId, findTenant, publicBaseUrlFor, tenantScope } from '../tenancy.js';
+import { ensureShortCode, insertShareToken, notSimulationLink } from '../shareCodes.js';
+import { attachLiveSocket, dropShareLinks, encodingOf } from '../state.js';
+import { adminTenantId, findTenant, lockTenants, publicBaseUrlFor, tenantScope } from '../tenancy.js';
 
 type MatchRow = typeof matches.$inferSelect;
 type AgentRow = typeof agents.$inferSelect;
@@ -266,22 +267,32 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
     const body = validate(CreateShareTokenRequestSchema, request.body);
     const expiresAt = body.expiresAt === null ? null : new Date(body.expiresAt);
     if (expiresAt && expiresAt <= ctx.now()) throw badRequest('Richiesta non valida: expiresAt');
-    if (body.matchId) {
-      const [m] = await ctx.db
-        .select({ id: matches.id })
-        .from(matches)
-        .where(tenantScope(matches, tenantId, eq(matches.id, body.matchId), eq(matches.simulated, false)))
-        .limit(1);
-      if (!m) throw badRequest('Richiesta non valida: matchId');
-    }
-    const tenant = await findTenant(ctx, { id: tenantId });
     const token = generateToken();
-    const { row, code } = await insertShareToken(ctx.db, ctx.config.shareCodeSecret, {
-      tenantId,
-      tokenHash: hashToken(token),
-      matchId: body.matchId,
-      label: body.label,
-      expiresAt,
+    const { tenant, row, code } = await ctx.db.transaction(async (tx) => {
+      // Under the lock of the clients: no link «partita fissa» is born while the superadmin switches the option off.
+      await lockTenants(tx);
+      const [current] = await tx
+        .select({ hostnames: tenants.hostnames, matchLinksEnabled: tenants.matchLinksEnabled })
+        .from(tenants)
+        .where(eq(tenants.id, tenantId));
+      if (body.matchId) {
+        // «Una partita fissa» is a link of one match: only with «Link e QR per singola partita».
+        if (!current?.matchLinksEnabled) throw new HttpError(403, 'MATCH_LINKS_DISABLED', MATCH_LINKS_DISABLED_MESSAGE);
+        const [m] = await tx
+          .select({ id: matches.id })
+          .from(matches)
+          .where(tenantScope(matches, tenantId, eq(matches.id, body.matchId), eq(matches.simulated, false)))
+          .limit(1);
+        if (!m) throw badRequest('Richiesta non valida: matchId');
+      }
+      const inserted = await insertShareToken(tx, ctx.config.shareCodeSecret, {
+        tenantId,
+        tokenHash: hashToken(token),
+        matchId: body.matchId,
+        label: body.label,
+        expiresAt,
+      });
+      return { tenant: current, ...inserted };
     });
     request.log.info({ shareTokenId: row.id }, 'link pubblico creato');
     void reply.code(201);
@@ -299,18 +310,7 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
       .select()
       .from(shareTokens)
       // The link of a simulation is on the page «Simulazione» only (deleted with it).
-      .where(
-        tenantScope(
-          shareTokens,
-          tenantId,
-          notExists(
-            ctx.db
-              .select({ id: matches.id })
-              .from(matches)
-              .where(and(eq(matches.id, shareTokens.matchId), eq(matches.simulated, true))),
-          ),
-        ),
-      )
+      .where(tenantScope(shareTokens, tenantId, notSimulationLink(ctx.db)))
       .orderBy(desc(shareTokens.createdAt));
     const summaries: ShareTokenSummary[] = [];
     for (const row of rows) {
@@ -333,8 +333,7 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
       .where(tenantScope(shareTokens, tenantId, eq(shareTokens.id, id)))
       .returning({ id: shareTokens.id });
     if (rows.length === 0) throw notFound();
-    forgetShareToken(ctx, id);
-    ctx.hub.closeShareToken(id);
+    dropShareLinks(ctx, [id]);
     request.log.info({ shareTokenId: id }, 'link pubblico revocato');
     return reply.code(204).send();
   });

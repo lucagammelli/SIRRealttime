@@ -6,6 +6,7 @@ const tenant = (slug: string, hostnames: string[]): TenantSummary => ({
   id: `${slug.length}f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c`,
   slug,
   name: slug,
+  matchLinksEnabled: false,
   hostnames,
   createdAt: '2026-10-01T10:00:00.000Z',
   agentQuota: 1,

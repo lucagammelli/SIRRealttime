@@ -39,6 +39,17 @@ appartiene a un cliente e nessuna query legge o cambia righe di un altro (filtro
   `password` il primo utente è invitato e la risposta (`CreateTenantResponse`) ha `firstUserInvite` (esito della mail o
   link da copiare; vedi «Posta, inviti e recupero password»). La quota
   agenti è letta con `clampAgentQuota` (valore fuori da 0-`AGENT_QUOTA_MAX` riportato al limite più vicino).
+- **Opzione «Link e QR per singola partita»** (`tenants.match_links_enabled`, `matchLinksEnabled` in `TenantRef`
+  (`MeResponse.tenant`), `TenantSummary` e nel `PATCH /api/admin/tenants/:id`; solo superadmin, migrazione
+  `0014_link_partita.sql`). **Spenta** per i clienti nuovi: hanno solo il canale del club col suo QR. La migrazione la
+  accende per i clienti che avevano già link per partita validi (del calendario o «partita fissa» non revocati; le
+  simulazioni non contano), così i QR già stampati continuano a funzionare. Spegnerla (`revokeMatchLinks`, `club.ts`)
+  **revoca per sempre** tutti i link per partita del cliente (calendario e partita fissa; non il canale né le
+  simulazioni), chiude i WebSocket di chi li guarda (4404) e svuota le cache (`forgetClubCaches`, `dropShareLinks`).
+  Riaccenderla chiama `ensureFixtureLinks(..., { renewRevoked: true })`: ogni partita del calendario senza un link valido
+  ne riceve uno **nuovo**, anche se i suoi link erano stati revocati a mano; i revocati restano revocati. Tutto avviene
+  in una transazione sotto il lock dei clienti e poi quello delle partite (`lockTenantMatches`). Con l'opzione spenta il
+  server tratta comunque i link per partita come inesistenti (`resolveShareToken`, `state.ts`).
 - **Utenti del cliente** (`src/routes/users.ts`, ruolo `admin`; il superadmin lavora dentro il cliente in cui è entrato): `GET` e `POST
   /api/admin/users`, `PATCH /api/admin/users/:id` (`UpdateUserRequestSchema`: `role`, `password`, `disabled`, almeno un
   campo), `DELETE /api/admin/users/:id` (204). Un superadmin non è mai elencato né modificabile (404). Vincoli (409):
@@ -382,7 +393,10 @@ partita (indice univoco su cliente, campionato e `fixture_external_id`), aggiorn
 impianto, giornata, stato e set. Una partita che sparisce dal calendario non si cancella: prende `removed_at` e il suo
 link resta (altrimenti QR già stampati e `.dvw` abbinati si perderebbero). I link delle partite del calendario si creano da
 soli a ogni aggiornamento del calendario, senza che l'admin faccia nulla: ogni partita non rimossa senza link ne riceve uno
-(`ensureFixtureLinks` in `apps/server/src/club.ts`, chiamata da `refreshClientFixtures` nella stessa transazione; indice univoco `share_tokens_client_fixture_idx`, un link per partita; etichetta «Avversario – data»,
+(`ensureFixtureLinks` in `apps/server/src/club.ts`, chiamata da `refreshClientFixtures` nella stessa transazione; **solo se il
+cliente ha l'opzione «Link e QR per singola partita»**, vedi «Clienti»; indice univoco **parziale**
+`share_tokens_client_fixture_idx`, un link non revocato per partita; un link revocato a mano non rinasce negli
+aggiornamenti normali, ma solo quando il superadmin riaccende l'opzione; etichetta «Avversario – data»,
 `fixtureLabel`; il token lungo è generato e scartato, si usano codice breve e QR). Ricopiare svuota anche la
 «Prossima partita» tenuta in memoria dall'hub (`forgetScheduled`), perché orari e impianti possono essere cambiati.
 
@@ -460,7 +474,9 @@ possibili; ne resta live uno solo.
 - **Partite**: le prossime `SCHEDULE_MAX_FIXTURES` (3) del club con stato `scheduled` nel calendario, non rimosse
   (`removed_at` nullo), con inizio non più vecchio di 4 ore (`SCHEDULE_GRACE_MS`: una partita iniziata da poco senza `.dvw`
   conta ancora come prossima), ordinate per inizio; una partita con un `.dvw` finito è esclusa. `shortUrl` è il link breve
-  non revocato né scaduto (`<base>/l/<codice>`), `null` altrimenti. `live` è `true` se un `.dvw` di quella partita è live
+  non revocato né scaduto (`<base>/l/<codice>`), `null` altrimenti. **A opzione «Link e QR per singola partita» spenta**
+  `shortUrl` di ogni partita è invece il link breve del **canale** (`channelShortUrl`: prima i link senza scadenza, poi il
+  più recente; `null` se non ne ha), così il QR di «Prossima partita» porta al canale. `live` è `true` se un `.dvw` di quella partita è live
   (il blocco «Prossima partita» salta le partite live).
 - **Classifica**: del campionato della prima partita in arrivo; se non c'è, del primo campionato del cliente (nell'ordine
   di scelta) che ha una classifica salvata. Ogni riga ha `ours` per la squadra scelta dal cliente nel campionato.
@@ -473,8 +489,9 @@ possibili; ne resta live uno solo.
   come prossima.
 
 **Limiti noti**: le partite non abbinate si spengono a vicenda (due amichevoli contemporanee si alternano il link «segue la
-live»); revocando il link di una partita non se ne crea uno nuovo (il «Calendario» lo mostra revocato); amichevoli e coppe
-fuori calendario restano «da confermare» fino alla scelta «Nessuna (amichevole)».
+live»); amichevoli e coppe fuori calendario restano «da confermare» fino alla scelta «Nessuna (amichevole)». Il vecchio
+limite «un link revocato non si ricrea» è superato: il superadmin può riaccendere l'opzione dei link per partita, che ne
+crea di nuovi.
 
 **Prova reale** (2026-10-16): SuperLega 2026/27 (`IdCampionato` 999), squadra Perugia: 22 partite, ognuna con il suo link. I
 `.dvw` reali Perugia–Suntory e Perugia–Itas (amichevoli, fuori calendario) restano «da confermare»; una copia con la data
@@ -759,7 +776,9 @@ della sessione, il superadmin su quello scelto):
 - **Link pubblici** (`share_tokens`): token casuale in `/live/<token>` (URL composto con `PUBLIC_BASE_URL`). Se `matchId`
   è `null` (e non c'è `client_fixture_id`) il link è il **canale del club** (partita in corso, altrimenti la prossima
   trasmessa; vedi «Profilo del club, partite del cliente e canale»); con un `matchId` mostra quella
-  partita fissa; con un `client_fixture_id` (link creati dal «Calendario», uno per partita, `ShareTokenSummary.clientFixtureId`)
+  partita fissa (`POST /api/admin/share-tokens` con `matchId` a opzione «Link e QR per singola partita» spenta dà 403
+  `MATCH_LINKS_DISABLED`, «Link per singola partita non attivi: usa il canale del club»; il flag è riletto sotto il lock del
+  cliente); con un `client_fixture_id` (link creati dal «Calendario», uno per partita, `ShareTokenSummary.clientFixtureId`)
   mostra «Prossima partita» e poi la partita abbinata (vedi «Club, calendario e abbinamento»). `expiresAt`
   facoltativa. Un token non valido, revocato o scaduto dà sempre 404; la revoca chiude subito i WebSocket già aperti (codice
   4404). Nei log il token è mascherato (`/api/public/[token]`, come i link di invito e recupero: `/api/auth/links/[token]`, `/admin/invito/[token]`, `/admin/reimposta-password/[token]`). I link validi sono in una cache di 30 s
@@ -1065,10 +1084,11 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `league_http_cache` | `url` (chiave), `etag`, `last_modified` |
 | `tenant_leagues` | scelta del cliente (migrazione `0006_club.sql`): `tenant_id`, `league_id`, `league_team_id` (la squadra del club, nulla finché non scelta; `ON DELETE SET NULL`); unica per cliente e campionato |
 | `client_fixtures` | copia delle partite del club dal calendario (migrazione `0006_club.sql`; `0007_ruoli_calendario.sql` aggiunge `origin` `league`/`manual`, `manual_kind` `friendly`/`cup`/`other`, `broadcast` `auto`/`on`/`off`, `hidden`, `our_logo_asset_id` e `opponent_logo_asset_id` → `assets` `ON DELETE SET NULL`, e rende `league_id` nullo; vincolo: `league_id` nullo se e solo se `origin` è `manual`): `tenant_id`, `league_id`, `fixture_external_id` (unica con cliente e campionato), `fixture_id`, `removed_at` (la partita non è più nel calendario, il link resta), `starts_at`, `our_side` (`club_side`: `home`/`away`), nomi, città e loghi delle due squadre, impianto, `round_label`, `league_name`, `status`, `home_sets`, `away_sets` |
-| `share_tokens` | `tenant_id`, `token_hash`, `match_id` (null: segue la live), `client_fixture_id` (link di una partita del calendario, `ON DELETE CASCADE`; unico quando non nullo), `label`, `expires_at`, `revoked`, `short_code_hash` (unica, null finché non assegnato), `short_code_salt` (migrazioni `0004_short_codes.sql`, `0006_club.sql`) |
+| `share_tokens` | `tenant_id`, `token_hash`, `match_id` (null: segue la live), `client_fixture_id` (link di una partita del calendario, `ON DELETE CASCADE`; unico quando non nullo e non revocato: indice parziale dalla migrazione `0014_link_partita.sql`), `label`, `expires_at`, `revoked`, `short_code_hash` (unica, null finché non assegnato), `short_code_salt` (migrazioni `0004_short_codes.sql`, `0006_club.sql`) |
 | `assets` | `tenant_id`, `kind` (enum `asset_kind`: `logo`/`sponsor`), `sha256`, `mime`, `width`, `height`, `bytes`, `created_at`; indice univoco `assets_tenant_sha256_kind_idx` su cliente + `sha256` + `kind` (migrazione `0003_assets.sql`) |
 | `agent_registrations` | `tenant_id`, `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at`, `agent_expires_at` (validità scelta all'approvazione; migrazioni `0001_agent_registrations.sql`, `0007_ruoli_calendario.sql`) |
 | `agents`, `tenants` (colonne di `0007_ruoli_calendario.sql`) | `agents.expires_at` (nulla = senza scadenza); `tenants.club_profile` (jsonb, predefinito `{}`) e `tenants.agent_quota` (intero, predefinito 1; la migrazione la porta a max(1, agenti non revocati) per i clienti esistenti) |
+| `tenants` (colonna di `0014_link_partita.sql`) | `match_links_enabled` (booleano, predefinito `false`; la migrazione lo accende per i clienti con link per partita validi, simulazioni escluse) |
 | `user_tokens` | link monouso degli utenti (migrazione `0011_posta_inviti.sql`): `user_id` (→ `users`, `ON DELETE CASCADE`), `kind` (`invite`/`reset`, CHECK), `token_hash` (sha256, unico), `expires_at`, `created_at`; indice unico su (`user_id`, `kind`): un solo link per utente e tipo, quello nuovo sostituisce il vecchio. Un link usato, sostituito o annullato è cancellato; un utente con una riga `invite` non ha ancora scelto la password |
 | `mail_settings` | server di posta, **una sola riga** per tutto il sistema (`singleton` sempre vero, CHECK): `host`, `port` (1-65535), `security` (`none`/`starttls`/`tls`), `username`, `password_enc` (password cifrata AES-256-GCM con `SETTINGS_ENCRYPTION_KEY`, forma `v1.<iv>.<tag>.<testo>`, nulla se manca), `from_name`, `from_email`, `updated_at` (migrazione `0011_posta_inviti.sql`) |
 

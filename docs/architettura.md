@@ -145,7 +145,9 @@ Auto-registrazione dell'agente (`registration.ts`): `PAIRING_CODE_ALPHABET`, `PA
 Clienti (`tenant.ts`): `DEFAULT_TENANT_SLUG` (`predefinito`), `TENANT_SLUG_PATTERN`, `TenantSlugSchema`,
 `TENANT_MAX_HOSTNAMES` (20), `isValidHostname`, `HostnameSchema`, `HostnamesSchema`, `TENANT_CONFIG_VERSION` (1) e i
 quattro documenti di configurazione `TenantBrandingSchema`, `TenantLayoutSchema`, `TenantIntermissionsSchema`,
-`TenantOverlaysSchema` (strict, con `version`), `TenantRefSchema`, `TenantSummarySchema`,
+`TenantOverlaysSchema` (strict, con `version`), `TenantRefSchema` (con `matchLinksEnabled`, predefinito `false`: opzione
+«Link e QR per singola partita», anche in `TenantSummarySchema` e `UpdateTenantRequestSchema`;
+`MATCH_LINKS_DISABLED_MESSAGE` è il testo del 403 `MATCH_LINKS_DISABLED`), `TenantSummarySchema`,
 `CreateTenantRequestSchema`, `UpdateTenantRequestSchema`, `SetActiveTenantRequestSchema` (`tenantId` nullo = «Esci dal
 cliente»), `TENANT_REQUIRED_MESSAGE` («Scegli prima un cliente»). Regole di funzionamento in
 `docs/server.md` («Clienti»), pagine in `docs/portale.md`.

@@ -12,7 +12,7 @@ import {
 } from './club.js';
 import type { FastifyBaseLogger } from 'fastify';
 import type { AppContext, ResolvedShareToken } from './context.js';
-import { clientFixtures, matches, shareTokens } from './db/index.js';
+import { clientFixtures, matches, shareTokens, tenants } from './db/index.js';
 import { romeDayAt } from './leagues/romeTime.js';
 import type { FrameEncoding, Subscriber, Target } from './hub.js';
 import { shortCodeLookupHash } from './lib/shortCode.js';
@@ -239,7 +239,8 @@ export function cachedShareToken(ctx: AppContext, tenantId: string, access: Shar
 
 /**
  * Valid (not revoked, not expired) share link of the client `tenantId`, by its long token or by its short code
- * (looked up by sha256 of the token, by the keyed hash of the code), or null; valid ones are cached 30 s.
+ * (looked up by sha256 of the token, by the keyed hash of the code), or null; valid ones are cached 30 s (emptied for
+ * the client by `forgetClubCaches` when «Link e QR per singola partita» changes).
  */
 export async function resolveShareToken(
   ctx: AppContext,
@@ -258,6 +259,8 @@ export async function resolveShareToken(
       expiresAt: shareTokens.expiresAt,
     })
     .from(shareTokens)
+    .innerJoin(tenants, eq(tenants.id, shareTokens.tenantId))
+    .leftJoin(matches, eq(matches.id, shareTokens.matchId))
     .where(
       tenantScope(
         shareTokens,
@@ -265,6 +268,13 @@ export async function resolveShareToken(
         access.kind === 'token' ? eq(shareTokens.tokenHash, hash) : eq(shareTokens.shortCodeHash, hash),
         eq(shareTokens.revoked, false),
         or(isNull(shareTokens.expiresAt), gt(shareTokens.expiresAt, ctx.now())),
+        // Without «Link e QR per singola partita» only the channel works (and the link of a simulation): a link of one
+        // match left valid is not found, as a link that does not exist.
+        or(
+          eq(tenants.matchLinksEnabled, true),
+          and(isNull(shareTokens.matchId), isNull(shareTokens.clientFixtureId)),
+          eq(matches.simulated, true),
+        ),
       ),
     )
     .limit(1);
@@ -322,6 +332,14 @@ export function forgetShareToken(ctx: AppContext, shareTokenId: string): void {
   ctx.caches.shares.deleteWhere((share) => share.id === shareTokenId);
   // The public schedule carries the short links of the matches of the club: a revoked one goes at once.
   ctx.caches.schedule.clear();
+}
+
+/** Links revoked (or deleted): forgotten at once by the caches and their spectators disconnected. */
+export function dropShareLinks(ctx: AppContext, shareTokenIds: readonly string[]): void {
+  for (const id of shareTokenIds) {
+    forgetShareToken(ctx, id);
+    ctx.hub.closeShareToken(id);
+  }
 }
 
 /** Target of a public link: its match of the calendar, its match, otherwise the channel of the club (old live links too). */

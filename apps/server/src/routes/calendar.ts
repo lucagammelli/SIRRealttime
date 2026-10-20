@@ -18,7 +18,7 @@ import { validate } from '../lib/validate.js';
 import type { Tx } from '../matchLock.js';
 import { canStayLive, lockTenantMatches } from '../matchLock.js';
 import { requireRole } from '../security.js';
-import { announceFixture, closeNotBroadcast, forgetClubCaches, forgetShareToken, refreshClub } from '../state.js';
+import { announceFixture, closeNotBroadcast, dropShareLinks, forgetClubCaches, refreshClub } from '../state.js';
 import { adminTenantId, tenantScope } from '../tenancy.js';
 
 type FixtureRow = typeof clientFixtures.$inferSelect;
@@ -213,10 +213,7 @@ export function manualFixtureRoutes(app: FastifyInstance, ctx: AppContext): void
       await tx.delete(clientFixtures).where(tenantScope(clientFixtures, tenantId, eq(clientFixtures.id, id)));
       return tokens.map((t) => t.id);
     });
-    for (const linkId of links) {
-      forgetShareToken(ctx, linkId);
-      ctx.hub.closeShareToken(linkId);
-    }
+    dropShareLinks(ctx, links);
     forgetClubCaches(ctx, tenantId);
     request.log.info({ tenantId, clientFixtureId: id, userId: request.user?.id }, 'partita del calendario cancellata');
     return reply.code(204).send();

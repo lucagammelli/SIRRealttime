@@ -1,4 +1,4 @@
-import { QR_QUERY_PARAM, SHARE_TOKEN_PATTERN } from '@arenalive/shared';
+import { QR_QUERY_PARAM, SHARE_TOKEN_PATTERN, hasSystemLogo } from '@arenalive/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { BrandMark } from '../components/BrandMark.tsx';
@@ -8,6 +8,7 @@ import { LiveMatch } from '../components/LiveMatch.tsx';
 import { Overlay } from '../components/Overlay.tsx';
 import { StatusScreen } from '../components/StatusScreen.tsx';
 import { SystemLogosBar } from '../components/SystemLogosBar.tsx';
+import { useSystemLogos } from '../lib/systemLogos.ts';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import type { ProbeResult } from '../lib/liveConnection.ts';
 import { registerServiceWorker, useFullscreenOnFirstTouch, useInstallApp } from '../lib/pwa.ts';
@@ -225,6 +226,9 @@ export function LivePage() {
   );
   // Big screen with a match: no page header, the logo and the buttons go in the scoreboard (one row less).
   const inScoreboard = tv && data?.kind === 'state';
+  // With the bar of the system logos the brand is not repeated in the page header nor in the scoreboard.
+  const systemLogos = useSystemLogos();
+  const showBrand = !hasSystemLogo(systemLogos.left) && !hasSystemLogo(systemLogos.right);
 
   return (
     <div
@@ -239,7 +243,7 @@ export function LivePage() {
         <header
           className={`sir-navbar flex items-center justify-between gap-3 ${tv ? 'pb-3' : 'sir-page mx-auto w-full max-w-7xl px-3 pt-3 sm:px-5'}`}
         >
-          <BrandMark />
+          {showBrand ? <BrandMark /> : <span />}
           {controls}
         </header>
       )}
@@ -247,7 +251,7 @@ export function LivePage() {
         <LiveMatch
           snapshot={snapshot}
           device={device}
-          brand={inScoreboard}
+          brand={inScoreboard && showBrand}
           rotationPaused={rotationPaused}
           layout={look?.layout ?? null}
           look={blockBrand}

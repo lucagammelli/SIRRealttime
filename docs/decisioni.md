@@ -429,3 +429,8 @@ Una riga per decisione: data, scelta, motivo.
 - 2026-10-20: loghi di sistema globali (tabella `system_logos`, slot `left`/`right`, migrazione `0016`), caricati solo dal
   superadmin, con limite 150×50 px anche per gli SVG (per la misura dichiarata), perché sono un marchio della piattaforma,
   uguale per ogni cliente, e un logo grande romperebbe la testata sul telefono (`docs/server.md`, `docs/portale.md`).
+- 2026-10-20: produzione su domini pubblici: portale `rt.istante.info`, cliente SIR `sir.istante.info`, certificati
+  Let's Encrypt (`CERTIFICATI="letsencrypt"`, avvisi a development@istante.info), passaggio fatto rilanciando
+  `installa-produzione.sh` insieme all'aggiornamento a v1.2.0; tolti i nomi privati `realtime.local` e
+  `rt.sirsafetyperugia.it`, perché un nome senza DNS pubblico farebbe fallire certificato e rinnovi; gli agenti vanno
+  puntati a `https://sir.istante.info/` (non seguono redirect) e la radice della CA interna si può togliere dai PC.

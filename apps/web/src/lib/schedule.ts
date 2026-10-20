@@ -29,7 +29,9 @@ export function hasScheduleData(type: string, schedule: ScheduleResponse | null 
 
 /** Pure: whether some pause of the client has a slide that reads the schedule. */
 export function intermissionsUseSchedule(config: TenantIntermissions | null): boolean {
-  return config ? allIntermissions(config).some((p) => p.slides.some((s) => isScheduleType(s.type))) : false;
+  return config
+    ? allIntermissions(config).some((p) => p.slides.some((s) => s.enabled && isScheduleType(s.type)))
+    : false;
 }
 
 /** Reads the schedule; null on any failure (the blocks stay hidden, the page works the same). */

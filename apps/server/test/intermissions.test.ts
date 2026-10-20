@@ -78,6 +78,8 @@ describe('pauses of the public page', () => {
       id: 'sp',
       type: 'sponsor',
       seconds: 6,
+      // Saved without the field: the slide is on.
+      enabled: true,
       options: { sponsors: [], images: [sponsor.id], seconds: 4 },
     });
     expect((await call(HOST_A, cookieA, { url: URL })).json<IntermissionsResponse>().intermissions).toEqual(saved);
@@ -107,6 +109,7 @@ describe('pauses of the public page', () => {
       id: 'd',
       type: 'roleDuel',
       seconds: 8,
+      enabled: true,
       options: { role: 'libero', period: 'match' },
     });
     expect(saved.setBreak.slides[1]?.options).toEqual({ period: 'set', limit: 2 });

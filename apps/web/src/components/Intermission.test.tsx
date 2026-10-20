@@ -292,6 +292,17 @@ describe('Intermission: slides', () => {
     setup(state, { sponsorLogo: '/api/public/assets/logo' });
     expect(screen.getByRole('img', { name: 'Sponsor' }).getAttribute('src')).toBe('/api/public/assets/logo');
   });
+
+  it('a slide turned off is never shown, with the others of its pause', () => {
+    const state = previewState(mid, 'timeout');
+    const active = activePause(state, defaultIntermissions());
+    if (!active) throw new Error('no pause');
+    const [sponsor] = active.pause.slides;
+    if (!sponsor) throw new Error('no slide');
+    const off = { ...active, pause: { ...active.pause, slides: [{ ...sponsor, enabled: false }] } };
+    expect(visibleSlides(state, active, { sponsorLogo: '/logo.png' })).toHaveLength(1);
+    expect(visibleSlides(state, off, { sponsorLogo: '/logo.png' })).toEqual([]);
+  });
 });
 
 describe('Intermission: «ogni N punti»', () => {

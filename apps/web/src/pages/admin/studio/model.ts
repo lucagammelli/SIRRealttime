@@ -4,6 +4,7 @@ import type {
   Intermission,
   IntermissionKind,
   IntermissionMode,
+  IntermissionSlide,
   IntermissionSlideInput,
   LayoutBlock,
   LayoutDevice,
@@ -29,6 +30,7 @@ import {
   defaultOverlays,
   IntermissionSlideSchema,
   LAYOUT_DEVICES,
+  newBlock,
   OVERLAY_KINDS,
   SET_BREAK_SETS,
   TEMPLATES,
@@ -204,6 +206,14 @@ export function stableJson(value: unknown): string {
 }
 
 export const sameValue = (a: unknown, b: unknown): boolean => stableJson(a) === stableJson(b);
+
+/** Pure: whether a block has options of its own (not the defaults of its type): removing it loses them. */
+export const blockHasSettings = (block: LayoutBlock): boolean =>
+  !sameValue(block.options, newBlock(block.type, block.id).options);
+
+/** Pure: whether a slide has options of its own (not the defaults of its type): removing it loses them. */
+export const slideHasSettings = (slide: IntermissionSlide): boolean =>
+  !sameValue(slide.options, IntermissionSlideSchema.parse({ id: slide.id, type: slide.type }).options);
 
 /** The documents of the four sections, as saved or as being edited. */
 export interface StudioDocs {

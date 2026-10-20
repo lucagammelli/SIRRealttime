@@ -110,6 +110,13 @@ export function resolveBranding(document: unknown): TenantBranding {
 /** Path of the public file of an asset (served for the client of the hostname). */
 export const publicAssetPath = (id: string): string => `/api/public/assets/${id}`;
 
+/**
+ * Path of the file of an asset for the reserved area (served for the client of the session, whatever the hostname):
+ * thumbnails and previews of `/admin`, where the hostname may belong to another client (an IP address, a superadmin
+ * working on another client).
+ */
+export const adminAssetPath = (id: string): string => `/api/admin/assets/${id}/file`;
+
 /** Name shown for the default client without a display name (and when no graphics are loaded). */
 export const DEFAULT_BRAND_NAME = 'SIRRealtime';
 

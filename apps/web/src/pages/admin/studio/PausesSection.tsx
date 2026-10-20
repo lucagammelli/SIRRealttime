@@ -56,8 +56,9 @@ import {
   PAUSE_KINDS,
   PAUSE_MODEL_LABELS,
   pauseWhere,
+  slideHasSettings,
 } from './model.ts';
-import { Advanced, ModelPicker, Setting, SettingsCard, SwitchRow, TabList } from './StudioUi.tsx';
+import { Advanced, ModelPicker, RemoveButton, Setting, SettingsCard, SwitchRow, TabList, Toggle } from './StudioUi.tsx';
 
 const KIND_HINTS: Record<IntermissionKind, string> = {
   timeout: 'Dal time-out alla prima azione dopo: di solito una banda compatta con gli sponsor.',
@@ -139,7 +140,10 @@ const clampInt = (text: string, min: number, max: number): number => {
   return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : min;
 };
 
-/** One slide of the list: name, up/down, duration; options and removal under «Opzioni». */
+/**
+ * One slide of the list: on/off, name, up/down and «Rimuovi» (with a confirmation when the slide has options of its
+ * own); duration and options under «Opzioni». A slide off stays in the list but is never shown.
+ */
 function SlideRow({
   slide,
   index,
@@ -167,19 +171,32 @@ function SlideRow({
   return (
     <li
       data-slide-id={slide.id}
-      className={`rounded-card border bg-surface-2 ${invalid ? 'border-danger' : 'border-border'}`}
+      className={`rounded-card border bg-surface-2 ${invalid ? 'border-danger' : 'border-border'} ${
+        slide.enabled ? '' : 'opacity-70'
+      }`}
     >
       <Setting
         id={settingId}
-        where={`${index + 1}ª diapositiva, ${slide.seconds} secondi sullo schermo`}
+        where={
+          slide.enabled
+            ? `${index + 1}ª diapositiva, ${slide.seconds} secondi sullo schermo`
+            : `${index + 1}ª diapositiva, disattivata: non compare`
+        }
         scene={scene}
         targets={[`slide:${slide.id}`]}
         className="mx-0 px-2"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="min-w-0 flex-1 text-sm font-semibold leading-tight text-text [overflow-wrap:anywhere]">
             {index + 1}. {label}
+            {!slide.enabled && <span className="font-normal text-muted"> (disattivata)</span>}
           </span>
+          <Toggle
+            checked={slide.enabled}
+            label={`Attiva: ${label}`}
+            title={slide.enabled ? 'Attiva' : 'Disattivata'}
+            onChange={(enabled) => onChange({ ...slide, enabled })}
+          />
           <Button
             variant="ghost"
             aria-label={`Sposta su ${label}`}
@@ -200,6 +217,7 @@ function SlideRow({
           >
             ↓
           </Button>
+          <RemoveButton name={label} confirm={slideHasSettings(slide)} onRemove={onRemove} />
         </div>
         <details className="text-sm text-text" open={invalid || undefined}>
           <summary className="cursor-pointer text-xs text-muted hover:text-text">Opzioni · {slide.seconds} s</summary>
@@ -221,9 +239,6 @@ function SlideRow({
                   ))}
                 </select>
               </label>
-              <Button variant="ghost" aria-label={`Rimuovi ${label}`} onClick={onRemove}>
-                Rimuovi
-              </Button>
             </div>
             {children}
           </div>
@@ -363,51 +378,56 @@ function PauseEditor({
             Nessuna diapositiva: {pause.enabled ? 'aggiungine almeno una qui sotto.' : 'la pausa è disattivata.'}
           </p>
         ) : (
-          <ol ref={list} aria-label={`Diapositive (${KIND_LABELS[kind]})`} className="space-y-2">
-            {slides.map((slide, index) => {
-              const block = slideAsBlock(slide);
-              const stat = slideAsStat(slide);
-              return (
-                <SlideRow
-                  key={slide.id}
-                  slide={slide}
-                  index={index}
-                  count={slides.length}
-                  settingId={slideSettingId(target, slide.id)}
-                  scene={kind}
-                  invalid={!IntermissionSlideSchema.safeParse(slide).success}
-                  onChange={(next) => onChange((p) => updateSlide(p, slide.id, () => next))}
-                  onMove={(to, direction) => {
-                    const at = Math.max(0, Math.min(slides.length - 1, to));
-                    onChange((p) => moveSlide(p, index, at));
-                    onAnnounce(`${SLIDE_LABELS[slide.type].label} in posizione ${at + 1} di ${slides.length}.`);
-                    setFocusMove(`${slide.id}-${direction}`);
-                  }}
-                  onRemove={() => {
-                    onChange((p) => removeSlide(p, slide.id));
-                    onAnnounce(`${SLIDE_LABELS[slide.type].label} rimossa.`);
-                  }}
-                >
-                  {stat && (
-                    <StatOptionsFields
-                      item={stat}
-                      name={SLIDE_LABELS[slide.type].label}
-                      setLabel={SET_LABELS[kind]}
-                      onChange={(next) => onChange((p) => updateSlide(p, slide.id, (s) => withStatOptions(s, next)))}
-                    />
-                  )}
-                  {block && (
-                    <BlockOptionsEditor
-                      block={block}
-                      assets={assets}
-                      sponsors={sponsors}
-                      onChange={(next) => onChange((p) => updateSlide(p, slide.id, (s) => withBlockOptions(s, next)))}
-                    />
-                  )}
-                </SlideRow>
-              );
-            })}
-          </ol>
+          <>
+            {pause.enabled && !slides.some((s) => s.enabled) && (
+              <p className="text-sm text-muted">Tutte le diapositive sono disattivate: la pausa non compare.</p>
+            )}
+            <ol ref={list} aria-label={`Diapositive (${KIND_LABELS[kind]})`} className="space-y-2">
+              {slides.map((slide, index) => {
+                const block = slideAsBlock(slide);
+                const stat = slideAsStat(slide);
+                return (
+                  <SlideRow
+                    key={slide.id}
+                    slide={slide}
+                    index={index}
+                    count={slides.length}
+                    settingId={slideSettingId(target, slide.id)}
+                    scene={kind}
+                    invalid={!IntermissionSlideSchema.safeParse(slide).success}
+                    onChange={(next) => onChange((p) => updateSlide(p, slide.id, () => next))}
+                    onMove={(to, direction) => {
+                      const at = Math.max(0, Math.min(slides.length - 1, to));
+                      onChange((p) => moveSlide(p, index, at));
+                      onAnnounce(`${SLIDE_LABELS[slide.type].label} in posizione ${at + 1} di ${slides.length}.`);
+                      setFocusMove(`${slide.id}-${direction}`);
+                    }}
+                    onRemove={() => {
+                      onChange((p) => removeSlide(p, slide.id));
+                      onAnnounce(`${SLIDE_LABELS[slide.type].label} rimossa.`);
+                    }}
+                  >
+                    {stat && (
+                      <StatOptionsFields
+                        item={stat}
+                        name={SLIDE_LABELS[slide.type].label}
+                        setLabel={SET_LABELS[kind]}
+                        onChange={(next) => onChange((p) => updateSlide(p, slide.id, (s) => withStatOptions(s, next)))}
+                      />
+                    )}
+                    {block && (
+                      <BlockOptionsEditor
+                        block={block}
+                        assets={assets}
+                        sponsors={sponsors}
+                        onChange={(next) => onChange((p) => updateSlide(p, slide.id, (s) => withBlockOptions(s, next)))}
+                      />
+                    )}
+                  </SlideRow>
+                );
+              })}
+            </ol>
+          </>
         )}
         <div className="flex flex-wrap items-center gap-2 pt-2">
           <label className="flex items-center gap-2 text-sm text-text">

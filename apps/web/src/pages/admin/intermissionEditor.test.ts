@@ -52,7 +52,7 @@ describe('editing helpers of the pauses', () => {
     const own = setOwnPause(config, '4', true);
     const broken = withPause(own, 'setBreak-4', {
       ...config.setBreak,
-      slides: [{ id: 'm', type: 'message', seconds: 8, options: { text: ' ', size: 'normal' } }],
+      slides: [{ id: 'm', type: 'message', seconds: 8, enabled: true, options: { text: ' ', size: 'normal' } }],
     });
     expect(pauseProblems(broken)).toEqual(new Set(['setBreak-4']));
   });

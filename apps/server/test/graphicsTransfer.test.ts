@@ -6,7 +6,7 @@ import type {
   GraphicsImportResponse,
   PublicTenantResponse,
 } from '@sir/shared';
-import { GraphicsExportSchema, graphicsImageIds } from '@sir/shared';
+import { GraphicsExportSchema, graphicsImageIds, publicAssetPath } from '@sir/shared';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
@@ -176,12 +176,12 @@ describe('POST /api/admin/branding/import', () => {
     const list = (await call(HOST_B, cookieB, { url: '/api/admin/assets' })).json<AssetListResponse>();
     expect(list.assets.map((a) => a.id).sort()).toEqual([...used].sort());
     for (const a of list.assets) {
-      const file = await call(HOST_B, null, { url: a.url });
+      const file = await call(HOST_B, null, { url: publicAssetPath(a.id) });
       expect(file.statusCode).toBe(200);
       expect(file.headers['content-type']).toContain(a.mime);
       expect(existsSync(`${server.assetsDir}/${tenantB}/${a.sha256}`)).toBe(true);
       // The same id is not served for the other client.
-      expect((await call(HOST_A, null, { url: a.url })).statusCode).toBe(404);
+      expect((await call(HOST_A, null, { url: publicAssetPath(a.id) })).statusCode).toBe(404);
     }
     // Same bytes: the export of B is the package of A with other ids.
     const again = (await exportOf(HOST_B, cookieB)).json<GraphicsExport>();

@@ -11,11 +11,11 @@ import type {
   ScheduleResponse,
 } from '@sir/shared';
 import {
+  adminAssetPath,
   clubFixtureState,
   IdParamSchema,
   LinkMatchFixtureRequestSchema,
   movedByLeague,
-  publicAssetPath,
   publicTeamLogoPath,
   resolveBranding,
   resolveClubProfile,
@@ -25,7 +25,7 @@ import {
 } from '@sir/shared';
 import { and, asc, count, desc, eq, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { ADMIN_LOGOS, broadcastOf, clubLook, effectiveStartSql, publicSchedule, upcomingOf } from '../club.js';
+import { adminLogos, broadcastOf, clubLook, effectiveStartSql, publicSchedule, upcomingOf } from '../club.js';
 import type { AppContext } from '../context.js';
 import { perMinute } from '../context.js';
 import {
@@ -138,7 +138,7 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
     const logo = branding.logoMark ?? branding.logoMain;
     return {
       name: tenantDisplayName(tenant, branding),
-      logoUrl: logo ? publicAssetPath(logo) : null,
+      logoUrl: logo ? adminAssetPath(logo) : null,
       displayName: branding.displayName,
       logoMark: branding.logoMark,
       ourTeam: branding.ourTeam,
@@ -381,7 +381,7 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
         : null;
       return {
         // The admin sees every logo, whatever «Loghi delle squadre».
-        ...upcomingOf(r, { profileLogo: look.profileLogo, ...ADMIN_LOGOS }),
+        ...upcomingOf(r, adminLogos(look)),
         id: r.id,
         officialStartsAt: r.startsAt ? r.startsAt.toISOString() : null,
         dateOverridden: r.overrideStartsAt !== null,
@@ -394,9 +394,9 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
         broadcasted: broadcastOf(r, look.coverage),
         hidden: r.hidden,
         logos: {
-          our: r.ourLogoAssetId ? { id: r.ourLogoAssetId, url: publicAssetPath(r.ourLogoAssetId) } : null,
+          our: r.ourLogoAssetId ? { id: r.ourLogoAssetId, url: adminAssetPath(r.ourLogoAssetId) } : null,
           opponent: r.opponentLogoAssetId
-            ? { id: r.opponentLogoAssetId, url: publicAssetPath(r.opponentLogoAssetId) }
+            ? { id: r.opponentLogoAssetId, url: adminAssetPath(r.opponentLogoAssetId) }
             : null,
         },
         state: clubFixtureState({

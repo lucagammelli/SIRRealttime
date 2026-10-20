@@ -5,6 +5,9 @@ import {
   defaultLayout,
   defaultOverlays,
   INTERMISSION_KINDS,
+  IntermissionSlideSchema,
+  LayoutBlockSchema,
+  newBlock,
   OVERLAY_KINDS,
 } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
@@ -17,6 +20,7 @@ import {
   applyOverlayModel,
   applyPauseModel,
   autoScene,
+  blockHasSettings,
   brandingChanges,
   intermissionChanges,
   isFirstAccess,
@@ -29,6 +33,7 @@ import {
   pickAt,
   sameValue,
   sampleWithOurTeam,
+  slideHasSettings,
   stableJson,
   STUDIO_MODELS,
   targetOf,
@@ -42,6 +47,27 @@ const defaults = () => ({
   layout: defaultLayout(),
   intermissions: defaultIntermissions(),
   overlays: defaultOverlays(),
+});
+
+describe('«Rimuovi» asks first only when options of their own would be lost', () => {
+  it('blocks: the defaults of the type are not options of their own; position, width and visibility do not count', () => {
+    const block = newBlock('message', 'msg', 6);
+    expect(blockHasSettings(block)).toBe(false);
+    expect(blockHasSettings({ ...block, width: 12, visible: false })).toBe(false);
+    expect(
+      blockHasSettings(LayoutBlockSchema.parse({ id: 'msg', type: 'message', width: 6, options: { text: 'Ciao' } })),
+    ).toBe(true);
+    expect(blockHasSettings(newBlock('scoreboard', 'scoreboard'))).toBe(false);
+  });
+
+  it('slides: the defaults of the type are not options of their own; seconds and on/off do not count', () => {
+    const slide = IntermissionSlideSchema.parse({ id: 's', type: 'sponsor' });
+    expect(slideHasSettings(slide)).toBe(false);
+    expect(slideHasSettings({ ...slide, seconds: 20, enabled: false })).toBe(false);
+    expect(
+      slideHasSettings(IntermissionSlideSchema.parse({ id: 's', type: 'sponsor', options: { sponsors: [SPONSOR] } })),
+    ).toBe(true);
+  });
 });
 
 describe('first access', () => {

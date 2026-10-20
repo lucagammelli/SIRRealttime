@@ -1,5 +1,7 @@
 import type { FocusEvent, ReactNode } from 'react';
 import { createContext, useContext } from 'react';
+import { Button } from '../../../components/ui.tsx';
+import { ConfirmButton } from '../forms.tsx';
 import type { StudioModel, StudioScene, StudioTarget } from './model.ts';
 
 /** What the settings of a section tell the Studio: hover (highlight in the preview) and «Compare: …» (scene). */
@@ -239,5 +241,25 @@ export function SwitchRow({
       <span className="min-w-0">{label}</span>
       <Toggle checked={checked} onChange={onChange} {...(ariaLabel ? { label: ariaLabel } : {})} />
     </label>
+  );
+}
+
+/**
+ * «Rimuovi» of an element of a list (block of the page, slide of a pause), always visible in its row. With
+ * `confirm` (the element has options of its own that would be lost) it asks «Conferma rimozione» first.
+ */
+export function RemoveButton({ name, confirm, onRemove }: { name: string; confirm: boolean; onRemove: () => void }) {
+  return confirm ? (
+    <ConfirmButton
+      label="Rimuovi"
+      confirmLabel="Conferma rimozione"
+      ariaLabel={`Rimuovi ${name}`}
+      busy={false}
+      onConfirm={onRemove}
+    />
+  ) : (
+    <Button variant="ghost" aria-label={`Rimuovi ${name}`} onClick={onRemove}>
+      Rimuovi
+    </Button>
   );
 }

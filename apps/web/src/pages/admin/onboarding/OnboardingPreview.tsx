@@ -1,5 +1,5 @@
 import type { BrandingResponse, LayoutDevice, TenantBranding, TenantIntermissions, TenantOverlays } from '@sir/shared';
-import { defaultLayout, publicAssetPath } from '@sir/shared';
+import { adminAssetPath, defaultLayout } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
 import { useEffect, useMemo, useState } from 'react';
 import { loadSampleMatch } from '../../../blocks/sampleMatch.ts';
@@ -73,7 +73,7 @@ export function OnboardingPreview({
           live={false}
           docs={docs}
           look={look}
-          sponsorLogo={branding.sponsorLogo ? publicAssetPath(branding.sponsorLogo) : null}
+          sponsorLogo={branding.sponsorLogo ? adminAssetPath(branding.sponsorLogo) : null}
           pauseTarget="setBreak"
           overlayKind="ace"
           trial={null}

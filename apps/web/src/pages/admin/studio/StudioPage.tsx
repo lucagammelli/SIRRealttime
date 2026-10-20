@@ -18,7 +18,7 @@ import {
   LayoutResponseSchema,
   OVERLAY_KINDS,
   OverlaysResponseSchema,
-  publicAssetPath,
+  adminAssetPath,
   SponsorListResponseSchema,
 } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
@@ -236,7 +236,7 @@ function Studio({
     () => blockBrandOf({ tenantName, branding: branding.draft } satisfies BrandingResponse, sponsors),
     [tenantName, branding.draft, sponsors],
   );
-  const sponsorLogo = branding.draft.sponsorLogo ? publicAssetPath(branding.draft.sponsorLogo) : null;
+  const sponsorLogo = branding.draft.sponsorLogo ? adminAssetPath(branding.draft.sponsorLogo) : null;
 
   useEffect(() => {
     document.title = 'Studio grafico · Area riservata';

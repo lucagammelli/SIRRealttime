@@ -212,7 +212,7 @@ export type ClubLeague = z.infer<typeof ClubLeagueSchema>;
 export const ClubResponseSchema = z.object({
   /** Name shown for the club (display name of the graphics, otherwise the name of the client). */
   name: z.string(),
-  /** Square or horizontal logo of the graphics, null when none. */
+  /** Square or horizontal logo of the graphics (path for the reserved area, adminAssetPath), null when none. */
   logoUrl: z.string().nullable(),
   /** Name chosen by the client (display name of the graphics), null: the name of the client. */
   displayName: z.string().nullable().default(null),
@@ -445,7 +445,7 @@ export const ClubFixtureSchema = UpcomingFixtureSchema.extend({
   /** Broadcast now (`isFixtureBroadcast`): otherwise the link is not active. */
   broadcasted: z.boolean().default(true),
   hidden: z.boolean().default(false),
-  /** Logos chosen for this match (images of the client), null: the default one. */
+  /** Logos chosen for this match (images of the client, `url` from adminAssetPath), null: the default one. */
   logos: z
     .object({
       our: z.object({ id: AssetIdSchema, url: z.string() }).nullable(),

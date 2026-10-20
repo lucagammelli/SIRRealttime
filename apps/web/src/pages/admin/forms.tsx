@@ -21,17 +21,20 @@ export function ConfirmButton({
   confirmLabel,
   onConfirm,
   busy,
+  ariaLabel,
 }: {
   label: string;
   confirmLabel: string;
   onConfirm: () => void;
   busy: boolean;
+  /** Accessible name of the first button when `label` alone is ambiguous (one button for every row of a list). */
+  ariaLabel?: string;
 }) {
   const [armed, setArmed] = useState(false);
   if (busy) return <Button disabled>Attendere…</Button>;
   if (!armed)
     return (
-      <Button variant="ghost" onClick={() => setArmed(true)}>
+      <Button variant="ghost" onClick={() => setArmed(true)} {...(ariaLabel ? { 'aria-label': ariaLabel } : {})}>
         {label}
       </Button>
     );

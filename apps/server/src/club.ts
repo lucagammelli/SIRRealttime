@@ -15,6 +15,7 @@ import type {
   UpcomingFixture,
 } from '@sir/shared';
 import {
+  adminAssetPath,
   effectiveStartsAt,
   isFixtureBroadcast,
   ourTeamSide,
@@ -102,6 +103,8 @@ const assetPath = (id: string | null): string | null => (id ? publicAssetPath(id
  */
 export interface ClubLook {
   profileLogo: string | null;
+  /** Id of the square logo of the profile (the admin pages build its path with adminAssetPath). */
+  profileLogoId: string | null;
   teamLogos: TeamLogosMode;
   coverage: ClubCoverage;
   ourTeam: OurTeam;
@@ -113,6 +116,7 @@ export function clubLookOf(tenant: { branding: unknown; clubProfile: unknown }):
   const profile = resolveClubProfile(tenant.clubProfile);
   return {
     profileLogo: assetPath(branding.logoMark),
+    profileLogoId: branding.logoMark,
     teamLogos: profile.teamLogos,
     coverage: profile.coverage,
     ourTeam: branding.ourTeam,
@@ -128,8 +132,18 @@ export async function clubLook(db: Db | Tx, tenantId: string): Promise<ClubLook>
   return clubLookOf(row ?? { branding: {}, clubProfile: {} });
 }
 
-/** The admin pages show every logo, whatever «Loghi delle squadre». */
-export const ADMIN_LOGOS: Pick<ClubLook, 'teamLogos'> = { teamLogos: 'all' };
+/** Paths of the logos of a match: public by default; `assetPath` for the images of the client. */
+type LogoLook = Pick<ClubLook, 'profileLogo' | 'teamLogos'> & { assetPath?: (id: string) => string };
+
+/**
+ * The admin pages show every logo, whatever «Loghi delle squadre», with the images of the client through the path of
+ * the reserved area (the hostname of the reserved area may belong to another client).
+ */
+export const adminLogos = (look: Pick<ClubLook, 'profileLogoId'>): LogoLook => ({
+  teamLogos: 'all',
+  profileLogo: look.profileLogoId ? adminAssetPath(look.profileLogoId) : null,
+  assetPath: adminAssetPath,
+});
 
 /**
  * Pure: the logos of the two teams of a match of the club: logo of the match → of the profile (our team) → of the
@@ -137,19 +151,20 @@ export const ADMIN_LOGOS: Pick<ClubLook, 'teamLogos'> = { teamLogos: 'all' };
  */
 export function fixtureLogos(
   row: Pick<ClientFixtureRow, 'ourSide' | 'homeLogoId' | 'awayLogoId' | 'ourLogoAssetId' | 'opponentLogoAssetId'>,
-  look: Pick<ClubLook, 'profileLogo' | 'teamLogos'>,
+  look: LogoLook,
 ): TeamLogoPair {
+  const matchLogo = (id: string | null): string | null => (id ? (look.assetPath ?? publicAssetPath)(id) : null);
   const ourLeague = logoPath(row.ourSide === 'home' ? row.homeLogoId : row.awayLogoId);
   const opponentLeague = logoPath(row.ourSide === 'home' ? row.awayLogoId : row.homeLogoId);
   const our = shownTeamLogo(look.teamLogos, {
     ours: true,
-    matchLogo: assetPath(row.ourLogoAssetId),
+    matchLogo: matchLogo(row.ourLogoAssetId),
     profileLogo: look.profileLogo,
     leagueLogo: ourLeague,
   });
   const opponent = shownTeamLogo(look.teamLogos, {
     ours: false,
-    matchLogo: assetPath(row.opponentLogoAssetId),
+    matchLogo: matchLogo(row.opponentLogoAssetId),
     profileLogo: null,
     leagueLogo: opponentLeague,
   });
@@ -165,7 +180,7 @@ export const broadcastOf = (
 /** Pure: what the public page shows of a match of the calendar before its `.dvw` arrives (logos as `look` says). */
 export function upcomingOf(
   row: ClientFixtureRow,
-  look: Pick<ClubLook, 'profileLogo' | 'teamLogos'> = { profileLogo: null, teamLogos: 'all' },
+  look: LogoLook = { profileLogo: null, teamLogos: 'all' },
 ): UpcomingFixture {
   const logos = fixtureLogos(row, look);
   const effective = effectiveStartsAt(row);

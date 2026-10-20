@@ -15,7 +15,7 @@ import {
   IntermissionsResponseSchema,
   LEAGUE_GENDERS,
   OverlaysResponseSchema,
-  publicAssetPath,
+  adminAssetPath,
   seriesOfGender,
   ShareTokenSummarySchema,
   suggestedOurTeamName,
@@ -107,14 +107,14 @@ export function LogoStep({ data, onClub, onBranding, saveRef }: StepProps) {
     <div className="space-y-5">
       <LogoPicker
         label="Logo quadrato della società"
-        url={club.logoMark ? publicAssetPath(club.logoMark) : null}
+        url={club.logoMark ? adminAssetPath(club.logoMark) : null}
         custom={club.logoMark !== null}
         defaultLabel="Togli"
         onChange={async (id) => onClub(await saveProfile(club, { logoMark: id }))}
       />
       <LogoPicker
         label="Logo orizzontale (facoltativo)"
-        url={branding.logoMain ? publicAssetPath(branding.logoMain) : null}
+        url={branding.logoMain ? adminAssetPath(branding.logoMain) : null}
         custom={branding.logoMain !== null}
         defaultLabel="Togli"
         onChange={async (id) => onBranding(await saveBranding({ ...branding, logoMain: id }))}

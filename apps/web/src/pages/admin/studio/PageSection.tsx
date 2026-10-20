@@ -14,13 +14,16 @@ import { BLOCKS, REGISTRY_TYPES } from '../../../blocks/registry.tsx';
 import { Button } from '../../../components/ui.tsx';
 import { addBlock, canAdd, moveBlock, removeBlock, resetDevice, updateBlock } from '../layoutEditor.ts';
 import { BlockOptionsEditor, selectClass, widthLabel } from './blockEditors.tsx';
-import { blockWhere, DEVICE_LABELS } from './model.ts';
-import { Advanced, Setting, SettingsCard, TabList, Toggle } from './StudioUi.tsx';
+import { blockHasSettings, blockWhere, DEVICE_LABELS } from './model.ts';
+import { Advanced, RemoveButton, Setting, SettingsCard, TabList, Toggle } from './StudioUi.tsx';
 
 /** Id of the setting of a block of a device (target of a click on the block in the preview). */
 export const blockSettingId = (device: LayoutDevice, id: string): string => `block-${device}-${id}`;
 
-/** One block of the list: drag handle, name, visibility, up/down; width, options and removal under «Opzioni». */
+/**
+ * One block of the list: drag handle, name, visibility, up/down and «Rimuovi» (with a confirmation when the block has
+ * options of its own); width and options under «Opzioni».
+ */
 function BlockRow({
   block,
   index,
@@ -76,7 +79,7 @@ function BlockRow({
         targets={[`block:${block.id}`]}
         className="mx-0 px-2"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span
             draggable
             onDragStart={onDragStart}
@@ -118,6 +121,7 @@ function BlockRow({
           >
             ↓
           </Button>
+          <RemoveButton name={name} confirm={blockHasSettings(block)} onRemove={onRemove} />
         </div>
         <details className="group text-sm text-text" open={invalid || undefined}>
           <summary className="cursor-pointer text-xs text-muted hover:text-text">
@@ -154,9 +158,6 @@ function BlockRow({
                   </select>
                 </label>
               )}
-              <Button variant="ghost" aria-label={`Rimuovi ${name}`} onClick={onRemove}>
-                Rimuovi
-              </Button>
             </div>
             {children}
           </div>

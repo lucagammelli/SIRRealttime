@@ -302,6 +302,23 @@ describe('pauses of the public page: inheritance and images', () => {
     expect(intermissionFor(off, 'matchEnd', 2)).toBe(off.matchEnd);
   });
 
+  it('a slide is on unless saved off (older documents have no field); a pause with every slide off gives null', () => {
+    const saved = TenantIntermissionsSchema.parse({ timeout: { slides: [{ id: 'q', type: 'qr' }] } });
+    expect(saved.timeout.slides[0]?.enabled).toBe(true);
+    const allOff = TenantIntermissionsSchema.parse({
+      timeout: { slides: [{ id: 'q', type: 'qr', enabled: false }] },
+      matchEnd: {
+        slides: [
+          { id: 'q', type: 'qr', enabled: false },
+          { id: 'm', type: 'mvp' },
+        ],
+      },
+    });
+    expect(allOff.timeout.slides[0]?.enabled).toBe(false);
+    expect(intermissionFor(allOff, 'timeout')).toBeNull();
+    expect(intermissionFor(allOff, 'matchEnd')).toBe(allOff.matchEnd);
+  });
+
   it('lists every pause and the images of every sponsor slide once', () => {
     expect(allIntermissions(config)).toHaveLength(6);
     expect(intermissionImageIds(config)).toEqual([IMG_A, IMG_B]);

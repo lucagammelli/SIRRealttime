@@ -533,6 +533,17 @@ paths:
       responses:
         '204': { description: eliminata }
         '404': { description: non trovata }
+  /api/admin/assets/{id}/file:
+    get:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
+      responses:
+        '200': { description: file dell'immagine del cliente della sessione (miniature dell'area riservata) }
+        '400': { description: id non valido }
+        '404': { description: immagine inesistente o di un altro cliente }
         '409': { description: 'in uso nella grafica, nella pagina pubblica o nelle pause' }
   /api/admin/sponsors:
     get:

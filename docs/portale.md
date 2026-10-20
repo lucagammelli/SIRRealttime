@@ -261,6 +261,13 @@ Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome»
   `src/lib/base64.ts`) a `POST /api/admin/assets`; il salvataggio è `PUT /api/admin/branding`. Per le immagini sponsor
   l'elenco dice di quale sponsor sono («Sponsor: <nome>») o «Sponsor (senza sponsor)»; si caricano e si assegnano dalla
   pagina «Sponsor» (`ColorsSection.tsx`).
+- **Miniature e anteprime dell'area riservata**: ogni immagine del cliente (miniature di «Immagini», dei loghi, della
+  pagina «Sponsor», dei loghi delle partite in «Calendario», anteprime dello Studio e della prima configurazione) si
+  carica da `GET /api/admin/assets/:id/file` (`adminAssetPath` di `packages/shared/src/tenant.ts`; `url` di
+  `AssetSummary`), che serve le immagini del cliente della sessione qualunque sia l'hostname. La via pubblica
+  `/api/public/assets/:id` serve solo il cliente dell'hostname: su un indirizzo IP (installazione di prova) o per il
+  superadmin dentro un altro cliente l'immagine risultava rotta. Le anteprime passano `assetPath: adminAssetPath` ai
+  blocchi (`BlockBrand` in `blocks/env.ts`, `blockBrandOf`); la pagina pubblica resta su `publicAssetPath`.
 - «Esporta / Importa» (`GraphicsTransfer.tsx`): «Esporta configurazione» scarica `grafica-<slug>-<data>.json`
   (`GET /api/admin/branding/export`). «File della configurazione (.json)» legge il file (`readPackage`: messaggi per file
   illeggibile, non nostro, versione non supportata o danneggiato), mostra il «Riepilogo del file» (club di origine,
@@ -272,9 +279,12 @@ Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome»
 #### Sezione «Pagina live»
 Ex pagina «Pagina pubblica» (`PageSection.tsx`, vedi «Pagina pubblica a blocchi»). Tre schede «TV», «Tablet», «Telefono»
 (le stesse del dispositivo dell'anteprima: cambiare l'una cambia l'altra). Per ogni blocco: maniglia ⠿ (trascinamento),
-↑ e ↓ («Sposta su», «Sposta giù»), interruttore «Visibile», e sotto «Opzioni» (con la larghezza): «Larghezza» (non sul
+↑ e ↓ («Sposta su», «Sposta giù»), interruttore «Visibile» e «Rimuovi», tutti nella riga del blocco; «Rimuovi» chiede
+«Conferma rimozione» (con «Annulla») solo se il blocco ha opzioni diverse da quelle predefinite del tipo
+(`blockHasSettings` in `studio/model.ts`; componente `RemoveButton` di `StudioUi.tsx`, su `ConfirmButton`). Sotto
+«Opzioni» (con la larghezza): «Larghezza» (non sul
 telefono; i valori ammessi dipendono dal tipo, per esempio «Metà (6/12)»), «Chiuso all'apertura» (solo telefono, non per
-il tabellone), le opzioni del tipo (per lo sponsor le caselle degli sponsor, vedi «Sponsor») e «Rimuovi». In fondo «Tipo di
+il tabellone) e le opzioni del tipo (per lo sponsor le caselle degli sponsor, vedi «Sponsor»). In fondo «Tipo di
 blocco» con «Aggiungi blocco» (in coda; il tabellone solo se manca; al massimo 24 blocchi, contatore «N di al massimo 24
 blocchi.»). In «Avanzate»: «Ripristina predefinito», che rimette i blocchi predefiniti **solo del dispositivo aperto**
 (quelli del modello grafico). I blocchi con opzioni non valide (per esempio testo vuoto) sono evidenziati e «Salva»
@@ -291,8 +301,13 @@ con la casella «Pausa propria per la fine del N° set» (senza, quel set usa «
 «Regola» con «Ogni quanti punti» (4-25) e «Non negli ultimi punti del set» (`stopBeforeEnd`, con il traguardo da
 `setTarget` di volley-stats). Per ogni pausa, «Quando e come»: «Pausa attiva» e «Come si mostra» (per TV, tablet e
 telefono «Tutto schermo» o «Banda in basso»); «Diapositive»: elenco riordinabile con «Sposta su» e «Sposta giù» (niente
-trascinamento), «Secondi sullo schermo», le opzioni del tipo (come nei blocchi; lo sponsor sceglie gli sponsor come il blocco) e
-«Rimuovi»; in fondo «Tipo di diapositiva» con «Aggiungi diapositiva» (al massimo 12). In «Avanzate»: «Ritardo prima della
+trascinamento); nella riga di ogni diapositiva l'interruttore «Attiva: <tipo>» e «Rimuovi» (con «Conferma rimozione» solo
+se la diapositiva ha opzioni diverse da quelle predefinite, `slideHasSettings`). Una diapositiva disattivata (campo
+`enabled` della diapositiva, predefinito attivo: i documenti salvati prima restano tutti attivi) resta nell'elenco con le
+sue opzioni, segnata «(disattivata)», ma non compare né sulla pagina pubblica né nell'anteprima (`visibleSlides`); se
+tutte sono disattivate la pausa non compare (`intermissionFor` dà null) e l'elenco lo dice («Tutte le diapositive sono
+disattivate: la pausa non compare.»). Sotto «Opzioni» «Secondi sullo schermo» e le opzioni del tipo (come nei blocchi;
+lo sponsor sceglie gli sponsor come il blocco); in fondo «Tipo di diapositiva» con «Aggiungi diapositiva» (al massimo 12). In «Avanzate»: «Ritardo prima della
 pausa (secondi)» e «Ripristina predefinito» (solo della pausa aperta). «Salva» è disattivato se una pausa attiva non ha
 diapositive o un testo è vuoto. Logica pura in `intermissionEditor.ts` (`moveSlide`, `addSlide`, `removeSlide`,
 `updateSlide`, `setOwnPause`, `resetPause`, `pauseProblems`); le opzioni delle statistiche in `StatOptionsFields.tsx`.
@@ -923,7 +938,8 @@ Anagrafica degli sponsor del cliente, nel gruppo di menu «Pagina pubblica». Se
   rotazione (N di al massimo 12)»), l'elenco «Immagini singole» con «Togli» (compare solo se il documento ne ha: sono
   l'opzione `images` salvata prima dell'anagrafica, mantenuta per compatibilità) e il link «Gestisci sponsor» a questa
   pagina; non c'è più il caricamento diretto dal blocco. Le anteprime usano gli sponsor dell'anagrafica
-  (`publicSponsorsOf` in `lib/sponsors.ts`).
+  (`publicSponsorsOf` in `lib/sponsors.ts`, con le immagini da `adminAssetPath`). Le miniature della pagina «Sponsor»
+  usano l'`url` di `AssetSummary` (`/api/admin/assets/:id/file`, vedi «Miniature e anteprime dell'area riservata»).
 - **Pagina pubblica**: gli sponsor arrivano in `sponsors` di `GET /api/public/tenant` (solo quelli scelti); la rotazione è
   descritta in «Pagina pubblica a blocchi».
 - **Caricamento**: gli helper sono in `pages/admin/imageUpload.ts` (`uploadImage`, `uploadSponsorImage`, `ACCEPT`,

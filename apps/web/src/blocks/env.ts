@@ -10,6 +10,8 @@ export interface BlockBrand {
   logoMark: string | null;
   /** Sponsors chosen by the page or the pauses, in the order of the list of the client (missing: none). */
   sponsors?: readonly PublicSponsor[];
+  /** Path of an image chosen by id in a block (missing: publicAssetPath; the previews of `/admin`: adminAssetPath). */
+  assetPath?: (id: string) => string;
 }
 
 /** What every block of the match page can read besides its own options. */

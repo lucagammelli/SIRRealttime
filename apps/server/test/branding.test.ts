@@ -2,11 +2,13 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AssetListResponse, AssetSummary, BrandingResponse, PublicTenantResponse } from '@sir/shared';
 import {
+  adminAssetPath,
   ASSET_MAX_BYTES,
   defaultBranding,
   defaultIntermissions,
   defaultLayout,
   defaultOverlays,
+  publicAssetPath,
   resolveLayout,
 } from '@sir/shared';
 import type { InjectOptions } from 'fastify';
@@ -100,7 +102,7 @@ describe('uploads', () => {
     expect(res.statusCode).toBe(201);
     const asset = res.json<AssetSummary>();
     expect(asset).toMatchObject({ kind: 'logo', mime: 'image/png', width: 200, height: 50, bytes: file.length });
-    expect(asset.url).toBe(`/api/public/assets/${asset.id}`);
+    expect(asset.url).toBe(`/api/admin/assets/${asset.id}/file`);
     expect(existsSync(join(server.assetsDir, tenantA, asset.sha256))).toBe(true);
     const again = await upload(HOST_A, cookieA, file);
     expect(again.statusCode).toBe(200);
@@ -205,7 +207,7 @@ describe('uploads', () => {
 describe('serving the images', () => {
   it('serves the file with a fixed type, nosniff, inline and a long immutable cache', async () => {
     const asset = (await upload(HOST_A, cookieA, png(30, 30))).json<AssetSummary>();
-    const res = await call(server, HOST_A, null, { url: asset.url });
+    const res = await call(server, HOST_A, null, { url: publicAssetPath(asset.id) });
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toBe('image/png');
     expect(res.headers['x-content-type-options']).toBe('nosniff');
@@ -216,18 +218,40 @@ describe('serving the images', () => {
 
   it('serves an SVG with a CSP that runs and loads nothing', async () => {
     const asset = (await upload(HOST_A, cookieA, svg('<circle cx="5" cy="5" r="5"/>'))).json<AssetSummary>();
-    const res = await call(server, HOST_A, null, { url: asset.url });
+    const res = await call(server, HOST_A, null, { url: publicAssetPath(asset.id) });
     expect(res.headers['content-type']).toBe('image/svg+xml; charset=utf-8');
     expect(res.headers['content-security-policy']).toBe("default-src 'none'; style-src 'unsafe-inline'; sandbox");
   });
 
   it('is 404 on the hostname of another client, for a missing id and for a malformed id', async () => {
     const asset = (await upload(HOST_A, cookieA, png(31, 31))).json<AssetSummary>();
-    expect((await call(server, HOST_B, null, { url: asset.url })).statusCode).toBe(404);
+    expect((await call(server, HOST_B, null, { url: publicAssetPath(asset.id) })).statusCode).toBe(404);
     expect((await call(server, HOST_A, null, { url: `/api/public/assets/${MISSING}` })).statusCode).toBe(404);
     expect((await call(server, HOST_A, null, { url: '/api/public/assets/..%2F..%2Fetc%2Fpasswd' })).statusCode).toBe(
       404,
     );
+  });
+
+  it('serves the file to the reserved area of its client whatever the hostname (IP address of a test install)', async () => {
+    const asset = (await upload(HOST_A, cookieA, png(32, 32))).json<AssetSummary>();
+    const ip = '192.168.104.102:8085';
+    // The IP address resolves to the default client: the public path does not find the image of club-a.
+    expect((await call(server, ip, null, { url: publicAssetPath(asset.id) })).statusCode).toBe(404);
+    const res = await call(server, ip, cookieA, { url: asset.url });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toBe('image/png');
+    expect(res.headers['x-content-type-options']).toBe('nosniff');
+    expect(res.headers['cache-control']).toBe('private, max-age=31536000, immutable');
+    expect(res.rawPayload.equals(png(32, 32))).toBe(true);
+    expect((await call(server, ip, cookieViewerA, { url: asset.url })).statusCode).toBe(200);
+  });
+
+  it('is 401 without a session, 404 for an image of another client or a missing id, 400 for a malformed id', async () => {
+    const asset = (await upload(HOST_A, cookieA, png(33, 33))).json<AssetSummary>();
+    expect((await call(server, HOST_A, null, { url: adminAssetPath(asset.id) })).statusCode).toBe(401);
+    expect((await call(server, HOST_B, cookieB, { url: adminAssetPath(asset.id) })).statusCode).toBe(404);
+    expect((await call(server, HOST_A, cookieA, { url: adminAssetPath(MISSING) })).statusCode).toBe(404);
+    expect((await call(server, HOST_A, cookieA, { url: '/api/admin/assets/..%2Fx/file' })).statusCode).toBe(400);
   });
 });
 
@@ -248,7 +272,11 @@ describe('branding of the client', () => {
     const pub = (await publicTenant(HOST_A)).json<PublicTenantResponse>();
     expect(pub.name).toBe('Sir Safety Perugia');
     expect(pub.branding.colors.home).toBe('#e30613');
-    expect(pub.images).toEqual({ logoMain: logo.url, logoMark: mark.url, sponsorLogo: null });
+    expect(pub.images).toEqual({
+      logoMain: publicAssetPath(logo.id),
+      logoMark: publicAssetPath(mark.id),
+      sponsorLogo: null,
+    });
     const admin = await call(server, HOST_A, cookieA, { url: '/api/admin/branding' });
     expect(admin.json<BrandingResponse>()).toMatchObject({ tenantName: 'CLUB-A', branding: { logoMain: logo.id } });
   });
@@ -287,7 +315,7 @@ describe('branding of the client', () => {
     expect((await del()).statusCode).toBe(409);
     expect((await putBranding(HOST_A, cookieA, {})).statusCode).toBe(200);
     expect((await del()).statusCode).toBe(204);
-    expect((await call(server, HOST_A, null, { url: logo.url })).statusCode).toBe(404);
+    expect((await call(server, HOST_A, null, { url: publicAssetPath(logo.id) })).statusCode).toBe(404);
     expect(existsSync(join(server.assetsDir, tenantA, logo.sha256))).toBe(false);
     expect((await del()).statusCode).toBe(404);
   });

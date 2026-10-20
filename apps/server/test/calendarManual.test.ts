@@ -11,6 +11,7 @@ import type {
   ServerMessage,
   UpdateClubProfileRequest,
 } from '@sir/shared';
+import { adminAssetPath, publicAssetPath } from '@sir/shared';
 import { eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -304,21 +305,21 @@ describe('logos of the teams', () => {
     if (!first) throw new Error('no match');
     const ours = first.ourSide === 'home' ? first.home : first.away;
     const theirs = first.ourSide === 'home' ? first.away : first.home;
-    expect(ours.logoUrl).toBe(mark.url);
+    expect(ours.logoUrl).toBe(publicAssetPath(mark.id));
     expect(theirs.logoUrl).toMatch(/^\/api\/public\/team-logos\//);
     const standings = (await schedule()).standings?.rows ?? [];
-    expect(standings.find((r) => r.ours)?.logoUrl).toBe(mark.url);
+    expect(standings.find((r) => r.ours)?.logoUrl).toBe(publicAssetPath(mark.id));
     await putProfile({ teamLogos: 'ours' });
     const onlyOurs = (await schedule()).fixtures[0];
-    expect(onlyOurs?.[first.ourSide].logoUrl).toBe(mark.url);
+    expect(onlyOurs?.[first.ourSide].logoUrl).toBe(publicAssetPath(mark.id));
     expect(onlyOurs?.[first.ourSide === 'home' ? 'away' : 'home'].logoUrl).toBeNull();
     expect((await schedule()).standings?.rows.filter((r) => !r.ours).every((r) => r.logoUrl === null)).toBe(true);
     await putProfile({ teamLogos: 'none' });
     const none = (await schedule()).fixtures[0];
     expect([none?.home.logoUrl, none?.away.logoUrl]).toEqual([null, null]);
-    // The admin always sees every logo.
+    // The admin always sees every logo, through the path of the reserved area.
     expect((await calendar()).fixtures.find((f) => f.startsAt === first.startsAt)?.[first.ourSide].logoUrl).toBe(
-      mark.url,
+      adminAssetPath(mark.id),
     );
     await putProfile({ teamLogos: 'all' });
   });
@@ -334,7 +335,7 @@ describe('logos of the teams', () => {
     expect((await fixture(first.id))[opponentSide].logoUrl).toBe(custom.url);
     expect((await publicState(first.link?.shortCode ?? '')).body).toMatchObject({
       type: 'scheduled',
-      fixture: { [opponentSide]: { logoUrl: custom.url } },
+      fixture: { [opponentSide]: { logoUrl: publicAssetPath(custom.id) } },
     });
     // The image cannot be deleted while a match uses it.
     expect((await call({ method: 'DELETE', url: `/api/admin/assets/${custom.id}` })).statusCode).toBe(409);
@@ -365,6 +366,9 @@ describe('logos of the teams', () => {
     expect(row.clientFixtureId).toBe(id);
     const club = (await call({ url: '/api/admin/club' })).json<ClubResponse>();
     const state = await publicState(code);
-    expect(state.body).toMatchObject({ type: 'state', logos: { home: club.logoUrl, away: custom.url } });
+    expect(state.body).toMatchObject({
+      type: 'state',
+      logos: { home: club.logoMark && publicAssetPath(club.logoMark), away: publicAssetPath(custom.id) },
+    });
   });
 });

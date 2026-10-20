@@ -244,7 +244,7 @@ function SponsorSlide({
   env: SlideEnv;
   size: SlideSize;
 }) {
-  const items = sponsorItems(slide.options, env.brand?.sponsors ?? []);
+  const items = sponsorItems(slide.options, env.brand?.sponsors ?? [], env.brand?.assetPath);
   const index = useImageRotation(items.length, slide.options.seconds, env.paused);
   // Nothing chosen: the sponsor logo of the branding.
   const current = items[index] ?? (env.sponsorLogo ? { src: env.sponsorLogo, name: null, website: null } : null);

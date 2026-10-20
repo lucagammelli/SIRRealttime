@@ -15,6 +15,7 @@ import type {
 import {
   ASSET_MAX_BASE64_LENGTH,
   ASSET_MAX_BYTES,
+  adminAssetPath,
   AssetMimeSchema,
   BRANDING_IMAGE_SLOTS,
   IdParamSchema,
@@ -36,7 +37,7 @@ import {
   UploadAssetRequestSchema,
 } from '@sir/shared';
 import { desc, eq, inArray, ne, or, sql } from 'drizzle-orm';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { readAssetFile, removeAssetFile, writeAssetFile } from '../assetStore.js';
 import type { AppContext } from '../context.js';
@@ -63,6 +64,8 @@ const ASSET_LOCK_KEY = 0x53494153;
 export const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable';
 /** The graphics of a client change rarely and the server cache lasts 30 s as well. */
 const TENANT_CACHE = 'public, max-age=30';
+/** File of an image for the reserved area: same id = same file, but only in the cache of the browser of the user. */
+const PRIVATE_IMMUTABLE_CACHE = 'private, max-age=31536000, immutable';
 /** An SVG opened directly (not through <img>) runs nothing and loads nothing. */
 export const SVG_CSP = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
 
@@ -79,7 +82,7 @@ export const assetSummary = (a: AssetRow): AssetSummary => ({
   bytes: a.bytes,
   sha256: a.sha256,
   createdAt: a.createdAt.toISOString(),
-  url: publicAssetPath(a.id),
+  url: adminAssetPath(a.id),
   sponsorId: a.sponsorId,
 });
 
@@ -202,6 +205,40 @@ const brandingIds = (branding: TenantBranding): string[] =>
   SLOTS.map((slot) => branding[slot]).filter((id): id is string => id !== null);
 
 /**
+ * Sends the file of an image of the client `tenantId` (404 for an image of another client or a missing file). Type
+ * from the database (recognized from the bytes at upload), never sniffed; SVG with a CSP that blocks scripts and loads.
+ */
+async function sendAsset(
+  ctx: AppContext,
+  request: FastifyRequest,
+  reply: FastifyReply,
+  tenantId: string,
+  id: string,
+  cache: string,
+): Promise<FastifyReply> {
+  const [row] = await ctx.db
+    .select()
+    .from(assets)
+    .where(tenantScope(assets, tenantId, eq(assets.id, id)))
+    .limit(1);
+  const mime = row ? AssetMimeSchema.safeParse(row.mime) : null;
+  if (!row || !mime?.success) throw notFound();
+  const file = await readAssetFile(ctx.config.assetsDir, row.tenantId, row.sha256);
+  if (!file) {
+    request.log.warn({ assetId: row.id }, 'file di un’immagine mancante');
+    throw notFound();
+  }
+  // SVG is text: always UTF-8 (the only encoding accepted at upload).
+  void reply
+    .header('content-type', mime.data === 'image/svg+xml' ? 'image/svg+xml; charset=utf-8' : mime.data)
+    .header('x-content-type-options', 'nosniff')
+    .header('content-disposition', 'inline')
+    .header('cache-control', cache);
+  if (mime.data === 'image/svg+xml') void reply.header('content-security-policy', SVG_CSP);
+  return reply.send(file);
+}
+
+/**
  * Public graphics of the client of the hostname: the branding and its images. No token: what is here is shown on
  * every page of the client (portal, login), never data of the matches.
  */
@@ -241,26 +278,7 @@ export function brandingPublicRoutes(app: FastifyInstance, ctx: AppContext): voi
     const params = IdParamSchema.safeParse(request.params);
     const tenant = params.success ? await hostTenant(ctx, request) : null;
     if (!params.success || !tenant) throw notFound();
-    const [row] = await ctx.db
-      .select()
-      .from(assets)
-      .where(tenantScope(assets, tenant.id, eq(assets.id, params.data.id)))
-      .limit(1);
-    const mime = row ? AssetMimeSchema.safeParse(row.mime) : null;
-    if (!row || !mime?.success) throw notFound();
-    const file = await readAssetFile(ctx.config.assetsDir, row.tenantId, row.sha256);
-    if (!file) {
-      request.log.warn({ assetId: row.id }, 'file di un’immagine mancante');
-      throw notFound();
-    }
-    // SVG is text: always UTF-8 (the only encoding accepted at upload).
-    void reply
-      .header('content-type', mime.data === 'image/svg+xml' ? 'image/svg+xml; charset=utf-8' : mime.data)
-      .header('x-content-type-options', 'nosniff')
-      .header('content-disposition', 'inline')
-      .header('cache-control', IMMUTABLE_CACHE);
-    if (mime.data === 'image/svg+xml') void reply.header('content-security-policy', SVG_CSP);
-    return reply.send(file);
+    return sendAsset(ctx, request, reply, tenant.id, params.data.id, IMMUTABLE_CACHE);
   });
 }
 
@@ -406,6 +424,16 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     forgetTenants(ctx);
     request.log.info({ tenantId, userId: request.user?.id }, 'avvisi della pagina pubblica salvati');
     return overlaysOf(tenantId);
+  });
+
+  /**
+   * File of an image of the client of the session (thumbnails and previews of the reserved area): unlike
+   * `/api/public/assets/:id` it does not depend on the hostname, which in the reserved area may belong to another
+   * client (an IP address resolved to the default client, a superadmin on another client).
+   */
+  app.get('/api/admin/assets/:id/file', viewer, async (request, reply) => {
+    const { id } = validate(IdParamSchema, request.params);
+    return sendAsset(ctx, request, reply, adminTenantId(request), id, PRIVATE_IMMUTABLE_CACHE);
   });
 
   app.get('/api/admin/assets', viewer, async (request): Promise<AssetListResponse> => {

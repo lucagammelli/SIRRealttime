@@ -37,7 +37,10 @@ export const AssetSummarySchema = z.object({
   bytes: z.number().int().positive(),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
   createdAt: z.iso.datetime(),
-  /** Public path of the file (`/api/public/assets/<id>`), valid on the hostnames of the client. */
+  /**
+   * Path of the file for the reserved area (`/api/admin/assets/<id>/file`, see adminAssetPath): valid whatever the
+   * hostname. The public pages use publicAssetPath.
+   */
   url: z.string(),
   /** Sponsor the image belongs to (null: none; missing in an older answer: none). */
   sponsorId: z.uuid().nullable().default(null),

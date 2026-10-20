@@ -8,7 +8,7 @@ import type {
 } from '@sir/shared';
 import {
   MESSAGE_MAX_LENGTH,
-  publicAssetPath,
+  adminAssetPath,
   QR_CAPTION_MAX_LENGTH,
   SPONSOR_BLOCK_MAX_SPONSORS,
   SPONSOR_MAX_SECONDS,
@@ -308,7 +308,7 @@ export function BlockOptionsEditor({
                           onChange={(e) => toggle(sp.id, e.target.checked)}
                         />
                         {first ? (
-                          <img src={publicAssetPath(first)} alt="" className="size-8 object-contain" />
+                          <img src={adminAssetPath(first)} alt="" className="size-8 object-contain" />
                         ) : (
                           <span aria-hidden="true" className="size-8 rounded bg-surface-2" />
                         )}
@@ -334,7 +334,7 @@ export function BlockOptionsEditor({
                       key={id}
                       className="flex items-center gap-2 rounded-card border border-border bg-surface px-2 py-1"
                     >
-                      <img src={asset?.url ?? publicAssetPath(id)} alt="" className="size-8 object-contain" />
+                      <img src={asset?.url ?? adminAssetPath(id)} alt="" className="size-8 object-contain" />
                       <span className="text-xs">Immagine {i + 1}</span>
                       <button
                         type="button"
@@ -395,8 +395,9 @@ export function BlockOptionsEditor({
 export function blockBrandOf(b: BrandingResponse, sponsors: readonly Sponsor[] = []): BlockBrand {
   return {
     name: b.branding.displayName ?? b.tenantName,
-    logoMain: b.branding.logoMain ? publicAssetPath(b.branding.logoMain) : null,
-    logoMark: b.branding.logoMark ? publicAssetPath(b.branding.logoMark) : null,
+    logoMain: b.branding.logoMain ? adminAssetPath(b.branding.logoMain) : null,
+    logoMark: b.branding.logoMark ? adminAssetPath(b.branding.logoMark) : null,
     sponsors: publicSponsorsOf(sponsors),
+    assetPath: adminAssetPath,
   };
 }

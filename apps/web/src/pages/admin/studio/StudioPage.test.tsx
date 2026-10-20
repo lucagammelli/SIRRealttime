@@ -15,6 +15,7 @@ import {
   defaultIntermissions,
   defaultLayout,
   defaultOverlays,
+  LayoutBlockSchema,
   SLIDE_TYPES,
   TenantIntermissionsSchema,
   TenantLayoutSchema,
@@ -597,6 +598,32 @@ describe('Pagina live', () => {
     expect(body.tablet.find((b) => b.id === 'momentum')?.width).toBe(12);
   });
 
+  it('«Rimuovi» is in the row of every block, not under «Opzioni»; a block with its own options asks first', async () => {
+    const base = defaultLayout();
+    const message = LayoutBlockSchema.parse({ id: 'msg', type: 'message', width: 12, options: { text: 'Benvenuti' } });
+    const { puts } = mockServer({ layout: { ...base, tv: [...base.tv.slice(0, 2), message] } });
+    renderAt('/admin/studio/pagina');
+    await studio();
+    expect(blockOrder()).toEqual(['scoreboard', 'momentum', 'msg']);
+    for (const name of ['Tabellone', BLOCKS.momentum.label, BLOCKS.message.label]) {
+      // A closed <details> hides its content: the button must be outside it to be seen.
+      expect(screen.getByRole('button', { name: `Rimuovi ${name}` }).closest('details')).toBeNull();
+    }
+    // Default options: removed at once.
+    fireEvent.click(screen.getByRole('button', { name: `Rimuovi ${BLOCKS.momentum.label}` }));
+    expect(blockOrder()).toEqual(['scoreboard', 'msg']);
+    // Its own text would be lost: a confirmation first, «Annulla» keeps it.
+    fireEvent.click(screen.getByRole('button', { name: `Rimuovi ${BLOCKS.message.label}` }));
+    expect(blockOrder()).toEqual(['scoreboard', 'msg']);
+    fireEvent.click(screen.getByRole('button', { name: 'Annulla' }));
+    fireEvent.click(screen.getByRole('button', { name: `Rimuovi ${BLOCKS.message.label}` }));
+    fireEvent.click(screen.getByRole('button', { name: 'Conferma rimozione' }));
+    expect(blockOrder()).toEqual(['scoreboard']);
+    save();
+    expect(await screen.findByText(/Pagina pubblica salvata/)).toBeTruthy();
+    expect((puts('/api/admin/layout').at(-1)?.body as TenantLayout).tv.map((b) => b.id)).toEqual(['scoreboard']);
+  });
+
   it('an empty message cannot be saved; the default page of the device comes back', async () => {
     mockServer();
     renderAt('/admin/studio/pagina');
@@ -706,6 +733,38 @@ describe('Pause', () => {
     expect(body.setBreakBySet['3']?.slides.map((s) => s.type)).not.toContain('sponsor');
     expect(body.matchEnd.enabled).toBe(false);
     expect(body.milestone).toMatchObject({ every: 10, stopBeforeEnd: 15 });
+  });
+
+  it('every slide has «Attiva» and «Rimuovi» in its row; a slide off stays in the list and is saved off', async () => {
+    const { puts } = mockServer();
+    renderAt('/admin/studio/pause');
+    await studio();
+    fireEvent.click(screen.getByRole('tab', { name: 'Fine partita' }));
+    const result = SLIDE_LABELS.finalResult.label;
+    const thanks = SLIDE_LABELS.message.label;
+    const toggle = () => screen.getByRole<HTMLInputElement>('switch', { name: `Attiva: ${result}` });
+    expect(toggle().closest('details')).toBeNull();
+    expect(toggle().checked).toBe(true);
+    fireEvent.click(toggle());
+    expect(toggle().checked).toBe(false);
+    expect(screen.getByText('(disattivata)')).toBeTruthy();
+    expect(slideOrder()).toContain('finalResult');
+    // The thanks message has its own text: «Rimuovi» (outside «Opzioni») asks first.
+    const remove = screen.getByRole('button', { name: `Rimuovi ${thanks}` });
+    expect(remove.closest('details')).toBeNull();
+    fireEvent.click(remove);
+    expect(slideOrder()).toContain('thanks');
+    fireEvent.click(screen.getByRole('button', { name: 'Conferma rimozione' }));
+    expect(slideOrder()).not.toContain('thanks');
+    // The MVP has the default options: removed at once.
+    fireEvent.click(screen.getByRole('button', { name: `Rimuovi ${SLIDE_LABELS.mvp.label}` }));
+    expect(slideOrder()).not.toContain('mvp');
+    save();
+    expect(await screen.findByText(/Pause salvate/)).toBeTruthy();
+    const body = puts('/api/admin/intermissions').at(-1)?.body as TenantIntermissions;
+    expect(body.matchEnd.slides.find((s) => s.id === 'finalResult')?.enabled).toBe(false);
+    expect(body.matchEnd.slides.map((s) => s.id)).not.toContain('thanks');
+    expect(body.matchEnd.slides.map((s) => s.id)).not.toContain('mvp');
   });
 });
 

@@ -1,9 +1,15 @@
 import type { PublicSponsor } from '@sir/shared';
-import { IntermissionSlideSchema, publicAssetPath, SponsorOptionsSchema, TenantIntermissionsSchema } from '@sir/shared';
+import {
+  adminAssetPath,
+  IntermissionSlideSchema,
+  publicAssetPath,
+  SponsorOptionsSchema,
+  TenantIntermissionsSchema,
+} from '@sir/shared';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { visibleSlides } from '../lib/intermission.ts';
-import { sponsorItems } from '../lib/sponsors.ts';
+import { publicSponsorsOf, sponsorItems } from '../lib/sponsors.ts';
 import { midMatchState } from '../test/fixtures.ts';
 import { SponsorBlock } from './BrandBlocks.tsx';
 import type { BlockEnv } from './env.ts';
@@ -53,6 +59,22 @@ describe('sponsorItems', () => {
     expect(items[3]).toMatchObject({ name: null, website: null });
     // A sponsor not chosen or unknown gives nothing.
     expect(sponsorItems({ sponsors: ['44444444-4444-4444-8444-444444444444'], images: [] }, SPONSORS)).toEqual([]);
+  });
+
+  it('in the previews of the reserved area every image goes through the path of the session, not of the hostname', () => {
+    const admin = publicSponsorsOf([
+      {
+        id: S1,
+        name: 'Bar Centrale',
+        website: null,
+        position: 0,
+        imageIds: [LEGACY],
+        createdAt: '2026-10-01T10:00:00.000Z',
+      },
+    ]);
+    expect(admin[0]?.images).toEqual([adminAssetPath(LEGACY)]);
+    const items = sponsorItems({ sponsors: [S1], images: [LEGACY] }, admin, adminAssetPath);
+    expect(items.map((i) => i.src)).toEqual([`/api/admin/assets/${LEGACY}/file`, `/api/admin/assets/${LEGACY}/file`]);
   });
 });
 

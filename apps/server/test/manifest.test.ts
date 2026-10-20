@@ -1,5 +1,5 @@
 import type { AssetSummary, WebManifest } from '@sir/shared';
-import { DEFAULT_MANIFEST_ICONS } from '@sir/shared';
+import { DEFAULT_MANIFEST_ICONS, publicAssetPath } from '@sir/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
 import { assignTemplate, createTenant, createUser, login, startServer } from './helpers.js';
@@ -56,7 +56,12 @@ describe('manifest of the installable app', () => {
       theme_color: '#c8102e',
       background_color: '#ffffff',
     });
-    expect(body.icons[0]).toEqual({ src: logo.url, sizes: '256x256', type: 'image/png', purpose: 'any' });
+    expect(body.icons[0]).toEqual({
+      src: publicAssetPath(logo.id),
+      sizes: '256x256',
+      type: 'image/png',
+      purpose: 'any',
+    });
     // Another client keeps its own.
     expect((await manifest()).name).toBe('SIRRealtime');
   });

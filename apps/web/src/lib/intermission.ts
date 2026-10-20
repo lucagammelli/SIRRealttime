@@ -127,7 +127,7 @@ function hasStatistics(state: MatchState, slide: IntermissionSlide, set: number)
 }
 
 /**
- * Slides of a pause that have something to show: a sponsor slide needs images (or the sponsor logo of the branding),
+ * Slides of a pause that are on and have something to show (a slide off never shows): a sponsor slide needs images (or the sponsor logo of the branding),
  * the summary of the set needs the set, the MVP a player with points; the statistics of a period need the period
  * (aces, blocks, attacks: at least one), a player duel its role. A player duel `rotate` becomes one slide for every
  * role with a duel (id `<id>:<role>`), each for the seconds of the slide.
@@ -138,6 +138,7 @@ export function visibleSlides(
   context: SlideContext,
 ): IntermissionSlide[] {
   return active.pause.slides.flatMap((slide): IntermissionSlide[] => {
+    if (!slide.enabled) return [];
     switch (slide.type) {
       case 'sponsor':
         return sponsorItems(slide.options, context.sponsors ?? []).length > 0 || context.sponsorLogo !== null

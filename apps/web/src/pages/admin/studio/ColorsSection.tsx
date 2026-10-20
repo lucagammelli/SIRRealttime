@@ -19,7 +19,7 @@ import {
   MIN_TEXT_CONTRAST,
   OUR_TEAM_CODE_MAX,
   OUR_TEAM_NAME_MAX,
-  publicAssetPath,
+  adminAssetPath,
   TEMPLATES,
   templateChoices,
   templateOf,
@@ -268,7 +268,7 @@ export function ImageField({
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex h-14 w-28 items-center justify-center rounded-card border border-dashed border-border bg-surface-2 p-1">
           {assetId ? (
-            <img src={publicAssetPath(assetId)} alt={label} className="max-h-12 w-auto max-w-full object-contain" />
+            <img src={adminAssetPath(assetId)} alt={label} className="max-h-12 w-auto max-w-full object-contain" />
           ) : (
             <span className="text-xs text-muted">Nessuna immagine</span>
           )}

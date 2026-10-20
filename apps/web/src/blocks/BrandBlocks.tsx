@@ -61,7 +61,7 @@ export function sponsorAlt(item: SponsorItem, index: number, count: number): str
  * motion.
  */
 export function SponsorBlock({ options, env }: { options: BlockOptions<'sponsor'>; env: BlockEnv }) {
-  const items = sponsorItems(options, env.brand?.sponsors ?? []);
+  const items = sponsorItems(options, env.brand?.sponsors ?? [], env.brand?.assetPath);
   const index = useImageRotation(items.length, options.seconds, env.paused);
   const current = items[index];
   return (

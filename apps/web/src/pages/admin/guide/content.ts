@@ -145,6 +145,10 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
+        text: 'In «Pagina live» e in «Pause» ogni blocco e ogni diapositiva ha nella sua riga il pulsante «Rimuovi». Se hai scelto delle opzioni (un testo, gli sponsor) chiede prima «Conferma rimozione». Nelle «Pause» l’interruttore «Attiva» spegne una diapositiva senza perdere le sue opzioni: resta nell’elenco ma i tifosi non la vedono.',
+      },
+      {
+        kind: 'text',
         text: 'A lato c’è sempre l’anteprima. Puoi sceglierla per TV, tablet o telefono, e aprirla a tutto schermo con «Anteprima a tutto schermo». Quello che vedi lì è quello che vedranno i tifosi.',
       },
       {

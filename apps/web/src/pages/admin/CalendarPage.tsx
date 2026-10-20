@@ -9,6 +9,7 @@ import type {
   PendingMatch,
 } from '@sir/shared';
 import {
+  adminAssetPath,
   CalendarResponseSchema,
   ClubSyncResponseSchema,
   CreatedFixtureResponseSchema,
@@ -177,7 +178,7 @@ function ManualFixtureForm({
         custom={opponentLogo !== null}
         defaultLabel="Togli"
         onChange={async (id) => {
-          setOpponentLogo(id ? { id, url: `/api/public/assets/${id}` } : null);
+          setOpponentLogo(id ? { id, url: adminAssetPath(id) } : null);
           return Promise.resolve();
         }}
       />

@@ -153,7 +153,12 @@ resta 1.
   /api/admin/branding` (il corpo del `PUT` è il branding; ogni immagine deve essere di quel cliente e del tipo del suo
   posto, `BRANDING_IMAGE_SLOTS`: `logoMain` e `logoMark` sono `logo`, `sponsorLogo` è `sponsor`, altrimenti 400); `GET
   /api/admin/assets` (elenco, `usedBytes`, `quotaBytes`), `POST /api/admin/assets` (caricamento), `DELETE
-  /api/admin/assets/:id` (204). Il salvataggio svuota la cache degli hostname (`forgetTenants`), così la pagina pubblica
+  /api/admin/assets/:id` (204), `GET /api/admin/assets/:id/file` (ruolo `viewer`, immagine del **cliente della sessione**,
+  non dell'hostname; `Cache-Control: private, max-age=31536000, immutable`, stessi header e stessi SVG sicuri della rotta
+  pubblica perché usano la stessa `sendAsset`). Le anteprime dell'area riservata (`AssetSummary.url`, loghi di club e
+  calendario `adminLogos`, `ClubResponse.logoUrl`) usano questo percorso (`adminAssetPath` in `packages/shared/src/tenant.ts`),
+  così non dipendono dall'`Host` (prima, da un indirizzo di un altro cliente, le immagini davano 404); la pagina pubblica
+  continua con `publicAssetPath` e i documenti salvati contengono solo gli id. Il salvataggio svuota la cache degli hostname (`forgetTenants`), così la pagina pubblica
   usa subito la nuova grafica; `PUT` è nei metodi CORS.
 - **Caricamento**: JSON `{ kind, data }` con `data` in base64 (`UploadAssetRequestSchema`; il guard delle rotte admin
   accetta solo JSON). Errori: 413 oltre 2 MB (`ASSET_MAX_BYTES`), 422 immagine non ammessa, 409 quota esaurita
@@ -215,6 +220,9 @@ nulla, la fase viaggia nello stato come ogni altro campo. `{}` è valido e vale 
   transazione e sotto lo stesso lock per cliente di caricamenti, eliminazioni, grafica e layout; altrimenti 400. Dopo il salvataggio si svuota la cache degli hostname (`forgetTenants`).
 - **Rotta pubblica**: `intermissions` è anche in `GET /api/public/tenant` (`PublicTenantResponseSchema`), con i predefiniti
   se il cliente non ha configurato nulla.
+- **Diapositive spente**: ogni diapositiva ha `enabled` (predefinito `true`, quindi i documenti salvati prima restano
+  validi); `intermissionFor` dà `null` se la pausa non ha nessuna diapositiva attiva, e gli sponsor e le immagini di una
+  diapositiva spenta contano comunque «in uso» per i controlli di eliminazione.
 - **Eliminazione di un'immagine**: se è usata in una diapositiva sponsor, `DELETE /api/admin/assets/:id` risponde 409
   «Immagine in uso nelle pause: toglila dalla diapositiva sponsor prima di eliminarla».
 
@@ -897,6 +905,7 @@ server scrive `dist/build-info.json` (`version` e `commit` corto, da `SIR_COMMIT
 | GET | `/api/admin/overlays` | sessione | viewer |
 | PUT | `/api/admin/overlays` | sessione | admin |
 | GET | `/api/admin/assets` | sessione | viewer |
+| GET | `/api/admin/assets/:id/file` | sessione | viewer |
 | POST | `/api/admin/assets` | sessione (corpo fino a ~2,7 MB) | admin |
 | DELETE | `/api/admin/assets/:id` | sessione | admin |
 | GET | `/api/admin/agent/info` | sessione | admin |

@@ -422,3 +422,7 @@ Una riga per decisione: data, scelta, motivo.
   immagini e un sito, e la rotazione segue l'ordine dell'elenco; `images` resta nello schema (immagini singole, dopo gli
   sponsor) per non rompere i documenti salvati; l'export della grafica include gli sponsor scelti (`version` ancora 1) e
   all'import si uniscono per nome (`docs/server.md`, `docs/portale.md`, `docs/architettura.md`).
+- 2026-10-20: l'area riservata legge le immagini da `GET /api/admin/assets/:id/file` (cliente della sessione, cache
+  privata) e non dalla rotta pubblica, perché questa dipende dall'`Host` e da un indirizzo di un altro cliente le
+  anteprime davano 404; le diapositive delle pause hanno `enabled` (predefinito `true`) e gli sponsor di quelle spente
+  contano comunque «in uso» (`docs/server.md`, `docs/architettura.md`).

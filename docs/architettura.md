@@ -156,7 +156,8 @@ Grafica per cliente (`tenant.ts`, `colors.ts`, `assets.ts`): `TenantBrandingSche
 predefinito `standard`, `ourTeam` predefinito `{ code: null, name: null }`, `displayName`,
 `colors` con `primary`, `accent`, `home`, `away`, `background` in `#rrggbb` facoltativi, `logoMain`, `logoMark`,
 `sponsorLogo`; `TENANT_CONFIG_VERSION` resta 1 perché ogni campo è facoltativo e `{}` è valido), `BrandColorsSchema`,
-`BRANDING_IMAGE_SLOTS`, `defaultBranding`, `resolveBranding`, `publicAssetPath`, `DEFAULT_BRAND_NAME` («SIRRealtime»),
+`BRANDING_IMAGE_SLOTS`, `defaultBranding`, `resolveBranding`, `publicAssetPath` (pagina pubblica), `adminAssetPath` (`/api/admin/assets/<id>/file`, area riservata, indipendente
+dall'hostname; i documenti salvati contengono solo gli id), `DEFAULT_BRAND_NAME` («SIRRealtime»),
 `PublicTenantResponseSchema` (`GET /api/public/tenant`), `BrandingResponseSchema` (`GET`/`PUT /api/admin/branding`).
 Pacchetto di esportazione della grafica (`graphicsExport.ts`): `GraphicsExportSchema` (`format: "sirrealtime-grafica"`, `version: 1`,
 `exportedAt`, `sourceName`, `branding`, `layout`, `intermissions`, `overlays`, `images` con id, tipo, mime e base64; nessun dato di
@@ -262,7 +263,7 @@ Ogni pausa ha `enabled`, `modes` (per `tv`, `tablet`, `phone`:
 (al massimo `INTERMISSION_MAX_SLIDES` = 12, id unici). Una pausa attiva ha almeno una diapositiva. Tipi di diapositiva
 (`SLIDE_TYPES`): `setSummary`, `finalResult`, `mvp`, `setScores` (senza opzioni) e `setScorers`, `aces`, `blocks`,
 `attack`, `roleDuel`, `teamDuel`, `nextMatch`, `standings`, `sponsor`, `message`, `qr`, `logo` (le stesse opzioni dei blocchi omonimi,
-`SLIDE_OPTIONS` da `BLOCK_OPTIONS`; per le statistiche `period` è il set della pausa o la partita); ogni diapositiva ha `seconds` (3-60,
+`SLIDE_OPTIONS` da `BLOCK_OPTIONS`; per le statistiche `period` è il set della pausa o la partita); ogni diapositiva ha `enabled` (predefinito `true`, i documenti salvati prima restano validi) e `seconds` (3-60,
 predefinito 8: `SLIDE_MIN_SECONDS`, `SLIDE_MAX_SECONDS`, `SLIDE_DEFAULT_SECONDS`). `setBreakBySet` (chiavi `'1'`-`'4'`,
 `SET_BREAK_SETS`) dà a un set una pausa propria che **sostituisce per intero** quella generica `setBreak`, senza fonderla;
 il 5° set chiude la partita e usa `matchEnd`. Il ritorno alla partita non è configurabile: avviene alla prima azione.
@@ -278,7 +279,7 @@ squadra è a K punti o meno dal traguardo del set, 25 o 15 al tie-break, calcola
 contratto); predefiniti: attiva per tutti i clienti, banda su tablet e telefono e tutto schermo su TV, ritardo 3 s,
 diapositive `setScorers` e `teamDuel` del set in corso. Funzioni pure:
 `resolveIntermissions` (un documento non valido vale i predefiniti), `intermissionFor(config, kind, set?)` (la pausa da
-usare, null se spenta o senza diapositive), `allIntermissions`, `intermissionImageIds` (immagini singole) e `intermissionSponsorIds` (sponsor scelti) delle diapositive
+usare, null se spenta o senza diapositive attive), `allIntermissions`, `intermissionImageIds` (immagini singole) e `intermissionSponsorIds` (sponsor scelti) delle diapositive
 sponsor, per i controlli del server. `IntermissionsResponseSchema` (`GET`/`PUT /api/admin/intermissions`);
 `PublicTenantResponseSchema` contiene anche `intermissions`. Server in `docs/server.md` («Pause della partita»),
 schermate ed editor in `docs/portale.md`, fase e riepiloghi in `docs/statistiche.md`.

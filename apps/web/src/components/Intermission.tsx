@@ -70,7 +70,9 @@ export function Intermission({
   /** Matches and standings of the club (the editor passes an example); missing: read from the server when needed. */
   schedule?: ScheduleResponse | null;
 }) {
-  const needsSchedule = preview ? preview.slides.some((s) => isScheduleType(s.type)) : intermissionsUseSchedule(config);
+  const needsSchedule = preview
+    ? preview.slides.some((s) => s.enabled && isScheduleType(s.type))
+    : intermissionsUseSchedule(config);
   const fetched = useSchedule(
     schedule === undefined && needsSchedule,
     `${state.status}:${state.setsWon.home}-${state.setsWon.away}`,

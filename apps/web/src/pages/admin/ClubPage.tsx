@@ -16,7 +16,7 @@ import {
   LEAGUE_GENDERS,
   OUR_TEAM_CODE_MAX,
   OUR_TEAM_NAME_MAX,
-  publicAssetPath,
+  adminAssetPath,
   seasonLabel,
   seriesOfGender,
   UpdateClubProfileRequestSchema,
@@ -451,7 +451,7 @@ function ProfileForm({
         <fieldset disabled={!canEdit} className="space-y-4">
           <LogoPicker
             label="Logo quadrato del club"
-            url={logoMark ? publicAssetPath(logoMark) : null}
+            url={logoMark ? adminAssetPath(logoMark) : null}
             custom={logoMark !== null}
             defaultLabel="Togli"
             disabled={!canEdit}

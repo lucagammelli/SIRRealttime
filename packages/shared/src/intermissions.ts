@@ -94,6 +94,8 @@ const slideOf = <T extends SlideType, O extends z.ZodType>(type: T, options: O) 
     id: BlockIdSchema,
     type: z.literal(type),
     seconds: z.int().min(SLIDE_MIN_SECONDS).max(SLIDE_MAX_SECONDS).default(SLIDE_DEFAULT_SECONDS),
+    /** Off: the slide stays in the list with its options but is never shown (missing in a saved document: on). */
+    enabled: z.boolean().default(true),
     /** Missing: the defaults of the type. */
     options,
   });
@@ -302,7 +304,7 @@ export function resolveIntermissions(document: unknown): TenantIntermissions {
 
 /**
  * Pure: the pause to use for `kind` (for `setBreak`, the own pause of `set` when there is one, otherwise the generic
- * one); null when it is off or has no slides.
+ * one); null when it is off or has no slide on.
  */
 export function intermissionFor(
   config: TenantIntermissions,
@@ -316,7 +318,7 @@ export function intermissionFor(
       : undefined;
     if (own) pause = own;
   }
-  return pause.enabled && pause.slides.length > 0 ? pause : null;
+  return pause.enabled && pause.slides.some((s) => s.enabled) ? pause : null;
 }
 
 /** Pure: every pause of a document (the generic ones and the own pauses of the sets). */

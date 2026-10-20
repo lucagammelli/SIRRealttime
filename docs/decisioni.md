@@ -429,6 +429,11 @@ Una riga per decisione: data, scelta, motivo.
 - 2026-10-20: loghi di sistema globali (tabella `system_logos`, slot `left`/`right`, migrazione `0016`), caricati solo dal
   superadmin, con limite 150×50 px anche per gli SVG (per la misura dichiarata), perché sono un marchio della piattaforma,
   uguale per ogni cliente, e un logo grande romperebbe la testata sul telefono (`docs/server.md`, `docs/portale.md`).
+- 2026-10-20: i loghi di sistema hanno due varianti per lato, positivo (sfondi chiari) e negativo (sfondi scuri), chiave
+  `(slot, variant)` e migrazione `0017` (i loghi esistenti diventano positivi); il portale sceglie la variante dallo
+  sfondo reale dietro al logo (luminanza < 0,5 → negativo, solo `background-color`), perché palette del cliente, modello
+  e tema cambiano lo sfondo e un solo logo non è leggibile su tutti; il logo sinistro sostituisce il marchio dell'area
+  riservata e la riga dei loghi resta solo nella pagina live (`docs/server.md`, `docs/portale.md`, `docs/architettura.md`).
 - 2026-10-20: produzione su domini pubblici: portale `rt.istante.info`, cliente SIR `sir.istante.info`, certificati
   Let's Encrypt (`CERTIFICATI="letsencrypt"`, avvisi a development@istante.info), passaggio fatto rilanciando
   `installa-produzione.sh` insieme all'aggiornamento a v1.2.0; tolti i nomi privati `realtime.local` e

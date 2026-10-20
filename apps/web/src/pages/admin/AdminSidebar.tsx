@@ -1,7 +1,7 @@
 import type { ReactNode, RefObject } from 'react';
 import { useEffect, useId, useRef } from 'react';
 import { NavLink } from 'react-router';
-import { BrandMark } from '../../components/BrandMark.tsx';
+import { AdminBrand } from './AdminBrand.tsx';
 import { APP_COMMIT, APP_VERSION, versionLabel } from '../../lib/version.ts';
 
 /** Icons of the side menu: simple inline SVG strokes (24 × 24), no icon library. */
@@ -217,7 +217,7 @@ export function AdminSidebar({
           className={`sir-navbar flex items-center border-b border-border px-4 ${collapsed ? 'md:justify-center md:px-2' : ''}`}
         >
           <div className={`min-w-0 flex-1 ${collapsed ? 'md:hidden' : ''}`}>
-            <BrandMark to={home} />
+            <AdminBrand to={home} />
           </div>
           <button
             type="button"

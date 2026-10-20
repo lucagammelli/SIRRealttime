@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { NO_SYSTEM_LOGOS } from '@sir/shared';
+import { setSystemLogos } from '../../lib/systemLogos.ts';
 import { mockApi } from '../../test/adminPage.tsx';
 import { ForgotPasswordPage, SetPasswordPage } from './AccountLinkPages.tsx';
 import { LoginPage } from './LoginPage.tsx';
@@ -28,6 +30,7 @@ function renderAt(path: string) {
 beforeEach(() => vi.spyOn(console, 'error').mockImplementation(() => undefined));
 afterEach(() => {
   cleanup();
+  setSystemLogos(NO_SYSTEM_LOGOS);
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -129,5 +132,40 @@ describe('page of the new password', () => {
     mockApi(() => ({ body: { error: 'Il link non è valido o è scaduto' }, status: 410 }));
     renderAt(`/admin/reimposta-password/${TOKEN}`);
     expect(await screen.findByRole('link', { name: 'Password dimenticata?' })).toBeTruthy();
+  });
+});
+
+describe('loghi di sistema on the login and on the pages of the account links', () => {
+  const LOGO = {
+    url: '/api/public/system-logos/00000000-0000-4000-8000-000000000001',
+    mime: 'image/png',
+    width: 150,
+    height: 50,
+  } as const;
+  const renderLogin = () =>
+    render(
+      <MemoryRouter>
+        <LoginPage onLogin={() => undefined} notice={null} />
+      </MemoryRouter>,
+    );
+
+  it('without a left logo: the brand of the client (wordmark), no link', () => {
+    setSystemLogos({ left: { positive: null, negative: null }, right: { positive: LOGO, negative: null } });
+    renderLogin();
+    expect(screen.getByText('Realtime')).toBeTruthy();
+    expect(document.querySelector('[data-system-logo]')).toBeNull();
+  });
+
+  it('with a left logo: the logo instead of the brand, without a link (nobody signed in)', () => {
+    setSystemLogos({ left: { positive: null, negative: LOGO }, right: { positive: null, negative: null } });
+    renderLogin();
+    const img = document.querySelector('[data-system-logo="sinistra"]');
+    expect(img?.getAttribute('src')).toBe(LOGO.url);
+    expect(img?.closest('a')).toBeNull();
+    expect(screen.queryByText('Realtime')).toBeNull();
+    cleanup();
+    renderAt('/admin/password-dimenticata');
+    expect(document.querySelector('[data-system-logo="sinistra"]')?.getAttribute('src')).toBe(LOGO.url);
+    expect(screen.queryByText('Realtime')).toBeNull();
   });
 });

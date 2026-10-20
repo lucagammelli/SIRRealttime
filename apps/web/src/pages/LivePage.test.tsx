@@ -1,7 +1,14 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultBranding, defaultIntermissions, defaultOverlays, TenantLayoutSchema } from '@sir/shared';
+import type { SystemLogo } from '@sir/shared';
+import {
+  defaultBranding,
+  defaultIntermissions,
+  defaultOverlays,
+  NO_SYSTEM_LOGOS,
+  TenantLayoutSchema,
+} from '@sir/shared';
 import { initBranding, setTenantLook, tenantLookOf } from '../lib/branding.ts';
 import { setSystemLogos } from '../lib/systemLogos.ts';
 import type { LiveSnapshot } from '../lib/liveConnection.ts';
@@ -62,7 +69,8 @@ afterEach(() => {
   cleanup();
   socketSnapshot = snapshot;
   act(() => setTenantLook(null));
-  act(() => setSystemLogos({ left: null, right: null }));
+  act(() => setSystemLogos(NO_SYSTEM_LOGOS));
+  document.body.removeAttribute('style');
   vi.useRealTimers();
   vi.unstubAllGlobals();
   setWidth(1024);
@@ -454,6 +462,8 @@ describe('LivePage: loghi di sistema', () => {
     height: 50,
   } as const;
   const RIGHT = { ...LOGO, url: '/api/public/system-logos/00000000-0000-4000-8000-000000000002', width: 100 };
+  const LEFT_DARK = { ...LOGO, url: '/api/public/system-logos/00000000-0000-4000-8000-000000000003' };
+  const pair = (positive: SystemLogo | null, negative: SystemLogo | null = null) => ({ positive, negative });
 
   it('none loaded: no row and no empty room above the page', () => {
     renderAt();
@@ -461,7 +471,7 @@ describe('LivePage: loghi di sistema', () => {
   });
 
   it('one at the left and one at the right, on the phone (scaled with the screen) and on the big screen', () => {
-    act(() => setSystemLogos({ left: LOGO, right: RIGHT }));
+    act(() => setSystemLogos({ left: pair(LOGO), right: pair(RIGHT) }));
     setWidth(360);
     const phone = renderAt();
     const row = screen.getByTestId('loghi-di-sistema');
@@ -481,10 +491,31 @@ describe('LivePage: loghi di sistema', () => {
   });
 
   it('only the right one: the left side stays empty, the logo stays at the right', () => {
-    act(() => setSystemLogos({ left: null, right: RIGHT }));
+    act(() => setSystemLogos({ left: pair(null), right: pair(null, RIGHT) }));
     renderAt();
     const row = screen.getByTestId('loghi-di-sistema');
     expect(row.querySelectorAll('img')).toHaveLength(1);
-    expect(row.lastElementChild?.getAttribute('data-system-logo')).toBe('destra');
+    expect(row.querySelector('img')?.getAttribute('data-system-logo')).toBe('destra');
+    expect(row.lastElementChild?.querySelector('img')?.getAttribute('src')).toBe(RIGHT.url);
+    // Only the negative one is loaded: it stands also on a light background.
+    expect(row.querySelector('img')?.getAttribute('data-system-logo-variant')).toBe('negative');
+  });
+
+  it('the variant follows the background behind: positive on a light one, negative on a dark one', async () => {
+    act(() => setSystemLogos({ left: pair(LOGO, LEFT_DARK), right: pair(RIGHT) }));
+    document.body.style.backgroundColor = '#ffffff';
+    renderAt();
+    const left = () => screen.getByTestId('loghi-di-sistema').querySelector('[data-system-logo="sinistra"]');
+    expect(left()?.getAttribute('src')).toBe(LOGO.url);
+    expect(left()?.getAttribute('data-system-logo-variant')).toBe('positive');
+    act(() => {
+      document.body.style.backgroundColor = '#0f172a';
+    });
+    await waitFor(() => expect(left()?.getAttribute('src')).toBe(LEFT_DARK.url));
+    expect(left()?.getAttribute('data-system-logo-variant')).toBe('negative');
+    // The right side has no negative: the positive stays, also on the dark background.
+    const right = screen.getByTestId('loghi-di-sistema').querySelector('[data-system-logo="destra"]');
+    expect(right?.getAttribute('src')).toBe(RIGHT.url);
+    expect(right?.getAttribute('data-system-logo-variant')).toBe('positive');
   });
 });

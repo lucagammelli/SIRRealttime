@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { defaultBranding, defaultIntermissions, defaultLayout, defaultOverlays, NO_SYSTEM_LOGOS } from '@sir/shared';
+import { setTenantLook, tenantLookOf } from '../../lib/branding.ts';
 import { setSystemLogos } from '../../lib/systemLogos.ts';
 import { APP_VERSION } from '../../lib/version.ts';
 import { AdminApp } from './AdminApp.tsx';
@@ -56,7 +58,9 @@ const where = (): string => screen.getByTestId('where').textContent ?? '';
 beforeEach(() => vi.spyOn(console, 'error').mockImplementation(() => undefined));
 afterEach(() => {
   cleanup();
-  setSystemLogos({ left: null, right: null });
+  setSystemLogos(NO_SYSTEM_LOGOS);
+  setTenantLook(null);
+  document.body.removeAttribute('style');
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -376,17 +380,64 @@ describe('loghi di sistema in the reserved area', () => {
     height: 50,
   } as const;
 
-  it('at the top of the pages of every role when loaded, nothing otherwise', async () => {
+  const DARK = { ...LOGO, url: '/api/public/system-logos/00000000-0000-4000-8000-000000000002' };
+  const RIGHT = { ...LOGO, url: '/api/public/system-logos/00000000-0000-4000-8000-000000000003' };
+  const CLIENT_LOGO = '/api/public/assets/00000000-0000-4000-8000-0000000000aa';
+  const sidebarBrand = () => document.querySelector('.sir-sidebar .sir-navbar') as HTMLElement;
+  const phoneBrand = () => document.querySelector('header.sir-navbar') as HTMLElement;
+
+  it('no row of logos above the pages: without a left logo the menu keeps the brand of the client', async () => {
     mockServer('admin');
-    const first = renderAt('/admin/live');
+    setSystemLogos({ left: { positive: null, negative: null }, right: { positive: RIGHT, negative: null } });
+    renderAt('/admin/live');
     await screen.findByRole('navigation', { name: 'Area riservata' });
     expect(screen.queryByTestId('loghi-di-sistema')).toBeNull();
-    first.unmount();
-    setSystemLogos({ left: LOGO, right: null });
+    expect(document.querySelector('[data-system-logo]')).toBeNull();
+    expect(within(sidebarBrand()).getByText('Realtime')).toBeTruthy();
+  });
+
+  it('the left logo at the top of the menu and of the phone header, before the logo of the client', async () => {
+    mockServer('viewer');
+    setTenantLook(
+      tenantLookOf({
+        name: 'Sir Safety',
+        branding: defaultBranding(),
+        images: { logoMain: CLIENT_LOGO, logoMark: null, sponsorLogo: null },
+        layout: defaultLayout(),
+        intermissions: defaultIntermissions(),
+        overlays: defaultOverlays(),
+        sponsors: [],
+      }),
+    );
+    setSystemLogos({ left: { positive: LOGO, negative: DARK }, right: { positive: RIGHT, negative: null } });
     renderAt('/admin/live');
-    const row = await screen.findByTestId('loghi-di-sistema');
-    expect(row.closest('main')).not.toBeNull();
-    expect(row.querySelector('img')?.getAttribute('src')).toBe(LOGO.url);
+    await screen.findByRole('navigation', { name: 'Area riservata' });
+    expect(screen.queryByTestId('loghi-di-sistema')).toBeNull();
+    for (const brand of [sidebarBrand(), phoneBrand()]) {
+      const img = brand.querySelector('img');
+      expect(img?.getAttribute('src')).toBe(LOGO.url);
+      expect(img?.dataset.systemLogo).toBe('sinistra');
+      expect(img?.dataset.systemLogoVariant).toBe('positive');
+      expect(within(brand).getByRole('link', { name: 'Partita live' }).getAttribute('href')).toBe('/admin/live');
+    }
+    expect(document.querySelector(`img[src="${CLIENT_LOGO}"]`)).toBeNull();
+    expect(document.querySelector(`img[src="${RIGHT.url}"]`)).toBeNull();
+  });
+
+  it('the negative variant on a dark background, the other one when it is missing', async () => {
+    mockServer('admin');
+    document.body.style.backgroundColor = '#0f1729';
+    setSystemLogos({ left: { positive: LOGO, negative: DARK }, right: { positive: null, negative: null } });
+    const dark = renderAt('/admin/live');
+    await screen.findByRole('navigation', { name: 'Area riservata' });
+    expect(sidebarBrand().querySelector('img')?.getAttribute('src')).toBe(DARK.url);
+    expect(sidebarBrand().querySelector('img')?.dataset.systemLogoVariant).toBe('negative');
+    dark.unmount();
+    setSystemLogos({ left: { positive: LOGO, negative: null }, right: { positive: null, negative: null } });
+    renderAt('/admin/live');
+    await screen.findByRole('navigation', { name: 'Area riservata' });
+    expect(sidebarBrand().querySelector('img')?.getAttribute('src')).toBe(LOGO.url);
+    expect(sidebarBrand().querySelector('img')?.dataset.systemLogoVariant).toBe('positive');
   });
 
   it('the superadmin has the page «Loghi di sistema»; a client admin does not', async () => {

@@ -401,13 +401,15 @@ export const leagues = pgTable(
 );
 
 /**
- * Logos of the platform (one row per slot, `left` and `right`), loaded by the superadmin and checked by `inspectImage`
- * (at most 150×50 px); the file is `<ASSETS_DIR>/_system/<sha256>`. The id changes at every upload (public path).
+ * Logos of the platform (one row per slot, `left` and `right`, and variant, `positive` for light backgrounds and
+ * `negative` for dark ones), loaded by the superadmin and checked by `inspectImage` (at most 150×50 px); the file is
+ * `<ASSETS_DIR>/_system/<sha256>` (several rows may share it). The id changes at every upload (public path).
  */
 export const systemLogos = pgTable(
   'system_logos',
   {
-    slot: text('slot').primaryKey(),
+    slot: text('slot').notNull(),
+    variant: text('variant').notNull().default('positive'),
     id: uuid('id').notNull().unique().defaultRandom(),
     sha256: text('sha256').notNull(),
     mime: text('mime').notNull(),
@@ -417,7 +419,9 @@ export const systemLogos = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    primaryKey({ columns: [t.slot, t.variant] }),
     check('system_logos_slot_check', sql`${t.slot} in ('left', 'right')`),
+    check('system_logos_variant_check', sql`${t.variant} in ('positive', 'negative')`),
     check('system_logos_size_check', sql`${t.width} between 1 and 150 and ${t.height} between 1 and 50`),
   ],
 );

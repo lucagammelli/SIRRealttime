@@ -10,13 +10,13 @@ import {
 import type { FormEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { BrandMark } from '../../components/BrandMark.tsx';
 import { StatusScreen } from '../../components/StatusScreen.tsx';
 import { ThemeToggle } from '../../components/ThemeToggle.tsx';
 import { Button, ErrorBox, Spinner } from '../../components/ui.tsx';
 import { ApiError, apiRequest, errorText } from '../../lib/api.ts';
 import { useAsync } from '../../lib/useAsync.ts';
 import { Field, inputClass } from './forms.tsx';
+import { AdminBrand } from './AdminBrand.tsx';
 
 /** Pages without a session, reached from the login and from the links in the mails (Inter, as the reserved area). */
 function Shell({ title, children }: { title: string; children: ReactNode }) {
@@ -28,7 +28,7 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
         </div>
         <div className="w-full max-w-sm space-y-4 rounded-panel border border-border bg-surface p-6 shadow-card">
           <div>
-            <BrandMark />
+            <AdminBrand />
             <h1 className="mt-1 text-lg font-semibold text-text">{title}</h1>
           </div>
           {children}

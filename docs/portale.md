@@ -80,7 +80,8 @@ con `TV_BLOCK_MIN_REM`, altezze minime in rem **stimate**, da verificare su TV v
 `title` è «Riprendi rotazione» e riprende dalla schermata corrente), richiesto da WCAG 2.2.2. Dopo 3 s senza movimenti
 (`IDLE_CURSOR_MS`) cursore e pulsanti si nascondono, ma restano raggiungibili da tastiera. Lo schermo resta acceso con
 Screen Wake Lock (`useWakeLock`, `src/lib/tvScreen.ts`), rilasciato a pagina nascosta e richiesto di nuovo al ritorno.
-Senza intestazione e con partita in corso, il logo del cliente (`BrandMark`) e i pulsanti stanno nel tabellone. Se la
+Senza intestazione e con partita in corso, il logo del cliente (`BrandMark`) e i pulsanti stanno nel tabellone (il logo solo
+senza loghi di sistema, vedi sotto). Se la
 Fullscreen API non è disponibile o fallisce, «Schermo intero» attiva comunque l'impaginazione.
 
 **Stati** (`src/components/LiveMatch.tsx`, `ConnectionBadge.tsx`, `StatusScreen.tsx`):
@@ -662,7 +663,8 @@ JPEG, WebP o SVG, al massimo 2 MB e 150×50 px: uno più grande è rifiutato con
   `min(150px, 25vw)` × `min(50px, 8.33vw)` in riga (niente scorrimento orizzontale su un telefono da 360 px) oppure 150×50
   px pieni (`SYSTEM_LOGO_FULL_SIZE`). Non disegna nulla se il lato non ha loghi.
 - **`SystemLogosBar`**: riga con il lato sinistro e il destro (solo pagina live e anteprima della pagina). Senza loghi non
-  disegna nulla; con un solo lato l'altro resta vuoto.
+  disegna nulla; con un solo lato l'altro resta vuoto. Con almeno un logo di sistema la pagina live non mostra più
+  `BrandMark` né nell'intestazione né nel tabellone: il marchio sta solo nella barra (restano i pulsanti).
 - **`AdminBrand`**: marchio dell'area riservata. Se c'è il logo di sinistra (una variante qualsiasi) lo mostra, con
   precedenza su logo del modello, logo o nome del cliente e scritta; altrimenti `BrandMark`. Con `to` è un link «Partita
   live» alla prima pagina dell'utente, senza `to` è solo decorativo.

@@ -490,6 +490,16 @@ describe('LivePage: loghi di sistema', () => {
     expect(screen.getByTestId('loghi-di-sistema').querySelectorAll('img')).toHaveLength(2);
   });
 
+  it('with the bar the brand is not repeated in the page header; without it the brand stays', () => {
+    const view = renderAt();
+    expect(document.querySelector('[data-product-logo]')).not.toBeNull();
+    view.unmount();
+    act(() => setSystemLogos({ left: pair(LOGO), right: pair(null) }));
+    renderAt();
+    expect(screen.getByTestId('loghi-di-sistema')).toBeTruthy();
+    expect(document.querySelector('[data-product-logo]')).toBeNull();
+  });
+
   it('only the right one: the left side stays empty, the logo stays at the right', () => {
     act(() => setSystemLogos({ left: pair(null), right: pair(null, RIGHT) }));
     renderAt();

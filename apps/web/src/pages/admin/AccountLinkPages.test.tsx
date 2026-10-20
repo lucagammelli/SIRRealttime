@@ -163,6 +163,9 @@ describe('loghi di sistema on the login and on the pages of the account links', 
     expect(img?.getAttribute('src')).toBe(LOGO.url);
     expect(img?.closest('a')).toBeNull();
     expect(screen.queryByText('Realtime')).toBeNull();
+    // Centred logo; the title «Area riservata» is for screen readers only.
+    expect(img?.closest('.justify-center')).not.toBeNull();
+    expect(screen.getByRole('heading', { name: 'Area riservata' }).className).toContain('sr-only');
     cleanup();
     renderAt('/admin/password-dimenticata');
     expect(document.querySelector('[data-system-logo="sinistra"]')?.getAttribute('src')).toBe(LOGO.url);

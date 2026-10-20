@@ -2,6 +2,7 @@ import { DUEL_ROLES, TEAM_DUEL_KEYS } from '@sir/volley-stats';
 import { z } from 'zod';
 import { AssetIdSchema } from './assets.js';
 import { STANDINGS_SCOPES } from './club.js';
+import { HexColorSchema } from './colors.js';
 import { SponsorIdSchema } from './sponsors.js';
 import { TENANT_CONFIG_VERSION } from './configVersion.js';
 import { plainText } from './strings.js';
@@ -211,13 +212,38 @@ export const StandingsOptionsSchema = z.strictObject({
   count: z.int().min(STANDINGS_MIN_ROWS).max(STANDINGS_MAX_ROWS).default(STANDINGS_DEFAULT_ROWS),
 });
 
+/** Thickness of the lines and of the arrows of the court map, as a multiple of the usual one: limits and default. */
+export const COURT_WIDTH_MIN = 0.5;
+export const COURT_WIDTH_MAX = 3;
+export const COURT_WIDTH_DEFAULT = 1;
+
+/**
+ * «Mappe di campo»: colours of the field, of the lines and of the arrows for our team and for the opponent, and
+ * thickness of lines and arrows. A colour that is missing follows the theme (light or dark) and, for the arrows, the
+ * template: with no options the map looks as it always did.
+ */
+export const CourtOptionsSchema = z.strictObject({
+  /** Field of the half of our team / of the opponent. */
+  fieldOurs: HexColorSchema.optional(),
+  fieldOpponent: HexColorSchema.optional(),
+  /** Lines (perimeter, 3 m line) of the half of our team / of the opponent; the net follows our team. */
+  linesOurs: HexColorSchema.optional(),
+  linesOpponent: HexColorSchema.optional(),
+  lineWidth: z.number().min(COURT_WIDTH_MIN).max(COURT_WIDTH_MAX).default(COURT_WIDTH_DEFAULT),
+  /** Arrows of the attacks and serves of our team / of the opponent (one colour for every evaluation). */
+  arrowsOurs: HexColorSchema.optional(),
+  arrowsOpponent: HexColorSchema.optional(),
+  arrowWidth: z.number().min(COURT_WIDTH_MIN).max(COURT_WIDTH_MAX).default(COURT_WIDTH_DEFAULT),
+});
+export type CourtOptions = z.output<typeof CourtOptionsSchema>;
+
 /** Options of every type (an empty object for the blocks without options). */
 export const BLOCK_OPTIONS = {
   scoreboard: NoOptionsSchema,
   momentum: NoOptionsSchema,
   comparison: NoOptionsSchema,
   players: NoOptionsSchema,
-  court: NoOptionsSchema,
+  court: CourtOptionsSchema,
   rotations: NoOptionsSchema,
   logo: LogoOptionsSchema,
   sponsor: SponsorOptionsSchema,

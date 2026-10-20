@@ -182,4 +182,26 @@ describe('layout of the public page', () => {
     });
     expect(res.layout).toEqual(defaultLayout());
   });
+
+  it('reads the options of the court map: old layouts keep the defaults, colours and thickness are checked', () => {
+    const old = parseBlock({ type: 'court' });
+    expect(old.success && old.data.options).toEqual({ lineWidth: 1, arrowWidth: 1 });
+    const empty = parseBlock({ type: 'court', options: {} });
+    expect(empty.success && empty.data.options).toEqual({ lineWidth: 1, arrowWidth: 1 });
+    const set = parseBlock({
+      type: 'court',
+      options: { fieldOurs: '#AABBCC', linesOpponent: '#000000', lineWidth: 2, arrowsOurs: '#ff0000', arrowWidth: 0.5 },
+    });
+    expect(set.success && set.data.options).toEqual({
+      fieldOurs: '#aabbcc',
+      linesOpponent: '#000000',
+      lineWidth: 2,
+      arrowsOurs: '#ff0000',
+      arrowWidth: 0.5,
+    });
+    expect(parseBlock({ type: 'court', options: { fieldOurs: 'red' } }).success).toBe(false);
+    expect(parseBlock({ type: 'court', options: { lineWidth: 0.1 } }).success).toBe(false);
+    expect(parseBlock({ type: 'court', options: { arrowWidth: 9 } }).success).toBe(false);
+    expect(parseBlock({ type: 'court', options: { other: 1 } }).success).toBe(false);
+  });
 });

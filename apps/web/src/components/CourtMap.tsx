@@ -1,8 +1,10 @@
+import type { CourtOptions } from '@sir/shared';
+import { CourtOptionsSchema } from '@sir/shared';
 import type { MatchState, Side } from '@sir/volley-stats';
 import { useId, useMemo, useState } from 'react';
 import type { ZoneArrow, ZoneSkill } from '../charts/zones.ts';
 import { COURT, EVALUATION_NAMES, ZONES, zoneCenter, zonePlayers, zoneRect, zoneView } from '../charts/zones.ts';
-import { useTemplate } from '../lib/branding.ts';
+import { useOurSide, useTemplate } from '../lib/branding.ts';
 import { formatPct, playerName, teamName, teamShort } from '../lib/format.ts';
 import { useDeviceContext } from '../lib/useLayout.ts';
 import { Card, Segmented } from './ui.tsx';
@@ -24,6 +26,9 @@ const SIDE_STROKE: Record<Side, string> = { home: 'stroke-home', away: 'stroke-a
 const TEAM_ARROW_PX = 1.5;
 const TEAM_ARROW_OPACITY = 0.85;
 
+/** Options of a map outside a block of the page: nothing chosen. */
+const DEFAULT_COURT_OPTIONS = CourtOptionsSchema.parse({});
+
 const evalClass = (symbol: string) =>
   EVAL_CLASS[symbol] ?? { stroke: 'stroke-eval-none', fill: 'fill-eval-none', bg: 'bg-eval-none' };
 
@@ -32,8 +37,17 @@ const evalClass = (symbol: string) =>
  * template says: coloured by evaluation and as thick as their share (standard), or thin in the colour of the attacking
  * team with a small head («SIR VOLLEY»). On the phone the player and evaluation filters are in an expandable menu.
  */
-export function CourtMap({ state, className = '' }: { state: MatchState; className?: string }) {
-  const teamArrows = useTemplate().courtArrows === 'team';
+export function CourtMap({
+  state,
+  className = '',
+  options = DEFAULT_COURT_OPTIONS,
+}: {
+  state: MatchState;
+  className?: string;
+  /** Colours and thickness chosen in the «Studio grafico»; the defaults draw the map as it always was. */
+  options?: CourtOptions;
+}) {
+  const templateTeamArrows = useTemplate().courtArrows === 'team';
   const compact = useDeviceContext() === 'phone';
   const [side, setSide] = useState<Side>('home');
   const [skill, setSkill] = useState<ZoneSkill>('attack');
@@ -52,6 +66,24 @@ export function CourtMap({ state, className = '' }: { state: MatchState; classNa
   const roster = new Map(state.players[side].map((p) => [p.number, p]));
   const names = EVALUATION_NAMES[skill];
   const opponent: Side = side === 'home' ? 'away' : 'home';
+  // The shown team is on the left half; «ours» is the team of the client (home when none is known).
+  const ours: Side = useOurSide() ?? 'home';
+  const leftIsOurs = side === ours;
+  const left = leftIsOurs
+    ? { field: options.fieldOurs, lines: options.linesOurs }
+    : { field: options.fieldOpponent, lines: options.linesOpponent };
+  const right = leftIsOurs
+    ? { field: options.fieldOpponent, lines: options.linesOpponent }
+    : { field: options.fieldOurs, lines: options.linesOurs };
+  const netColor = options.linesOurs ?? options.linesOpponent;
+  const arrowColor = leftIsOurs ? options.arrowsOurs : options.arrowsOpponent;
+  // One colour chosen for these arrows: thin-arrow style (one colour), also with the standard template.
+  const teamArrows = templateTeamArrows || arrowColor !== undefined;
+  const lw = options.lineWidth;
+  const halfPath = (x: number, edge: number): string =>
+    `M${x} ${COURT.y0} L${edge} ${COURT.y0} L${edge} ${COURT.y1} L${x} ${COURT.y1}`;
+  const lineProps = (color: string | undefined) =>
+    color === undefined ? { className: 'stroke-court-line' } : { stroke: color };
   const skillLabel = skill === 'attack' ? 'attacchi' : 'battute';
   const extraFilters = (
     <>
@@ -160,16 +192,26 @@ export function CourtMap({ state, className = '' }: { state: MatchState; classNa
             markerUnits="userSpaceOnUse"
             orient="auto-start-reverse"
           >
-            <path d="M0 0 L10 5 L0 10 z" className={SIDE_FILL[side]} />
+            <path
+              d="M0 0 L10 5 L0 10 z"
+              {...(arrowColor === undefined ? { className: SIDE_FILL[side] } : { fill: arrowColor })}
+            />
           </marker>
         </defs>
         <rect x="0" y="0" width="200" height="110" rx="4" className="fill-court-free" />
         <rect
           x={COURT.x0}
           y={COURT.y0}
-          width={COURT.x1 - COURT.x0}
+          width={COURT.net - COURT.x0}
           height={COURT.y1 - COURT.y0}
-          className="fill-court"
+          {...(left.field === undefined ? { className: 'fill-court' } : { fill: left.field })}
+        />
+        <rect
+          x={COURT.net}
+          y={COURT.y0}
+          width={COURT.x1 - COURT.net}
+          height={COURT.y1 - COURT.y0}
+          {...(right.field === undefined ? { className: 'fill-court' } : { fill: right.field })}
         />
         {ZONES.map((z) => {
           const r = zoneRect(z, 'opponent');
@@ -218,39 +260,32 @@ export function CourtMap({ state, className = '' }: { state: MatchState; classNa
             );
           }),
         )}
-        {/* Lines: perimeter, attack lines (3 m), net. */}
-        <rect
-          x={COURT.x0}
-          y={COURT.y0}
-          width={COURT.x1 - COURT.x0}
-          height={COURT.y1 - COURT.y0}
-          fill="none"
-          className="stroke-court-line"
-          strokeWidth="1"
-        />
+        {/* Lines: perimeter, attack lines (3 m), net; each half in the colour of its team. */}
+        <path d={halfPath(COURT.net, COURT.x0)} fill="none" {...lineProps(left.lines)} strokeWidth={lw} />
+        <path d={halfPath(COURT.net, COURT.x1)} fill="none" {...lineProps(right.lines)} strokeWidth={lw} />
         <line
           x1={COURT.net - 30}
           y1={COURT.y0}
           x2={COURT.net - 30}
           y2={COURT.y1}
-          className="stroke-court-line"
-          strokeWidth="0.7"
+          {...lineProps(left.lines)}
+          strokeWidth={0.7 * lw}
         />
         <line
           x1={COURT.net + 30}
           y1={COURT.y0}
           x2={COURT.net + 30}
           y2={COURT.y1}
-          className="stroke-court-line"
-          strokeWidth="0.7"
+          {...lineProps(right.lines)}
+          strokeWidth={0.7 * lw}
         />
         <line
           x1={COURT.net}
           y1={COURT.y0 - 4}
           x2={COURT.net}
           y2={COURT.y1 + 4}
-          className="stroke-court-line"
-          strokeWidth="1.8"
+          {...lineProps(netColor)}
+          strokeWidth={1.8 * lw}
         />
         <text x={COURT.x0} y="7" className="fill-court-line" fontSize="4.5" fontWeight="700">
           {teamShort(state.teams, side)}
@@ -263,10 +298,12 @@ export function CourtMap({ state, className = '' }: { state: MatchState; classNa
           <Arrow
             key={`${a.from}-${a.to}`}
             arrow={a}
-            width={0.8 + 3.2 * (a.share / maxShare)}
+            width={(0.8 + 3.2 * (a.share / maxShare)) * options.arrowWidth}
             markerId={teamArrows ? `${uid}-head-team` : `${uid}-head-${symbolId(a.dominant)}`}
             names={names}
             team={teamArrows ? side : null}
+            color={arrowColor}
+            thin={TEAM_ARROW_PX * options.arrowWidth}
           />
         ))}
         {ZONES.map((z) => {
@@ -299,7 +336,8 @@ export function CourtMap({ state, className = '' }: { state: MatchState; classNa
         <p className="mt-2 flex items-center gap-1.5 text-xs text-muted">
           <span
             aria-hidden="true"
-            className={`inline-block h-0.5 w-4 rounded-full ${side === 'home' ? 'bg-home' : 'bg-away'}`}
+            className={`inline-block h-0.5 w-4 rounded-full ${arrowColor === undefined ? (side === 'home' ? 'bg-home' : 'bg-away') : ''}`}
+            {...(arrowColor === undefined ? {} : { style: { backgroundColor: arrowColor } })}
           />
           Traiettorie di {teamName(state.teams, side)}: il numero e la percentuale sono le {skillLabel} arrivate in
           zona.
@@ -331,6 +369,8 @@ function Arrow({
   markerId,
   names,
   team,
+  color,
+  thin,
 }: {
   arrow: ZoneArrow;
   width: number;
@@ -338,6 +378,10 @@ function Arrow({
   names: Record<string, string>;
   /** Thin arrow in the colour of this team (template); null: colour of the evaluation, width as given. */
   team: Side | null;
+  /** Colour chosen for these arrows (any evaluation); undefined: the one of the team or of the evaluation. */
+  color: string | undefined;
+  /** Width (px) of a thin team arrow. */
+  thin: number;
 }) {
   const start = zoneCenter(arrow.from, 'own');
   const end = zoneCenter(arrow.to, 'opponent');
@@ -353,8 +397,10 @@ function Arrow({
     <path
       d={`M${start.x} ${start.y} Q${mx} ${my} ${end.x} ${end.y}`}
       fill="none"
-      className={team ? SIDE_STROKE[team] : evalClass(arrow.dominant).stroke}
-      strokeWidth={team ? TEAM_ARROW_PX : width}
+      {...(color !== undefined
+        ? { stroke: color }
+        : { className: team ? SIDE_STROKE[team] : evalClass(arrow.dominant).stroke })}
+      strokeWidth={team ? thin : width}
       vectorEffect={team ? 'non-scaling-stroke' : undefined}
       strokeLinecap="round"
       strokeOpacity={team ? TEAM_ARROW_OPACITY : 0.9}

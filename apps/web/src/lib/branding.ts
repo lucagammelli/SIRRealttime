@@ -188,6 +188,15 @@ export function currentOurSide(): Side | null {
   return ourSide;
 }
 
+/** Reactive side of our team: the component redraws when a match view claims or releases it. */
+export function useOurSide(): Side | null {
+  return useSyncExternalStore(
+    subscribe,
+    () => ourSide,
+    () => null,
+  );
+}
+
 /**
  * Side of the team of the client in a match (`ourTeamSide` of @sir/shared with the team chosen in «Grafica»), claimed
  * while the component is mounted: every view of the page follows the colours of our team.

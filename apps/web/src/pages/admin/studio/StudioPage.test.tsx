@@ -304,6 +304,7 @@ describe('inventory: every option of the old pages is in the Studio', () => {
       nextMatch: 'Mostra il codice QR: Prossima partita',
       standings: 'Righe: Classifica',
       topPlayers: 'Quanti',
+      court: 'Metà della nostra squadra',
       sponsor: 'Secondi per immagine',
       setScorers: 'Periodo: Parziale e marcatori',
       aces: 'Periodo: Ace',

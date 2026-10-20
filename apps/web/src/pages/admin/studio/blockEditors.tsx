@@ -29,6 +29,7 @@ import { CalendarOptionsFields } from '../CalendarOptionsFields.tsx';
 import { inputClass } from '../forms.tsx';
 import { StatOptionsFields, withStatOptions } from '../StatOptionsFields.tsx';
 import { imageCountText } from '../imageUpload.ts';
+import { CourtOptionsFields } from './CourtOptionsFields.tsx';
 import { DEVICE_LABELS } from './model.ts';
 
 /**
@@ -241,6 +242,8 @@ export function BlockOptionsEditor({
           />
         </label>
       );
+    case 'court':
+      return <CourtOptionsFields block={block} onChange={onChange} />;
     case 'nextMatch':
     case 'standings':
       return <CalendarOptionsFields block={block} onChange={onChange} name={label} />;

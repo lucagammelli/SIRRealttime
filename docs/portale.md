@@ -809,6 +809,12 @@ ciclo e mostra l'avviso.
   (o con due) restano i colori casa/ospite del file.
 - **Mappe di campo** (`CourtMap`): con SIR VOLLEY le frecce hanno il colore della squadra che attacca, spessore 1,5 px e
   opacità 85%; nello standard restano colorate per valutazione.
+  Nello Studio grafico («Pagina», opzioni del blocco «Mappe di campo», `CourtOptionsFields.tsx`) si scelgono, per la
+  nostra squadra e per l'avversario: colore del fondo di ciascuna metà, colore delle linee (perimetro, 3 metri; la rete
+  segue la nostra metà), colore delle traiettorie; più lo spessore delle linee e delle traiettorie (da 0,5× a 3×).
+  Un colore non scelto è «Automatico» e segue il tema chiaro/scuro (e il modello per le traiettorie); senza opzioni la
+  mappa è identica a prima. Un colore scelto per le traiettorie vale per ogni valutazione (stile a linea sottile).
+  Schema `CourtOptionsSchema` in `packages/shared/src/layout.ts`; «nostra» è `currentOurSide()` (casa se non nota).
 - **Pagina predefinita**: ogni modello ha la sua (`docs/architettura.md`, «Pagina pubblica a blocchi»): SIR VOLLEY segue il
   mockup di una schermata a 1920×1080 (tabellone, poi andamento, confronto e mappe di campo in tre colonne, poi giocatori e
   rotazioni); `MomentumChart` è ammesso anche a larghezza 4.

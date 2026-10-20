@@ -86,8 +86,8 @@ export const BLOCKS: Registry = {
   players: define('players', 'Statistiche giocatori', 'Tabella dei giocatori con tutti i fondamentali.', (_b, env) => (
     <PlayerTable state={env.state} className={tv(env) ? TV_CARD : ''} />
   )),
-  court: define('court', 'Mappe di campo', 'Direzioni di attacco e battuta sul campo.', (_b, env) => (
-    <CourtMap state={env.state} className={tv(env) ? TV_CARD : 'h-full'} />
+  court: define('court', 'Mappe di campo', 'Direzioni di attacco e battuta sul campo.', (b, env) => (
+    <CourtMap state={env.state} options={b.options} className={tv(env) ? TV_CARD : 'h-full'} />
   )),
   rotations: define('rotations', 'Rotazioni', 'Punti fatti e subiti in ogni rotazione.', (_b, env) =>
     tv(env) ? (

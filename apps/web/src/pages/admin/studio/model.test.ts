@@ -58,6 +58,10 @@ describe('«Rimuovi» asks first only when options of their own would be lost', 
       blockHasSettings(LayoutBlockSchema.parse({ id: 'msg', type: 'message', width: 6, options: { text: 'Ciao' } })),
     ).toBe(true);
     expect(blockHasSettings(newBlock('scoreboard', 'scoreboard'))).toBe(false);
+    const court = newBlock('court', 'court');
+    expect(blockHasSettings(court)).toBe(false);
+    expect(blockHasSettings(LayoutBlockSchema.parse({ ...court, options: { linesOurs: '#ff0000' } }))).toBe(true);
+    expect(blockHasSettings(LayoutBlockSchema.parse({ ...court, options: { arrowWidth: 2 } }))).toBe(true);
   });
 
   it('slides: the defaults of the type are not options of their own; seconds and on/off do not count', () => {

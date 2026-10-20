@@ -116,7 +116,7 @@ spariscono) sostituisce la barra a pillole. Gruppi di un cliente (admin e viewer
 - «Account e aiuto» (`ACCOUNT_GROUP`, per tutti i ruoli, dentro o fuori da un cliente): «Il mio account» e «Guida».
 
 Il **superadmin fuori da un cliente** vede solo il suo menu (`SUPERADMIN_MENU`): il gruppo «Amministrazione» con Clienti,
-Campionati e Posta, più «Account e aiuto». Per lavorare su un cliente ci entra con «Entra nel cliente» (vedi «Più clienti»).
+Campionati, Posta e Loghi di sistema, più «Account e aiuto». Per lavorare su un cliente ci entra con «Entra nel cliente» (vedi «Più clienti»).
 
 - in cima il logo (`BrandMark`), in fondo il nome del cliente, account, tema e «Esci»; la voce attiva è
   evidenziata (`--sir-nav-active`, rosso in SIR VOLLEY);
@@ -143,6 +143,7 @@ Le voci:
 | Simulazione | `/admin/simulazione` | solo admin (il superadmin dentro un cliente) | «Nuova simulazione», «Avanzamento», «Link della simulazione» (con QR): una partita giocata dal server su un link a parte, vedi «Simulazione» |
 | Agenti | `/admin/agenti` | admin e viewer (il viewer in sola lettura) | «Agente per Windows» (vedi sotto), «Nuovo agente» («Crea token», mostrato una sola volta con «Copia config.json»), «Richieste in attesa» (vedi sotto), «Agenti» (stato «Attivo»/«Scaduto»/«Revocato», «Prolunga» con «Salva validità», «Revoca»), con la riga «N di M agenti in uso (limite dato dal superadmin)» |
 | Posta | `/admin/posta` | solo superadmin (fuori da un cliente) | server di posta per inviti e recupero password, uguale per tutti i clienti, vedi «Posta» |
+| Loghi di sistema | `/admin/loghi-di-sistema` | solo superadmin (fuori da un cliente) | i due loghi della piattaforma, vedi «Loghi di sistema» |
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, «Password (facoltativa)» di almeno 12 caratteri, «Ruolo»: «Lettura e scrittura» o «Sola lettura»; «Crea e invita» se la password è vuota, altrimenti «Crea utente»), scheda «Ruoli» (cosa può fare ciascun ruolo), «Utenti» (per ognuno stato «Attivo»/«Disattivato», ruolo, data di creazione e i comandi descritti sotto), vedi «Utenti del cliente» |
 | Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`) | solo admin (il superadmin dentro un cliente) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
 | Sponsor | `/admin/sponsor` | solo admin (il superadmin dentro un cliente) | anagrafica degli sponsor, vedi «Sponsor» |
@@ -638,6 +639,21 @@ aperto ha: «Invia di nuovo» (non se l'utente è disattivato; il vecchio link s
 aperto l'utente non può accedere. Un utente che ha già la password (e non è il proprio) ha «Link per nuova password»:
 mostra un link di un'ora, monouso, da mandare a mano, con «Copia link» (utile senza posta o se la mail non arriva). Il
 primo utente di un cliente si invita già dalla pagina «Clienti» (campo password lasciato vuoto).
+
+### Loghi di sistema (`pages/admin/SystemLogosPage.tsx`, `components/SystemLogosBar.tsx`, `lib/systemLogos.ts`)
+Solo il superadmin, fuori da un cliente (`/admin/loghi-di-sistema`, voce «Loghi di sistema» di «Amministrazione»). Due
+loghi della piattaforma, uno a sinistra e uno a destra, uguali per tutti i clienti. Una scheda per slot («Logo a
+sinistra», «Logo a destra») con l'anteprima (o «Nessun logo»), le misure in px, «Carica logo» / «Sostituisci logo» (PNG,
+JPEG, WebP o SVG, al massimo 2 MB e 150×50 px: uno più grande è rifiutato con il messaggio del server) e «Rimuovi» con
+«Conferma rimozione». In alto la striscia così come la vede il pubblico. Rotte e limiti: `docs/server.md` («Loghi di sistema»).
+
+- **`SystemLogosBar`**: riga con il logo di sinistra e quello di destra; ogni immagine sta in un box di al massimo
+  `min(150px, 25vw)` × `min(50px, 8.33vw)` (niente scorrimento orizzontale su un telefono da 360 px), `object-contain`,
+  `alt` vuoto (decorativa). Senza loghi non disegna nulla; con un solo logo l'altro lato resta vuoto.
+- **Dove compare**: nella pagina live (`LivePage.tsx`) come riga sopra la testata, anche in TV (solo a partita caricata);
+  nell'area riservata (`AdminApp.tsx`) in cima al contenuto.
+- **Dati**: lo store `lib/systemLogos.ts` (`initSystemLogos`, `useSystemLogos`, `setSystemLogos`) legge `GET
+  /api/public/system-logos` una volta all'avvio (`main.tsx`); la pagina lo aggiorna dopo ogni modifica.
 
 ### Posta (`MailSettingsPage.tsx`)
 Solo il superadmin, fuori da un cliente (`/admin/posta`, voce «Posta» di «Amministrazione»). Scheda «Posta»: «Il server

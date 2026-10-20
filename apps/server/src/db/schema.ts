@@ -400,6 +400,28 @@ export const leagues = pgTable(
   (t) => [uniqueIndex('leagues_provider_external_idx').on(t.provider, t.externalId)],
 );
 
+/**
+ * Logos of the platform (one row per slot, `left` and `right`), loaded by the superadmin and checked by `inspectImage`
+ * (at most 150×50 px); the file is `<ASSETS_DIR>/_system/<sha256>`. The id changes at every upload (public path).
+ */
+export const systemLogos = pgTable(
+  'system_logos',
+  {
+    slot: text('slot').primaryKey(),
+    id: uuid('id').notNull().unique().defaultRandom(),
+    sha256: text('sha256').notNull(),
+    mime: text('mime').notNull(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    bytes: integer('bytes').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check('system_logos_slot_check', sql`${t.slot} in ('left', 'right')`),
+    check('system_logos_size_check', sql`${t.width} between 1 and 150 and ${t.height} between 1 and 50`),
+  ],
+);
+
 /** Downloaded team logos, checked by `inspectImage`; the file is `<ASSETS_DIR>/_leagues/<sha256>`. */
 export const teamLogos = pgTable('team_logos', {
   id: uuid('id').primaryKey().defaultRandom(),

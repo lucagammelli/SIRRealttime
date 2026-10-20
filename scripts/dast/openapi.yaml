@@ -131,6 +131,55 @@ paths:
             comune a tutti i clienti,
           }
         '404': { description: logo inesistente }
+  /api/public/system-logos:
+    get:
+      responses:
+        '200': { description: loghi di sistema (sinistra e destra), uguali per tutti i clienti }
+  /api/public/system-logos/{id}:
+    get:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
+      responses:
+        '200': { description: file del logo di sistema (PNG, JPEG, WebP o SVG) }
+        '404': { description: logo inesistente }
+  /api/admin/system-logos/{slot}:
+    put:
+      parameters:
+        - name: slot
+          in: path
+          required: true
+          schema: { type: string, enum: [left, right], example: left }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              additionalProperties: false
+              properties:
+                data:
+                  type: string
+                  format: byte
+                  description: logo in base64 (al massimo 150x50 px e 2 MB)
+                  example: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABc3UBGAAAAABJRU5ErkJggg==
+      responses:
+        '200': { description: logo caricato, elenco aggiornato }
+        '403': { description: solo superadmin }
+        '413': { description: immagine oltre 2 MB }
+        '422': { description: formato non ammesso o logo oltre 150x50 px }
+    delete:
+      parameters:
+        - name: slot
+          in: path
+          required: true
+          schema: { type: string, enum: [left, right], example: right }
+      responses:
+        '200': { description: logo rimosso, elenco aggiornato }
+        '403': { description: solo superadmin }
   /api/admin/matches:
     get:
       responses:

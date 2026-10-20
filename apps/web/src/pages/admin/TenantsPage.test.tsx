@@ -290,7 +290,7 @@ describe('«Clienti» page', () => {
       within(nav)
         .getAllByRole('link')
         .map((l) => l.textContent),
-    ).toEqual(['Clienti', 'Campionati', 'Posta', 'Il mio account', 'Guida']);
+    ).toEqual(['Clienti', 'Campionati', 'Posta', 'Loghi di sistema', 'Il mio account', 'Guida']);
   });
 
   it('sends a superadmin outside any client from the pages of a client to «Clienti»', async () => {

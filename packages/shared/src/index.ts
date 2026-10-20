@@ -21,6 +21,7 @@ export * from './registration.js';
 export * from './simulation.js';
 export * from './sponsors.js';
 export * from './stats.js';
+export * from './systemLogos.js';
 export * from './strings.js';
 export * from './templates.js';
 export * from './themeCss.js';

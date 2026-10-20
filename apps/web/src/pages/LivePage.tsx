@@ -7,6 +7,7 @@ import { Intermission } from '../components/Intermission.tsx';
 import { LiveMatch } from '../components/LiveMatch.tsx';
 import { Overlay } from '../components/Overlay.tsx';
 import { StatusScreen } from '../components/StatusScreen.tsx';
+import { SystemLogosBar } from '../components/SystemLogosBar.tsx';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import type { ProbeResult } from '../lib/liveConnection.ts';
 import { registerServiceWorker, useFullscreenOnFirstTouch, useInstallApp } from '../lib/pwa.ts';
@@ -232,6 +233,8 @@ export function LivePage() {
       } ${idle ? 'cursor-none' : ''}`}
       data-device={device}
     >
+      {/* Logos of the platform (superadmin), above everything, also on the big screen; nothing without them. */}
+      <SystemLogosBar className={tv ? 'shrink-0 pb-3' : 'sir-page mx-auto w-full max-w-7xl px-3 pt-3 sm:px-5'} />
       {!inScoreboard && (
         <header
           className={`sir-navbar flex items-center justify-between gap-3 ${tv ? 'pb-3' : 'sir-page mx-auto w-full max-w-7xl px-3 pt-3 sm:px-5'}`}

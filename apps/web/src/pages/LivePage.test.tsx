@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultBranding, defaultIntermissions, defaultOverlays, TenantLayoutSchema } from '@sir/shared';
 import { initBranding, setTenantLook, tenantLookOf } from '../lib/branding.ts';
+import { setSystemLogos } from '../lib/systemLogos.ts';
 import type { LiveSnapshot } from '../lib/liveConnection.ts';
 import { TV_ROOT_CLASS } from '../lib/tvScreen.ts';
 import { previewState } from '../lib/intermission.ts';
@@ -61,6 +62,7 @@ afterEach(() => {
   cleanup();
   socketSnapshot = snapshot;
   act(() => setTenantLook(null));
+  act(() => setSystemLogos({ left: null, right: null }));
   vi.useRealTimers();
   vi.unstubAllGlobals();
   setWidth(1024);
@@ -441,5 +443,48 @@ describe('LivePage of a simulated match', () => {
     expect(second.source).toBe('link');
     expect(second.visit).not.toBe(first.visit);
     expect(document.cookie).toBe('');
+  });
+});
+
+describe('LivePage: loghi di sistema', () => {
+  const LOGO = {
+    url: '/api/public/system-logos/00000000-0000-4000-8000-000000000001',
+    mime: 'image/png',
+    width: 150,
+    height: 50,
+  } as const;
+  const RIGHT = { ...LOGO, url: '/api/public/system-logos/00000000-0000-4000-8000-000000000002', width: 100 };
+
+  it('none loaded: no row and no empty room above the page', () => {
+    renderAt();
+    expect(screen.queryByTestId('loghi-di-sistema')).toBeNull();
+  });
+
+  it('one at the left and one at the right, on the phone (scaled with the screen) and on the big screen', () => {
+    act(() => setSystemLogos({ left: LOGO, right: RIGHT }));
+    setWidth(360);
+    const phone = renderAt();
+    const row = screen.getByTestId('loghi-di-sistema');
+    const [left, right] = Array.from(row.querySelectorAll('img'));
+    expect(left?.getAttribute('src')).toBe(LOGO.url);
+    expect(left?.dataset.systemLogo).toBe('sinistra');
+    expect(right?.getAttribute('src')).toBe(RIGHT.url);
+    expect(right?.dataset.systemLogo).toBe('destra');
+    expect(left?.className).toContain('max-w-[min(150px,25vw)]');
+    expect(left?.className).toContain('max-h-[min(50px,8.33vw)]');
+    expect(left?.className).toContain('object-contain');
+    phone.unmount();
+    setWidth(1920);
+    renderAt();
+    expect(device(document.body)).toBe('tv');
+    expect(screen.getByTestId('loghi-di-sistema').querySelectorAll('img')).toHaveLength(2);
+  });
+
+  it('only the right one: the left side stays empty, the logo stays at the right', () => {
+    act(() => setSystemLogos({ left: null, right: RIGHT }));
+    renderAt();
+    const row = screen.getByTestId('loghi-di-sistema');
+    expect(row.querySelectorAll('img')).toHaveLength(1);
+    expect(row.lastElementChild?.getAttribute('data-system-logo')).toBe('destra');
   });
 });

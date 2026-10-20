@@ -376,6 +376,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
         items: [
           '«Campionati»: i campionati della Lega, uguali per tutti i club. Si aggiornano da soli.',
           '«Posta»: l’indirizzo da cui partono le email di invito e di recupero password. Con «Invia una mail di prova» controlli che funzioni.',
+          '«Loghi di sistema»: due loghi della piattaforma, uno a sinistra e uno a destra, in alto nella pagina live di tutti i club e nell’area riservata. Con «Carica logo» scegli l’immagine (PNG, JPEG, WebP o SVG, al massimo 150×50 px: una più grande viene rifiutata), con «Sostituisci logo» la cambi e con «Rimuovi» la togli. I club non li possono cambiare; senza loghi la testata resta com’è.',
           'Temi personalizzati: entra nel cliente, apri «Studio grafico», poi «Colori e loghi» e «Avanzate». In «Modello grafico» vedi anche i temi personalizzati e scegli quello da dare al club. I club normali non li vedono.',
           '«Il mio account»: cambi la tua password, anche senza entrare in un club.',
         ],
@@ -385,6 +386,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       { label: 'Vai a Clienti', to: '/admin/clienti' },
       { label: 'Vai a Campionati', to: '/admin/campionati' },
       { label: 'Vai a Posta', to: '/admin/posta' },
+      { label: 'Vai a Loghi di sistema', to: '/admin/loghi-di-sistema' },
       { label: 'Vai a Il mio account', to: '/admin/account' },
     ],
   },

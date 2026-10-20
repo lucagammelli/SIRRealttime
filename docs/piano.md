@@ -249,6 +249,10 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
    «Sponsor» (`/admin/sponsor`, solo admin; tabella `sponsors`, migrazione `0015`), blocco e diapositiva sponsor che
    scelgono gli sponsor, link in nuova scheda dall'immagine, sponsor nell'esporta/importa della grafica
    (`docs/server.md`, `docs/portale.md`, `docs/architettura.md`).
+16. `loghi-sistema` (**fatto**, 2026-10-20): due loghi della piattaforma (sinistra e destra, al massimo 150×50 px) caricati
+   dal superadmin nella pagina «Loghi di sistema» e mostrati sopra la testata della pagina pubblica e dell'area riservata
+   (tabella `system_logos`, migrazione `0016`; `docs/server.md`, `docs/portale.md`, `docs/architettura.md`,
+   `docs/infrastruttura.md`).
 **Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
 PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo
 mostra con «autore sconosciuto».

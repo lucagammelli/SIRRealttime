@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { setSystemLogos } from '../../lib/systemLogos.ts';
 import { APP_VERSION } from '../../lib/version.ts';
 import { AdminApp } from './AdminApp.tsx';
 
@@ -55,6 +56,7 @@ const where = (): string => screen.getByTestId('where').textContent ?? '';
 beforeEach(() => vi.spyOn(console, 'error').mockImplementation(() => undefined));
 afterEach(() => {
   cleanup();
+  setSystemLogos({ left: null, right: null });
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -174,7 +176,7 @@ describe('admin navigation', () => {
       within(nav)
         .getAllByRole('link')
         .map((l) => l.textContent),
-    ).toEqual(['Clienti', 'Campionati', 'Posta', 'Il mio account', 'Guida']);
+    ).toEqual(['Clienti', 'Campionati', 'Posta', 'Loghi di sistema', 'Il mio account', 'Guida']);
     expect(within(nav).getByRole('link', { name: 'Clienti' }).getAttribute('aria-current')).toBe('page');
     expect(within(nav).getByRole('link', { name: 'Campionati' }).getAttribute('href')).toBe('/admin/campionati');
     expect(screen.queryByTestId('barra-cliente')).toBeNull();
@@ -363,5 +365,39 @@ describe('admin look', () => {
     const { container } = renderAt('/admin/live');
     await screen.findByRole('heading', { name: 'Area riservata' });
     expect(container.querySelector('.sir-admin-font')?.querySelector('form')).toBeTruthy();
+  });
+});
+
+describe('loghi di sistema in the reserved area', () => {
+  const LOGO = {
+    url: '/api/public/system-logos/00000000-0000-4000-8000-000000000001',
+    mime: 'image/png',
+    width: 150,
+    height: 50,
+  } as const;
+
+  it('at the top of the pages of every role when loaded, nothing otherwise', async () => {
+    mockServer('admin');
+    const first = renderAt('/admin/live');
+    await screen.findByRole('navigation', { name: 'Area riservata' });
+    expect(screen.queryByTestId('loghi-di-sistema')).toBeNull();
+    first.unmount();
+    setSystemLogos({ left: LOGO, right: null });
+    renderAt('/admin/live');
+    const row = await screen.findByTestId('loghi-di-sistema');
+    expect(row.closest('main')).not.toBeNull();
+    expect(row.querySelector('img')?.getAttribute('src')).toBe(LOGO.url);
+  });
+
+  it('the superadmin has the page «Loghi di sistema»; a client admin does not', async () => {
+    mockServer('admin');
+    const admin = renderAt('/admin/loghi-di-sistema');
+    await waitFor(() => expect(where()).toBe('/admin/live'));
+    admin.unmount();
+    mockServer('superadmin', true);
+    renderAt('/admin/loghi-di-sistema');
+    const nav = await screen.findByRole('navigation', { name: 'Area riservata' });
+    expect(within(nav).getByRole('link', { name: 'Loghi di sistema' }).getAttribute('aria-current')).toBe('page');
+    expect(where()).toBe('/admin/loghi-di-sistema');
   });
 });

@@ -37,6 +37,28 @@ export async function readLeagueLogoFile(dir: string, sha256: string): Promise<B
   return readOrNull(leagueLogoFilePath(dir, sha256));
 }
 
+/** Sub-folder of ASSETS_DIR with the logos of the platform (common to every client, not a uuid). */
+export const SYSTEM_ASSETS_FOLDER = '_system';
+
+/** Path of a system logo: `<dir>/_system/<sha256>` (the hash is checked again here). */
+export function systemLogoFilePath(dir: string, sha256: string): string {
+  if (!SHA256_HEX.test(sha256)) throw new Error('invalid logo path');
+  return join(dir, SYSTEM_ASSETS_FOLDER, sha256);
+}
+
+export async function writeSystemLogoFile(dir: string, sha256: string, data: Buffer): Promise<void> {
+  await writeAtomic(join(dir, SYSTEM_ASSETS_FOLDER), systemLogoFilePath(dir, sha256), data);
+}
+
+/** Content of a system logo, null when missing. */
+export async function readSystemLogoFile(dir: string, sha256: string): Promise<Buffer | null> {
+  return readOrNull(systemLogoFilePath(dir, sha256));
+}
+
+export async function removeSystemLogoFile(dir: string, sha256: string): Promise<void> {
+  await rm(systemLogoFilePath(dir, sha256), { force: true });
+}
+
 async function writeAtomic(folder: string, target: string, data: Buffer): Promise<void> {
   await mkdir(folder, { recursive: true, mode: 0o750 });
   const temporary = `${target}.${randomUUID()}.tmp`;

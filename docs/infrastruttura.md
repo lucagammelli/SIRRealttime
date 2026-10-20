@@ -112,6 +112,9 @@ binario della piattaforma come dipendenza opzionale.
   server usa `PUBLIC_BASE_URL`) e `RATE_LIMIT_LEAGUE_SYNC` (6). Il server **esce in https** verso `www.legavolley.it`
   (l'unico host ammesso): in una rete con uscita filtrata va consentito. I loghi scaricati stanno in `_leagues` dentro il
   volume `assets` (`ASSETS_DIR`): il backup del volume li comprende. Descrizione in `docs/server.md` («Campionati»).
+- Loghi di sistema: la migrazione `0016_loghi_sistema.sql` crea `system_logos` (si applica da sola all'avvio del server);
+  i file stanno in `_system` dentro lo stesso volume `assets`, quindi il backup del volume li comprende
+  (`docs/server.md`, «Loghi di sistema»).
 - `.dockerignore`: esclude dal contesto `node_modules`, `dist`, `coverage`, log, `.git`, `.env` e `.env.*` (tranne
   `.env.example`), `.claude`, `docs` e `samples`.
 - Provato il 2026-10-14: `docker compose -p sirrealtime up -d --build` con `.env` da `.env.example`: `postgres`, `server`

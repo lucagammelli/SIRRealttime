@@ -176,6 +176,28 @@ resta 1.
   riga orfana (rara): il file risponde 404 e il server scrive un warning. Nel superadmin la testata dell'area riservata
   mostra la grafica del cliente dell'hostname, non quella del cliente attivo.
 
+### Loghi di sistema (`apps/server/src/routes/systemLogos.ts`)
+Due loghi della piattaforma (slot `left` e `right`), uguali per tutti i clienti e per ogni hostname, mostrati sopra la
+testata della pagina pubblica e in cima all'area riservata. Contratti in `packages/shared/src/systemLogos.ts`
+(`docs/architettura.md`), pagina in `docs/portale.md` («Loghi di sistema»).
+
+- **Tabella** `system_logos` (migrazione `0016_loghi_sistema.sql`): una riga per slot (`slot` chiave primaria, CHECK
+  `left`/`right`), `id` (uuid, unico, nuovo a ogni caricamento), `sha256`, `mime`, `width`, `height` (CHECK: larghezza 1-150
+  e altezza 1-50), `bytes`, `updated_at`. Il file è in `<ASSETS_DIR>/_system/<sha256>` (`assetStore.ts`:
+  `writeSystemLogoFile`, `readSystemLogoFile`, `removeSystemLogoFile`).
+- **Rotte pubbliche** (rate limit pubblico): `GET /api/public/system-logos` dà `{ left, right }` (ognuno `{ url, mime,
+  width, height }` o `null`), `Cache-Control: public, max-age=30`, uguale per ogni hostname; `GET
+  /api/public/system-logos/:id` dà il file con gli stessi header delle immagini pubbliche (tipo dal database,
+  `nosniff`, `inline`, CSP per gli SVG) e `Cache-Control` immutabile di un anno, perché l'`id` cambia a ogni caricamento.
+- **Rotte admin** (solo `superadmin`, anche fuori da un cliente): `PUT /api/admin/system-logos/:slot` (JSON `{ data }` in
+  base64, corpo fino a ~2,7 MB) e `DELETE /api/admin/system-logos/:slot`; la risposta è la nuova lista `{ left, right }`.
+  Il `PUT` controlla l'immagine con `inspectImage` (tipo e misure dai byte; SVG controllato, per gli SVG vale la misura
+  dichiarata): 413 oltre 2 MB, 422 per un'immagine non ammessa o più grande di 150×50 px («Logo troppo grande: al massimo
+  150×50 px, questo è …»). Caricamento e rimozione sono serializzati da un advisory lock (`pg_advisory_xact_lock`); il file
+  vecchio è cancellato se l'altro slot non lo usa (i due slot possono condividere lo stesso file).
+- **Log**: `redactUrl` (`src/app.ts`) maschera nei log anche `/api/public/system-logos…`.
+- **Test**: `apps/server/test/` (loghi di sistema).
+
 ### Pagina pubblica a blocchi (`apps/server/src/routes/branding.ts`)
 Ogni cliente sceglie i blocchi della pagina della partita per TV, tablet e telefono (`TenantLayoutSchema`,
 `tenants.layout`; forma e tipi di blocco in `docs/architettura.md`, editor in `docs/portale.md`). `{}` è valido e vale i
@@ -910,6 +932,10 @@ server scrive `dist/build-info.json` (`version` e `commit` corto, da `SIR_COMMIT
 | DELETE | `/api/admin/assets/:id` | sessione | admin |
 | GET | `/api/admin/agent/info` | sessione | admin |
 | GET | `/api/admin/agent/download` | sessione, limite proprio `RATE_LIMIT_AGENT_DOWNLOAD` | admin |
+| GET | `/api/public/system-logos` | rate limit pubblico (cache 30 s, uguale per ogni hostname) | - |
+| GET | `/api/public/system-logos/:id` | rate limit pubblico (file di un logo di sistema) | - |
+| PUT | `/api/admin/system-logos/:slot` | sessione (corpo fino a ~2,7 MB) | superadmin |
+| DELETE | `/api/admin/system-logos/:slot` | sessione | superadmin |
 | GET | `/api/public/team-logos/:id` | rate limit pubblico (logo di una squadra dei campionati, uguale per tutti i clienti) | - |
 | GET | `/api/admin/leagues` | sessione | superadmin |
 | POST | `/api/admin/leagues` | sessione | superadmin |
@@ -1130,6 +1156,7 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `fixtures` | `league_id`, `external_id` (`n<numero ufficiale>`; unico per campionato), `number`, fase, giornata, `starts_at` (UTC), `home_team_id`, `away_team_id`, impianto, `status` (`scheduled`/`played`/`postponed`), `home_sets`, `away_sets`, `set_scores`, `provider_match_id`, `note`, `content_hash` |
 | `standings` | chiave `league_id` + `position`: `team_id` (nullo se il nome non è nel calendario), `team_name`, punti, partite, set e punti fatti e subiti, quozienti, `by_result` |
 | `team_logos` | `sha256` (unico), `mime`, `width`, `height`, `bytes`: il file è `ASSETS_DIR/_leagues/<sha256>` |
+| `system_logos` | **comune a tutti i clienti** (migrazione `0016_loghi_sistema.sql`): `slot` (chiave, `left`/`right`), `id` (unico), `sha256`, `mime`, `width` (1-150), `height` (1-50), `bytes`, `updated_at`; il file è `ASSETS_DIR/_system/<sha256>` |
 | `league_http_cache` | `url` (chiave), `etag`, `last_modified` |
 | `tenant_leagues` | scelta del cliente (migrazione `0006_club.sql`): `tenant_id`, `league_id`, `league_team_id` (la squadra del club, nulla finché non scelta; `ON DELETE SET NULL`); unica per cliente e campionato |
 | `client_fixtures` | copia delle partite del club dal calendario (migrazione `0006_club.sql`; `0007_ruoli_calendario.sql` aggiunge `origin` `league`/`manual`, `manual_kind` `friendly`/`cup`/`other`, `broadcast` `auto`/`on`/`off`, `hidden`, `our_logo_asset_id` e `opponent_logo_asset_id` → `assets` `ON DELETE SET NULL`, e rende `league_id` nullo; vincolo: `league_id` nullo se e solo se `origin` è `manual`): `tenant_id`, `league_id`, `fixture_external_id` (unica con cliente e campionato), `fixture_id`, `removed_at` (la partita non è più nel calendario, il link resta), `starts_at`, `our_side` (`club_side`: `home`/`away`), nomi, città e loghi delle due squadre, impianto, `round_label`, `league_name`, `status`, `home_sets`, `away_sets` |

@@ -177,5 +177,10 @@ describe('redactUrl', () => {
       '/api/public/assets/00000000-0000-4000-8000-000000000000',
     );
     expect(redactUrl('/api/public/tenantXYZ12345678901234567/state')).toBe('/api/public/[token]/state');
+    expect(redactUrl('/api/public/system-logos')).toBe('/api/public/system-logos');
+    expect(redactUrl('/api/public/system-logos/00000000-0000-4000-8000-000000000000')).toBe(
+      '/api/public/system-logos/00000000-0000-4000-8000-000000000000',
+    );
+    expect(redactUrl('/api/public/system-logosXYZ1234567890123/state')).toBe('/api/public/[token]/state');
   });
 });

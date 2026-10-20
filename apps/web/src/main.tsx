@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { App } from './App.tsx';
 import { ErrorBoundary, reloadOnceForMissingFile } from './components/ErrorBoundary.tsx';
 import { initBranding, initTemplate } from './lib/branding.ts';
+import { initSystemLogos } from './lib/systemLogos.ts';
 import { initTheme } from './lib/theme.ts';
 import './styles/index.css';
 
@@ -15,6 +16,7 @@ initTheme();
 initTemplate();
 // Graphics of the client of the hostname: the page renders at once with the defaults, the colours follow.
 void initBranding();
+void initSystemLogos();
 
 // A file of an older version of the portal is gone (published while the tab was open): reload once, never loop.
 window.addEventListener('vite:preloadError', (event) => {

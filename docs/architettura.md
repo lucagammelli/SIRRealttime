@@ -173,6 +173,13 @@ Immagini (`assets.ts`): `AssetKindSchema` (`logo` | `sponsor`), `AssetMimeSchema
 `sponsor`), `UpdateAssetRequestSchema` (`PATCH /api/admin/assets/:id`: `{ sponsorId }` o `null`), `AssetSummarySchema`
 (con `sponsorId`), `AssetListResponseSchema`.
 
+Loghi di sistema (`systemLogos.ts`): due loghi della piattaforma uguali per tutti i clienti, caricati solo dal superadmin.
+`SYSTEM_LOGO_SLOTS` (`left`, `right`), `SystemLogoSlotSchema`, `SystemLogoSlotParamSchema`, `SYSTEM_LOGO_MAX_WIDTH` 150 e
+`SYSTEM_LOGO_MAX_HEIGHT` 50 con la funzione pura `systemLogoFits`, `UploadSystemLogoRequestSchema` (`{ data }` base64),
+`systemLogoPath(id)` (`/api/public/system-logos/<id>`), `SystemLogoSchema` (`url`, `mime`, `width`, `height`),
+`SystemLogosSchema` (`GET /api/public/system-logos` e risposta delle rotte admin: `left` e `right`, nulli se mancano) e
+`NO_SYSTEM_LOGOS`. Server in `docs/server.md` («Loghi di sistema»), pagina in `docs/portale.md`.
+
 Sponsor (`sponsors.ts`): anagrafica del cliente. `SponsorSchema` (`id`, `name`, `website`, `position`, `imageIds`,
 `createdAt`), `SponsorListResponseSchema`, `CreateSponsorRequestSchema`, `UpdateSponsorRequestSchema`,
 `SponsorOrderRequestSchema` (`PUT /api/admin/sponsors/order`), `PublicSponsorSchema` (`id`, `name`, `website`, `images`: ciò

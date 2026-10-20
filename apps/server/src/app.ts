@@ -42,6 +42,7 @@ import { publicRoutes } from './routes/public.js';
 import { registrationRoutes } from './routes/registration.js';
 import { simulationRoutes } from './routes/simulation.js';
 import { sponsorRoutes } from './routes/sponsors.js';
+import { systemLogoAdminRoutes, systemLogoPublicRoutes } from './routes/systemLogos.js';
 import { tenantRoutes } from './routes/tenants.js';
 import { userRoutes } from './routes/users.js';
 import { browserWriteGuard, rejectNulBody } from './security.js';
@@ -93,9 +94,16 @@ const RESET_REQUESTS_PER_EMAIL = 3;
 /** Hostnames and share tokens kept in the lookup caches (the oldest go first). */
 const LOOKUP_CACHE_ENTRIES = 10_000;
 
-/** Share tokens appear in public paths: they are masked in the logs (not the graphics routes of the client). */
+/**
+ * Share tokens appear in public paths: they are masked in the logs (not the graphics routes of the client, nor the
+ * system logos).
+ */
 export function redactUrl(url: string): string {
-  if (/^\/api\/public\/(?:tenant(?:[?#]|$)|manifest\.webmanifest(?:[?#]|$)|assets\/|team-logos\/)/.test(url))
+  if (
+    /^\/api\/public\/(?:tenant(?:[?#]|$)|manifest\.webmanifest(?:[?#]|$)|assets\/|team-logos\/|system-logos(?:[/?#]|$))/.test(
+      url,
+    )
+  )
     return url;
   return url
     .replace(/^\/(api|ws)\/public\/[^/?#]+/, '/$1/public/[token]')
@@ -245,6 +253,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   ingestRoutes(app, ctx);
   brandingPublicRoutes(app, ctx);
   leaguePublicRoutes(app, ctx);
+  systemLogoPublicRoutes(app, ctx);
   clubPublicRoutes(app, ctx);
   manifestRoutes(app, ctx);
   publicRoutes(app, ctx);
@@ -261,6 +270,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     brandingAdminRoutes(scope, ctx);
     graphicsTransferRoutes(scope, ctx);
     sponsorRoutes(scope, ctx);
+    systemLogoAdminRoutes(scope, ctx);
     agentDownloadRoutes(scope, ctx);
     leagueRoutes(scope, ctx);
     clubRoutes(scope, ctx);

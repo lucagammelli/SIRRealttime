@@ -426,3 +426,6 @@ Una riga per decisione: data, scelta, motivo.
   privata) e non dalla rotta pubblica, perché questa dipende dall'`Host` e da un indirizzo di un altro cliente le
   anteprime davano 404; le diapositive delle pause hanno `enabled` (predefinito `true`) e gli sponsor di quelle spente
   contano comunque «in uso» (`docs/server.md`, `docs/architettura.md`).
+- 2026-10-20: loghi di sistema globali (tabella `system_logos`, slot `left`/`right`, migrazione `0016`), caricati solo dal
+  superadmin, con limite 150×50 px anche per gli SVG (per la misura dichiarata), perché sono un marchio della piattaforma,
+  uguale per ogni cliente, e un logo grande romperebbe la testata sul telefono (`docs/server.md`, `docs/portale.md`).

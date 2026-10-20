@@ -280,7 +280,7 @@ Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome»
 #### Sezione «Pagina live»
 Ex pagina «Pagina pubblica» (`PageSection.tsx`, vedi «Pagina pubblica a blocchi»). Tre schede «TV», «Tablet», «Telefono»
 (le stesse del dispositivo dell'anteprima: cambiare l'una cambia l'altra). Per ogni blocco: maniglia ⠿ (trascinamento),
-↑ e ↓ («Sposta su», «Sposta giù»), interruttore «Visibile» e «Rimuovi» (icona «−», nome nell'aria-label e nel tooltip), tutti nella riga del blocco; «Rimuovi» chiede
+↑ e ↓ («Sposta su», «Sposta giù»), interruttore «Visibile» e «Rimuovi» (icona «−», nome nell'aria-label e nel tooltip), tutti in una riga sotto il nome del blocco; «Rimuovi» chiede
 «Conferma rimozione» (con «Annulla») solo se il blocco ha opzioni diverse da quelle predefinite del tipo
 (`blockHasSettings` in `studio/model.ts`; componente `RemoveButton` di `StudioUi.tsx`, su `ConfirmButton`). Sotto
 «Opzioni» (con la larghezza): «Larghezza» (non sul
@@ -302,7 +302,7 @@ con la casella «Pausa propria per la fine del N° set» (senza, quel set usa «
 «Regola» con «Ogni quanti punti» (4-25) e «Non negli ultimi punti del set» (`stopBeforeEnd`, con il traguardo da
 `setTarget` di volley-stats). Per ogni pausa, «Quando e come»: «Pausa attiva» e «Come si mostra» (per TV, tablet e
 telefono «Tutto schermo» o «Banda in basso»); «Diapositive»: elenco riordinabile con «Sposta su» e «Sposta giù» (niente
-trascinamento); nella riga di ogni diapositiva l'interruttore «Attiva: <tipo>» e «Rimuovi» (icona «−»; con «Conferma rimozione» solo
+trascinamento); in una riga sotto il nome di ogni diapositiva l'interruttore «Attiva: <tipo>» e «Rimuovi» (icona «−»; con «Conferma rimozione» solo
 se la diapositiva ha opzioni diverse da quelle predefinite, `slideHasSettings`). Una diapositiva disattivata (campo
 `enabled` della diapositiva, predefinito attivo: i documenti salvati prima restano tutti attivi) resta nell'elenco con le
 sue opzioni, segnata «(disattivata)», ma non compare né sulla pagina pubblica né nell'anteprima (`visibleSlides`); se

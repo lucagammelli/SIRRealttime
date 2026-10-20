@@ -95,33 +95,36 @@ function BlockRow({
               {index + 1}. {name}
             </span>
           </span>
-          <Toggle
-            checked={block.visible}
-            label={`Visibile: ${name}`}
-            title={block.visible ? 'Visibile' : 'Nascosto'}
-            onChange={(visible) => onChange({ ...block, visible })}
-          />
-          <Button
-            variant="ghost"
-            aria-label={`Sposta su ${name}`}
-            data-move={`${block.id}-up`}
-            disabled={index === 0}
-            onClick={() => onMove(index - 1, 'up')}
-            className="px-2"
-          >
-            ↑
-          </Button>
-          <Button
-            variant="ghost"
-            aria-label={`Sposta giù ${name}`}
-            data-move={`${block.id}-down`}
-            disabled={index === count - 1}
-            onClick={() => onMove(index + 1, 'down')}
-            className="px-2"
-          >
-            ↓
-          </Button>
-          <RemoveButton name={name} confirm={blockHasSettings(block)} onRemove={onRemove} />
+          {/* Commands on their own row under the name: the name keeps the whole width of a narrow column. */}
+          <div className="flex basis-full items-center gap-2">
+            <Toggle
+              checked={block.visible}
+              label={`Visibile: ${name}`}
+              title={block.visible ? 'Visibile' : 'Nascosto'}
+              onChange={(visible) => onChange({ ...block, visible })}
+            />
+            <Button
+              variant="ghost"
+              aria-label={`Sposta su ${name}`}
+              data-move={`${block.id}-up`}
+              disabled={index === 0}
+              onClick={() => onMove(index - 1, 'up')}
+              className="px-2"
+            >
+              ↑
+            </Button>
+            <Button
+              variant="ghost"
+              aria-label={`Sposta giù ${name}`}
+              data-move={`${block.id}-down`}
+              disabled={index === count - 1}
+              onClick={() => onMove(index + 1, 'down')}
+              className="px-2"
+            >
+              ↓
+            </Button>
+            <RemoveButton name={name} confirm={blockHasSettings(block)} onRemove={onRemove} />
+          </div>
         </div>
         <details className="group text-sm text-text" open={invalid || undefined}>
           <summary className="cursor-pointer text-xs text-muted hover:text-text">

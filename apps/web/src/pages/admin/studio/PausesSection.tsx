@@ -191,33 +191,36 @@ function SlideRow({
             {index + 1}. {label}
             {!slide.enabled && <span className="font-normal text-muted"> (disattivata)</span>}
           </span>
-          <Toggle
-            checked={slide.enabled}
-            label={`Attiva: ${label}`}
-            title={slide.enabled ? 'Attiva' : 'Disattivata'}
-            onChange={(enabled) => onChange({ ...slide, enabled })}
-          />
-          <Button
-            variant="ghost"
-            aria-label={`Sposta su ${label}`}
-            data-move={`${slide.id}-up`}
-            disabled={index === 0}
-            onClick={() => onMove(index - 1, 'up')}
-            className="px-2"
-          >
-            ↑
-          </Button>
-          <Button
-            variant="ghost"
-            aria-label={`Sposta giù ${label}`}
-            data-move={`${slide.id}-down`}
-            disabled={index === count - 1}
-            onClick={() => onMove(index + 1, 'down')}
-            className="px-2"
-          >
-            ↓
-          </Button>
-          <RemoveButton name={label} confirm={slideHasSettings(slide)} onRemove={onRemove} />
+          {/* Commands on their own row under the name: the name keeps the whole width of a narrow column. */}
+          <div className="flex basis-full items-center gap-2">
+            <Toggle
+              checked={slide.enabled}
+              label={`Attiva: ${label}`}
+              title={slide.enabled ? 'Attiva' : 'Disattivata'}
+              onChange={(enabled) => onChange({ ...slide, enabled })}
+            />
+            <Button
+              variant="ghost"
+              aria-label={`Sposta su ${label}`}
+              data-move={`${slide.id}-up`}
+              disabled={index === 0}
+              onClick={() => onMove(index - 1, 'up')}
+              className="px-2"
+            >
+              ↑
+            </Button>
+            <Button
+              variant="ghost"
+              aria-label={`Sposta giù ${label}`}
+              data-move={`${slide.id}-down`}
+              disabled={index === count - 1}
+              onClick={() => onMove(index + 1, 'down')}
+              className="px-2"
+            >
+              ↓
+            </Button>
+            <RemoveButton name={label} confirm={slideHasSettings(slide)} onRemove={onRemove} />
+          </div>
         </div>
         <details className="text-sm text-text" open={invalid || undefined}>
           <summary className="cursor-pointer text-xs text-muted hover:text-text">Opzioni · {slide.seconds} s</summary>

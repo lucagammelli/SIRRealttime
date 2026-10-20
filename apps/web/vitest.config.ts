@@ -8,7 +8,11 @@ const conditions = [SOURCE_CONDITION, 'module', 'browser', 'import', 'default'];
 // Components run in jsdom; the pure chart and format functions do not need the DOM but share the same environment.
 export default defineConfig({
   plugins: [react()],
-  define: { __SIR_VERSION__: JSON.stringify(leggiVersione()), __SIR_COMMIT__: JSON.stringify('') },
+  define: {
+    __SIR_VERSION__: JSON.stringify(leggiVersione()),
+    __SIR_COMMIT__: JSON.stringify(''),
+    __SIR_BUILD__: JSON.stringify('build-dei-test'),
+  },
   resolve: { conditions },
   ssr: { resolve: { conditions: [SOURCE_CONDITION, 'node', 'import', 'default'] } },
   test: {

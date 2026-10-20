@@ -391,6 +391,14 @@ Lavoro «guida-utente». Le due voci stanno nel gruppo di menu «Account e aiuto
   sta nel `title` solo per il superadmin). Viene dal `package.json` alla radice: Vite lo inserisce al build
   (`define` `__SIR_VERSION__`/`__SIR_COMMIT__` in `vite.config.ts`, `src/lib/version.ts`); il commit è `SIR_COMMIT` nei
   build Docker o git.
+- **Pagina aperta prima di un aggiornamento**: ogni build ha un id (`__SIR_BUILD__`) scritto anche in `dist/version.json`
+  (`{"build": "<id>"}`, servito da nginx senza cache). Se una risposta non rispetta lo schema del portale (`apiRequest`
+  in `src/lib/api.ts`), il portale rilegge `/version.json` (`newBuildAvailable` in `src/lib/version.ts`): con un altro id
+  mostra «Il portale è stato aggiornato: ricarica la pagina per usare la nuova versione.» (`OUTDATED_MESSAGE`), altrimenti
+  «Risposta del server non valida.». Caso tipico: un documento con un campo nuovo (come `enabled` delle diapositive) letto
+  con lo schema stretto della versione vecchia. In sviluppo l'id è vuoto e il controllo non si fa. Test:
+  `lib/version.test.ts`, `lib/api.test.ts`; le risposte delle rotte dello Studio lette con gli schemi del portale sono
+  provate in `apps/server/test/studioResponses.test.ts`.
 - Rotta del server: `docs/server.md`, «Endpoint». Test: `GuidePage.test.tsx`, `AccountPage.test.tsx`, `AdminApp.test.tsx`.
 
 ### Link breve e QR (`src/qr/`, `pages/admin/ShareLinksPage.tsx`)
@@ -1066,7 +1074,8 @@ bundle i pacchetti del monorepo non usati.
 - Proxy verso il server: `/api` e `/ws` (con WebSocket) vanno a `SIR_SERVER_URL`, default `http://localhost:8090`. Il
   browser vede una sola origine, quindi cookie di sessione e controllo `Origin` funzionano con `CORS_ORIGIN` e
   `PUBLIC_BASE_URL` = `http://localhost:5173` (default del server, `docs/server.md`).
-- `define`: `__SIR_VERSION__` e `__SIR_COMMIT__` (versione del `package.json` alla radice e commit corto, vuoto se ignoto).
+- `define`: `__SIR_VERSION__` e `__SIR_COMMIT__` (versione del `package.json` alla radice e commit corto, vuoto se ignoto)
+  e `__SIR_BUILD__` (id casuale di ogni `vite build`, vuoto in sviluppo; il build lo scrive anche in `version.json`).
 - Build: `pnpm --filter @sir/web build` scrive in `apps/web/dist`; ECharts ha un chunk a parte (`echarts`).
 
 ### Demo (`apps/web/scripts/demo.ts`)

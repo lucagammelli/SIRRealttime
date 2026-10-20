@@ -83,7 +83,9 @@ binario della piattaforma come dipendenza opzionale.
   comandi in `docs/server.md`, il portale in `docs/portale.md`.
 - `docker/web.Dockerfile`, `docker/web.nginx.conf`, `docker/web.security-headers.conf`: immagine del portale (build Vite
   con pnpm, poi `nginxinc/nginx-unprivileged` sulla porta 8080 con utente non root), proxy di `/api` e `/ws`, CSP (con `worker-src 'self'` per il service worker minimo dell'app installabile, senza cache:
-  `docs/portale.md`, «App installabile e schermo intero»).
+  `docs/portale.md`, «App installabile e schermo intero»). Ogni build scrive `dist/version.json` con l'id della build
+  (`buildIdPlugin` in `apps/web/vite.config.ts`), servito da `location /` con `Cache-Control "no-cache"`: il portale lo
+  legge per accorgersi di essere superato (`docs/portale.md`).
 - `docker/web.nginx.main.conf`: `nginx.conf` principale copiata dal Dockerfile; per gli spettatori ha `worker_processes
   auto`, `worker_rlimit_nofile 40000`, `worker_connections 16384`, `multi_accept on` (pid e file temporanei in `/tmp`).
   Il servizio `web` di `docker-compose.yml` ha `ulimits.nofile` a 65536 (soft e hard), altrimenti nginx non può aprire

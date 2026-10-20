@@ -1,5 +1,6 @@
 import { ApiErrorSchema } from '@sir/shared';
 import type { z } from 'zod';
+import { newBuildAvailable } from './version.ts';
 
 /** HTTP error of the API, with a message in Italian ready to be shown. */
 export class ApiError extends Error {
@@ -22,6 +23,12 @@ const STATUS_MESSAGES: Record<number, string> = {
   413: 'Richiesta troppo grande.',
   429: 'Troppe richieste: riprova tra un minuto.',
 };
+
+/**
+ * A page opened before a release reads the answers of the new server with the contracts of the old portal: they may
+ * not match (a new field of a strict document), and only reloading the page helps.
+ */
+export const OUTDATED_MESSAGE = 'Il portale è stato aggiornato: ricarica la pagina per usare la nuova versione.';
 
 /** Statuses whose message from the server is shown as it is (it explains what to change). */
 const EXPLAINED_STATUSES = new Set([409, 410, 413, 422, 502]);
@@ -84,7 +91,8 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
 
 /**
  * Same-origin call to the server: cookie included, JSON body (required by the server for every POST),
- * response validated with the shared `schema`.
+ * response validated with the shared `schema`. An answer that does not match says «ricarica la pagina» when the
+ * server serves a newer portal (`newBuildAvailable`), otherwise «Risposta del server non valida.».
  */
 export async function apiRequest<T>(path: string, schema: z.ZodType<T>, options: RequestOptions = {}): Promise<T> {
   const res = await send(path, options);
@@ -95,7 +103,10 @@ export async function apiRequest<T>(path: string, schema: z.ZodType<T>, options:
     throw new ApiError(res.status, 'Risposta del server non leggibile.');
   }
   const parsed = schema.safeParse(json);
-  if (!parsed.success) throw new ApiError(res.status, 'Risposta del server non valida.');
+  if (!parsed.success) {
+    const outdated = await newBuildAvailable();
+    throw new ApiError(res.status, outdated ? OUTDATED_MESSAGE : 'Risposta del server non valida.');
+  }
   return parsed.data;
 }
 

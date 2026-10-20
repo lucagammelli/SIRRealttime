@@ -73,6 +73,7 @@ describe('public graphics of the client of the hostname', () => {
       layout: defaultLayout(),
       intermissions: defaultIntermissions(),
       overlays: defaultOverlays(),
+      sponsors: [],
     });
   });
 

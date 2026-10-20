@@ -1,5 +1,4 @@
 import type { IntermissionSlide, SlideType } from '@sir/shared';
-import { publicAssetPath } from '@sir/shared';
 import type { Side, StatLine } from '@sir/volley-stats';
 import { matchMvp, setRecap } from '@sir/volley-stats';
 import type { ReactNode } from 'react';
@@ -9,6 +8,7 @@ import { formatPct, playerName, teamName, teamShort } from '../lib/format.ts';
 import { statPeriod } from '../lib/intermission.ts';
 import { nextFixture } from '../lib/schedule.ts';
 import { setPartials } from '../lib/scoreboard.ts';
+import { sponsorItems } from '../lib/sponsors.ts';
 import { ShareQr } from '../qr/ShareQr.tsx';
 import {
   currentPageUrl,
@@ -16,7 +16,9 @@ import {
   MessageBlock,
   QrBlock,
   shortCodeOf,
+  sponsorAlt,
   SponsorBlock,
+  SponsorImage,
   useImageRotation,
 } from './BrandBlocks.tsx';
 import { NextMatchView, StandingsView } from './CalendarBlocks.tsx';
@@ -242,20 +244,20 @@ function SponsorSlide({
   env: SlideEnv;
   size: SlideSize;
 }) {
-  const { images, seconds } = slide.options;
-  const index = useImageRotation(images.length, seconds, env.paused);
-  const id = images[index];
-  const src = id ? publicAssetPath(id) : env.sponsorLogo;
-  if (size === 'full' && images.length > 0) return <SponsorBlock options={slide.options} env={env} />;
-  if (!src) return null;
-  const alt = images.length > 0 ? `Sponsor ${index + 1} di ${images.length}` : 'Sponsor';
+  const items = sponsorItems(slide.options, env.brand?.sponsors ?? []);
+  const index = useImageRotation(items.length, slide.options.seconds, env.paused);
+  // Nothing chosen: the sponsor logo of the branding.
+  const current = items[index] ?? (env.sponsorLogo ? { src: env.sponsorLogo, name: null, website: null } : null);
+  if (size === 'full' && items.length > 0) return <SponsorBlock options={slide.options} env={env} />;
+  if (!current) return null;
+  const alt = items.length > 0 ? sponsorAlt(current, index, items.length) : 'Sponsor';
   return (
     <div className="flex min-h-full items-center justify-center">
-      <img
-        key={src}
-        src={src}
+      <SponsorImage
+        key={current.src}
+        item={current}
         alt={alt}
-        className={`sir-fade w-auto max-w-full object-contain ${size === 'compact' ? 'max-h-14' : 'max-h-[60vh]'}`}
+        className={`w-auto max-w-full object-contain ${size === 'compact' ? 'max-h-14' : 'max-h-[60vh]'}`}
       />
     </div>
   );

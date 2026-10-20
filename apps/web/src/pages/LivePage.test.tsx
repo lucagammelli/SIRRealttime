@@ -192,6 +192,7 @@ describe('LivePage layout of the client', () => {
           layout,
           intermissions: defaultIntermissions(),
           overlays: defaultOverlays(),
+          sponsors: [],
         }),
       ),
     );
@@ -224,6 +225,7 @@ describe('LivePage pauses of the client', () => {
             layout: TenantLayoutSchema.parse({}),
             intermissions: defaultIntermissions(),
             overlays: defaultOverlays(),
+            sponsors: [],
           }),
         ),
       );
@@ -410,6 +412,7 @@ describe('LivePage of a simulated match', () => {
           layout: TenantLayoutSchema.parse({}),
           intermissions: defaultIntermissions(),
           overlays: defaultOverlays(),
+          sponsors: [],
         }),
       ),
     );

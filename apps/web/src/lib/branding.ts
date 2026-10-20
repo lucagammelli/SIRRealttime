@@ -44,6 +44,8 @@ export interface TenantLook {
   intermissions: TenantIntermissions;
   /** Overlays of the events of the match (ace, set point, ...). */
   overlays: TenantOverlays;
+  /** Sponsors chosen by the page or the pauses, with their images. */
+  sponsors: PublicTenantResponse['sponsors'];
 }
 
 let look: TenantLook | null = null;
@@ -208,6 +210,7 @@ export function tenantLookOf(tenant: PublicTenantResponse): TenantLook {
     layout: tenant.layout,
     intermissions: tenant.intermissions,
     overlays: tenant.overlays,
+    sponsors: tenant.sponsors,
   };
 }
 

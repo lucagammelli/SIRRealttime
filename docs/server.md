@@ -127,7 +127,12 @@ resta 1.
   `packages/shared/src/graphicsExport.ts`): `GET /api/admin/branding/export` (admin) scarica un pacchetto JSON
   (`Content-Disposition: attachment; filename="grafica-<slug>-<data>.json"`) con `format: "sirrealtime-grafica"`,
   `version: 1`, `exportedAt`, `sourceName` (nome del cliente), `branding`, `layout`, `intermissions`, `overlays` e le
-  immagini usate (loghi del branding e immagini dei blocchi/diapositive sponsor: id originale, tipo, mime, base64).
+  immagini usate (loghi del branding, immagini singole e immagini degli sponsor scelti: id originale, tipo, mime, base64) e
+  `sponsors` (gli sponsor scelti da pagina e pause: id originale, nome, sito, `imageIds`; la `version` resta 1, un
+  pacchetto senza `sponsors` vale nessuno sponsor). L'export risponde 409 se uno sponsor scelto non esiste più.
+  All'import ogni sponsor si **unisce** a quello del cliente con lo stesso nome (il sito è sovrascritto con quello del
+  pacchetto) oppure si crea in fondo all'elenco (409 oltre 50 sponsor); le sue immagini, se non hanno già uno sponsor, gli
+  sono assegnate fino a 12 (`importSponsors`); la risposta ha anche `sponsors` (numero).
   Niente partite, utenti, agenti, link né hostname. `POST /api/admin/branding/import` (admin, corpo fino a 24 MB, solo su
   questa rotta) valida il pacchetto (versione o formato sconosciuti: 400 «Versione della configurazione non supportata»),
   controlla ogni immagine come un caricamento (`inspectImage`: byte iniziali, SVG controllato, 2 MB; il mime dichiarato
@@ -179,14 +184,19 @@ modello.
   `PUT /api/admin/layout`; il corpo del `PUT` è il layout e la risposta è `LayoutResponse` (`tenantName`, `layout`). Corpo
   al massimo 64 KB (limite predefinito del server). Il layout è validato con lo schema condiviso (tipi chiusi, opzioni
   per tipo, id unici, un solo tabellone, larghezze ammesse, al massimo 24 blocchi per dispositivo): altrimenti 400.
-- **Immagini degli sponsor**: gli id in `options.images` dei blocchi `sponsor` (`layoutImageIds`) devono essere immagini
-  di quel cliente, controllate nella stessa transazione e sotto lo stesso lock per cliente di caricamenti, eliminazioni e
-  grafica; altrimenti 400. Dopo il salvataggio si svuota la cache degli hostname (`forgetTenants`).
-- **Rotta pubblica**: `layout` è anche in `GET /api/public/tenant` (`PublicTenantResponseSchema`), così il portale lo
+- **Sponsor e immagini dei blocchi**: gli id in `options.sponsors` dei blocchi `sponsor` (`layoutSponsorIds`, al massimo 12
+  per blocco) devono essere sponsor di quel cliente (`requireOwnSponsors`: altrimenti 400 «sponsor non trovato»); gli id in
+  `options.images` (`layoutImageIds`, immagini singole, opzione mantenuta per compatibilità con i layout salvati prima)
+  devono essere immagini di quel cliente. I controlli sono nella stessa transazione e sotto lo stesso lock per cliente di
+  caricamenti, eliminazioni e grafica; altrimenti 400. Dopo il salvataggio si svuota la cache degli hostname (`forgetTenants`).
+- **Rotta pubblica**: `sponsors` di `GET /api/public/tenant` (`PublicSponsorSchema`: `id`, `name`, `website`, `images` come
+  percorsi pubblici) contiene solo gli sponsor scelti da pagina e pause (`publicSponsors`), nell'ordine dell'elenco del
+  cliente. `layout` è anche in `GET /api/public/tenant` (`PublicTenantResponseSchema`), così il portale lo
   legge con la grafica. Un layout non valido o di versione futura si legge come predefinito: quando `TENANT_CONFIG_VERSION`
   salirà servirà una migrazione dei layout salvati.
-- **Eliminazione di un'immagine**: se è usata in un blocco sponsor, `DELETE /api/admin/assets/:id` risponde 409 «Immagine
-  in uso nella pagina pubblica: toglila dal blocco sponsor prima di eliminarla» (come per la grafica).
+- **Eliminazione di un'immagine**: se è usata come immagine singola di un blocco sponsor, `DELETE /api/admin/assets/:id`
+  risponde 409 «Immagine in uso nella pagina pubblica: toglila dal blocco sponsor prima di eliminarla» (come per la
+  grafica). Le immagini di uno sponsor scelto dalla pagina seguono la regola dello sponsor (vedi «Sponsor»).
 
 ### Pause della partita (`apps/server/src/routes/branding.ts`)
 Ogni cliente sceglie cosa vede il pubblico durante i time-out, a fine set e a fine partita (`TenantIntermissionsSchema`,
@@ -200,13 +210,43 @@ nulla, la fase viaggia nello stato come ogni altro campo. `{}` è valido e vale 
   validi, i campi mancanti prendono i predefiniti); il corpo del `PUT` è il documento delle pause e la risposta è `IntermissionsResponse`
   (`tenantName`, `intermissions`). Validazione con lo schema condiviso (tipi di diapositiva chiusi, durate 3-60 s, ritardo
   0-60 s, al massimo 12 diapositive, una pausa attiva con almeno una diapositiva): altrimenti 400.
-- **Immagini degli sponsor**: gli id delle diapositive `sponsor` (`intermissionImageIds`) devono essere immagini di quel
-  cliente, controllate nella stessa transazione e sotto lo stesso lock per cliente di caricamenti, eliminazioni, grafica e
-  layout; altrimenti 400. Dopo il salvataggio si svuota la cache degli hostname (`forgetTenants`).
+- **Sponsor e immagini delle diapositive**: gli id `sponsors` delle diapositive `sponsor` (`intermissionSponsorIds`) devono
+  essere sponsor di quel cliente e gli `images` (`intermissionImageIds`) immagini di quel cliente, controllati nella stessa
+  transazione e sotto lo stesso lock per cliente di caricamenti, eliminazioni, grafica e layout; altrimenti 400. Dopo il salvataggio si svuota la cache degli hostname (`forgetTenants`).
 - **Rotta pubblica**: `intermissions` è anche in `GET /api/public/tenant` (`PublicTenantResponseSchema`), con i predefiniti
   se il cliente non ha configurato nulla.
 - **Eliminazione di un'immagine**: se è usata in una diapositiva sponsor, `DELETE /api/admin/assets/:id` risponde 409
   «Immagine in uso nelle pause: toglila dalla diapositiva sponsor prima di eliminarla».
+
+### Sponsor (`apps/server/src/routes/sponsors.ts`, `apps/server/src/sponsors.ts`)
+Anagrafica degli sponsor di un cliente: nome, sito facoltativo e immagini. Il blocco sponsor della pagina e la diapositiva
+sponsor delle pause scelgono gli sponsor e ne mostrano le immagini a rotazione (contratti in `docs/architettura.md`,
+«Sponsor»; pagina in `docs/portale.md`, «Sponsor»).
+
+- **Tabelle** (migrazione `0015_sponsor.sql`): `sponsors` (`tenant_id`, `name` 1-80 caratteri, univoco per cliente
+  (`sponsors_tenant_name_idx`), `website` facoltativo che inizia con `https://`, `position`, `created_at`) e
+  `assets.sponsor_id` (→ `sponsors`, `ON DELETE SET NULL`). Un'immagine appartiene a un solo sponsor; le immagini sponsor
+  già presenti restano «senza sponsor» (`sponsor_id` nullo).
+- **Rotte admin** (`/api/admin/sponsors`, il superadmin lavora sul cliente attivo): `GET` (ruolo `viewer`, elenco con
+  `imageIds` nell'ordine di caricamento); `POST` (crea, ultimo nell'elenco), `PATCH /:id` (nome e/o sito), `PUT /order`
+  (`ids`: tutti gli sponsor del cliente una volta, altrimenti 400), `DELETE /:id` (204), tutte del ruolo `admin` e sotto il
+  lock per cliente (`lockClientAssets`). Il sito è normalizzato (`SponsorWebsiteSchema`: solo `https://`, host presente,
+  niente credenziali). Limiti: `SPONSORS_MAX` = 50 sponsor per cliente, `SPONSOR_IMAGES_MAX` = 12 immagini per sponsor,
+  `SPONSOR_BLOCK_MAX_SPONSORS` = 12 sponsor per blocco o diapositiva (400 dalla validazione del layout e delle pause).
+  Oltre i primi due limiti, 409; nome già usato: 409 «Esiste già uno sponsor con questo nome».
+- **Eliminazione**: 409 se lo sponsor è scelto da un blocco della pagina («Sponsor in uso nella pagina pubblica…») o da
+  una diapositiva delle pause («Sponsor in uso nelle pause…»); altrimenti elimina anche le sue immagini non usate altrove
+  (branding o immagini singole di un blocco): quelle ancora usate restano, senza sponsor.
+- **Immagini**: `POST /api/admin/assets` accetta `sponsorId` (solo con `kind: 'sponsor'`, sponsor del cliente: 400
+  altrimenti; 409 se lo sponsor ha già 12 immagini o se lo stesso file è già immagine di un altro sponsor). `PATCH
+  /api/admin/assets/:id` (`UpdateAssetRequestSchema`, `{ sponsorId }`) assegna un'immagine sponsor a uno sponsor o la toglie
+  (`null`); un logo non può avere uno sponsor (400); un'immagine già di un altro sponsor si sposta con questa rotta.
+  `AssetSummary` contiene `sponsorId`.
+- **Pagina e pause**: `PUT /api/admin/layout` e `PUT /api/admin/intermissions` rifiutano (400) sponsor di altri clienti.
+- **Rotta pubblica**: `GET /api/public/tenant` espone `sponsors` (`{ id, name, website, images }`) solo per gli sponsor
+  usati da pagina e pause; la modifica di nome, sito, ordine o scelta svuota la cache degli hostname (`forgetTenants`).
+- **Grafica esportata**: vedi «Esporta / importa la grafica» (gli sponsor scelti viaggiano nel pacchetto).
+- **Test**: `apps/server/test/sponsors.test.ts` e quelli di grafica, layout, pause e migrazione.
 
 ### Avvisi sugli eventi (`apps/server/src/routes/branding.ts`)
 Ogni cliente sceglie quali eventi della partita (ace, set point, match point…) compaiono come avviso breve sopra la pagina
@@ -1086,6 +1126,7 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `client_fixtures` | copia delle partite del club dal calendario (migrazione `0006_club.sql`; `0007_ruoli_calendario.sql` aggiunge `origin` `league`/`manual`, `manual_kind` `friendly`/`cup`/`other`, `broadcast` `auto`/`on`/`off`, `hidden`, `our_logo_asset_id` e `opponent_logo_asset_id` → `assets` `ON DELETE SET NULL`, e rende `league_id` nullo; vincolo: `league_id` nullo se e solo se `origin` è `manual`): `tenant_id`, `league_id`, `fixture_external_id` (unica con cliente e campionato), `fixture_id`, `removed_at` (la partita non è più nel calendario, il link resta), `starts_at`, `our_side` (`club_side`: `home`/`away`), nomi, città e loghi delle due squadre, impianto, `round_label`, `league_name`, `status`, `home_sets`, `away_sets` |
 | `share_tokens` | `tenant_id`, `token_hash`, `match_id` (null: segue la live), `client_fixture_id` (link di una partita del calendario, `ON DELETE CASCADE`; unico quando non nullo e non revocato: indice parziale dalla migrazione `0014_link_partita.sql`), `label`, `expires_at`, `revoked`, `short_code_hash` (unica, null finché non assegnato), `short_code_salt` (migrazioni `0004_short_codes.sql`, `0006_club.sql`) |
 | `assets` | `tenant_id`, `kind` (enum `asset_kind`: `logo`/`sponsor`), `sha256`, `mime`, `width`, `height`, `bytes`, `created_at`; indice univoco `assets_tenant_sha256_kind_idx` su cliente + `sha256` + `kind` (migrazione `0003_assets.sql`) |
+| `sponsors` | anagrafica degli sponsor (migrazione `0015_sponsor.sql`): `tenant_id`, `name` (1-80, CHECK; unico per cliente: `sponsors_tenant_name_idx`), `website` (nullo o `https://…`, CHECK), `position`, `created_at`; `assets.sponsor_id` (→ `sponsors`, `ON DELETE SET NULL`, indice `assets_sponsor_idx`) |
 | `agent_registrations` | `tenant_id`, `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at`, `agent_expires_at` (validità scelta all'approvazione; migrazioni `0001_agent_registrations.sql`, `0007_ruoli_calendario.sql`) |
 | `agents`, `tenants` (colonne di `0007_ruoli_calendario.sql`) | `agents.expires_at` (nulla = senza scadenza); `tenants.club_profile` (jsonb, predefinito `{}`) e `tenants.agent_quota` (intero, predefinito 1; la migrazione la porta a max(1, agenti non revocati) per i clienti esistenti) |
 | `tenants` (colonna di `0014_link_partita.sql`) | `match_links_enabled` (booleano, predefinito `false`; la migrazione lo accende per i clienti con link per partita validi, simulazioni escluse) |

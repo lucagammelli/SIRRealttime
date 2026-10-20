@@ -245,6 +245,10 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
    clienti nuovi (solo canale del club col suo QR), accesa per chi aveva già link per partita; spegnerla li revoca per
    sempre, riaccenderla ne crea di nuovi; portale e calendario pubblico adeguati. Superato il limite noto «link
    revocato non ricreato» (`docs/server.md`, `docs/portale.md`, `docs/architettura.md`).
+15. `sponsor` (**fatto**, 2026-10-20): anagrafica degli sponsor (nome, sito `https://`, più immagini, ordine) nella pagina
+   «Sponsor» (`/admin/sponsor`, solo admin; tabella `sponsors`, migrazione `0015`), blocco e diapositiva sponsor che
+   scelgono gli sponsor, link in nuova scheda dall'immagine, sponsor nell'esporta/importa della grafica
+   (`docs/server.md`, `docs/portale.md`, `docs/architettura.md`).
 **Agente: da rifare in seguito** (decisione di Luca, 2026-10-15): riscrittura in C# (.NET) più strutturata, senza
 PowerShell a runtime; firma del codice con un certificato e informazioni di versione nell'exe, perché oggi Windows lo
 mostra con «autore sconosciuto».

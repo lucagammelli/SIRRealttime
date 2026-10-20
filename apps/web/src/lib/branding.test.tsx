@@ -27,6 +27,7 @@ const tenant = (colors: PublicTenantResponse['branding']['colors'], logos = fals
   layout: defaultLayout(),
   intermissions: defaultIntermissions(),
   overlays: defaultOverlays(),
+  sponsors: [],
 });
 
 const rootVar = (name: string): string => document.documentElement.style.getPropertyValue(name);

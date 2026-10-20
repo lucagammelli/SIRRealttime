@@ -124,7 +124,10 @@ export function Intermission({
   // The «ogni N punti» shows its slides once, then the match comes back.
   const onceMs =
     visible && !preview && active.kind === 'milestone'
-      ? visibleSlides(state, active, { sponsorLogo, schedule: data }).reduce((sum, s) => sum + s.seconds, 0) * 1000
+      ? visibleSlides(state, active, { sponsorLogo, schedule: data, sponsors: look?.sponsors ?? [] }).reduce(
+          (sum, s) => sum + s.seconds,
+          0,
+        ) * 1000
       : null;
   // Counted from when the pause shows: the next points (new states) do not restart it.
   const once = useRef(0);
@@ -139,7 +142,7 @@ export function Intermission({
     visible &&
     !preview &&
     active.pause.modes[device] === 'fullscreen' &&
-    visibleSlides(state, active, { sponsorLogo, schedule: data }).length > 0;
+    visibleSlides(state, active, { sponsorLogo, schedule: data, sponsors: look?.sponsors ?? [] }).length > 0;
   useEffect(() => {
     onFullscreenChange?.(fullscreen);
   }, [fullscreen, onFullscreenChange]);
@@ -192,7 +195,7 @@ function PauseView({
   const reduced = useReducedMotion();
   const titleId = useId();
   const mode = active.pause.modes[device];
-  const slides = visibleSlides(state, active, { sponsorLogo, schedule });
+  const slides = visibleSlides(state, active, { sponsorLogo, schedule, sponsors: look?.sponsors ?? [] });
   const [tick, setTick] = useState(0);
   const index = slides.length > 0 ? tick % slides.length : 0;
   const slide = slides[index];

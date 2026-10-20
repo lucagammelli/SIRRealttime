@@ -147,7 +147,7 @@ describe('admin navigation', () => {
         .map((l) => l.textContent ?? '');
     expect(names('Partite')).toEqual(['Partita live', 'Partite', 'Calendario']);
     expect(names('Club')).toEqual(['Club']);
-    expect(names('Pagina pubblica')).toEqual(['Studio grafico', 'Link pubblici', 'Simulazione']);
+    expect(names('Pagina pubblica')).toEqual(['Studio grafico', 'Sponsor', 'Link pubblici', 'Simulazione']);
     expect(names('Dispositivi')).toEqual(['Agenti']);
     expect(names('Amministrazione')).toEqual(['Utenti']);
     expect(names('Account e aiuto')).toEqual(['Il mio account', 'Guida']);
@@ -346,7 +346,13 @@ describe('admin look', () => {
     expect(container.querySelector('.sir-admin-font')?.contains(nav)).toBe(true);
     expect(nav.className).toContain('sir-thin-scroll');
     expect(within(nav).getByRole('link', { name: 'Studio grafico' }).getAttribute('href')).toBe('/admin/studio');
-    expect(within(nav).queryByText(/sponsor/i)).toBeNull();
+    // The sponsors have one page of their own (the images are chosen in the Studio, not in the menu).
+    expect(
+      within(nav)
+        .getAllByText(/sponsor/i)
+        .map((e) => e.textContent),
+    ).toEqual(['Sponsor']);
+    expect(within(nav).getByRole('link', { name: 'Sponsor' }).getAttribute('href')).toBe('/admin/sponsor');
   });
 
   it('the login page too', async () => {

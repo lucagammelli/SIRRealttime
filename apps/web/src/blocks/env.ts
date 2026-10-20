@@ -1,4 +1,4 @@
-import type { ScheduleResponse, TeamLogoPair } from '@sir/shared';
+import type { PublicSponsor, ScheduleResponse, TeamLogoPair } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
 import type { ReactNode } from 'react';
 import type { Device } from '../lib/layout.ts';
@@ -8,6 +8,8 @@ export interface BlockBrand {
   name: string;
   logoMain: string | null;
   logoMark: string | null;
+  /** Sponsors chosen by the page or the pauses, in the order of the list of the client (missing: none). */
+  sponsors?: readonly PublicSponsor[];
 }
 
 /** What every block of the match page can read besides its own options. */

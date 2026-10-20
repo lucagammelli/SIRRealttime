@@ -1,12 +1,19 @@
-import type { AssetListResponse, BlockType, LayoutBlock, LayoutDevice, TemplateId, TenantLayout } from '@sir/shared';
-import { LAYOUT_DEVICES, LAYOUT_MAX_BLOCKS, SPONSOR_MAX_IMAGES } from '@sir/shared';
+import type {
+  AssetListResponse,
+  BlockType,
+  LayoutBlock,
+  LayoutDevice,
+  Sponsor,
+  TemplateId,
+  TenantLayout,
+} from '@sir/shared';
+import { LAYOUT_DEVICES, LAYOUT_MAX_BLOCKS } from '@sir/shared';
 import type { DragEvent, ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { BLOCKS, REGISTRY_TYPES } from '../../../blocks/registry.tsx';
-import { Button, ErrorBox } from '../../../components/ui.tsx';
-import { useApiError } from '../auth.tsx';
+import { Button } from '../../../components/ui.tsx';
 import { addBlock, canAdd, moveBlock, removeBlock, resetDevice, updateBlock } from '../layoutEditor.ts';
-import { BlockOptionsEditor, IMAGE_TOO_LARGE, selectClass, uploadSponsorImage, widthLabel } from './blockEditors.tsx';
+import { BlockOptionsEditor, selectClass, widthLabel } from './blockEditors.tsx';
 import { blockWhere, DEVICE_LABELS } from './model.ts';
 import { Advanced, Setting, SettingsCard, TabList, Toggle } from './StudioUi.tsx';
 
@@ -172,7 +179,7 @@ export function PageSection({
   onDevice,
   problems,
   assets,
-  onAssetsChanged,
+  sponsors,
   template,
 }: {
   draft: TenantLayout;
@@ -181,13 +188,11 @@ export function PageSection({
   onDevice: (device: LayoutDevice) => void;
   problems: Partial<Record<LayoutDevice, Set<string>>>;
   assets: AssetListResponse;
-  onAssetsChanged: () => void;
+  /** Sponsors of the client (the sponsor blocks choose among them). */
+  sponsors: readonly Sponsor[];
   /** Graphic template of the client: its default page for «Ripristina predefinito». */
   template: TemplateId;
 }) {
-  const errorMessage = useApiError();
-  const [uploading, setUploading] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [announce, setAnnounce] = useState('');
   const [addType, setAddType] = useState<BlockType>('message');
   const [dragFrom, setDragFrom] = useState<number | null>(null);
@@ -214,30 +219,6 @@ export function PageSection({
     onChange((d) => moveBlock(d, device, from, target));
     setAnnounce(`${BLOCKS[block.type].label} in posizione ${target + 1} di ${blocks.length}.`);
     if (focus) setFocusMove(focus);
-  };
-
-  const upload = async (file: File, block: LayoutBlock): Promise<void> => {
-    setError(null);
-    setUploading(block.id);
-    try {
-      const asset = await uploadSponsorImage(file);
-      if (!asset) {
-        setError(IMAGE_TOO_LARGE);
-        return;
-      }
-      onChange((d) =>
-        updateBlock(d, device, block.id, (b) =>
-          b.type === 'sponsor' && !b.options.images.includes(asset.id) && b.options.images.length < SPONSOR_MAX_IMAGES
-            ? { ...b, options: { ...b.options, images: [...b.options.images, asset.id] } }
-            : b,
-        ),
-      );
-      onAssetsChanged();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setUploading(null);
-    }
   };
 
   const panelId = 'pannello-dispositivo';
@@ -303,8 +284,7 @@ export function PageSection({
                   <BlockOptionsEditor
                     block={block}
                     assets={assets}
-                    uploading={uploading === block.id}
-                    onUpload={(file, b) => void upload(file, b)}
+                    sponsors={sponsors}
                     onChange={(next) => onChange((d) => updateBlock(d, device, block.id, () => next))}
                   />
                 </BlockRow>
@@ -352,7 +332,6 @@ export function PageSection({
             </p>
           </div>
         </Advanced>
-        {error && <ErrorBox>{error}</ErrorBox>}
       </div>
     </div>
   );

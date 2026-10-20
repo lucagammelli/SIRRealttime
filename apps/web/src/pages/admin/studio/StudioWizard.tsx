@@ -14,7 +14,7 @@ import { Button, ErrorBox } from '../../../components/ui.tsx';
 import { useModalDialog } from '../../../components/useModalDialog.ts';
 import { useApiError } from '../auth.tsx';
 import { Field, inputClass } from '../forms.tsx';
-import { IMAGE_TOO_LARGE, uploadImage } from './blockEditors.tsx';
+import { IMAGE_TOO_LARGE, uploadImage } from '../imageUpload.ts';
 import { ColorField, ImageField, OurTeamFields, withColor } from './ColorsSection.tsx';
 import type { StudioScene } from './model.ts';
 import { activePauseModel, applyPauseModel, PAUSE_MODEL_LABELS } from './model.ts';

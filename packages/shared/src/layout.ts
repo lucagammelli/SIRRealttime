@@ -2,6 +2,7 @@ import { DUEL_ROLES, TEAM_DUEL_KEYS } from '@sir/volley-stats';
 import { z } from 'zod';
 import { AssetIdSchema } from './assets.js';
 import { STANDINGS_SCOPES } from './club.js';
+import { SponsorIdSchema } from './sponsors.js';
 import { TENANT_CONFIG_VERSION } from './configVersion.js';
 import { plainText } from './strings.js';
 import type { TemplateId } from './templates.js';
@@ -82,6 +83,8 @@ export const BLOCK_WIDTHS: Record<BlockType, readonly number[]> = {
 
 /** Most images in the rotation of a sponsor block. */
 export const SPONSOR_MAX_IMAGES = 12;
+/** Most sponsors chosen by a sponsor block (or slide). */
+export const SPONSOR_BLOCK_MAX_SPONSORS = 12;
 /** Seconds each sponsor image stays on screen: limits and default. */
 export const SPONSOR_MIN_SECONDS = 3;
 export const SPONSOR_MAX_SECONDS = 60;
@@ -102,7 +105,16 @@ export const LogoOptionsSchema = z.strictObject({
 });
 
 export const SponsorOptionsSchema = z.strictObject({
-  /** Images of the client (ids of `assets`, checked by the server), shown in turn. */
+  /**
+   * Sponsors of the client (ids of `sponsors`, checked by the server): all their images in turn, in the order of the
+   * list of the sponsors. Missing in a layout saved before the sponsors: none.
+   */
+  sponsors: z
+    .array(SponsorIdSchema)
+    .max(SPONSOR_BLOCK_MAX_SPONSORS)
+    .refine((ids) => new Set(ids).size === ids.length, { message: 'sponsor ripetuto' })
+    .default([]),
+  /** Single images of the client chosen before the sponsors (ids of `assets`, checked by the server), after them. */
   images: z
     .array(AssetIdSchema)
     .max(SPONSOR_MAX_IMAGES)
@@ -364,6 +376,15 @@ export function layoutImageIds(layout: TenantLayout): string[] {
   for (const device of LAYOUT_DEVICES)
     for (const block of layout[device])
       if (block.type === 'sponsor') for (const id of block.options.images) ids.add(id);
+  return [...ids];
+}
+
+/** Pure: ids of the sponsors chosen by the blocks of a layout (each once, in order of appearance). */
+export function layoutSponsorIds(layout: TenantLayout): string[] {
+  const ids = new Set<string>();
+  for (const device of LAYOUT_DEVICES)
+    for (const block of layout[device])
+      if (block.type === 'sponsor') for (const id of block.options.sponsors) ids.add(id);
   return [...ids];
 }
 

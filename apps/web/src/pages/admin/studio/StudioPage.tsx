@@ -4,6 +4,7 @@ import type {
   IntermissionKind,
   LayoutDevice,
   OverlayKind,
+  Sponsor,
   TenantBranding,
   TenantIntermissions,
   TenantLayout,
@@ -18,6 +19,7 @@ import {
   OVERLAY_KINDS,
   OverlaysResponseSchema,
   publicAssetPath,
+  SponsorListResponseSchema,
 } from '@sir/shared';
 import type { MatchState } from '@sir/volley-stats';
 import type { ReactNode } from 'react';
@@ -109,12 +111,15 @@ function Studio({
   saved,
   assets,
   onAssetsChanged,
+  sponsors,
   hasSection,
 }: {
   tenantName: string;
   saved: StudioDocs;
   assets: AssetListResponse;
   onAssetsChanged: () => void;
+  /** Sponsors of the client (the sponsor blocks and slides choose among them; changed on the page «Sponsor»). */
+  sponsors: readonly Sponsor[];
   /** The address names a section (the phone opens it at once instead of the list of sections). */
   hasSection: boolean;
 }) {
@@ -228,8 +233,8 @@ function Studio({
     [liveState, sample, branding.draft.ourTeam, name],
   );
   const look = useMemo(
-    () => blockBrandOf({ tenantName, branding: branding.draft } satisfies BrandingResponse),
-    [tenantName, branding.draft],
+    () => blockBrandOf({ tenantName, branding: branding.draft } satisfies BrandingResponse, sponsors),
+    [tenantName, branding.draft, sponsors],
   );
   const sponsorLogo = branding.draft.sponsorLogo ? publicAssetPath(branding.draft.sponsorLogo) : null;
 
@@ -445,6 +450,7 @@ function Studio({
         onChange={(c) => setBranding((p) => ({ ...p, draft: c(p.draft) }))}
         assets={assets}
         onAssetsChanged={onAssetsChanged}
+        sponsors={sponsors}
         tab={colorsTab}
         onTab={setColorsTab}
       />
@@ -461,7 +467,7 @@ function Studio({
         }}
         problems={layoutIssues}
         assets={assets}
-        onAssetsChanged={onAssetsChanged}
+        sponsors={sponsors}
         template={branding.base.template}
       />
     );
@@ -481,7 +487,7 @@ function Studio({
           setScene('setBreak');
         }}
         assets={assets}
-        onAssetsChanged={onAssetsChanged}
+        sponsors={sponsors}
       />
     );
   else
@@ -864,13 +870,18 @@ export function StudioPage() {
   const pauses = useAsync(loadPauses);
   const overlays = useAsync(loadOverlays);
   const assets = useAsync(loadAssets);
+  const loadSponsors = useCallback(
+    (signal: AbortSignal) => apiRequest('/api/admin/sponsors', SponsorListResponseSchema, { signal }),
+    [],
+  );
+  const sponsors = useAsync(loadSponsors);
 
-  for (const part of [branding, layout, pauses, overlays]) {
+  for (const part of [branding, layout, pauses, overlays, sponsors]) {
     if (part.error !== null) return <ErrorBox onRetry={part.reload}>{errorMessage(part.error)}</ErrorBox>;
   }
   if (assets.error !== null && !assets.data)
     return <ErrorBox onRetry={assets.reload}>{errorMessage(assets.error)}</ErrorBox>;
-  if (!branding.data || !layout.data || !pauses.data || !overlays.data || !assets.data)
+  if (!branding.data || !layout.data || !pauses.data || !overlays.data || !assets.data || !sponsors.data)
     return <Spinner label="Caricamento dello Studio grafico…" />;
   return (
     <Studio
@@ -883,6 +894,7 @@ export function StudioPage() {
       }}
       assets={assets.data}
       onAssetsChanged={assets.reload}
+      sponsors={sponsors.data.sponsors}
       hasSection={isStudioSection(params.section)}
     />
   );

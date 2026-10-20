@@ -3,6 +3,7 @@ import type {
   AssetSummary,
   BrandColorKey,
   BrandingImageSlot,
+  Sponsor,
   ContrastIssue,
   OurTeam,
   TemplateId,
@@ -30,7 +31,7 @@ import { apiCommand } from '../../../lib/api.ts';
 import { megabytes } from '../../../lib/format.ts';
 import { useApiError, useAuth } from '../auth.tsx';
 import { ConfirmButton, Field, inputClass } from '../forms.tsx';
-import { ACCEPT, IMAGE_TOO_LARGE, uploadImage } from './blockEditors.tsx';
+import { ACCEPT, IMAGE_TOO_LARGE, uploadImage } from '../imageUpload.ts';
 import { GraphicsTransfer } from './GraphicsTransfer.tsx';
 import type { StudioTarget } from './model.ts';
 import { ALL_DEVICES_TEXT, COLOR_LABELS, IMAGE_LABELS } from './model.ts';
@@ -313,6 +314,7 @@ export function ColorsSection({
   onChange,
   assets,
   onAssetsChanged,
+  sponsors,
   tab,
   onTab,
 }: {
@@ -323,6 +325,8 @@ export function ColorsSection({
   onChange: (change: (branding: TenantBranding) => TenantBranding) => void;
   assets: AssetListResponse;
   onAssetsChanged: () => void;
+  /** Sponsors of the client: the tab «Immagini» names the sponsor of each image. */
+  sponsors: readonly Sponsor[];
   tab: ColorsTab;
   onTab: (tab: ColorsTab) => void;
 }) {
@@ -335,6 +339,7 @@ export function ColorsSection({
   const template = templateOf(draft.template);
   const byId = useMemo(() => new Map(assets.assets.map((a) => [a.id, a])), [assets]);
   const usedIds = new Set(SLOTS.map((s) => base[s]).filter((id) => id !== null));
+  const sponsorName = new Map(sponsors.map((s) => [s.id, s.name]));
 
   const upload = async (slot: BrandingImageSlot, file: File): Promise<void> => {
     setError(null);
@@ -524,7 +529,12 @@ export function ColorsSection({
                   <li key={a.id} className="flex flex-wrap items-center gap-3 py-2">
                     <img src={a.url} alt="" className="size-10 rounded object-contain" />
                     <span className="min-w-0 flex-1 text-sm text-text">
-                      {a.kind === 'logo' ? 'Logo' : 'Sponsor'} · {a.width}×{a.height} px · {megabytes(a.bytes)} MB
+                      {a.kind === 'logo'
+                        ? 'Logo'
+                        : a.sponsorId && sponsorName.has(a.sponsorId)
+                          ? `Sponsor: ${sponsorName.get(a.sponsorId) ?? ''}`
+                          : 'Sponsor (senza sponsor)'}{' '}
+                      · {a.width}×{a.height} px · {megabytes(a.bytes)} MB
                       {usedIds.has(a.id) && <span className="text-muted"> · in uso</span>}
                     </span>
                     <ConfirmButton

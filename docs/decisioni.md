@@ -417,3 +417,8 @@ Una riga per decisione: data, scelta, motivo.
   accende per chi aveva già link validi (simulazioni escluse), così i QR già stampati non smettono di funzionare;
   l'indice unico su `client_fixture_id` è parziale (solo link non revocati), per ricreare i link dopo la riaccensione
   (`docs/server.md`, `docs/portale.md`).
+- 2026-10-20: anagrafica sponsor separata dagli asset (tabella `sponsors`, `assets.sponsor_id` con `ON DELETE SET NULL`,
+  migrazione `0015`) e blocco/diapositiva che scelgono gli sponsor, non le singole immagini, perché uno sponsor ha più
+  immagini e un sito, e la rotazione segue l'ordine dell'elenco; `images` resta nello schema (immagini singole, dopo gli
+  sponsor) per non rompere i documenti salvati; l'export della grafica include gli sponsor scelti (`version` ancora 1) e
+  all'import si uniscono per nome (`docs/server.md`, `docs/portale.md`, `docs/architettura.md`).

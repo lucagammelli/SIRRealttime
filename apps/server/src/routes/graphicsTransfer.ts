@@ -9,24 +9,30 @@ import {
   GRAPHICS_IMPORT_BODY_LIMIT,
   GraphicsExportSchema,
   graphicsImageIds,
+  graphicsSponsorIds,
   isCustomTemplate,
   remapGraphicsImageIds,
+  remapGraphicsSponsorIds,
+  SPONSOR_IMAGES_MAX,
+  SPONSORS_MAX,
   resolveBranding,
   resolveIntermissions,
   resolveLayout,
   resolveOverlays,
 } from '@sir/shared';
-import { eq, inArray } from 'drizzle-orm';
+import { and, count, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { readAssetFile } from '../assetStore.js';
 import type { AppContext } from '../context.js';
 import { perMinute } from '../context.js';
-import { assets, tenants } from '../db/index.js';
+import { assets, sponsors, tenants } from '../db/index.js';
 import { badRequest, conflict, HttpError, notFound } from '../lib/errors.js';
 import type { ImageInfo } from '../lib/images.js';
 import { ImageRejected, inspectImage } from '../lib/images.js';
 import { validate } from '../lib/validate.js';
 import { requireRole } from '../security.js';
+import type { Tx } from '../matchLock.js';
+import { listSponsors } from '../sponsors.js';
 import { adminTenantId, findTenant, forgetTenants, tenantScope } from '../tenancy.js';
 import { lockClientAssets, storeAsset } from './branding.js';
 
@@ -69,6 +75,59 @@ function checkImages(images: GraphicsExport['images']): CheckedImage[] {
 }
 
 /**
+ * Under the lock of the client: the sponsors of a package as sponsors of the client (the one with the same name, its
+ * website taken from the package, otherwise a new one last in the list; 409 past SPONSORS_MAX), each with its images
+ * (already stored: `images` maps the ids of the package) that have no sponsor yet, up to SPONSOR_IMAGES_MAX. Returns
+ * the map from the ids of the package to the ids of the client.
+ */
+async function importSponsors(
+  tx: Tx,
+  tenantId: string,
+  list: GraphicsExport['sponsors'],
+  images: ReadonlyMap<string, string>,
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  for (const sponsor of list) {
+    const [existing] = await tx
+      .update(sponsors)
+      .set({ website: sponsor.website })
+      .where(tenantScope(sponsors, tenantId, eq(sponsors.name, sponsor.name)))
+      .returning({ id: sponsors.id });
+    let id = existing?.id;
+    if (!id) {
+      const [stats] = await tx
+        .select({ n: count(), last: sql<number | null>`max(${sponsors.position})` })
+        .from(sponsors)
+        .where(tenantScope(sponsors, tenantId));
+      if ((stats?.n ?? 0) >= SPONSORS_MAX) throw conflict(`Al massimo ${SPONSORS_MAX} sponsor per cliente`);
+      const [created] = await tx
+        .insert(sponsors)
+        .values({ tenantId, name: sponsor.name, website: sponsor.website, position: (stats?.last ?? -1) + 1 })
+        .returning({ id: sponsors.id });
+      id = created?.id;
+    }
+    if (!id) throw new Error('sponsor not stored');
+    map.set(sponsor.id, id);
+    const [owned] = await tx
+      .select({ n: count() })
+      .from(assets)
+      .where(tenantScope(assets, tenantId, eq(assets.sponsorId, id)));
+    let room = SPONSOR_IMAGES_MAX - (owned?.n ?? 0);
+    for (const imageId of sponsor.imageIds) {
+      const assetId = images.get(imageId);
+      if (!assetId || room <= 0) continue;
+      const given = await tx
+        .update(assets)
+        .set({ sponsorId: id })
+        .where(tenantScope(assets, tenantId, and(eq(assets.id, assetId), isNull(assets.sponsorId))))
+        .returning({ id: assets.id });
+      room -= given.length;
+    }
+  }
+  return map;
+}
+
+/**
  * Export / import of the whole graphics of a client (branding, page, pauses, overlays and the images they use) as one
  * versioned JSON package, to move it from a portal to another.
  */
@@ -85,7 +144,11 @@ export function graphicsTransferRoutes(app: FastifyInstance, ctx: AppContext): v
       layout: resolveLayout(tenant.layout, branding.template),
       intermissions: resolveIntermissions(tenant.intermissions),
     };
-    const ids = graphicsImageIds(docs);
+    const chosen = new Set(graphicsSponsorIds(docs));
+    const sponsorList = chosen.size === 0 ? [] : (await listSponsors(ctx.db, tenantId)).filter((s) => chosen.has(s.id));
+    if (sponsorList.length !== chosen.size)
+      throw conflict('Uno sponsor della grafica manca: toglilo dalla pagina o dalle pause prima di esportare');
+    const ids = [...new Set([...graphicsImageIds(docs), ...sponsorList.flatMap((s) => s.imageIds)])];
     const rows =
       ids.length === 0
         ? []
@@ -122,6 +185,7 @@ export function graphicsTransferRoutes(app: FastifyInstance, ctx: AppContext): v
       ...docs,
       overlays: resolveOverlays(tenant.overlays),
       images,
+      sponsors: sponsorList.map((s) => ({ id: s.id, name: s.name, website: s.website, imageIds: s.imageIds })),
     });
     void reply
       .header(
@@ -134,7 +198,8 @@ export function graphicsTransferRoutes(app: FastifyInstance, ctx: AppContext): v
   });
 
   /**
-   * Replaces branding, page, pauses and overlays with the ones of the package. Images are checked as at upload and
+   * Replaces branding, page, pauses and overlays with the ones of the package; its sponsors join the sponsors of the
+   * client with the same name (otherwise new ones, last in the list) and get their images. Images are checked as at upload and
    * stored for this client with new ids (the same file again reuses the image already stored); one transaction, so a
    * failure leaves the graphics as they were. A custom theme only for the superadmin (or a client that already has it).
    */
@@ -166,9 +231,10 @@ export function graphicsTransferRoutes(app: FastifyInstance, ctx: AppContext): v
           const { row } = await storeAsset(ctx, tx, tenantId, image.source.kind, image.data, image.info);
           map.set(image.source.id, row.id);
         }
-        const docs = remapGraphicsImageIds(
-          { branding: pkg.branding, layout: pkg.layout, intermissions: pkg.intermissions },
-          map,
+        const sponsorMap = await importSponsors(tx, tenantId, pkg.sponsors, map);
+        const docs = remapGraphicsSponsorIds(
+          remapGraphicsImageIds({ branding: pkg.branding, layout: pkg.layout, intermissions: pkg.intermissions }, map),
+          sponsorMap,
         );
         const updated = await tx
           .update(tenants)
@@ -182,7 +248,7 @@ export function graphicsTransferRoutes(app: FastifyInstance, ctx: AppContext): v
         { tenantId, images: checked.length, userId: request.user?.id },
         'grafica del cliente importata da un pacchetto',
       );
-      return { images: checked.length, template: pkg.branding.template };
+      return { images: checked.length, sponsors: pkg.sponsors.length, template: pkg.branding.template };
     },
   );
 }

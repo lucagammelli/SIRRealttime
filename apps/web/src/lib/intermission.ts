@@ -8,6 +8,7 @@ import type {
   IntermissionKind,
   IntermissionSlide,
   MilestoneIntermission,
+  PublicSponsor,
   ScheduleResponse,
   StatPeriod,
   TenantIntermissions,
@@ -26,6 +27,7 @@ import {
   teamDuel,
 } from '@sir/volley-stats';
 import { hasScheduleData } from './schedule.ts';
+import { sponsorItems } from './sponsors.ts';
 
 /** A pause the page can open: its kind, the configuration chosen for it and the phase that opened it. */
 export interface ActivePause {
@@ -89,6 +91,8 @@ export function periodLabel(period: Period): string {
 export interface SlideContext {
   /** Sponsor logo of the branding, shown by a sponsor slide without images of its own. */
   sponsorLogo: string | null;
+  /** Sponsors chosen by the page or the pauses, with their images (missing: none). */
+  sponsors?: readonly PublicSponsor[];
   /** Matches and standings of the club (`useSchedule`): «Prossima partita» and «Classifica» need them. */
   schedule?: ScheduleResponse | null;
 }
@@ -136,7 +140,9 @@ export function visibleSlides(
   return active.pause.slides.flatMap((slide): IntermissionSlide[] => {
     switch (slide.type) {
       case 'sponsor':
-        return slide.options.images.length > 0 || context.sponsorLogo !== null ? [slide] : [];
+        return sponsorItems(slide.options, context.sponsors ?? []).length > 0 || context.sponsorLogo !== null
+          ? [slide]
+          : [];
       case 'nextMatch':
       case 'standings':
         return hasScheduleData(slide.type, context.schedule) ? [slide] : [];

@@ -70,7 +70,7 @@ describe('layout of the public page', () => {
 
   it('fills the options of every type with their defaults', () => {
     for (const type of BLOCK_TYPES) expect(parseBlock({ type }).success).toBe(true);
-    expect(parseBlock({ type: 'sponsor' }).data?.options).toEqual({ images: [], seconds: 8 });
+    expect(parseBlock({ type: 'sponsor' }).data?.options).toEqual({ sponsors: [], images: [], seconds: 8 });
     expect(parseBlock({ type: 'qr' }).data?.options).toEqual({ caption: 'Segui la partita sul telefono' });
     expect(parseBlock({ type: 'topPlayers' }).data?.options).toEqual({ count: 5, team: 'both' });
     expect(parseBlock({ type: 'logo' }).data?.options).toEqual({ variant: 'main' });

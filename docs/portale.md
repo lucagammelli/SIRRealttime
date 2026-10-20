@@ -109,8 +109,8 @@ spariscono) sostituisce la barra a pillole. Gruppi di un cliente (admin e viewer
 
 - «Partite»: Partita live, Partite, Calendario;
 - «Club»: Club;
-- «Pagina pubblica»: Studio grafico, Link pubblici, Simulazione. Il **viewer** ci vede solo Link pubblici (Studio grafico e
-  Simulazione sono dell'admin);
+- «Pagina pubblica»: Studio grafico, Sponsor, Link pubblici, Simulazione. Il **viewer** ci vede solo Link pubblici (Studio
+  grafico, Sponsor e Simulazione sono dell'admin);
 - «Dispositivi»: Agenti;
 - «Amministrazione»: Utenti (solo admin);
 - «Account e aiuto» (`ACCOUNT_GROUP`, per tutti i ruoli, dentro o fuori da un cliente): «Il mio account» e «Guida».
@@ -145,6 +145,7 @@ Le voci:
 | Posta | `/admin/posta` | solo superadmin (fuori da un cliente) | server di posta per inviti e recupero password, uguale per tutti i clienti, vedi «Posta» |
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, «Password (facoltativa)» di almeno 12 caratteri, «Ruolo»: «Lettura e scrittura» o «Sola lettura»; «Crea e invita» se la password è vuota, altrimenti «Crea utente»), scheda «Ruoli» (cosa può fare ciascun ruolo), «Utenti» (per ognuno stato «Attivo»/«Disattivato», ruolo, data di creazione e i comandi descritti sotto), vedi «Utenti del cliente» |
 | Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`) | solo admin (il superadmin dentro un cliente) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
+| Sponsor | `/admin/sponsor` | solo admin (il superadmin dentro un cliente) | anagrafica degli sponsor, vedi «Sponsor» |
 | Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname, «Agenti» = limite di agenti, predefinito 1; «Crea cliente»), «Clienti» con «Entra nel cliente» (il superadmin entra in quel cliente e apre `/admin/live`, vedi «Più clienti») e «Modifica» (nome, hostname e limite di agenti, «Salva»; il limite è mostrato come «un agente» / «fino a N agenti»); riquadro «Primo utente (facoltativo)» nel modulo («Email del primo utente» e «Password del primo utente (facoltativa)»; creato con il ruolo «Lettura e scrittura»; senza password il primo utente è invitato e sotto il modulo compare l'esito dell'invito, vedi «Utenti del cliente»); ogni cliente mostra «nessun utente», «1 utente» o «N utenti» |
 | Esci | - | tutti | chiude la sessione |
 
@@ -257,7 +258,9 @@ Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome»
   facoltativi).
 - «Immagini»: scheda «Immagini caricate» (sottotitolo «Spazio usato: … MB di … MB») con l'elenco, «in uso» e «Elimina» /
   «Conferma eliminazione»; vuota: «Nessuna immagine caricata.». Il caricamento invia il file in base64 (`fileToBase64`,
-  `src/lib/base64.ts`) a `POST /api/admin/assets`; il salvataggio è `PUT /api/admin/branding`.
+  `src/lib/base64.ts`) a `POST /api/admin/assets`; il salvataggio è `PUT /api/admin/branding`. Per le immagini sponsor
+  l'elenco dice di quale sponsor sono («Sponsor: <nome>») o «Sponsor (senza sponsor)»; si caricano e si assegnano dalla
+  pagina «Sponsor» (`ColorsSection.tsx`).
 - «Esporta / Importa» (`GraphicsTransfer.tsx`): «Esporta configurazione» scarica `grafica-<slug>-<data>.json`
   (`GET /api/admin/branding/export`). «File della configurazione (.json)» legge il file (`readPackage`: messaggi per file
   illeggibile, non nostro, versione non supportata o danneggiato), mostra il «Riepilogo del file» (club di origine,
@@ -271,7 +274,7 @@ Ex pagina «Pagina pubblica» (`PageSection.tsx`, vedi «Pagina pubblica a blocc
 (le stesse del dispositivo dell'anteprima: cambiare l'una cambia l'altra). Per ogni blocco: maniglia ⠿ (trascinamento),
 ↑ e ↓ («Sposta su», «Sposta giù»), interruttore «Visibile», e sotto «Opzioni» (con la larghezza): «Larghezza» (non sul
 telefono; i valori ammessi dipendono dal tipo, per esempio «Metà (6/12)»), «Chiuso all'apertura» (solo telefono, non per
-il tabellone), le opzioni del tipo (per lo sponsor anche «Carica immagine sponsor») e «Rimuovi». In fondo «Tipo di
+il tabellone), le opzioni del tipo (per lo sponsor le caselle degli sponsor, vedi «Sponsor») e «Rimuovi». In fondo «Tipo di
 blocco» con «Aggiungi blocco» (in coda; il tabellone solo se manca; al massimo 24 blocchi, contatore «N di al massimo 24
 blocchi.»). In «Avanzate»: «Ripristina predefinito», che rimette i blocchi predefiniti **solo del dispositivo aperto**
 (quelli del modello grafico). I blocchi con opzioni non valide (per esempio testo vuoto) sono evidenziati e «Salva»
@@ -288,7 +291,7 @@ con la casella «Pausa propria per la fine del N° set» (senza, quel set usa «
 «Regola» con «Ogni quanti punti» (4-25) e «Non negli ultimi punti del set» (`stopBeforeEnd`, con il traguardo da
 `setTarget` di volley-stats). Per ogni pausa, «Quando e come»: «Pausa attiva» e «Come si mostra» (per TV, tablet e
 telefono «Tutto schermo» o «Banda in basso»); «Diapositive»: elenco riordinabile con «Sposta su» e «Sposta giù» (niente
-trascinamento), «Secondi sullo schermo», le opzioni del tipo (come nei blocchi, anche «Carica immagine sponsor») e
+trascinamento), «Secondi sullo schermo», le opzioni del tipo (come nei blocchi; lo sponsor sceglie gli sponsor come il blocco) e
 «Rimuovi»; in fondo «Tipo di diapositiva» con «Aggiungi diapositiva» (al massimo 12). In «Avanzate»: «Ritardo prima della
 pausa (secondi)» e «Ripristina predefinito» (solo della pausa aperta). «Salva» è disattivato se una pausa attiva non ha
 diapositive o un testo è vuoto. Logica pura in `intermissionEditor.ts` (`moveSlide`, `addSlide`, `removeSlide`,
@@ -310,8 +313,8 @@ predefinito» (solo di quell'evento). «Posizione e dimensione» è il riquadro 
 `overlayText`, `overlayFor`, `unseenEvents`, `enqueue`, `nextOverlay`, `sampleEvent`).
 
 **Limiti noti dello Studio**: i valori da provare su dispositivi veri sono quelli di sempre (TV a 4-5 m, telefono con la
-banda); un'immagine usata in un blocco o in una diapositiva sponsor non si può eliminare da «Immagini» finché non viene
-tolta da lì; un layout salvato e poi non più valido si legge come predefinito; dopo il primo salvataggio il layout del
+banda); un'immagine usata come immagine singola di un blocco o di una diapositiva sponsor non si può eliminare finché non
+viene tolta da lì; un layout salvato e poi non più valido si legge come predefinito; dopo il primo salvataggio il layout del
 cliente resta fisso anche se cambia modello (va reimpostato con «Ripristina predefinito» per dispositivo). Test:
 `studio/model.test.ts`, `studio/StudioPage.test.tsx`.
 
@@ -846,7 +849,7 @@ pagina di prima.
 | Blocco | Opzioni | Comportamento |
 |---|---|---|
 | Logo | Orizzontale / Quadrato | logo del cliente in un `<img>`; senza logo, il nome |
-| Sponsor | fino a 12 immagini del cliente, «Secondi per immagine» (3-60, predefinito 8) | immagini a rotazione con dissolvenza breve (nessuna con `prefers-reduced-motion`); si ferma con «Ferma rotazione» della TV; senza immagini: «Nessuna immagine sponsor scelta.» |
+| Sponsor | gli sponsor scelti (al massimo 12; opzione `sponsors`), «Immagini singole» (opzione `images`, fino a 12, solo quelle già nei documenti salvati prima: si possono togliere, non aggiungere), «Secondi per immagine» (3-60, predefinito 8) | immagini a rotazione con dissolvenza breve (nessuna con `prefers-reduced-motion`): prima tutte le immagini degli sponsor nell'ordine della lista «Sponsor», poi le immagini singole (`sponsorItems` in `lib/sponsors.ts`); l'immagine di uno sponsor con sito è un link in una nuova scheda (`target="_blank"`, `rel="noopener noreferrer"`, `SponsorImage` in `BrandBlocks.tsx`); si ferma con «Ferma rotazione» della TV; senza immagini: «Nessuna immagine sponsor scelta.» (in una diapositiva si usa il logo sponsor della grafica, `sponsorLogo`) |
 | Messaggio | testo (al massimo 280 caratteri, una riga), «Dimensione» Normale / Grande | sempre testo semplice, mai HTML |
 | Codice QR | testo sopra il codice (al massimo 80 caratteri, predefinito «Segui la partita sul telefono») | QR del link della pagina aperta (origine + percorso, senza query come `?tv=1`); il codice breve sotto compare solo se la pagina è aperta con `/l/<codice>` |
 | Ultimo punto | - | squadra, punteggio e come è stato vinto (`LastPointBlock`) |
@@ -901,9 +904,30 @@ Sono blocchi della pagina (larghezze 4/6/8/12) e diapositive delle pause (stesse
   modifiche non ancora salvate. Usa la partita live del cliente (`/ws/admin`: «Dati della partita live.») oppure, se non c'è,
   la «Partita d'esempio» (`src/blocks/sampleMatch.json`, caricata solo dall'editor in un suo file separato; si rigenera con
   `pnpm --filter @sir/web sample-match`).
-- **Limiti noti**: un'immagine usata in un blocco sponsor non si può eliminare da «Immagini» (in «Colori e loghi») finché non
-  viene tolta dal blocco. Un layout salvato e poi non più valido (per esempio di versione futura) si legge come
+- **Limiti noti**: un'immagine singola di un blocco sponsor non si può eliminare finché non viene tolta dal blocco. Un layout salvato e poi non più valido (per esempio di versione futura) si legge come
   predefinito.
+
+### Sponsor (`pages/admin/SponsorsPage.tsx`, rotta `/admin/sponsor`, solo admin)
+Anagrafica degli sponsor del cliente, nel gruppo di menu «Pagina pubblica». Server, tabelle e limiti in `docs/server.md`
+(«Sponsor»), contratti in `docs/architettura.md` (`sponsors.ts`).
+
+- **Pagina**: scheda «Nuovo sponsor» (nome, «Sito (facoltativo)» solo `https://`, «Crea sponsor»); scheda «Sponsor» con
+  l'elenco nell'ordine della rotazione, riordinabile con «Sposta su» / «Sposta giù» (`PUT /api/admin/sponsors/order`;
+  `movedIds`), per ogni sponsor nome, sito e numero di immagini, «Modifica» (nome e sito), «Elimina» con conferma (anche
+  le sue immagini non usate altrove), le immagini con «Togli» (l'immagine passa a «senza sponsor») ed «Elimina», e il
+  caricamento «Carica un'immagine per <sponsor>» (PNG,
+  JPEG, WebP o SVG, al massimo 2 MB, 12 per sponsor). Scheda «Immagini senza sponsor» (visibile solo se ce ne sono: quelle
+  caricate prima dell'anagrafica o tolte a uno sponsor) con «Assegna a» e la scelta dello sponsor. Gli errori del server
+  (nome già usato, sponsor in uso in pagina o pause, immagine già di un altro sponsor) sono mostrati in italiano.
+- **Studio grafico**: il blocco sponsor e la diapositiva sponsor delle pause hanno una casella per ogni sponsor («Sponsor a
+  rotazione (N di al massimo 12)»), l'elenco «Immagini singole» con «Togli» (compare solo se il documento ne ha: sono
+  l'opzione `images` salvata prima dell'anagrafica, mantenuta per compatibilità) e il link «Gestisci sponsor» a questa
+  pagina; non c'è più il caricamento diretto dal blocco. Le anteprime usano gli sponsor dell'anagrafica
+  (`publicSponsorsOf` in `lib/sponsors.ts`).
+- **Pagina pubblica**: gli sponsor arrivano in `sponsors` di `GET /api/public/tenant` (solo quelli scelti); la rotazione è
+  descritta in «Pagina pubblica a blocchi».
+- **Caricamento**: gli helper sono in `pages/admin/imageUpload.ts` (`uploadImage`, `uploadSponsorImage`, `ACCEPT`,
+  `IMAGE_TOO_LARGE`, `imageCountText`), condivisi da questa pagina e dallo Studio. Test: `SponsorsPage.test.tsx`, `SponsorBlock.test.tsx`.
 
 ### Pause della partita (schermate di time-out, fine set e fine partita)
 Quando la partita ha una pausa il portale mostra una schermata con riepilogo e sponsor. Il portale non decide nulla: la
@@ -954,8 +978,9 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   punti», ritardo e ripristino descritti lì). La pausa è mostrata subito nell'anteprima, con le modifiche non salvate
   (`previewState` mette nello stato la fase della pausa aperta). La «Partita d'esempio» (`src/blocks/sampleMatch.json`,
   rigenerata con `pnpm --filter @sir/web sample-match`) è in 2° set con un set chiuso.
-- **Limiti noti**: un'immagine usata in una diapositiva sponsor non si può eliminare da «Immagini» (in «Colori e loghi»)
-  finché non viene tolta. Da provare su dispositivi veri (TV a 4-5 m, telefono con la banda).
+- **Sponsor**: la diapositiva «Sponsor» sceglie gli sponsor come il blocco (stesse opzioni e stessa rotazione, `docs/portale.md`
+  «Sponsor»); un'immagine singola di una diapositiva non si può eliminare finché non viene tolta.
+- **Limiti noti**: un'immagine singola di una diapositiva sponsor non si può eliminare finché non viene tolta. Da provare su dispositivi veri (TV a 4-5 m, telefono con la banda).
 
 ### Avvisi sugli eventi (messaggi rapidi sopra la pagina)
 Quando succede qualcosa in partita (ace, set point, match point…) compare per pochi secondi un messaggio sopra la pagina.

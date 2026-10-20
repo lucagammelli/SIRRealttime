@@ -82,7 +82,7 @@ describe('layout of the public page', () => {
       width: 4,
       visible: true,
       collapsed: false,
-      options: { images: [sponsor.id], seconds: 5 },
+      options: { sponsors: [], images: [sponsor.id], seconds: 5 },
     });
     expect((await call(HOST_A, cookieA, { url: '/api/admin/layout' })).json<LayoutResponse>().layout).toEqual(saved);
   });

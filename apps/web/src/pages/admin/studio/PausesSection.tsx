@@ -1,5 +1,6 @@
 import type {
   AssetListResponse,
+  Sponsor,
   Intermission as PauseConfig,
   IntermissionKind,
   IntermissionMode,
@@ -21,14 +22,12 @@ import {
   MILESTONE_MIN_STOP_BEFORE_END,
   SET_BREAK_SETS,
   SLIDE_TYPES,
-  SPONSOR_MAX_IMAGES,
 } from '@sir/shared';
 import { setTarget } from '@sir/volley-stats';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { SLIDE_LABELS } from '../../../blocks/IntermissionSlides.tsx';
-import { Button, ErrorBox } from '../../../components/ui.tsx';
-import { useApiError } from '../auth.tsx';
+import { Button } from '../../../components/ui.tsx';
 import { inputClass } from '../forms.tsx';
 import type { PauseTarget } from '../intermissionEditor.ts';
 import {
@@ -46,13 +45,7 @@ import {
 } from '../intermissionEditor.ts';
 import type { StatItem } from '../StatOptionsFields.tsx';
 import { StatOptionsFields, withStatOptions } from '../StatOptionsFields.tsx';
-import {
-  BlockOptionsEditor,
-  IMAGE_TOO_LARGE,
-  selectClass,
-  SPONSOR_SECONDS,
-  uploadSponsorImage,
-} from './blockEditors.tsx';
+import { BlockOptionsEditor, selectClass, SPONSOR_SECONDS } from './blockEditors.tsx';
 import type { StudioModel } from './model.ts';
 import {
   activePauseModel,
@@ -298,18 +291,16 @@ function PauseEditor({
   kind,
   target,
   assets,
-  uploading,
+  sponsors,
   onChange,
-  onUpload,
   onAnnounce,
 }: {
   pause: PauseConfig;
   kind: IntermissionKind;
   target: PauseTarget;
   assets: AssetListResponse;
-  uploading: string | null;
+  sponsors: readonly Sponsor[];
   onChange: (change: (pause: PauseConfig) => PauseConfig) => void;
-  onUpload: (file: File, slideId: string) => void;
   onAnnounce: (text: string) => void;
 }) {
   const [addType, setAddType] = useState<SlideType>('sponsor');
@@ -409,8 +400,7 @@ function PauseEditor({
                     <BlockOptionsEditor
                       block={block}
                       assets={assets}
-                      uploading={uploading === slide.id}
-                      onUpload={(file) => onUpload(file, slide.id)}
+                      sponsors={sponsors}
                       onChange={(next) => onChange((p) => updateSlide(p, slide.id, (s) => withBlockOptions(s, next)))}
                     />
                   )}
@@ -460,7 +450,7 @@ export function PausesSection({
   setTab,
   onSetTab,
   assets,
-  onAssetsChanged,
+  sponsors,
 }: {
   draft: TenantIntermissions;
   onChange: (change: (config: TenantIntermissions) => TenantIntermissions) => void;
@@ -469,11 +459,9 @@ export function PausesSection({
   setTab: SetTab;
   onSetTab: (set: SetTab) => void;
   assets: AssetListResponse;
-  onAssetsChanged: () => void;
+  /** Sponsors of the client (the sponsor slides choose among them). */
+  sponsors: readonly Sponsor[];
 }) {
-  const errorMessage = useApiError();
-  const [uploading, setUploading] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [announce, setAnnounce] = useState('');
   const target = pauseTargetOf(kind, setTab);
   const ownSet = kind === 'setBreak' && setTab !== 'all' ? setTab : null;
@@ -488,30 +476,6 @@ export function PausesSection({
     });
   };
 
-  const upload = async (file: File, slideId: string): Promise<void> => {
-    setError(null);
-    setUploading(slideId);
-    try {
-      const asset = await uploadSponsorImage(file);
-      if (!asset) {
-        setError(IMAGE_TOO_LARGE);
-        return;
-      }
-      change((p) =>
-        updateSlide(p, slideId, (s) =>
-          s.type === 'sponsor' && !s.options.images.includes(asset.id) && s.options.images.length < SPONSOR_MAX_IMAGES
-            ? { ...s, options: { ...s.options, images: [...s.options.images, asset.id] } }
-            : s,
-        ),
-      );
-      onAssetsChanged();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setUploading(null);
-    }
-  };
-
   const kindProblem = (k: IntermissionKind): boolean =>
     problems.has(k) || (k === 'setBreak' && SET_BREAK_SETS.some((s) => problems.has(`setBreak-${s}`)));
   const editor = pause ? (
@@ -521,9 +485,8 @@ export function PausesSection({
       kind={kind}
       target={target}
       assets={assets}
-      uploading={uploading}
+      sponsors={sponsors}
       onChange={change}
-      onUpload={(file, id) => void upload(file, id)}
       onAnnounce={setAnnounce}
     />
   ) : null;
@@ -653,7 +616,6 @@ export function PausesSection({
             </Advanced>
           )}
         </div>
-        {error && <ErrorBox>{error}</ErrorBox>}
       </div>
     </div>
   );

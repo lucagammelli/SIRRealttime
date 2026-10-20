@@ -23,6 +23,8 @@ export const ASSET_MAX_BASE64_LENGTH = Math.ceil(ASSET_MAX_BYTES / 3) * 4;
 export const UploadAssetRequestSchema = z.strictObject({
   kind: AssetKindSchema,
   data: z.base64().min(4).max(ASSET_MAX_BASE64_LENGTH),
+  /** Sponsor of the client the image belongs to (only for `kind: 'sponsor'`; id of `sponsors`, see sponsors.ts). */
+  sponsorId: z.uuid().optional(),
 });
 export type UploadAssetRequest = z.infer<typeof UploadAssetRequestSchema>;
 
@@ -37,8 +39,14 @@ export const AssetSummarySchema = z.object({
   createdAt: z.iso.datetime(),
   /** Public path of the file (`/api/public/assets/<id>`), valid on the hostnames of the client. */
   url: z.string(),
+  /** Sponsor the image belongs to (null: none; missing in an older answer: none). */
+  sponsorId: z.uuid().nullable().default(null),
 });
 export type AssetSummary = z.infer<typeof AssetSummarySchema>;
+
+/** `PATCH /api/admin/assets/:id`: gives a sponsor image to a sponsor of the client, or takes it away (null). */
+export const UpdateAssetRequestSchema = z.strictObject({ sponsorId: z.uuid().nullable() });
+export type UpdateAssetRequest = z.infer<typeof UpdateAssetRequestSchema>;
 
 /** `GET /api/admin/assets`: images of the client and the space they use. */
 export const AssetListResponseSchema = z.object({

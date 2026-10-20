@@ -29,6 +29,7 @@ import { MatchesPage } from './MatchesPage.tsx';
 import { OnboardingHost } from './onboarding/OnboardingHost.tsx';
 import { ShareLinksPage } from './ShareLinksPage.tsx';
 import { SimulationPage } from './SimulationPage.tsx';
+import { SponsorsPage } from './SponsorsPage.tsx';
 import { StatsPage } from './StatsPage.tsx';
 import { LEGACY_PAGES, studioPath } from './studio/model.ts';
 import { loadTenants, TenantsPage, useChooseTenant } from './TenantsPage.tsx';
@@ -210,6 +211,7 @@ function AdminLayout() {
                 {/* Read-only: a viewer sees them too. */}
                 <Route path="statistiche" element={ofTenant(<StatsPage />)} />
                 <Route path="simulazione" element={adminOnly(<SimulationPage />)} />
+                <Route path="sponsor" element={adminOnly(<SponsorsPage />)} />
                 <Route path="utenti" element={adminOnly(<UsersPage />)} />
                 <Route
                   path="studio/:section?"

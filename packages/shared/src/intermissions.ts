@@ -333,6 +333,15 @@ export function intermissionImageIds(config: TenantIntermissions): string[] {
   return [...ids];
 }
 
+/** Pure: ids of the sponsors chosen by the sponsor slides of every pause (each once, in order of appearance). */
+export function intermissionSponsorIds(config: TenantIntermissions): string[] {
+  const ids = new Set<string>();
+  for (const pause of allIntermissions(config))
+    for (const slide of pause.slides)
+      if (slide.type === 'sponsor') for (const id of slide.options.sponsors) ids.add(id);
+  return [...ids];
+}
+
 /** `GET/PUT /api/admin/intermissions`: the pauses of the client of the session (the body of PUT is the document). */
 export const IntermissionsResponseSchema = z.object({
   tenantName: z.string(),

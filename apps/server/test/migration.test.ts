@@ -11,6 +11,7 @@ import { loadConfig } from '../src/config.js';
 import {
   agentRegistrations,
   agents,
+  assets,
   matches,
   MIGRATIONS_FOLDER,
   shareTokens,
@@ -257,6 +258,32 @@ describe('migration 0014: links of single matches as an option', () => {
     await expect(
       client.exec(`insert into share_tokens (tenant_id, token_hash, label, client_fixture_id)
         select tenant_id, 'f3-' || id, 'Loro', id from client_fixtures`),
+    ).rejects.toThrow();
+  });
+});
+
+describe('migration 0015: sponsors', () => {
+  it('leaves the images already uploaded without sponsor and keeps sponsor names unique in a client', async () => {
+    const client = new PGlite();
+    cleanup.push(() => client.close());
+    const db = drizzle({ client, schema });
+    await migrate(db, { migrationsFolder: await migrationsUpTo('0014_link_partita') });
+    await client.exec(`
+      insert into tenants (slug, name) values ('club', 'Club');
+      insert into assets (tenant_id, kind, sha256, mime, width, height, bytes)
+        select id, 'sponsor', repeat('a', 64), 'image/png', 10, 10, 100 from tenants where slug = 'club';
+    `);
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    const rows = await db.select({ sponsorId: assets.sponsorId }).from(assets);
+    expect(rows).toEqual([{ sponsorId: null }]);
+    await client.exec(`insert into sponsors (tenant_id, name) select id, 'Bar' from tenants where slug = 'club'`);
+    await expect(
+      client.exec(`insert into sponsors (tenant_id, name) select id, 'Bar' from tenants where slug = 'club'`),
+    ).rejects.toThrow();
+    await expect(
+      client.exec(
+        `insert into sponsors (tenant_id, name, website) select id, 'Altro', 'http://x.it' from tenants where slug = 'club'`,
+      ),
     ).rejects.toThrow();
   });
 });

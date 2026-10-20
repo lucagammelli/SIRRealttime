@@ -162,10 +162,23 @@ Pacchetto di esportazione della grafica (`graphicsExport.ts`): `GraphicsExportSc
 `exportedAt`, `sourceName`, `branding`, `layout`, `intermissions`, `overlays`, `images` con id, tipo, mime e base64; nessun dato di
 partite, utenti, agenti, link o hostname), `GraphicsImportResponseSchema`, i limiti `GRAPHICS_EXPORT_MAX_IMAGES`,
 `GRAPHICS_IMPORT_BODY_LIMIT`, `GRAPHICS_EXPORT_MAX_BASE64` e le funzioni pure `graphicsImageIds` e `remapGraphicsImageIds`.
+Il pacchetto contiene anche `sponsors` (`GraphicsExportSponsorSchema`: `id`, `name`, `website`, `imageIds`; facoltativo, vuoto
+se mancante, quindi `version` resta 1): solo gli sponsor scelti da pagina e pause (`graphicsSponsorIds`), con controlli di
+coerenza (nessuno sponsor scelto mancante o in più, nessuna immagine di due sponsor); `remapGraphicsSponsorIds` riscrive gli
+id all'importazione; `GraphicsImportResponseSchema` ha anche `sponsors` (numero).
 
 Immagini (`assets.ts`): `AssetKindSchema` (`logo` | `sponsor`), `AssetMimeSchema`, `ASSET_MAX_BYTES` (2 MB),
-`ASSET_MAX_BASE64_LENGTH`, `UploadAssetRequestSchema` (solo `kind` e `data` in base64), `AssetSummarySchema`,
-`AssetListResponseSchema`. Colori (`colors.ts`, funzioni pure): `HEX_COLOR_PATTERN`, `HexColorSchema`,
+`ASSET_MAX_BASE64_LENGTH`, `UploadAssetRequestSchema` (`kind`, `data` in base64 e `sponsorId` facoltativo, solo per
+`sponsor`), `UpdateAssetRequestSchema` (`PATCH /api/admin/assets/:id`: `{ sponsorId }` o `null`), `AssetSummarySchema`
+(con `sponsorId`), `AssetListResponseSchema`.
+
+Sponsor (`sponsors.ts`): anagrafica del cliente. `SponsorSchema` (`id`, `name`, `website`, `position`, `imageIds`,
+`createdAt`), `SponsorListResponseSchema`, `CreateSponsorRequestSchema`, `UpdateSponsorRequestSchema`,
+`SponsorOrderRequestSchema` (`PUT /api/admin/sponsors/order`), `PublicSponsorSchema` (`id`, `name`, `website`, `images`: ciò
+che vede la pagina pubblica; `PublicTenantResponseSchema` ha `sponsors`, vuoto se mancante). Limiti: `SPONSOR_NAME_MAX` 80,
+`SPONSOR_WEBSITE_MAX` 300, `SPONSORS_MAX` 50, `SPONSOR_IMAGES_MAX` 12. `SponsorWebsiteSchema` accetta solo indirizzi
+`https://` con host e senza credenziali (`isSponsorWebsite`, funzione pura). Server in `docs/server.md` («Sponsor»), pagina
+in `docs/portale.md` («Sponsor»). Colori (`colors.ts`, funzioni pure): `HEX_COLOR_PATTERN`, `HexColorSchema`,
 `relativeLuminance`, `contrastRatio`, `textColorOn`, `mixColors`, `ensureContrast`, `MIN_TEXT_CONTRAST` (4,5),
 `BRAND_COLOR_KEYS`, `DEFAULT_BRAND_COLORS`, `resolveBrandColors(colori, template)` (i colori del cliente sopra quelli del
 template, standard: i predefiniti; usata da `webManifest`, `agentBranding` e `brandContrastIssues`), `brandPalette(colori, template)` (variabili CSS chiare e scure; per le squadre
@@ -217,8 +230,10 @@ discriminata chiusa su `type`. Ogni blocco ha `id` (`BlockIdSchema`, unico nell'
 `court`, `rotations`, `logo`, `sponsor`, `message`, `qr`, `lastPoint`, `setScores`, `topPlayers`, `setScorers`, `aces`,
 `blocks`, `attack`, `roleDuel`, `teamDuel` (statistiche in stile TV, vedi sotto), `nextMatch` e `standings` («Prossima
 partita» e «Classifica» del club, larghezze 4/6/8/12, vedi «Club e calendario»). Opzioni: `logo`
-`variant` (`main` | `mark`); `sponsor` `images` (al massimo `SPONSOR_MAX_IMAGES` = 12 id di immagini del cliente) e
-`seconds` (3-60, predefinito 8); `message` `text` (testo semplice, al massimo `MESSAGE_MAX_LENGTH` = 280) e `size`
+`variant` (`main` | `mark`); `sponsor` `sponsors` (al massimo `SPONSOR_BLOCK_MAX_SPONSORS` = 12 id di sponsor del cliente,
+predefinito vuoto: le immagini di ogni sponsor ruotano nell'ordine dell'elenco), `images` (legacy, mantenuto per
+compatibilità: al massimo `SPONSOR_MAX_IMAGES` = 12 id di immagini singole del cliente, che ruotano dopo quelle degli
+sponsor) e `seconds` (3-60, predefinito 8); `message` `text` (testo semplice, al massimo `MESSAGE_MAX_LENGTH` = 280) e `size`
 (`normal` | `large`); `qr` `caption` (al massimo `QR_CAPTION_MAX_LENGTH` = 80, predefinito `QR_DEFAULT_CAPTION`);
 `topPlayers` `count` (1-`TOP_PLAYERS_MAX` = 10) e `team` (`both` | `home` | `away`). Opzioni dei sei nuovi blocchi (le
 stesse delle diapositive omonime): `period` (`STAT_PERIODS`: `set` predefinito, `match`) in tutti; `limit` in `setScorers`
@@ -234,7 +249,7 @@ larghezze 12/8/6/4; per `sir-volley` la pagina del mockup: tabellone, poi andame
 ciascuno, poi giocatori (8) e rotazioni (4); sul telefono una card per riga), `resolveLayout(documento, template)` legge un
 layout salvato, riempie con il predefinito del modello i dispositivi mai salvati e **un layout non valido o di versione
 futura vale il predefinito del modello** (quando `TENANT_CONFIG_VERSION` salirà servirà
-una migrazione). Inoltre `layoutImageIds` (immagini usate, per i controlli del server), `newBlock` (blocco nuovo con le
+una migrazione). Inoltre `layoutImageIds` (immagini singole usate) e `layoutSponsorIds` (sponsor scelti), per i controlli del server, `newBlock` (blocco nuovo con le
 opzioni predefinite), `LayoutResponseSchema` (`GET`/`PUT /api/admin/layout`); `PublicTenantResponseSchema` contiene anche
 `layout`. `TENANT_CONFIG_VERSION` ora sta in `configVersion.ts`. Server in `docs/server.md` («Pagina pubblica a blocchi»),
 editor in `docs/portale.md`, classifica in `docs/statistiche.md`.
@@ -263,8 +278,8 @@ squadra è a K punti o meno dal traguardo del set, 25 o 15 al tie-break, calcola
 contratto); predefiniti: attiva per tutti i clienti, banda su tablet e telefono e tutto schermo su TV, ritardo 3 s,
 diapositive `setScorers` e `teamDuel` del set in corso. Funzioni pure:
 `resolveIntermissions` (un documento non valido vale i predefiniti), `intermissionFor(config, kind, set?)` (la pausa da
-usare, null se spenta o senza diapositive), `allIntermissions`, `intermissionImageIds` (immagini delle diapositive
-sponsor, per i controlli del server). `IntermissionsResponseSchema` (`GET`/`PUT /api/admin/intermissions`);
+usare, null se spenta o senza diapositive), `allIntermissions`, `intermissionImageIds` (immagini singole) e `intermissionSponsorIds` (sponsor scelti) delle diapositive
+sponsor, per i controlli del server. `IntermissionsResponseSchema` (`GET`/`PUT /api/admin/intermissions`);
 `PublicTenantResponseSchema` contiene anche `intermissions`. Server in `docs/server.md` («Pause della partita»),
 schermate ed editor in `docs/portale.md`, fase e riepiloghi in `docs/statistiche.md`.
 

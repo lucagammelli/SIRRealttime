@@ -182,7 +182,7 @@ function Stage({
       ? visibleSlides(
           shown,
           { set: set ? Number(set) : shown.live.set, pause },
-          { sponsorLogo, schedule: SAMPLE_SCHEDULE },
+          { sponsorLogo, schedule: SAMPLE_SCHEDULE, sponsors: look?.sponsors ?? [] },
         )
       : [];
   let notice: string | null = null;

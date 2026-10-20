@@ -2,6 +2,8 @@ import type {
   AssetListResponse,
   AssetSummary,
   MeResponse,
+  Sponsor,
+  SponsorListResponse,
   TenantBranding,
   TenantIntermissions,
   TenantLayout,
@@ -53,6 +55,19 @@ class SilentSocket {
   close(): void {}
 }
 
+const SPONSOR_ID = '5e4d3c2b-1a09-4f8e-9d7c-6b5a4f3e2d1c';
+/** One sponsor of the client with the sponsor image. */
+const SPONSORS: Sponsor[] = [
+  {
+    id: SPONSOR_ID,
+    name: 'Bar Centrale',
+    website: null,
+    position: 0,
+    imageIds: [SPONSOR],
+    createdAt: '2026-10-15T10:00:00.000Z',
+  },
+];
+
 const asset = (id: string, kind: 'logo' | 'sponsor', width = 300, height = 100): AssetSummary => ({
   id,
   kind,
@@ -63,6 +78,7 @@ const asset = (id: string, kind: 'logo' | 'sponsor', width = 300, height = 100):
   sha256: 'a'.repeat(64),
   createdAt: '2026-10-15T10:00:00.000Z',
   url: `/api/public/assets/${id}`,
+  sponsorId: null,
 });
 
 interface Saved {
@@ -123,6 +139,7 @@ function mockServer(
       }
       if (url.startsWith('/api/admin/assets/') && method === 'DELETE')
         return json({ error: 'Immagine in uso nella grafica: toglila prima di eliminarla' }, 409);
+      if (url === '/api/admin/sponsors') return json({ sponsors: SPONSORS } satisfies SponsorListResponse);
       if (url === '/api/public/tenant') return json({ error: 'Non trovato' }, 404);
       return json([]);
     }),
@@ -650,7 +667,7 @@ describe('Pause', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sposta su Messaggio' }));
     expect(slideOrder()).toEqual(['message', 'sponsor']);
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sposta giù Messaggio' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /Immagine 2 · 300×100 px/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Bar Centrale · 1 immagine/ }));
     save();
     expect(await screen.findByText(/Pause salvate/)).toBeTruthy();
     const body = puts('/api/admin/intermissions').at(-1)?.body as TenantIntermissions;
@@ -661,7 +678,7 @@ describe('Pause', () => {
       delaySeconds: 3,
       slides: [
         { id: 'message', type: 'message' },
-        { id: 'sponsor', options: { images: [SPONSOR] } },
+        { id: 'sponsor', options: { sponsors: [SPONSOR_ID], images: [] } },
       ],
     });
   });

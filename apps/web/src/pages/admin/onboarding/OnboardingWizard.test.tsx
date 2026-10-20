@@ -150,6 +150,7 @@ function mockServer(
       }
       if (url === '/api/admin/assets' && method === 'GET')
         return json({ assets: [], usedBytes: 0, quotaBytes: 1000000 });
+      if (url === '/api/admin/sponsors') return json({ sponsors: [] });
       if (url === '/api/public/tenant') return json({ error: 'Non trovato' }, 404);
       if (url === '/api/admin/layout') return json({ tenantName: 'Sir Safety', layout: defaultLayout() });
       if (url === '/api/admin/intermissions') {

@@ -19,8 +19,10 @@ import {
   BRANDING_IMAGE_SLOTS,
   IdParamSchema,
   intermissionImageIds,
+  intermissionSponsorIds,
   isCustomTemplate,
   layoutImageIds,
+  layoutSponsorIds,
   publicAssetPath,
   resolveBranding,
   resolveIntermissions,
@@ -30,6 +32,7 @@ import {
   TenantIntermissionsSchema,
   TenantLayoutSchema,
   TenantOverlaysSchema,
+  UpdateAssetRequestSchema,
   UploadAssetRequestSchema,
 } from '@sir/shared';
 import { desc, eq, inArray, ne, or, sql } from 'drizzle-orm';
@@ -43,6 +46,7 @@ import { badRequest, conflict, forbidden, HttpError, notFound } from '../lib/err
 import { ImageRejected, inspectImage } from '../lib/images.js';
 import { validate } from '../lib/validate.js';
 import { requireRole } from '../security.js';
+import { publicSponsors, requireOwnSponsors, requireSponsorRoom } from '../sponsors.js';
 import { adminTenantId, findTenant, forgetTenants, hostTenant, tenantDisplayName, tenantScope } from '../tenancy.js';
 
 type AssetRow = typeof assets.$inferSelect;
@@ -66,7 +70,7 @@ const RawDataSchema = z.object({ data: z.string() });
 const tooLarge = (): HttpError => new HttpError(413, 'TOO_LARGE', 'Immagine troppo grande (massimo 2 MB)');
 const imageRejected = (message: string): HttpError => new HttpError(422, 'IMAGE_REJECTED', message);
 
-const assetSummary = (a: AssetRow): AssetSummary => ({
+export const assetSummary = (a: AssetRow): AssetSummary => ({
   id: a.id,
   kind: a.kind,
   mime: AssetMimeSchema.parse(a.mime),
@@ -76,6 +80,7 @@ const assetSummary = (a: AssetRow): AssetSummary => ({
   sha256: a.sha256,
   createdAt: a.createdAt.toISOString(),
   url: publicAssetPath(a.id),
+  sponsorId: a.sponsorId,
 });
 
 /** Lock of the images and of the graphics of a client (uploads, deletions, branding, profile of the club). */
@@ -134,6 +139,64 @@ async function requireOwnImages(tx: Tx, tenantId: string, ids: string[]): Promis
   if (rows.length !== ids.length) throw badRequest('Richiesta non valida: immagine non trovata');
 }
 
+/**
+ * Under the lock of the client: an image (of kind `sponsor`) becomes one of the images of a sponsor of the client. 409
+ * when it already belongs to another sponsor or the sponsor has SPONSOR_IMAGES_MAX images.
+ */
+async function giveToSponsor(tx: Tx, tenantId: string, row: AssetRow, sponsorId: string): Promise<AssetRow> {
+  if (row.sponsorId !== null && row.sponsorId !== sponsorId)
+    throw conflict('Questa immagine è già di un altro sponsor: toglila da quello prima');
+  await requireSponsorRoom(tx, tenantId, sponsorId);
+  const [updated] = await tx
+    .update(assets)
+    .set({ sponsorId })
+    .where(tenantScope(assets, tenantId, eq(assets.id, row.id)))
+    .returning();
+  if (!updated) throw notFound();
+  return updated;
+}
+
+/**
+ * Under the lock of the client: why an image cannot be deleted (used by the branding, a sponsor block, a sponsor
+ * slide or a match of the calendar), as the text of the 409; null when nothing uses it.
+ */
+export async function assetUse(tx: Tx, tenantId: string, id: string): Promise<string | null> {
+  const [tenant] = await tx
+    .select({ branding: tenants.branding, layout: tenants.layout, intermissions: tenants.intermissions })
+    .from(tenants)
+    .where(eq(tenants.id, tenantId));
+  if (brandingIds(resolveBranding(tenant?.branding)).includes(id))
+    return 'Immagine in uso nella grafica: toglila prima di eliminarla';
+  if (layoutImageIds(resolveLayout(tenant?.layout)).includes(id))
+    return 'Immagine in uso nella pagina pubblica: toglila dal blocco sponsor prima di eliminarla';
+  if (intermissionImageIds(resolveIntermissions(tenant?.intermissions)).includes(id))
+    return 'Immagine in uso nelle pause: toglila dalla diapositiva sponsor prima di eliminarla';
+  const [fixture] = await tx
+    .select({ id: clientFixtures.id })
+    .from(clientFixtures)
+    .where(
+      tenantScope(
+        clientFixtures,
+        tenantId,
+        or(eq(clientFixtures.ourLogoAssetId, id), eq(clientFixtures.opponentLogoAssetId, id)),
+      ),
+    )
+    .limit(1);
+  return fixture ? 'Immagine in uso come logo di una partita del calendario: toglila prima di eliminarla' : null;
+}
+
+/** Under the lock of the client: deletes the row of an image; the file goes when no other row of the client uses it. */
+export async function deleteAssetRow(ctx: AppContext, tx: Tx, row: AssetRow): Promise<void> {
+  await tx.delete(assets).where(tenantScope(assets, row.tenantId, eq(assets.id, row.id)));
+  const [twin] = await tx
+    .select({ id: assets.id })
+    .from(assets)
+    .where(tenantScope(assets, row.tenantId, eq(assets.sha256, row.sha256), ne(assets.id, row.id)))
+    .limit(1);
+  // Still under the lock: an upload of the same file waits and writes it again.
+  if (!twin) await removeAssetFile(ctx.config.assetsDir, row.tenantId, row.sha256);
+}
+
 /** Images used by a branding. */
 const brandingIds = (branding: TenantBranding): string[] =>
   SLOTS.map((slot) => branding[slot]).filter((id): id is string => id !== null);
@@ -149,6 +212,11 @@ export function brandingPublicRoutes(app: FastifyInstance, ctx: AppContext): voi
     const tenant = await hostTenant(ctx, request);
     if (!tenant) throw notFound();
     const branding = resolveBranding(tenant.branding);
+    // A device never saved by the client: the default page of its template.
+    const layout = resolveLayout(tenant.layout, branding.template);
+    const intermissions = resolveIntermissions(tenant.intermissions);
+    const chosen = [...new Set([...layoutSponsorIds(layout), ...intermissionSponsorIds(intermissions)])];
+    const sponsorList = await publicSponsors(ctx.db, tenant.id, chosen);
     void reply.header('cache-control', TENANT_CACHE);
     return {
       name: tenantDisplayName(tenant, branding),
@@ -158,10 +226,10 @@ export function brandingPublicRoutes(app: FastifyInstance, ctx: AppContext): voi
         logoMark: branding.logoMark ? publicAssetPath(branding.logoMark) : null,
         sponsorLogo: branding.sponsorLogo ? publicAssetPath(branding.sponsorLogo) : null,
       },
-      // A device never saved by the client: the default page of its template.
-      layout: resolveLayout(tenant.layout, branding.template),
-      intermissions: resolveIntermissions(tenant.intermissions),
+      layout,
+      intermissions,
       overlays: resolveOverlays(tenant.overlays),
+      sponsors: sponsorList,
     };
   });
 
@@ -256,7 +324,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
 
   /**
    * Replaces the layout of the public page (closed list of block types, options checked by the shared schema); every
-   * image of the blocks must be of this client.
+   * image and every sponsor of the blocks must be of this client.
    */
   app.put('/api/admin/layout', admin, async (request): Promise<LayoutResponse> => {
     const tenantId = adminTenantId(request);
@@ -265,6 +333,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     await ctx.db.transaction(async (tx) => {
       await lockClientAssets(tx, tenantId);
       await requireOwnImages(tx, tenantId, images);
+      await requireOwnSponsors(tx, tenantId, layoutSponsorIds(layout));
       const updated = await tx
         .update(tenants)
         .set({ layout })
@@ -289,7 +358,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
 
   /**
    * Replaces the pauses of the public page (closed list of slide types, options, durations and delays checked by the
-   * shared schema); every image of the sponsor slides must be of this client.
+   * shared schema); every image and sponsor of the sponsor slides must be of this client.
    */
   app.put('/api/admin/intermissions', admin, async (request): Promise<IntermissionsResponse> => {
     const tenantId = adminTenantId(request);
@@ -298,6 +367,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     await ctx.db.transaction(async (tx) => {
       await lockClientAssets(tx, tenantId);
       await requireOwnImages(tx, tenantId, images);
+      await requireOwnSponsors(tx, tenantId, intermissionSponsorIds(intermissions));
       const updated = await tx
         .update(tenants)
         .set({ intermissions })
@@ -355,7 +425,9 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
   /**
    * Upload of an image as base64 JSON: type and size recognized from the bytes (PNG, JPEG, WebP, strictly checked
    * SVG; anything else 422), at most 2 MB (413), within the quota of the client (409). The file is named after its
-   * sha256; the same file again returns the image already stored (200).
+   * sha256; the same file again returns the image already stored (200). With `sponsorId` (a sponsor of the client)
+   * the image becomes one of its images (409 when it has SPONSOR_IMAGES_MAX, or when the same file is already an image
+   * of another sponsor).
    */
   app.post(
     '/api/admin/assets',
@@ -378,15 +450,57 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
         }
         throw err;
       }
+      const sponsorId = body.sponsorId;
+      if (sponsorId !== undefined && body.kind !== 'sponsor') throw badRequest('Richiesta non valida: sponsorId');
       const { row, created } = await ctx.db.transaction(async (tx) => {
         await lockClientAssets(tx, tenantId);
-        return storeAsset(ctx, tx, tenantId, body.kind, data, info);
+        if (sponsorId === undefined) return storeAsset(ctx, tx, tenantId, body.kind, data, info);
+        await requireOwnSponsors(tx, tenantId, [sponsorId]);
+        const stored = await storeAsset(ctx, tx, tenantId, body.kind, data, info);
+        if (stored.row.sponsorId === sponsorId) return stored;
+        return { ...stored, row: await giveToSponsor(tx, tenantId, stored.row, sponsorId) };
       });
       if (created) request.log.info({ assetId: row.id, mime: row.mime, bytes: row.bytes }, 'immagine caricata');
       void reply.code(created ? 201 : 200);
       return assetSummary(row);
     },
   );
+
+  /**
+   * Gives a sponsor image to a sponsor of the client (409 when it has SPONSOR_IMAGES_MAX), or takes it away (null).
+   * A logo never belongs to a sponsor (400).
+   */
+  app.patch('/api/admin/assets/:id', admin, async (request): Promise<AssetSummary> => {
+    const tenantId = adminTenantId(request);
+    const { id } = validate(IdParamSchema, request.params);
+    const body = validate(UpdateAssetRequestSchema, request.body);
+    const row = await ctx.db.transaction(async (tx) => {
+      await lockClientAssets(tx, tenantId);
+      const [current] = await tx
+        .select()
+        .from(assets)
+        .where(tenantScope(assets, tenantId, eq(assets.id, id)))
+        .limit(1);
+      if (!current) throw notFound();
+      if (body.sponsorId === null) {
+        const [updated] = await tx
+          .update(assets)
+          .set({ sponsorId: null })
+          .where(tenantScope(assets, tenantId, eq(assets.id, id)))
+          .returning();
+        return updated ?? current;
+      }
+      if (current.kind !== 'sponsor') throw badRequest('Solo le immagini sponsor si assegnano a uno sponsor');
+      if (current.sponsorId === body.sponsorId) return current;
+      await requireOwnSponsors(tx, tenantId, [body.sponsorId]);
+      return giveToSponsor(tx, tenantId, { ...current, sponsorId: null }, body.sponsorId);
+    });
+    request.log.info(
+      { assetId: id, sponsorId: row.sponsorId, userId: request.user?.id },
+      'sponsor dell’immagine cambiato',
+    );
+    return assetSummary(row);
+  });
 
   /**
    * Deletes an image not used by the branding, the blocks or the pauses of the public page (409 otherwise); the file goes when
@@ -403,37 +517,9 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
         .where(tenantScope(assets, tenantId, eq(assets.id, id)))
         .limit(1);
       if (!row) throw notFound();
-      const [tenant] = await tx
-        .select({ branding: tenants.branding, layout: tenants.layout, intermissions: tenants.intermissions })
-        .from(tenants)
-        .where(eq(tenants.id, tenantId));
-      if (brandingIds(resolveBranding(tenant?.branding)).includes(id))
-        throw conflict('Immagine in uso nella grafica: toglila prima di eliminarla');
-      if (layoutImageIds(resolveLayout(tenant?.layout)).includes(id))
-        throw conflict('Immagine in uso nella pagina pubblica: toglila dal blocco sponsor prima di eliminarla');
-      if (intermissionImageIds(resolveIntermissions(tenant?.intermissions)).includes(id))
-        throw conflict('Immagine in uso nelle pause: toglila dalla diapositiva sponsor prima di eliminarla');
-      const [fixture] = await tx
-        .select({ id: clientFixtures.id })
-        .from(clientFixtures)
-        .where(
-          tenantScope(
-            clientFixtures,
-            tenantId,
-            or(eq(clientFixtures.ourLogoAssetId, id), eq(clientFixtures.opponentLogoAssetId, id)),
-          ),
-        )
-        .limit(1);
-      if (fixture)
-        throw conflict('Immagine in uso come logo di una partita del calendario: toglila prima di eliminarla');
-      await tx.delete(assets).where(tenantScope(assets, tenantId, eq(assets.id, id)));
-      const [twin] = await tx
-        .select({ id: assets.id })
-        .from(assets)
-        .where(tenantScope(assets, tenantId, eq(assets.sha256, row.sha256), ne(assets.id, id)))
-        .limit(1);
-      // Still under the lock: an upload of the same file waits and writes it again.
-      if (!twin) await removeAssetFile(ctx.config.assetsDir, tenantId, row.sha256);
+      const inUse = await assetUse(tx, tenantId, id);
+      if (inUse) throw conflict(inUse);
+      await deleteAssetRow(ctx, tx, row);
     });
     request.log.info({ assetId: id }, 'immagine eliminata');
     return reply.code(204).send();

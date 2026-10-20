@@ -1,19 +1,16 @@
 import type {
-  AssetKind,
   AssetListResponse,
-  AssetSummary,
   BrandingResponse,
   LayoutBlock,
   LayoutDevice,
+  Sponsor,
   TenantLayout,
 } from '@sir/shared';
 import {
-  ASSET_MAX_BYTES,
-  AssetSummarySchema,
   MESSAGE_MAX_LENGTH,
   publicAssetPath,
   QR_CAPTION_MAX_LENGTH,
-  SPONSOR_MAX_IMAGES,
+  SPONSOR_BLOCK_MAX_SPONSORS,
   SPONSOR_MAX_SECONDS,
   SPONSOR_MIN_SECONDS,
   TOP_PLAYERS_MAX,
@@ -21,21 +18,22 @@ import {
 import type { MatchState } from '@sir/volley-stats';
 import type { ReactNode, RefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router';
 import type { BlockBrand } from '../../../blocks/env.ts';
 import { BLOCKS } from '../../../blocks/registry.tsx';
 import { SAMPLE_SCHEDULE } from '../../../blocks/sampleSchedule.ts';
 import { MatchView } from '../../../components/MatchView.tsx';
-import { apiRequest } from '../../../lib/api.ts';
-import { fileToBase64 } from '../../../lib/base64.ts';
+import { publicSponsorsOf } from '../../../lib/sponsors.ts';
 import { LayoutScaleContext, useElementSize } from '../../../lib/useLayout.ts';
 import { CalendarOptionsFields } from '../CalendarOptionsFields.tsx';
 import { inputClass } from '../forms.tsx';
 import { StatOptionsFields, withStatOptions } from '../StatOptionsFields.tsx';
+import { imageCountText } from '../imageUpload.ts';
 import { DEVICE_LABELS } from './model.ts';
 
 /**
  * Pieces shared by the sections of the «Studio grafico»: the page of a device drawn in a frame (real components of the
- * public page), the options of a block or of a slide of the same type, the upload of a sponsor image.
+ * public page), the options of a block or of a slide of the same type, the upload of an image.
  */
 
 /** Page drawn in the preview (CSS px) and proportions of its frame: 16:9, 4:3, 9:19.5. */
@@ -59,22 +57,8 @@ export const SPONSOR_SECONDS = [3, 4, 5, 6, 8, 10, 12, 15, 20, 30, 45, 60].filte
 );
 /** Example short link encoded by the QR of the preview. */
 const PREVIEW_CODE = 'K7M2QX9P';
-export const ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml';
 
 export const selectClass = `${inputClass} w-auto`;
-
-/** Text shown when a chosen image is over the limit (nothing is sent). */
-export const IMAGE_TOO_LARGE = 'Immagine troppo grande: al massimo 2 MB.';
-
-/** Uploads an image of the client of `kind`; null when the file is over ASSET_MAX_BYTES (nothing sent). */
-export async function uploadImage(file: File, kind: AssetKind): Promise<AssetSummary | null> {
-  if (file.size > ASSET_MAX_BYTES) return null;
-  const data = await fileToBase64(file);
-  return apiRequest('/api/admin/assets', AssetSummarySchema, { method: 'POST', body: { kind, data } });
-}
-
-/** Uploads a sponsor image of the client (see `uploadImage`). */
-export const uploadSponsorImage = (file: File): Promise<AssetSummary | null> => uploadImage(file, 'sponsor');
 
 /** Width (px) of an element, followed with ResizeObserver; 0 before the first measure. */
 function useElementWidth(ref: RefObject<HTMLElement | null>): number {
@@ -186,14 +170,14 @@ export function BlockOptionsEditor({
   block,
   onChange,
   assets,
-  uploading,
-  onUpload,
+  sponsors,
 }: {
   block: LayoutBlock;
   onChange: (block: LayoutBlock) => void;
+  /** Images of the client: the single images chosen before the sponsors. */
   assets: AssetListResponse;
-  uploading: boolean;
-  onUpload: (file: File, block: LayoutBlock) => void;
+  /** Sponsors of the client, in the order of their list. */
+  sponsors: readonly Sponsor[];
 }) {
   const label = BLOCKS[block.type].label;
   switch (block.type) {
@@ -295,47 +279,84 @@ export function BlockOptionsEditor({
         </div>
       );
     case 'sponsor': {
-      const chosen = new Set(block.options.images);
-      const toggle = (id: string, on: boolean): void => {
-        const images = on ? [...block.options.images, id] : block.options.images.filter((i) => i !== id);
-        onChange({ ...block, options: { ...block.options, images } });
-      };
+      const { options } = block;
+      const chosen = new Set(options.sponsors);
+      const setOptions = (change: Partial<typeof options>): void =>
+        onChange({ ...block, options: { ...options, ...change } });
+      const toggle = (id: string, on: boolean): void =>
+        setOptions({ sponsors: on ? [...options.sponsors, id] : options.sponsors.filter((s) => s !== id) });
+      const byId = new Map(assets.assets.map((a) => [a.id, a]));
       return (
         <div className="space-y-2 text-sm text-text">
           <fieldset className="space-y-1">
             <legend className="text-sm text-text">
-              Immagini a rotazione ({block.options.images.length} di al massimo {SPONSOR_MAX_IMAGES})
+              Sponsor a rotazione ({chosen.size} di al massimo {SPONSOR_BLOCK_MAX_SPONSORS})
             </legend>
-            {assets.assets.length === 0 ? (
-              <p className="text-xs text-muted">Nessuna immagine caricata: caricane una qui sotto.</p>
+            {sponsors.length === 0 ? (
+              <p className="text-xs text-muted">Nessuno sponsor: aggiungili nella pagina «Sponsor».</p>
             ) : (
               <ul className="flex flex-wrap gap-2">
-                {assets.assets.map((a, i) => (
-                  <li key={a.id}>
-                    <label className="flex items-center gap-2 rounded-card border border-border bg-surface px-2 py-1">
-                      <input
-                        type="checkbox"
-                        checked={chosen.has(a.id)}
-                        disabled={!chosen.has(a.id) && chosen.size >= SPONSOR_MAX_IMAGES}
-                        onChange={(e) => toggle(a.id, e.target.checked)}
-                      />
-                      <img src={a.url} alt="" className="size-8 object-contain" />
-                      <span className="text-xs">
-                        Immagine {i + 1} · {a.width}×{a.height} px
-                      </span>
-                    </label>
-                  </li>
-                ))}
+                {sponsors.map((sp) => {
+                  const first = sp.imageIds[0];
+                  return (
+                    <li key={sp.id}>
+                      <label className="flex items-center gap-2 rounded-card border border-border bg-surface px-2 py-1">
+                        <input
+                          type="checkbox"
+                          checked={chosen.has(sp.id)}
+                          disabled={!chosen.has(sp.id) && chosen.size >= SPONSOR_BLOCK_MAX_SPONSORS}
+                          onChange={(e) => toggle(sp.id, e.target.checked)}
+                        />
+                        {first ? (
+                          <img src={publicAssetPath(first)} alt="" className="size-8 object-contain" />
+                        ) : (
+                          <span aria-hidden="true" className="size-8 rounded bg-surface-2" />
+                        )}
+                        <span className="text-xs">
+                          {sp.name} · {imageCountText(sp.imageIds.length)}
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </fieldset>
+          {options.images.length > 0 && (
+            <fieldset className="space-y-1">
+              <legend className="text-sm text-text">Immagini singole</legend>
+              <p className="text-xs text-muted">Scelte prima degli sponsor: ruotano dopo le immagini degli sponsor.</p>
+              <ul className="flex flex-wrap gap-2">
+                {options.images.map((id, i) => {
+                  const asset = byId.get(id);
+                  return (
+                    <li
+                      key={id}
+                      className="flex items-center gap-2 rounded-card border border-border bg-surface px-2 py-1"
+                    >
+                      <img src={asset?.url ?? publicAssetPath(id)} alt="" className="size-8 object-contain" />
+                      <span className="text-xs">Immagine {i + 1}</span>
+                      <button
+                        type="button"
+                        className="text-xs text-muted underline hover:text-text"
+                        aria-label={`Togli l’immagine singola ${i + 1} da ${label}`}
+                        onClick={() => setOptions({ images: options.images.filter((x) => x !== id) })}
+                      >
+                        Togli
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </fieldset>
+          )}
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2">
               Secondi per immagine
               <select
                 className={selectClass}
-                value={block.options.seconds}
-                onChange={(e) => onChange({ ...block, options: { ...block.options, seconds: Number(e.target.value) } })}
+                value={options.seconds}
+                onChange={(e) => setOptions({ seconds: Number(e.target.value) })}
               >
                 {SPONSOR_SECONDS.map((s) => (
                   <option key={s} value={s}>
@@ -344,21 +365,9 @@ export function BlockOptionsEditor({
                 ))}
               </select>
             </label>
-            <label className="inline-flex min-h-9 cursor-pointer items-center rounded-card border border-border bg-surface px-3 py-1.5 font-medium hover:bg-surface-2">
-              {uploading ? 'Caricamento…' : 'Carica immagine sponsor'}
-              <input
-                type="file"
-                accept={ACCEPT}
-                className="sr-only"
-                disabled={uploading}
-                aria-label={`Carica immagine sponsor per ${label}`}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = '';
-                  if (file) onUpload(file, block);
-                }}
-              />
-            </label>
+            <Link to="/admin/sponsor" className="text-sm font-medium text-text underline">
+              Gestisci sponsor
+            </Link>
           </div>
         </div>
       );
@@ -382,11 +391,12 @@ export function BlockOptionsEditor({
   }
 }
 
-/** Graphics of the client of the session for the blocks of the previews (logo and QR). */
-export function blockBrandOf(b: BrandingResponse): BlockBrand {
+/** Graphics of the client of the session for the blocks of the previews (logo, QR and sponsors). */
+export function blockBrandOf(b: BrandingResponse, sponsors: readonly Sponsor[] = []): BlockBrand {
   return {
     name: b.branding.displayName ?? b.tenantName,
     logoMain: b.branding.logoMain ? publicAssetPath(b.branding.logoMain) : null,
     logoMark: b.branding.logoMark ? publicAssetPath(b.branding.logoMark) : null,
+    sponsors: publicSponsorsOf(sponsors),
   };
 }

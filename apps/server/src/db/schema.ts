@@ -324,12 +324,35 @@ export const assetKind = pgEnum('asset_kind', ['logo', 'sponsor']);
  * Images uploaded by a client. The file is `<ASSETS_DIR>/<tenant_id>/<sha256>` (no name chosen by the user); the
  * same file uploaded twice by a client is one row. `mime`, `width` and `height` come from the bytes.
  */
+/**
+ * Sponsors of a client: name (unique in the client), optional `https://` website, place in its list. Their images are
+ * the rows of `assets` with their `sponsor_id`.
+ */
+export const sponsors = pgTable(
+  'sponsors',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: tenantId(),
+    name: text('name').notNull(),
+    website: text('website'),
+    position: integer('position').notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('sponsors_tenant_name_idx').on(t.tenantId, t.name),
+    check('sponsors_name_check', sql`char_length(${t.name}) between 1 and 80`),
+    check('sponsors_website_check', sql`${t.website} is null or ${t.website} like 'https://%'`),
+  ],
+);
+
 export const assets = pgTable(
   'assets',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     tenantId: tenantId(),
     kind: assetKind('kind').notNull(),
+    /** Sponsor of the same client the image belongs to (checked by the server); null: none. */
+    sponsorId: uuid('sponsor_id').references((): AnyPgColumn => sponsors.id, { onDelete: 'set null' }),
     /** sha256 hex of the file. */
     sha256: text('sha256').notNull(),
     mime: text('mime').notNull(),
@@ -338,7 +361,10 @@ export const assets = pgTable(
     bytes: integer('bytes').notNull(),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex('assets_tenant_sha256_kind_idx').on(t.tenantId, t.sha256, t.kind)],
+  (t) => [
+    uniqueIndex('assets_tenant_sha256_kind_idx').on(t.tenantId, t.sha256, t.kind),
+    index('assets_sponsor_idx').on(t.sponsorId),
+  ],
 );
 
 // --- Championships (common to every client: public data of the official sites) ---------------------------------
@@ -659,6 +685,7 @@ export const schema = {
   scoutLines,
   shareTokens,
   assetKind,
+  sponsors,
   assets,
   leagueProvider,
   leagueSyncStatus,

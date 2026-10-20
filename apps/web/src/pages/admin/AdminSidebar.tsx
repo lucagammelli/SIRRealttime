@@ -14,6 +14,7 @@ const ICONS = {
   links: 'M10 14a4 4 0 0 0 5.7 0l3-3A4 4 0 0 0 13 5.3l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
   branding: 'M12 3a9 9 0 0 0 0 18c1.2 0 1.6-.9 1.4-1.8-.3-1.1.4-2.2 1.6-2.2H17a4 4 0 0 0 4-4c0-5-4-10-9-10z',
   agents: 'M4 5h16v11H4zM9 20h6M12 16v4',
+  sponsors: 'M12 3l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.4l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z',
   users: 'M16 20a4 4 0 0 0-8 0M12 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z',
   tenants: 'M4 20V7l8-4 8 4v13M9 20v-5h6v5M8.5 9.5h.01M12 9.5h.01M15.5 9.5h.01',
   leagues: 'M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8',
@@ -109,9 +110,10 @@ export function menuGroups({
     { label: 'Club', items: [{ to: '/admin/club', label: 'Club', icon: 'club' }] },
     {
       label: 'Pagina pubblica',
-      // Graphics, links and simulation: what the spectators see. A viewer reads the links only.
+      // Graphics, sponsors, links and simulation: what the spectators see. A viewer reads the links only.
       items: [
         ...(isAdmin ? [{ to: '/admin/studio', label: 'Studio grafico', icon: 'branding' } as const] : []),
+        ...(isAdmin ? [{ to: '/admin/sponsor', label: 'Sponsor', icon: 'sponsors' } as const] : []),
         { to: '/admin/link', label: 'Link pubblici', icon: 'links' },
         ...(isAdmin ? [{ to: '/admin/simulazione', label: 'Simulazione', icon: 'simulation' } as const] : []),
       ],

@@ -127,7 +127,15 @@ export function LivePage() {
   const template = useTemplate();
   const [pauseFullscreen, setPauseFullscreen] = useState(false);
   const blockBrand = useMemo(
-    () => (look ? { name: look.name, logoMain: look.images.logoMain, logoMark: look.images.logoMark } : null),
+    () =>
+      look
+        ? {
+            name: look.name,
+            logoMain: look.images.logoMain,
+            logoMark: look.images.logoMark,
+            sponsors: look.sponsors,
+          }
+        : null,
     [look],
   );
   useEffect(() => {

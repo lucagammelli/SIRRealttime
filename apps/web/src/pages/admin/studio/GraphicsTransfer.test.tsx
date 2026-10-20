@@ -15,6 +15,7 @@ const pkg = (template = 'standard'): GraphicsExport => ({
   intermissions: defaultIntermissions(),
   overlays: defaultOverlays(),
   images: [],
+  sponsors: [],
 });
 
 const fileOf = (content: unknown): File =>

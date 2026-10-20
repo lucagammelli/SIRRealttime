@@ -139,7 +139,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
         items: [
           '«Colori e loghi»: i colori della società e i loghi (orizzontale, quadrato e sponsor).',
           '«Pagina live»: cosa mostrare su TV, tablet e telefono durante la partita.',
-          '«Pause»: cosa si vede a fine set, nei time-out e a fine partita, anche con lo sponsor.',
+          '«Pause»: cosa si vede a fine set, nei time-out e a fine partita, anche con gli sponsor.',
           '«Avvisi»: i messaggi che compaiono per ace, muro, set point e altro.',
         ],
       },
@@ -149,10 +149,21 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'Per portare tutta la grafica da un portale a un altro (colori, loghi, pagina live, pause, avvisi e immagini) apri «Colori e loghi», scheda «Esporta / Importa». Con «Esporta configurazione» scarichi un file; con «Importa configurazione» scegli il file, controlli il riepilogo (club di origine, data, immagini, modello grafico) e confermi: la grafica attuale viene sostituita. Il file non contiene partite, utenti né link. Un tema personalizzato lo può importare solo il superadmin.',
+        text: 'Gli sponsor si preparano nella pagina «Sponsor»: per ognuno scrivi il nome, se vuoi il sito (che inizia con https://) e carica una o più immagini con «Carica immagine». Con ↑ e ↓ scegli l’ordine in cui ruotano. Le immagini caricate prima, senza sponsor, compaiono in «Immagini senza sponsor»: con «Assegna a» le dai a uno sponsor.',
+      },
+      {
+        kind: 'text',
+        text: 'Poi, nello «Studio grafico», nel blocco «Sponsor» della pagina live e nella diapositiva «Sponsor» delle pause spunta gli sponsor da mostrare: tutte le loro immagini ruotano una dopo l’altra. Se lo sponsor ha un sito, toccando l’immagine il tifoso lo apre. Uno sponsor scelto nella pagina o nelle pause non si può eliminare: prima toglilo da lì.',
+      },
+      {
+        kind: 'text',
+        text: 'Per portare tutta la grafica da un portale a un altro (colori, loghi, pagina live, pause, avvisi, sponsor scelti e immagini) apri «Colori e loghi», scheda «Esporta / Importa». Con «Esporta configurazione» scarichi un file; con «Importa configurazione» scegli il file, controlli il riepilogo (club di origine, data, immagini, modello grafico) e confermi: la grafica attuale viene sostituita. Il file non contiene partite, utenti né link. Un tema personalizzato lo può importare solo il superadmin.',
       },
     ],
-    links: [{ label: 'Vai a Studio grafico', to: '/admin/studio/colori' }],
+    links: [
+      { label: 'Vai a Studio grafico', to: '/admin/studio/colori' },
+      { label: 'Vai a Sponsor', to: '/admin/sponsor' },
+    ],
   },
   {
     id: 'link-qr',

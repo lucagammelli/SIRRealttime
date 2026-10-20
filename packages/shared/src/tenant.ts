@@ -7,6 +7,7 @@ import { TenantIntermissionsSchema } from './intermissions.js';
 import { TenantLayoutSchema } from './layout.js';
 import { OurTeamSchema } from './ourTeam.js';
 import { TenantOverlaysSchema } from './overlays.js';
+import { PublicSponsorSchema } from './sponsors.js';
 import { plainText } from './strings.js';
 import { DEFAULT_TEMPLATE, TemplateIdSchema } from './templates.js';
 
@@ -129,6 +130,11 @@ export const PublicTenantResponseSchema = z.object({
   intermissions: TenantIntermissionsSchema.prefault({}),
   /** Overlays of the events of the match (missing in an older answer: the defaults). */
   overlays: TenantOverlaysSchema.prefault({}),
+  /**
+   * Sponsors chosen by the page or the pauses, in the order of the list of the client, with their images (missing in
+   * an older answer: none).
+   */
+  sponsors: z.array(PublicSponsorSchema).default([]),
 });
 export type PublicTenantResponse = z.infer<typeof PublicTenantResponseSchema>;
 

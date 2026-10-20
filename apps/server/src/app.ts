@@ -41,6 +41,7 @@ import { onboardingRoutes } from './routes/onboarding.js';
 import { publicRoutes } from './routes/public.js';
 import { registrationRoutes } from './routes/registration.js';
 import { simulationRoutes } from './routes/simulation.js';
+import { sponsorRoutes } from './routes/sponsors.js';
 import { tenantRoutes } from './routes/tenants.js';
 import { userRoutes } from './routes/users.js';
 import { browserWriteGuard, rejectNulBody } from './security.js';
@@ -259,6 +260,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     tenantRoutes(scope, ctx);
     brandingAdminRoutes(scope, ctx);
     graphicsTransferRoutes(scope, ctx);
+    sponsorRoutes(scope, ctx);
     agentDownloadRoutes(scope, ctx);
     leagueRoutes(scope, ctx);
     clubRoutes(scope, ctx);

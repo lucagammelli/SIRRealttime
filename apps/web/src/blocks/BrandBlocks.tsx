@@ -1,7 +1,9 @@
 import type { BlockOptions } from '@sir/shared';
-import { publicAssetPath, SHORT_CODE_PATTERN } from '@sir/shared';
+import { SHORT_CODE_PATTERN } from '@sir/shared';
 import { useEffect, useState } from 'react';
 import { Card } from '../components/ui.tsx';
+import type { SponsorItem } from '../lib/sponsors.ts';
+import { sponsorItems } from '../lib/sponsors.ts';
 import { ShareQr } from '../qr/ShareQr.tsx';
 import type { BlockEnv } from './env.ts';
 
@@ -35,24 +37,44 @@ export function useImageRotation(count: number, seconds: number, paused: boolean
 }
 
 /**
- * Sponsor images of the client in turn, each for `seconds` (stopped with the rotation of the big screen). The image
- * changes with a short fade, none with reduced motion.
+ * One image of a sponsor: with the website of its sponsor a link that opens in a new tab (never the page of the match
+ * in its place, never `window.opener`).
+ */
+export function SponsorImage({ item, alt, className }: { item: SponsorItem; alt: string; className: string }) {
+  const img = <img key={item.src} src={item.src} alt={alt} className={`sir-fade ${className}`} />;
+  if (!item.website) return img;
+  return (
+    <a href={item.website} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-full justify-center">
+      {img}
+    </a>
+  );
+}
+
+/** Pure: alternative text of the image `index` of a rotation of `count`. */
+export function sponsorAlt(item: SponsorItem, index: number, count: number): string {
+  return item.name ? `Sponsor: ${item.name}` : `Sponsor ${index + 1} di ${count}`;
+}
+
+/**
+ * Images of the sponsors chosen (in the order of the list of the sponsors), then the single images, in turn, each for
+ * `seconds` (stopped with the rotation of the big screen). The image changes with a short fade, none with reduced
+ * motion.
  */
 export function SponsorBlock({ options, env }: { options: BlockOptions<'sponsor'>; env: BlockEnv }) {
-  const { images, seconds } = options;
-  const index = useImageRotation(images.length, seconds, env.paused);
-  const current = images[index];
+  const items = sponsorItems(options, env.brand?.sponsors ?? []);
+  const index = useImageRotation(items.length, options.seconds, env.paused);
+  const current = items[index];
   return (
     <Card title="Sponsor" className={FILL} bodyClassName="flex items-center justify-center">
       {current ? (
-        <img
-          key={current}
-          src={publicAssetPath(current)}
-          alt={`Sponsor ${index + 1} di ${images.length}`}
-          className="sir-fade max-h-40 w-auto max-w-full object-contain"
+        <SponsorImage
+          key={current.src}
+          item={current}
+          alt={sponsorAlt(current, index, items.length)}
+          className="max-h-40 w-auto max-w-full object-contain"
         />
       ) : (
-        <p className="text-sm text-muted">Nessuna immagine sponsor scelta.</p>
+        <p className="text-sm text-muted">Nessuno sponsor scelto.</p>
       )}
     </Card>
   );

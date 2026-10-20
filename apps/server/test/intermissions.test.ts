@@ -78,7 +78,7 @@ describe('pauses of the public page', () => {
       id: 'sp',
       type: 'sponsor',
       seconds: 6,
-      options: { images: [sponsor.id], seconds: 4 },
+      options: { sponsors: [], images: [sponsor.id], seconds: 4 },
     });
     expect((await call(HOST_A, cookieA, { url: URL })).json<IntermissionsResponse>().intermissions).toEqual(saved);
   });

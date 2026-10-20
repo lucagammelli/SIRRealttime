@@ -135,6 +135,7 @@ describe('GET /api/admin/branding/export', () => {
         'layout',
         'overlays',
         'sourceName',
+        'sponsors',
         'version',
       ].sort(),
     );
@@ -157,7 +158,7 @@ describe('POST /api/admin/branding/import', () => {
     const pkg = (await exportOf(HOST_A, cookieA)).json<GraphicsExport>();
     const res = await importTo(HOST_B, cookieB, pkg);
     expect(res.statusCode).toBe(200);
-    expect(res.json<GraphicsImportResponse>()).toEqual({ images: 2, template: 'standard' });
+    expect(res.json<GraphicsImportResponse>()).toEqual({ images: 2, sponsors: 0, template: 'standard' });
 
     const pub = await publicTenant(HOST_B);
     expect(pub.branding.displayName).toBe('Club A');

@@ -4,6 +4,18 @@ Le versioni seguono il versionamento semantico (`vX.Y.Z`); la fonte della versio
 `package.json` alla radice. Le sezioni nuove le aggiunge `scripts/rilascia.sh` con i titoli dei commit dal tag
 precedente; le note della release su GitHub sono la sezione della versione (`docs/regole/test-job-rilasci.md`).
 
+## [1.2.0] - 2026-10-20
+
+- Studio: comandi di blocchi e diapositive sotto il nome
+- Studio: icona «−» per Rimuovi e menu che non si chiude da solo
+- Loghi di sistema nelle testate
+- Mappa del campo: colori e spessori scelti nello Studio
+- Portale: avviso di nuova versione al posto di «Risposta non valida»
+- Studio e Sponsor: anteprime, Rimuovi e diapositive attivabili
+- Sezione Sponsor nell'area riservata
+- Link e QR per singola partita come opzione del cliente
+- Test intermittente dello Studio: attesa del caricamento prima di scrivere il colore
+
 ## [1.1.0] - 2026-10-18
 
 - Versione visibile e script di rilascio

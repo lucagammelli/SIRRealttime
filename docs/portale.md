@@ -101,8 +101,8 @@ Fullscreen API non è disponibile o fallisce, «Schermo intero» attiva comunque
 | qualsiasi altro indirizzo | «SIRRealtime»: «Per seguire una partita apri il link che ti è stato inviato.» |
 
 ### Area riservata `/admin` (`src/pages/admin/`)
-Prima si verifica la sessione («Verifica della sessione…»); senza sessione compare il login «Area riservata»
-(email e password, con il link «Password dimenticata?» che porta a `/admin/password-dimenticata`, vedi «Recupero password e inviti»; si può accedere da **qualunque hostname** del portale e si lavora sempre sul cliente dell'utente), se il
+Prima si verifica la sessione («Verifica della sessione…»); senza sessione compare il login
+(logo centrato in alto, il titolo «Area riservata» resta solo per i lettori di schermo; email e password, con il link «Password dimenticata?» che porta a `/admin/password-dimenticata`, vedi «Recupero password e inviti»; si può accedere da **qualunque hostname** del portale e si lavora sempre sul cliente dell'utente), se il
 server non risponde «Area riservata non disponibile» con «Riprova». Il **menu laterale**
 (`AdminSidebar.tsx`; `menuGroups({ isAdmin, isSuperadmin, inTenant })` è pura e dà i gruppi in base al ruolo, quelli vuoti
 spariscono) sostituisce la barra a pillole. Gruppi di un cliente (admin e viewer, e il superadmin dentro un cliente):

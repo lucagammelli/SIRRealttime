@@ -43,10 +43,11 @@ export function LoginPage({ onLogin, notice }: { onLogin: (user: MeResponse) => 
         className="w-full max-w-sm space-y-4 rounded-panel border border-border bg-surface p-6 shadow-card"
         noValidate
       >
-        <div>
+        {/* Logo centred; the title stays for screen readers only. */}
+        <div className="flex justify-center">
           <AdminBrand />
-          <h1 className="mt-1 text-lg font-semibold text-text">Area riservata</h1>
         </div>
+        <h1 className="sr-only">Area riservata</h1>
         {notice && <p className="rounded-card bg-surface-2 px-3 py-2 text-sm text-muted">{notice}</p>}
         <Field label="Email">
           <input

@@ -4,6 +4,10 @@ Le versioni seguono il versionamento semantico (`vX.Y.Z`); la fonte della versio
 `package.json` alla radice. Le sezioni nuove le aggiunge `scripts/rilascia.sh` con i titoli dei commit dal tag
 precedente; le note della release su GitHub sono la sezione della versione (`docs/regole/test-job-rilasci.md`).
 
+## [2.0.1] - 2026-10-21
+
+- Pagina live: con i loghi di sistema il marchio solo nella barra in alto
+
 ## [2.0.0] - 2026-10-20
 
 - Il prodotto diventa ArenaLive

@@ -1,7 +1,7 @@
 {
   "watchPath": "E:\\",
   "serverUrl": "https://sir.example.it",
-  "agentToken": "<token agente creato nell'area admin del portale>",
+  "agentToken": "<di norma lo scrive l'agente dopo la registrazione; in alternativa il token del portale, Agenti → Nuovo agente>",
   "pollIntervalMs": 1000,
   "stableMs": 700,
   "dataDir": "C:\\ArenaLiveAgent\\data",

@@ -6,7 +6,8 @@ namespace ArenaLive.Agent.App;
 /// <summary>
 /// Window of the agent, same layout and texts of the PowerShell window of the Node agent (`window.ps1`): folder of
 /// the `.dvw`, server, self-registration with pairing code, token as alternative, START/STOP, state, last messages,
-/// graphics of the client. Every call from the controller is marshalled to the UI thread.
+/// graphics of the client. The token field stays as an alternative, hidden under «Avanzate» (closed by default).
+/// Every call from the controller is marshalled to the UI thread.
 /// </summary>
 internal sealed class MainForm : Form, IAgentWindow
 {
@@ -18,6 +19,9 @@ internal sealed class MainForm : Form, IAgentWindow
     private const int RowHeight = 32;
     private const int HeaderHeight = 64;
     private const int LogoWidth = 140;
+    private const string AdvancedClosedText = "Avanzate ▸";
+    private const string AdvancedOpenText = "Avanzate ▾";
+    private const string RegHintText = "Scrivi il nome e premi «Registra», oppure usa un token in «Avanzate»";
 
     private readonly TextBox _txtFolder = new();
     private readonly Button _btnBrowse = new() { Text = "Sfoglia…" };
@@ -27,8 +31,10 @@ internal sealed class MainForm : Form, IAgentWindow
     private readonly Button _btnCancelReg = new() { Text = "Annulla", Visible = false };
     private readonly Label _lblPairing = new() { TextAlign = ContentAlignment.MiddleLeft };
     private readonly Label _lblRegState = new() { TextAlign = ContentAlignment.MiddleLeft, ForeColor = Color.DimGray };
-    private readonly TextBox _txtToken = new() { UseSystemPasswordChar = true };
-    private readonly Label _lblTokenInfo = new() { Text = "mancante" };
+    private readonly LinkLabel _lnkAdvanced = new() { Text = AdvancedClosedText };
+    private readonly Label _lblToken = new() { Text = "Token agente (alternativa)", Visible = false };
+    private readonly TextBox _txtToken = new() { UseSystemPasswordChar = true, Visible = false };
+    private readonly Label _lblTokenInfo = new() { Text = "mancante", Visible = false };
     private readonly Button _btnStart = new() { Text = "START" };
     private readonly Button _btnStop = new() { Text = "STOP" };
     private readonly Label _lblState = new() { Text = "In attesa dell'agente…" };
@@ -46,6 +52,8 @@ internal sealed class MainForm : Form, IAgentWindow
     private bool _brandingApplied;
     private bool _closingConfirmed;
     private string _title = DefaultTitle;
+    private bool _advancedOpen;
+    private Control[] _belowAdvanced = [];
 
     public MainForm()
     {
@@ -116,17 +124,25 @@ internal sealed class MainForm : Form, IAgentWindow
         _lblPairing.Font = new Font("Consolas", 20, FontStyle.Bold);
         _lblRegState.Location = new Point(FieldColumn + 136, y);
         _lblRegState.Size = new Size(fieldWidth - 136, 48);
-        _lblRegState.Text = "Scrivi il nome e premi «Registra», oppure incolla un token qui sotto";
+        _lblRegState.Text = RegHintText;
         Controls.AddRange([_lblPairing, _lblRegState]);
         y += 54;
 
-        NewLabel("Token agente (alternativa)", Margin_, y, FieldColumn - Margin_);
+        // «Avanzate» closed by default: the token row is hidden and the controls below sit right under the link;
+        // opening it shows the row and moves them down by RowHeight (SetAdvanced).
+        _lnkAdvanced.Location = new Point(Margin_, y + 3);
+        _lnkAdvanced.Size = new Size(FieldColumn - Margin_, 20);
+        Controls.Add(_lnkAdvanced);
+        y += 26;
+
+        _lblToken.Location = new Point(Margin_, y + 3);
+        _lblToken.Size = new Size(FieldColumn - Margin_, 20);
         _txtToken.Location = new Point(FieldColumn, y);
         _txtToken.Size = new Size(fieldWidth - 160, 23);
         _lblTokenInfo.Location = new Point(FormWidth - Margin_ - 152, y + 3);
         _lblTokenInfo.Size = new Size(152, 20);
-        Controls.AddRange([_txtToken, _lblTokenInfo]);
-        y += RowHeight + 6;
+        Controls.AddRange([_lblToken, _txtToken, _lblTokenInfo]);
+        y += 6;
 
         var bold = new Font("Segoe UI", 10, FontStyle.Bold);
         _btnStart.Location = new Point(FieldColumn, y);
@@ -155,6 +171,7 @@ internal sealed class MainForm : Form, IAgentWindow
         grpLog.Controls.Add(_lstLog);
         Controls.Add(grpLog);
         y += 190 + Margin_;
+        _belowAdvanced = [_btnStart, _btnStop, _lblState, _lblDetails, _lblError, grpLog];
 
         ClientSize = new Size(FormWidth, y);
 
@@ -162,8 +179,26 @@ internal sealed class MainForm : Form, IAgentWindow
         _menuBrowse.Items.Add("Scegli un file .dvw…", null, (_, _) => ChooseFile());
     }
 
+    /// <summary>Opens or closes «Avanzate»: shows the token row and moves the controls below (and the window) by one row.</summary>
+    private void SetAdvanced(bool open)
+    {
+        if (open == _advancedOpen) return;
+        _advancedOpen = open;
+        SuspendLayout();
+        var delta = open ? RowHeight : -RowHeight;
+        foreach (var control in _belowAdvanced) control.Top += delta;
+        _lblToken.Visible = open;
+        _txtToken.Visible = open;
+        _lblTokenInfo.Visible = open;
+        _lnkAdvanced.Text = open ? AdvancedOpenText : AdvancedClosedText;
+        ClientSize = new Size(FormWidth, ClientSize.Height + delta);
+        ResumeLayout();
+        if (open) _txtToken.Focus();
+    }
+
     private void WireEvents()
     {
+        _lnkAdvanced.LinkClicked += (_, _) => SetAdvanced(!_advancedOpen);
         _btnBrowse.Click += (_, _) => _menuBrowse.Show(_btnBrowse, new Point(0, _btnBrowse.Height));
         _txtToken.TextChanged += (_, _) => UpdateControls();
         _txtName.TextChanged += (_, _) => UpdateControls();
@@ -418,7 +453,7 @@ internal sealed class MainForm : Form, IAgentWindow
         switch (view.State)
         {
             case "none":
-                text = "Scrivi il nome e premi «Registra», oppure incolla un token qui sotto";
+                text = RegHintText;
                 break;
             case "pending":
                 code = view.PairingCode ?? "";
@@ -435,8 +470,9 @@ internal sealed class MainForm : Form, IAgentWindow
                 text = view.Message is not null ? $"Abilitato. {view.Message}" : "Abilitato: token salvato. Premi START";
                 break;
             case "rejected":
-                text = "Rifiutata nel portale: registra di nuovo o incolla un token";
+                text = "Rifiutata nel portale: registra di nuovo o incolla un token in «Avanzate»";
                 color = Color.Firebrick;
+                SetAdvanced(true);
                 break;
             case "expired":
                 text = "Scaduta senza abilitazione: registra di nuovo";

@@ -50,7 +50,7 @@ export function serverUrlProtocolProblem(url: URL, allowHttpPrivateNetwork: bool
 
 /** Same format accepted by the server (base64url, 20-200 characters). */
 export const AgentTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{20,200}$/, {
-  message: 'agentToken non valido (copialo intero dall’area admin)',
+  message: 'agentToken non valido (registra di nuovo l’agente o incolla il token intero)',
 });
 
 /** Content of `config.json`. */

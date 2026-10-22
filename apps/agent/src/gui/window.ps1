@@ -21,6 +21,9 @@ $AltezzaTestata = 64          # testata: colorata con branding.json del cliente 
 $LarghezzaLogo = 140          # spazio del logo nella testata (l'immagine è ridotta per starci)
 $LogoMaxByte   = 2MB          # logo più grande: ignorato (lo controlla anche l'agente)
 $LogoMaxLato   = 1024         # pixel per lato del logo, oltre: ignorato
+$TestoAvanzateChiuso = 'Avanzate ▸'   # il token agente (alternativa alla registrazione) sta sotto «Avanzate», chiuso all'avvio
+$TestoAvanzateAperto = 'Avanzate ▾'
+$TestoRegistra = 'Scrivi il nome e premi «Registra», oppure usa un token in «Avanzate»'
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -158,20 +161,33 @@ $lblRegState = New-Object System.Windows.Forms.Label
 $lblRegState.Location = New-Object System.Drawing.Point(($ColonnaCampi + 136), $y)
 $lblRegState.Size = New-Object System.Drawing.Size(($larghezzaCampo - 136), 48)
 $lblRegState.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
-$lblRegState.Text = 'Scrivi il nome e premi «Registra», oppure incolla un token qui sotto'
+$lblRegState.Text = $TestoRegistra
 $lblRegState.ForeColor = [System.Drawing.Color]::DimGray
 $form.Controls.Add($lblRegState)
 $y += 54
 
-# Riga: token agente (mascherato; vuoto = resta quello salvato in config.json)
-[void](New-Label 'Token agente (alternativa)' $Margine $y ($ColonnaCampi - $Margine))
+# Riga: «Avanzate», chiuso all'avvio: la riga del token è nascosta e i controlli sotto stanno subito sotto il link;
+# aperto, mostra la riga e sposta in giù i controlli sotto (e la finestra) di una riga (Set-Advanced).
+$script:advancedOpen = $false
+$lnkAdvanced = New-Object System.Windows.Forms.LinkLabel
+$lnkAdvanced.Text = $TestoAvanzateChiuso
+$lnkAdvanced.Location = New-Object System.Drawing.Point($Margine, ($y + 3))
+$lnkAdvanced.Size = New-Object System.Drawing.Size(($ColonnaCampi - $Margine), 20)
+$form.Controls.Add($lnkAdvanced)
+$y += 26
+
+# Riga (in «Avanzate»): token agente (mascherato; vuoto = resta quello salvato in config.json)
+$lblToken = New-Label 'Token agente (alternativa)' $Margine $y ($ColonnaCampi - $Margine)
+$lblToken.Visible = $false
 $txtToken = New-Object System.Windows.Forms.TextBox
 $txtToken.Location = New-Object System.Drawing.Point($ColonnaCampi, $y)
 $txtToken.Size = New-Object System.Drawing.Size(($larghezzaCampo - 160), 23)
 $txtToken.UseSystemPasswordChar = $true
+$txtToken.Visible = $false
 $form.Controls.Add($txtToken)
 $lblTokenInfo = New-Label 'mancante' ($LarghezzaForm - $Margine - 152) $y 152
-$y += $AltezzaRiga + 6
+$lblTokenInfo.Visible = $false
+$y += 6
 
 # Riga: START / STOP
 $btnStart = New-Object System.Windows.Forms.Button
@@ -211,6 +227,7 @@ $lstLog.Font = New-Object System.Drawing.Font('Consolas', 9)
 $grpLog.Controls.Add($lstLog)
 $form.Controls.Add($grpLog)
 $y += 190 + $Margine
+$sottoAvanzate = @($btnStart, $btnStop, $lblState, $lblDetails, $lblError, $grpLog)
 
 $form.ClientSize = New-Object System.Drawing.Size($LarghezzaForm, $y)
 
@@ -240,6 +257,22 @@ function Add-Log($time, $level, $text) {
     [void]$lstLog.Items.Add((Format-LocalTime $time) + ' ' + $prefix + [string]$text)
     while ($lstLog.Items.Count -gt $MaxMessaggi) { $lstLog.Items.RemoveAt(0) }
     $lstLog.TopIndex = [Math]::Max(0, $lstLog.Items.Count - 1)
+}
+
+# Apre o chiude «Avanzate»: mostra la riga del token e sposta i controlli sotto (e la finestra) di una riga.
+function Set-Advanced($open) {
+    if ([bool]$open -eq $script:advancedOpen) { return }
+    $script:advancedOpen = [bool]$open
+    $form.SuspendLayout()
+    if ($script:advancedOpen) { $delta = $AltezzaRiga } else { $delta = -$AltezzaRiga }
+    foreach ($control in $sottoAvanzate) { $control.Top += $delta }
+    $lblToken.Visible = $script:advancedOpen
+    $txtToken.Visible = $script:advancedOpen
+    $lblTokenInfo.Visible = $script:advancedOpen
+    if ($script:advancedOpen) { $lnkAdvanced.Text = $TestoAvanzateAperto } else { $lnkAdvanced.Text = $TestoAvanzateChiuso }
+    $form.ClientSize = New-Object System.Drawing.Size($LarghezzaForm, ($form.ClientSize.Height + $delta))
+    $form.ResumeLayout()
+    if ($script:advancedOpen) { [void]$txtToken.Focus() }
 }
 
 function Update-Controls {
@@ -278,7 +311,7 @@ function Show-Registration($message) {
     $code = ''
     $color = [System.Drawing.Color]::DimGray
     switch ($script:regState) {
-        'none' { $text = 'Scrivi il nome e premi «Registra», oppure incolla un token qui sotto' }
+        'none' { $text = $TestoRegistra }
         'pending' {
             $code = [string]$message.pairingCode
             $text = 'In attesa di abilitazione nel portale: Agenti → Richieste in attesa (scade ' + (Format-LocalDateTime $message.expiresAt) + ')'
@@ -296,7 +329,11 @@ function Show-Registration($message) {
                 $text = 'Abilitato: token salvato. Premi START'
             }
         }
-        'rejected' { $text = 'Rifiutata nel portale: registra di nuovo o incolla un token'; $color = [System.Drawing.Color]::Firebrick }
+        'rejected' {
+            $text = 'Rifiutata nel portale: registra di nuovo o incolla un token in «Avanzate»'
+            $color = [System.Drawing.Color]::Firebrick
+            Set-Advanced $true
+        }
         'expired' { $text = 'Scaduta senza abilitazione: registra di nuovo'; $color = [System.Drawing.Color]::Firebrick }
         'consumed' { $text = 'Token già consegnato in precedenza: registra di nuovo'; $color = [System.Drawing.Color]::Firebrick }
         default {
@@ -542,6 +579,7 @@ $btnBrowse.Add_Click({
     $menuBrowse.Show($btnBrowse, (New-Object System.Drawing.Point(0, $btnBrowse.Height)))
 })
 
+$lnkAdvanced.Add_LinkClicked({ Set-Advanced (-not $script:advancedOpen) })
 $txtToken.Add_TextChanged({ Update-Controls })
 $txtName.Add_TextChanged({ Update-Controls })
 

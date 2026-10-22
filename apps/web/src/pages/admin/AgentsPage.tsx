@@ -357,7 +357,7 @@ export function AgentsPage() {
       <div className="flex min-w-0 flex-col gap-4">
         {canEdit && <AgentDownload />}
         {canEdit && (
-          <Card title="Nuovo agente" subtitle="Un token per ogni PC con DataVolley">
+          <Card title="Nuovo agente" subtitle="Alternativa alla registrazione dall’agente: token da incollare a mano">
             <form onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
               <Field label="Nome" hint="Es. «PC scout palestra».">
                 <input

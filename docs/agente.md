@@ -107,19 +107,20 @@ visti come la **stessa partita**. L'agente si riallinea con uno snapshot (il ser
 - **Console**: quella nera di Node è nascosta solo se l'ha aperta il doppio clic (nella console ci sono soltanto
   `arenalive-agent.exe` e `powershell.exe`); lanciato da un prompt, resta visibile.
 - **Cosa si vede**: «Cartella del .dvw» e «Sfoglia…» (menu: cartella, oppure singolo file `.dvw`; la ricerca parte dalla
-  prima pennina), «Server» (sola lettura, da `config.json`), la riga di registrazione (sotto), «Token agente (alternativa)»
-  (mascherato) con a fianco «salvato (…abcd)» o «mancante: incollalo», START, STOP, lo stato («Fermo: premi START per leggere il .dvw», «Avvio…», «In lettura: <file>»,
+  prima pennina), «Server» (sola lettura, da `config.json`), la riga di registrazione (sotto), il link «Avanzate ▸» (chiuso
+  all'apertura; aperto diventa «Avanzate ▾») e, solo da aperto, la riga «Token agente (alternativa)» (mascherato) con a
+  fianco «salvato (…abcd)» o «mancante: incollalo». Se la registrazione è rifiutata, «Avanzate» si apre da sola. Poi START, STOP, lo stato («Fermo: premi START per leggere il .dvw», «Avvio…», «In lettura: <file>»,
   «In attesa del file .dvw», «Arresto…», con «server non raggiungibile» se serve), una riga con righe, coda e ultimo
   invio, e il riquadro «Ultimi messaggi» (gli ultimi 200 del log, `LogSink`). START è attivo solo da fermo e con un
   token salvato o incollato. Chiudendo la finestra durante la lettura compare «La lettura del .dvw è in corso: fermarla
   e chiudere?». START è permesso anche mentre una registrazione è in attesa.
-- **Registrazione automatica** (`src/register.ts`, `GuiController.register`): alternativa a incollare il token.
+- **Registrazione automatica** (`src/register.ts`, `GuiController.register`): è la **via normale** per avere il token; incollarlo a mano (sotto «Avanzate») è l'alternativa.
   - **Cosa si vede**: la riga «Nome agente» (precompilata con il nome del PC, massimo 100 caratteri) e «Registra»; in
     attesa «Registra» diventa «Annulla». Sotto, il **codice di abbinamento** in caratteri grandi (Consolas) e una riga di
-    stato: «Scrivi il nome e premi «Registra», oppure incolla un token qui sotto» (iniziale), «In attesa di
+    stato: «Scrivi il nome e premi «Registra», oppure usa un token in «Avanzate»» (iniziale), «In attesa di
     abilitazione nel portale: Agenti → Richieste in attesa (scade gg/MM hh:mm)», «Abilitato: token salvato. Premi START»
     (se la lettura è in corso: «Abilitato. Token salvato: vale dal prossimo START», perché l'agente già avviato tiene il
-    token con cui è partito), «Rifiutata nel portale: registra di nuovo o incolla un token», «Scaduta senza
+    token con cui è partito), «Rifiutata nel portale: registra di nuovo o incolla un token in «Avanzate»» (e «Avanzate» si apre), «Scaduta senza
     abilitazione: registra di nuovo», «Token già consegnato in precedenza: registra di nuovo», «Errore: <motivo>».
   - **Flusso**: «Registra» invia `POST /api/agents/registrations` (nome) e il server risponde con codice di abbinamento
     e segreto; l'amministratore abilita la richiesta nel portale (pagina «Agenti», «Richieste in attesa»,
@@ -202,7 +203,7 @@ visti come la **stessa partita**. L'agente si riallinea con uno snapshot (il ser
 | `watchPath` | obbligatorio | cartella (es. `E:\`) o singolo `.dvw` |
 | `serverUrl` | obbligatorio | URL **del portale** (nginx), es. `https://<host>/`; `https` sempre; `http` solo verso `localhost`, `127.0.0.1`, `[::1]` o, con `allowHttpPrivateNetwork`, verso IPv4 privati; senza credenziali nell'URL |
 | `allowHttpPrivateNetwork` | `false` | ammette `http` verso IPv4 letterali privati (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), mai verso nomi host o IP pubblici. **Solo per prove in rete locale; in produzione https.** All'avvio con `http` attivo l'agente scrive un warning («connessione senza cifratura verso `<host>`: usare https in produzione»). Assente in `config.example.json` (il JSON non ammette commenti) |
-| `agentToken` | obbligatorio | 20-200 caratteri `A-Za-z0-9_-`, copiato intero dall'area admin |
+| `agentToken` | obbligatorio | 20-200 caratteri `A-Za-z0-9_-`; di norma lo scrive l'agente dopo la registrazione, in alternativa (servizio, `--once`, config scritto a mano) il token intero di «Agenti → Nuovo agente». Se non è valido: «agentToken non valido (registra di nuovo l'agente o incolla il token intero)» |
 | `pollIntervalMs` | `1000` | intero 10-60000 |
 | `stableMs` | `700` | intero 0-60000 |
 | `dataDir` | `data` accanto all'eseguibile | coda, stato, `agent.lock`, `registration.json` e `gui/window.ps1`; **non dentro `watchPath`**; **non deve essere scrivibile da altri utenti**, perché la finestra esegue lì uno script con `-ExecutionPolicy Bypass` (`C:\ArenaLiveAgent\data` va bene) |
@@ -239,9 +240,10 @@ Codici di uscita di `--once`: `0` tutto inviato, `2` dati rimasti in coda, `3` n
 configurazione non valida o errore. Senza `--once` il processo gira finché riceve SIGINT/SIGTERM (uscita 0).
 
 ### Installazione su Windows
-1. **Token agente**: nell'area admin del server (o con `POST /api/admin/agents`, esempio con `curl` in
-   `docs/server.md`) si crea un agente; la risposta contiene `token`, **mostrato una sola volta**. Un agente
-   revocato con `DELETE /api/admin/agents/:id` riceve 401.
+1. **Token agente**: di norma non serve crearlo a mano, lo scrive la **registrazione** dalla finestra (passo 4). Il token
+   manuale è l'alternativa, utile per servizio o `--once` con `config.json` scritto a mano (passo 3): nell'area admin
+   («Agenti → Nuovo agente») o con `POST /api/admin/agents` (esempio con `curl` in `docs/server.md`) si crea un agente; la
+   risposta contiene `token`, **mostrato una sola volta**. Un agente revocato con `DELETE /api/admin/agents/:id` riceve 401.
 2. **Build** (su Windows con Node 24, corepack e `pnpm install` già fatto). Lo script
    `apps/agent/scripts/build-exe.ps1` ha le sue variabili in cima (percorsi ricavati dalla posizione dello script,
    `node.exe` dal PATH, opzioni SEA) e di norma non va modificato:
@@ -259,14 +261,15 @@ configurazione non valida o errore. Senza `--once` il processo gira finché rice
    Copy-Item (Join-Path $Repo "apps\agent\scripts\installa-servizio.ps1") $Dest -Force
    ```
 
-3. **Configurazione**:
+3. **Configurazione con token manuale** (alternativa alla registrazione: serve solo per servizio o `--once` con `config.json`
+   scritto a mano; con la finestra basta un `config.json` con `serverUrl` e si registra l'agente):
 
    ```powershell
    # --- variabili ---
    $Dest      = "C:\ArenaLiveAgent"                       # cartella di installazione
    $WatchPath = "E:\"                               # pennina o cartella dei .dvw
    $ServerUrl = "https://arenalive.example.it/"           # indirizzo pubblico del portale (nginx, https); l'agente aggiunge api/ingest
-   $Token     = "<token agente dell'area admin>"    # campo "token" della risposta di /api/admin/agents
+   $Token     = "<token agente dell'area admin>"    # alternativa alla registrazione: campo "token" della risposta di /api/admin/agents (Agenti → Nuovo agente)
 
    # --- comandi ---
    $Config = [ordered]@{
@@ -292,10 +295,11 @@ configurazione non valida o errore. Senza `--once` il processo gira finché rice
       firmato: se Windows mostra SmartScreen, «Ulteriori informazioni» e poi «Esegui comunque». In alternativa, `arenalive-agent.exe`
       costruito a mano e il `config.json` della pagina «Agenti».
    2. Doppio clic su `arenalive-agent.exe`: si apre la finestra (la console nera sparisce).
-   3. Controlla «Server». Poi o **registra l'agente**: controlla «Nome agente», premi «Registra», comunica il codice di
-      abbinamento a chi gestisce il portale (area admin, pagina «Agenti», «Richieste in attesa») e aspetta
-      «Abilitato: token salvato. Premi START»; oppure incolla in «Token agente (alternativa)» il token dell'area admin
-      (se a fianco c'è «salvato (…abcd)» e vale ancora, lascia vuoto). Non avviare l'agente dalla pennina.
+   3. Controlla «Server». Poi **registra l'agente** (via normale): controlla «Nome agente», premi «Registra», comunica il
+      codice di abbinamento a chi gestisce il portale (area admin, pagina «Agenti», «Richieste in attesa») e aspetta
+      «Abilitato: token salvato. Premi START». In alternativa apri «Avanzate ▸» e incolla in «Token agente (alternativa)» il
+      token di «Agenti → Nuovo agente» (se a fianco c'è «salvato (…abcd)» e vale ancora, lascia vuoto). Non avviare
+      l'agente dalla pennina.
    4. «Cartella del .dvw» → «Sfoglia…»: scegli la pennina (o la cartella) oppure un singolo `.dvw`.
    5. START: lo stato diventa «In lettura: <file>»; righe, coda e ultimo invio si aggiornano. Gli errori compaiono in rosso.
    6. STOP per fermare la lettura (la coda resta su disco e riparte al prossimo START). Per chiudere la finestra durante
@@ -324,7 +328,7 @@ Serve il server in sviluppo (`docs/server.md`, un terminale) e un token agente. 
 # --- variabili ---
 RADICE="/percorso/del/repository"      # radice del repository o del worktree
 SERVER="http://127.0.0.1:8090"         # server in sviluppo (http ammesso solo verso localhost); con Docker, il portale http://localhost:8080
-TOKEN_AGENTE="<token agente>"          # campo "token" della risposta di POST /api/admin/agents
+TOKEN_AGENTE="<token agente>"          # token manuale (alternativa alla registrazione): campo "token" della risposta di POST /api/admin/agents, o Agenti → Nuovo agente
 CARTELLA_DVW="/tmp/arenalive-dvw"            # cartella osservata, dove il simulatore scrive il .dvw
 DATI="/tmp/arenalive-agent/data"             # dataDir (fuori da CARTELLA_DVW)
 LOG="/tmp/arenalive-agent/logs"              # logDir (fuori da CARTELLA_DVW)
@@ -364,7 +368,7 @@ Per un portale raggiungibile solo in http su rete locale (es. `http://192.168.10
   "watchPath": "E:\\",
   "serverUrl": "http://192.168.104.102:8085",
   "allowHttpPrivateNetwork": true,
-  "agentToken": "<token agente creato nell'area admin del portale>"
+  "agentToken": "<token agente: di norma lo scrive l'agente dopo la registrazione; in alternativa Agenti → Nuovo agente>"
 }
 ```
 
@@ -390,6 +394,7 @@ Mai provati fuori da Linux; da verificare:
 - lucchetto stantio dopo spegnimento forzato del PC: START funziona senza intervento;
 - antivirus o SmartScreen che bloccano l'esecuzione di `window.ps1` da `dataDir\gui`;
 - registrazione: «Registra», abilitazione nel portale → «Abilitato: token salvato. Premi START» e START attivo;
+- «Avanzate ▸» chiuso all'apertura, «Avanzate ▾» mostra «Token agente (alternativa)»; registrazione rifiutata → si apre da sola;
 - chiudere la finestra durante l'attesa e riaprirla → il codice di abbinamento torna visibile;
 - «Annulla» e poi una nuova registrazione;
 - server spento durante l'attesa → riga arancione con «nuovo tentativo tra 5 s», poi l'attesa riprende da sola;

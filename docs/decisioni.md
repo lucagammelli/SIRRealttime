@@ -455,3 +455,7 @@ Una riga per decisione: data, scelta, motivo.
   `apps/web/scripts/brand-icons.ts`, `favicon.svg` rimosso), scelto in automatico dalla luminanza dello sfondo come i loghi
   di sistema; il modello `sir-volley` usa il logo negativo e le vecchie immagini «sir real time» sono state tolte
   (`docs/portale.md`, `docs/agente.md`).
+- 2026-10-22: il token agente incollato a mano resta come alternativa (riserva se la registrazione non è possibile; servizio
+  e `--once` con `config.json` scritto a mano) ma nella finestra sta sotto «Avanzate», chiuso di default, perché la via
+  normale è la registrazione online e il campo del token confondeva chi apre l'agente la prima volta
+  (`docs/agente.md`, `docs/portale.md`).

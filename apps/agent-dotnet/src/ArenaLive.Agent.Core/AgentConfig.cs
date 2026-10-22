@@ -55,7 +55,7 @@ public static partial class ConfigFile
     [GeneratedRegex(@"^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\z")]
     private static partial Regex Ipv4Regex();
 
-    public const string TokenMessage = "agentToken non valido (copialo intero dall’area admin)";
+    public const string TokenMessage = "agentToken non valido (registra di nuovo l’agente o incolla il token intero)";
 
     public static bool IsToken(string? value) => value is not null && TokenRegex().IsMatch(value);
 

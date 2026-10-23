@@ -391,7 +391,8 @@ pagine in `docs/portale.md`): `ClubProfileSchema` (`series` fino a `CLUB_SERIES_
 `UpdateClubProfileRequestSchema` (`displayName`, `logoMark`, `ourTeam`, `profile`; `PUT /api/admin/club/profile`);
 partite: `FixtureOriginSchema` (`league`/`manual`), `ManualFixtureKindSchema` (`friendly`/`cup`/`other`) e
 `MANUAL_FIXTURE_LABEL`, `FixtureBroadcastSchema` (`auto`/`on`/`off`), `isFixtureBroadcast` (pura: nascosta mai; altrimenti
-la scelta della partita, con `auto` la copertura), `ManualFixtureRequestSchema`, `CreatedFixtureResponseSchema`,
+la scelta della partita, con `auto` la copertura), `ManualFixtureRequestSchema` (con `competition`: testo semplice fino a 100 caratteri, `null` per predefinito, salvato in
+`client_fixtures.league_name` e restituito come `leagueName`), `CreatedFixtureResponseSchema`,
 `FixtureSettingsRequestSchema` (`broadcast`, `hidden`, `ourLogo`, `opponentLogo`, almeno un campo), e in `ClubFixtureSchema`
 i campi `origin`, `kind`, `broadcast`, `broadcasted`, `hidden`, `logos`; date: `effectiveStartsAt` (pura: la data
 cambiata a mano, altrimenti l'ufficiale), `movedByLeague` (pura: la Lega ha spostato la partita dopo la modifica a mano),

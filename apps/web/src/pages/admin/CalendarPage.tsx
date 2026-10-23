@@ -18,7 +18,7 @@ import {
   ManualFixtureRequestSchema,
 } from '@arenalive/shared';
 import type { FormEvent } from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
 import { Button, CopyButton, Card, Empty, ErrorBox, Segmented, Spinner } from '../../components/ui.tsx';
 import { apiCommand, apiRequest } from '../../lib/api.ts';
@@ -64,6 +64,32 @@ export function fixtureChoiceText(f: ClubFixture): string {
   return `${opponent} (${where}) – ${formatFixtureDate(f.startsAt).date}`;
 }
 
+/**
+ * Pure: competition of a match: the championship of a downloaded one, the name written by the client for one added
+ * by hand; null when none.
+ */
+export function fixtureCompetition(f: Pick<ClubFixture, 'leagueName' | 'league'>): string | null {
+  return f.leagueName ?? f.league?.name ?? null;
+}
+
+/** Pure: the competitions of the matches, each once, the championships first, then in the order of the list. */
+export function competitionsOf(fixtures: readonly ClubFixture[]): string[] {
+  const names = fixtures.map(fixtureCompetition).filter((n): n is string => n !== null);
+  const leagues = new Set(fixtures.filter((f) => f.league !== null).map(fixtureCompetition));
+  return [...new Set(names)].sort((a, b) => Number(!leagues.has(a)) - Number(!leagues.has(b)));
+}
+
+/** Value of «Competizione» for the matches without one. */
+export const NO_COMPETITION = '';
+/** Value of «Competizione» for every match. */
+export const ALL_COMPETITIONS = '*';
+
+/** Pure: the matches of the competition chosen in «Competizione» (`*`: all; `''`: the ones without a competition). */
+export function filterByCompetition(fixtures: readonly ClubFixture[], chosen: string): ClubFixture[] {
+  if (chosen === ALL_COMPETITIONS) return [...fixtures];
+  return fixtures.filter((f) => (fixtureCompetition(f) ?? NO_COMPETITION) === chosen);
+}
+
 function TeamCell({ team, our }: { team: ClubFixtureTeam; our: boolean }) {
   return (
     <span className="flex min-w-0 items-center gap-2">
@@ -77,17 +103,25 @@ function TeamCell({ team, our }: { team: ClubFixtureTeam; our: boolean }) {
   );
 }
 
-/** Form of a match added by hand (new, or the change of one): kind, date and time, opponent and its logo, venue. */
+/**
+ * Form of a match added by hand (new, or the change of one): kind, competition (suggested from the ones of the club),
+ * date and time, opponent and its logo, venue.
+ */
 function ManualFixtureForm({
   initial,
+  competitions,
   onSaved,
   onCancel,
 }: {
   initial: ClubFixture | null;
+  /** Competitions of the club (championships and names already written): the suggestions. */
+  competitions: readonly string[];
   onSaved: () => void;
   onCancel?: () => void;
 }) {
   const errorMessage = useApiError();
+  const suggestionsId = useId();
+  const [competition, setCompetition] = useState(initial?.leagueName ?? '');
   const start = romeDateTime(initial?.startsAt ?? null);
   const opponentSide = initial?.ourSide === 'away' ? 'home' : 'away';
   const [kind, setKind] = useState<ManualFixtureKind>(initial?.kind ?? 'friendly');
@@ -117,9 +151,12 @@ function ManualFixtureForm({
       ourSide,
       venue: venue.trim() || null,
       venueCity: venueCity.trim() || null,
+      competition: competition.trim() || null,
     } satisfies ManualFixtureRequest);
     if (!body.success) {
-      setError('Scrivi il nome dell’avversario (al massimo 100 caratteri, senza caratteri speciali).');
+      setError(
+        'Scrivi il nome dell’avversario; avversario, competizione, palazzetto e città al massimo 100 caratteri, senza caratteri speciali.',
+      );
       return;
     }
     setBusy(true);
@@ -135,6 +172,7 @@ function ManualFixtureForm({
           body: body.data,
         });
         setOpponent('');
+        setCompetition('');
         setOpponentLogo(null);
         setVenue('');
         setVenueCity('');
@@ -155,6 +193,20 @@ function ManualFixtureForm({
         onChange={setKind}
         options={(['friendly', 'cup', 'other'] as const).map((k) => ({ value: k, label: KIND_TEXT[k] }))}
       />
+      <Field label="Competizione (facoltativa)" hint="Per esempio «Champions League»: compare con la partita.">
+        <input
+          value={competition}
+          onChange={(e) => setCompetition(e.target.value)}
+          maxLength={100}
+          list={suggestionsId}
+          className={inputClass}
+        />
+      </Field>
+      <datalist id={suggestionsId}>
+        {competitions.map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Data">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputClass} required />
@@ -274,7 +326,15 @@ function FixtureDateForm({ f, onSaved, onCancel }: { f: ClubFixture; onSaved: ()
   );
 }
 
-function FixtureItem({ f, onChanged }: { f: ClubFixture; onChanged: () => void }) {
+function FixtureItem({
+  f,
+  competitions,
+  onChanged,
+}: {
+  f: ClubFixture;
+  competitions: readonly string[];
+  onChanged: () => void;
+}) {
   const errorMessage = useApiError();
   const canEdit = useCanEdit();
   const matchLinks = useMatchLinks();
@@ -288,6 +348,7 @@ function FixtureItem({ f, onChanged }: { f: ClubFixture; onChanged: () => void }
   const sets = f.match?.setsWon ?? f.result;
   const manual = f.origin === 'manual';
   const opponentSide = f.ourSide === 'home' ? 'away' : 'home';
+  const competition = fixtureCompetition(f);
 
   const change = async (body: FixtureSettingsRequest): Promise<void> => {
     await apiCommand(`/api/admin/calendar/fixtures/${encodeURIComponent(f.id)}/settings`, { method: 'PATCH', body });
@@ -331,6 +392,11 @@ function FixtureItem({ f, onChanged }: { f: ClubFixture; onChanged: () => void }
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-[1_1_18rem] space-y-1">
           <p className="text-xs uppercase tracking-wide text-muted">
+            {competition && (
+              <span className="font-semibold text-text" data-testid="fixture-competition">
+                {competition} ·{' '}
+              </span>
+            )}
             {f.roundLabel} · {when.date}
             {f.startsAt && ` · ore ${when.time}`}
             {manual && ' · aggiunta a mano'}
@@ -470,6 +536,7 @@ function FixtureItem({ f, onChanged }: { f: ClubFixture; onChanged: () => void }
         <div className="rounded-card border border-border p-3">
           <ManualFixtureForm
             initial={f}
+            competitions={competitions}
             onSaved={() => {
               setEditing(false);
               onChanged();
@@ -603,6 +670,7 @@ export function CalendarPage() {
   const [syncing, setSyncing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
+  const [chosenCompetition, setChosenCompetition] = useState(ALL_COMPETITIONS);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -618,7 +686,7 @@ export function CalendarPage() {
       const res = await apiRequest('/api/admin/club/sync', ClubSyncResponseSchema, { method: 'POST', body: {} });
       setNotice(
         res.started + res.busy === 0
-          ? 'Nessun campionato scelto: scegli campionato e squadra nella pagina «Club».'
+          ? 'Nessun campionato scelto: scegli i campionati e la squadra nella pagina «Club».'
           : 'Aggiornamento avviato: ricarica tra qualche minuto per vedere orari e risultati nuovi.',
       );
       calendar.reload();
@@ -630,8 +698,19 @@ export function CalendarPage() {
   };
 
   const data = calendar.data;
-  const visible = data?.fixtures.filter((f) => !f.hidden) ?? [];
-  const hidden = data?.fixtures.filter((f) => f.hidden) ?? [];
+  const all = data?.fixtures ?? [];
+  const competitions = competitionsOf(all);
+  const withoutCompetition = all.some((f) => fixtureCompetition(f) === null);
+  // «Competizione» only with more than one; a choice no longer there (match deleted) goes back to all.
+  const filtering = competitions.length + (withoutCompetition ? 1 : 0) > 1;
+  const chosen =
+    filtering &&
+    (competitions.includes(chosenCompetition) || (chosenCompetition === NO_COMPETITION && withoutCompetition))
+      ? chosenCompetition
+      : ALL_COMPETITIONS;
+  const shown = filterByCompetition(all, chosen);
+  const visible = shown.filter((f) => !f.hidden);
+  const hidden = shown.filter((f) => f.hidden);
   return (
     <div className="space-y-4">
       {data && data.pending.length > 0 && (
@@ -657,6 +736,7 @@ export function CalendarPage() {
         >
           <ManualFixtureForm
             initial={null}
+            competitions={competitions}
             onSaved={() => {
               setAdding(false);
               setNotice(matchLinks ? 'Partita aggiunta: il suo link e il QR sono qui sotto.' : 'Partita aggiunta.');
@@ -705,17 +785,35 @@ export function CalendarPage() {
         )}
         {data && data.fixtures.length === 0 && (
           <Empty>
-            Nessuna partita: scegli campionato e squadra nella pagina{' '}
+            Nessuna partita: scegli i campionati e la squadra nella pagina{' '}
             <Link to="/admin/club" className="underline">
               «Club»
             </Link>
             {canEdit ? ' oppure aggiungi una partita.' : '.'}
           </Empty>
         )}
+        {filtering && (
+          <label className="mb-2 flex flex-wrap items-center gap-2 text-sm text-text">
+            Competizione
+            <select
+              value={chosen}
+              onChange={(e) => setChosenCompetition(e.target.value)}
+              className={`${inputClass} w-auto`}
+            >
+              <option value={ALL_COMPETITIONS}>Tutte</option>
+              {competitions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+              {withoutCompetition && <option value={NO_COMPETITION}>Senza competizione</option>}
+            </select>
+          </label>
+        )}
         {visible.length > 0 && (
           <ul className="divide-y divide-grid">
             {visible.map((f) => (
-              <FixtureItem key={f.id} f={f} onChanged={calendar.reload} />
+              <FixtureItem key={f.id} f={f} competitions={competitions} onChanged={calendar.reload} />
             ))}
           </ul>
         )}
@@ -727,7 +825,7 @@ export function CalendarPage() {
             {showHidden && (
               <ul className="divide-y divide-grid" aria-label="Partite nascoste">
                 {hidden.map((f) => (
-                  <FixtureItem key={f.id} f={f} onChanged={calendar.reload} />
+                  <FixtureItem key={f.id} f={f} competitions={competitions} onChanged={calendar.reload} />
                 ))}
               </ul>
             )}

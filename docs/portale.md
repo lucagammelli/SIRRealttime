@@ -550,12 +550,18 @@ del calendario», e il pulsante «Conferma». Finché non è confermata, la part
 calendario» chiede al server di riscaricare i campionati del club (orari e risultati arrivano in pochi minuti: ricaricare).
 
 Partite del cliente (`docs/server.md`, «Profilo del club, partite del cliente e canale»): «Aggiungi partita» apre il modulo
-«Partita aggiunta a mano» (`ManualFixtureForm`: «Tipo di partita» Amichevole, Coppa o Altro, «Data», «Ora», «Avversario»,
+«Partita aggiunta a mano» (`ManualFixtureForm`: «Tipo di partita» Amichevole, Coppa o Altro, «Competizione (facoltativa)» con l'aiuto «Per esempio «Champions League»: compare con la partita.» e i suggerimenti dai nomi già presenti nel calendario (campionati del club e nomi scritti), «Data», «Ora», «Avversario»,
 «Logo dell’avversario (facoltativo)», «Dove si gioca» «In casa»/«In trasferta», «Palazzetto (facoltativo)», «Città
 (facoltativa)»; «Aggiungi la partita» / «Salva la partita»). Dopo il salvataggio: «Partita aggiunta: il suo link e il QR sono
 qui sotto.». Link, QR e il testo «il suo link e il QR sono qui sotto» compaiono solo con l'opzione «Link e QR per singola partita»
 (altrimenti «Partita aggiunta.» e la nota «Link per singola partita non attivi: usa il canale del club.»).
-Una partita aggiunta a mano ha link breve e QR come le altre, si abbina ai `.dvw` allo stesso modo, e ha
+Più calendari per squadra (per esempio Superlega e Champions League): i campionati si scelgono nella pagina «Club» (fino a 8, dal sito della
+Lega), le altre competizioni si scrivono a mano. Ogni riga del calendario mostra all'inizio la competizione (`fixtureCompetition`: il
+campionato o il nome scritto); sopra l'elenco il filtro «Competizione» («Tutte», le competizioni, «Senza competizione»;
+`competitionsOf`, `filterByCompetition`) compare solo con più di una scelta. Senza campionati scelti «Aggiorna calendario» dice
+«Nessun campionato scelto: scegli i campionati e la squadra nella pagina «Club».». Un campionato aggiunto fuori dalla serie (per esempio una
+coppa dal superadmin) non toglie quello della serie né la sua squadra. La competizione scritta compare anche nei blocchi pubblici
+«Calendario» e «Prossima partita». Una partita aggiunta a mano ha link breve e QR come le altre, si abbina ai `.dvw` allo stesso modo, e ha
 «Modifica» e «Cancella» (con «Conferma cancellazione»). Una partita scaricata dal calendario si può solo «Nascondere»
 («Mostra» la rimette; le nascoste stanno in una scheda a parte, `Partite nascoste`). «Impostazioni» di ogni partita:
 «Trasmissione della partita» («Come il profilo», «Trasmessa», «Non trasmessa») e due `LogoPicker` («Logo della nostra

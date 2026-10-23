@@ -11,6 +11,8 @@ import type {
 } from '@arenalive/shared';
 import {
   ASSET_MAX_BYTES,
+  ASSET_NAME_MAX,
+  AssetNameSchema,
   BRAND_COLOR_KEYS,
   BRANDING_IMAGE_SLOTS,
   brandContrastIssues,
@@ -32,7 +34,7 @@ import { apiCommand } from '../../../lib/api.ts';
 import { megabytes } from '../../../lib/format.ts';
 import { useApiError, useAuth } from '../auth.tsx';
 import { ConfirmButton, Field, inputClass } from '../forms.tsx';
-import { ACCEPT, IMAGE_TOO_LARGE, uploadImage } from '../imageUpload.ts';
+import { ACCEPT, assetDetails, assetLabel, IMAGE_TOO_LARGE, uploadImage } from '../imageUpload.ts';
 import type { StudioTarget } from './model.ts';
 import { ALL_DEVICES_TEXT, COLOR_LABELS, IMAGE_LABELS } from './model.ts';
 import { Advanced, Setting, SettingsCard, TabList } from './StudioUi.tsx';
@@ -55,6 +57,88 @@ export function contrastText(issue: ContrastIssue): string {
   if (issue.color === 'text')
     return `Lo sfondo è troppo scuro per il testo della pagina (contrasto ${ratio(issue.ratio)}:1, minimo ${min}:1).`;
   return `«${COLOR_LABELS[issue.color].label}» ha contrasto ${ratio(issue.ratio)}:1 sullo sfondo (minimo ${min}:1): i testi in questo colore si leggono male.`;
+}
+
+/** Pure: what a file of the list is for: «Logo», «Video dello sfondo di un avviso», «Sponsor: Bar Sport»… */
+export function assetUseText(a: AssetSummary, sponsorName: ReadonlyMap<string, string>): string {
+  if (a.kind === 'logo') return 'Logo';
+  if (a.kind === 'overlay') return isVideoMime(a.mime) ? 'Video dello sfondo di un avviso' : 'Sfondo di un avviso';
+  const sponsor = a.sponsorId ? sponsorName.get(a.sponsorId) : undefined;
+  return sponsor === undefined ? 'Sponsor (senza sponsor)' : `Sponsor: ${sponsor}`;
+}
+
+/**
+ * «Rinomina» of a file of the list: the name shown in the lists (never the file on the server); empty: back to no
+ * name. Checked with the shared schema before sending.
+ */
+function RenameAsset({
+  asset,
+  onRenamed,
+  onError,
+}: {
+  asset: AssetSummary;
+  onRenamed: () => void;
+  onError: (err: unknown) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const label = assetLabel(asset);
+  if (draft === null)
+    return (
+      <Button variant="ghost" aria-label={`Rinomina ${label}`} onClick={() => setDraft(asset.name ?? '')}>
+        Rinomina
+      </Button>
+    );
+  const trimmed = draft.trim();
+  const parsed = trimmed === '' ? null : AssetNameSchema.safeParse(trimmed);
+  const invalid = parsed !== null && !parsed.success;
+  const save = async (): Promise<void> => {
+    if (invalid) return;
+    setBusy(true);
+    onError(null);
+    try {
+      await apiCommand(`/api/admin/assets/${encodeURIComponent(asset.id)}`, {
+        method: 'PATCH',
+        body: { name: parsed?.success ? parsed.data : null },
+      });
+      setDraft(null);
+      onRenamed();
+    } catch (err) {
+      onError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form
+      className="flex flex-wrap items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void save();
+      }}
+    >
+      <input
+        type="text"
+        value={draft}
+        maxLength={ASSET_NAME_MAX}
+        aria-label={`Nuovo nome di ${label}`}
+        aria-invalid={invalid}
+        onChange={(e) => setDraft(e.target.value)}
+        className={inputClass}
+      />
+      <Button type="submit" disabled={busy || invalid}>
+        {busy ? 'Attendere…' : 'Salva nome'}
+      </Button>
+      <Button variant="ghost" onClick={() => setDraft(null)} disabled={busy}>
+        Annulla
+      </Button>
+      {invalid && (
+        <p role="alert" className="w-full text-xs text-danger">
+          Nome non valido: niente «/», «\» né caratteri speciali invisibili.
+        </p>
+      )}
+    </form>
+  );
 }
 
 /** Pure: the team of the client with a typed field: trimmed, empty as null. */
@@ -518,13 +602,13 @@ export function ColorsSection({
         {tab === 'immagini' && (
           <section aria-labelledby="immagini-caricate" className="rounded-panel border border-border bg-surface p-3">
             <h3 id="immagini-caricate" className="text-sm font-semibold text-text">
-              Immagini caricate
+              Immagini e video caricati
             </h3>
             <p className="pb-2 text-xs text-muted">
               Spazio usato: {megabytes(assets.usedBytes)} MB di {megabytes(assets.quotaBytes)} MB
             </p>
             {assets.assets.length === 0 ? (
-              <Empty>Nessuna immagine caricata.</Empty>
+              <Empty>Nessun file caricato.</Empty>
             ) : (
               <ul className="divide-y divide-grid">
                 {assets.assets.map((a) => (
@@ -541,22 +625,24 @@ export function ColorsSection({
                       <img src={a.url} alt="" className="size-10 rounded object-contain" />
                     )}
                     <span className="min-w-0 flex-1 text-sm text-text">
-                      {a.kind === 'logo'
-                        ? 'Logo'
-                        : a.kind === 'overlay'
-                          ? isVideoMime(a.mime)
-                            ? 'Video dello sfondo di un avviso'
-                            : 'Sfondo di un avviso'
-                          : a.sponsorId && sponsorName.has(a.sponsorId)
-                            ? `Sponsor: ${sponsorName.get(a.sponsorId) ?? ''}`
-                            : 'Sponsor (senza sponsor)'}{' '}
-                      · {a.width}×{a.height} px · {megabytes(a.bytes)} MB
-                      {usedIds.has(a.id) && <span className="text-muted"> · in uso</span>}
+                      <span className="block truncate font-medium" title={assetLabel(a)}>
+                        {assetLabel(a)}
+                      </span>
+                      <span className="block text-xs text-muted">
+                        {assetUseText(a, sponsorName)} · {assetDetails(a)}
+                        {usedIds.has(a.id) && ' · in uso'}
+                      </span>
                     </span>
+                    <RenameAsset
+                      asset={a}
+                      onRenamed={onAssetsChanged}
+                      onError={(err) => setError(err === null ? null : errorMessage(err))}
+                    />
                     <ConfirmButton
                       label="Elimina"
                       confirmLabel="Conferma eliminazione"
                       busy={deleting === a.id}
+                      ariaLabel={`Elimina ${assetLabel(a)}`}
                       onConfirm={() => void remove(a.id)}
                     />
                   </li>

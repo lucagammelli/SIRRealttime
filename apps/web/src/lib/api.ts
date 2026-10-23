@@ -53,13 +53,15 @@ export interface RequestOptions {
   body?: unknown;
   /** The bytes of a file as the body (`application/octet-stream`, the upload of a video) instead of `body` as JSON. */
   file?: Blob;
+  /** Further headers of the request (as the name of an uploaded file). */
+  headers?: Record<string, string>;
   signal?: AbortSignal;
   fetch?: typeof fetch;
 }
 
 async function send(path: string, options: RequestOptions): Promise<Response> {
   const method = options.method ?? 'GET';
-  const headers: Record<string, string> = { accept: 'application/json' };
+  const headers: Record<string, string> = { ...options.headers, accept: 'application/json' };
   let body: string | Blob | undefined;
   if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
     headers['content-type'] = options.file ? 'application/octet-stream' : 'application/json';

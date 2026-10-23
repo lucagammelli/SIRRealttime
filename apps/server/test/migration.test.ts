@@ -2,7 +2,13 @@ import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promi
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
-import { AGENT_QUOTA_MAX, AgentQuotaSchema, DEFAULT_AGENT_QUOTA, DEFAULT_TENANT_SLUG } from '@arenalive/shared';
+import {
+  AGENT_QUOTA_MAX,
+  ASSET_NAME_MAX,
+  AgentQuotaSchema,
+  DEFAULT_AGENT_QUOTA,
+  DEFAULT_TENANT_SLUG,
+} from '@arenalive/shared';
 import { eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
@@ -320,6 +326,33 @@ describe('migration 0017: variants of the system logos', () => {
       client.exec(`insert into system_logos (slot, variant, sha256, mime, width, height, bytes)
         values ('right', 'grey', repeat('c', 64), 'image/png', 10, 10, 10)`),
     ).rejects.toThrow();
+  });
+});
+
+describe('migration 0020: names of the uploaded files', () => {
+  it('leaves the files already uploaded without name, takes valid names only and can be undone', async () => {
+    const client = new PGlite();
+    cleanup.push(() => client.close());
+    const db = drizzle({ client, schema });
+    await migrate(db, { migrationsFolder: await migrationsUpTo('0019_dopo_partita') });
+    await client.exec(`
+      insert into assets (tenant_id, kind, sha256, mime, width, height, bytes)
+        select id, 'overlay', repeat('a', 64), 'video/mp4', 1920, 1080, 100 from tenants;
+    `);
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    expect(await db.select({ name: assets.name }).from(assets)).toEqual([{ name: null }]);
+    await db.update(assets).set({ name: 'Sigla ACE.mp4' });
+    expect(await db.select({ name: assets.name }).from(assets)).toEqual([{ name: 'Sigla ACE.mp4' }]);
+    await expect(db.update(assets).set({ name: '' })).rejects.toThrow();
+    await expect(db.update(assets).set({ name: 'x'.repeat(ASSET_NAME_MAX + 1) })).rejects.toThrow();
+    // Undone by the statements written at the top of the migration: the files stay, without names.
+    const sqlText = await readFile(join(MIGRATIONS_FOLDER, '0020_nomi_file.sql'), 'utf8');
+    const down = /^-- Reversibile[^:]*: (.*)$/m.exec(sqlText)?.[1];
+    expect(down).toBeDefined();
+    await client.exec(down ?? '');
+    const rows = await client.query<{ sha256: string; name?: string }>('select * from assets');
+    expect(rows.rows).toHaveLength(1);
+    expect(rows.rows[0]?.name).toBeUndefined();
   });
 });
 

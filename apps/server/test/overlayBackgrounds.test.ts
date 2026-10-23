@@ -1,5 +1,12 @@
 import type { AssetSummary, GraphicsExport, OverlaysResponse } from '@arenalive/shared';
-import { defaultOverlays, publicAssetPath, VIDEO_MAX_BYTES, VIDEO_UPLOAD_PATH } from '@arenalive/shared';
+import {
+  ASSET_NAME_MAX,
+  defaultOverlays,
+  FILE_NAME_HEADER,
+  publicAssetPath,
+  VIDEO_MAX_BYTES,
+  VIDEO_UPLOAD_PATH,
+} from '@arenalive/shared';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
@@ -115,10 +122,80 @@ describe('upload of a video', () => {
       expect((await uploadVideo('q.sir.test', cookie, mp4(10, 10, 600_000), small)).statusCode).toBe(201);
       const over = await uploadVideo('q.sir.test', cookie, mp4(20, 10, 600_000), small);
       expect(over.statusCode).toBe(409);
-      expect(over.json<{ error: string }>().error).toContain('Spazio per i file esaurito (1 MB): elimina quelli che non usi');
+      expect(over.json<{ error: string }>().error).toContain(
+        'Spazio per i file esaurito (1 MB): elimina quelli che non usi',
+      );
     } finally {
       await small.close();
     }
+  });
+});
+
+describe('names of the files', () => {
+  const named = (name: string, data: Buffer, host = HOST_A, cookie = cookieA) =>
+    call(server, host, cookie, {
+      method: 'POST',
+      url: VIDEO_UPLOAD_PATH,
+      headers: { 'content-type': 'application/octet-stream', [FILE_NAME_HEADER]: name },
+      payload: data,
+    });
+  const patch = (id: string, payload: Record<string, unknown>, cookie = cookieA) =>
+    call(server, HOST_A, cookie, { method: 'PATCH', url: `/api/admin/assets/${id}`, payload });
+
+  it('keeps the name of an uploaded video and of an image; without a name the file has none', async () => {
+    const video = await named(encodeURIComponent('Sigla ACE è.mp4'), mp4(1920, 1080, 501));
+    expect(video.statusCode).toBe(201);
+    expect(video.json<AssetSummary>().name).toBe('Sigla ACE è.mp4');
+    const image = await call(server, HOST_A, cookieA, {
+      method: 'POST',
+      url: '/api/admin/assets',
+      payload: { kind: 'overlay', data: png(51, 20).toString('base64'), name: 'muro.png' },
+    });
+    expect(image.json<AssetSummary>().name).toBe('muro.png');
+    const plain = await uploadVideo(HOST_A, cookieA, mp4(1920, 1080, 502));
+    expect(plain.json<AssetSummary>().name).toBeNull();
+    // The same file again with a name: a file without name takes it, one with a name keeps its own.
+    expect((await named('nuovo.mp4', mp4(1920, 1080, 502))).json<AssetSummary>().name).toBe('nuovo.mp4');
+    expect((await named('altro.mp4', mp4(1920, 1080, 502))).json<AssetSummary>().name).toBe('nuovo.mp4');
+    const list = (await call(server, HOST_A, cookieA, { url: '/api/admin/assets' })).json<{ assets: AssetSummary[] }>();
+    expect(list.assets.find((a) => a.id === video.json<AssetSummary>().id)?.name).toBe('Sigla ACE è.mp4');
+  });
+
+  it('refuses a name that is a path, has control characters, is too long or cannot be decoded (400)', async () => {
+    for (const bad of [
+      encodeURIComponent('../../etc/passwd'),
+      encodeURIComponent('a\\b.mp4'),
+      encodeURIComponent('a\u0000b.mp4'),
+      encodeURIComponent('x'.repeat(ASSET_NAME_MAX + 1)),
+      '%E0%A4%A',
+      encodeURIComponent('   '),
+    ]) {
+      const res = await named(bad, mp4(16, 16, 503));
+      expect(res.statusCode, bad).toBe(400);
+    }
+    const image = await call(server, HOST_A, cookieA, {
+      method: 'POST',
+      url: '/api/admin/assets',
+      payload: { kind: 'overlay', data: png(52, 20).toString('base64'), name: 'a/b.png' },
+    });
+    expect(image.statusCode).toBe(400);
+  });
+
+  it('renames a file (admins only, own files), also back to no name', async () => {
+    const video = (await uploadVideo(HOST_A, cookieA, mp4(800, 450, 504))).json<AssetSummary>();
+    const renamed = await patch(video.id, { name: '  Video del muro  ' });
+    expect(renamed.statusCode).toBe(200);
+    expect(renamed.json<AssetSummary>()).toMatchObject({ name: 'Video del muro', sponsorId: null });
+    expect((await patch(video.id, { name: null })).json<AssetSummary>().name).toBeNull();
+    expect((await patch(video.id, { name: 'a/b' })).statusCode).toBe(400);
+    expect((await patch(video.id, {})).statusCode).toBe(400);
+    expect((await patch(video.id, { name: 'x' }, cookieViewerA)).statusCode).toBe(403);
+    const other = await call(server, HOST_B, cookieB, {
+      method: 'PATCH',
+      url: `/api/admin/assets/${video.id}`,
+      payload: { name: 'mio' },
+    });
+    expect(other.statusCode).toBe(404);
   });
 });
 
@@ -139,7 +216,22 @@ describe('backgrounds of the overlays', () => {
       block: { ...defaultOverlays().block, background: { kind: 'image', assetId: image.id } },
     });
     expect(saved.statusCode).toBe(200);
-    expect(saved.json<OverlaysResponse>().overlays.ace.background).toEqual({ kind: 'video', assetId: video.id });
+    expect(saved.json<OverlaysResponse>().overlays.ace.background).toEqual({
+      kind: 'video',
+      assetId: video.id,
+      audio: false,
+      fit: 'center',
+      teams: 'ours',
+    });
+    const withOptions = await putOverlays(HOST_A, cookieA, {
+      ...doc({ kind: 'video', assetId: video.id, audio: true, fit: 'fullscreen', teams: 'both' }),
+      block: { ...defaultOverlays().block, background: { kind: 'image', assetId: image.id } },
+    });
+    expect(withOptions.json<OverlaysResponse>().overlays.ace.background).toMatchObject({
+      audio: true,
+      fit: 'fullscreen',
+      teams: 'both',
+    });
     for (const background of [
       { kind: 'image', assetId: video.id },
       { kind: 'video', assetId: image.id },

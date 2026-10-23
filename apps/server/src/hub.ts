@@ -359,6 +359,17 @@ export class LiveHub implements StatePublisher {
     }
   }
 
+  /**
+   * The graphics of the client `tenantId` were saved: every socket of that client (public and admin) gets the signal
+   * `config` and reads them again; the sockets of the other clients get nothing. The frame is serialized once.
+   */
+  notifyConfig(tenantId: string): void {
+    const message: ServerMessage = { type: 'config' };
+    const frame = new Frame(JSON.stringify(message));
+    for (const entry of this.entries.values())
+      if (entry.target.tenantId === tenantId) this.deliver(entry, message, frame, null);
+  }
+
   /** Match a target follows now, as known here (null: unknown, read it from the database). */
   private matchOf(target: Target): string | null {
     if (target.kind === 'match') return target.matchId;

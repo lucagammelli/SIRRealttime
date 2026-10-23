@@ -10,11 +10,11 @@ import {
   defaultOverlays,
 } from '@arenalive/shared';
 import { act, cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { usePalette } from '../charts/usePalette.ts';
 import { BrandMark } from '../components/BrandMark.tsx';
 import { bytesToBase64 } from './base64.ts';
-import { loadTenantLook, setTenantLook, tenantLookOf, writePalette } from './branding.ts';
+import { createBrandingRefresh, loadTenantLook, setTenantLook, tenantLookOf, writePalette } from './branding.ts';
 import { applyThemeChoice } from './theme.ts';
 
 const LOGO = '/api/public/assets/6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
@@ -109,6 +109,55 @@ describe('loading the graphics', () => {
     expect(
       await loadTenantLook({ fetch: ok({ ...evil, branding: { ...evil.branding, colors: { home: 'red;}' } } }) }),
     ).toBeNull();
+  });
+});
+
+describe('reading the graphics again', () => {
+  it('reads after the spread on config, one read at a time, and at most once a minute on resume', async () => {
+    vi.useFakeTimers();
+    try {
+      let clock = 0;
+      let finish: () => void = () => undefined;
+      const load = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      );
+      const refresh = createBrandingRefresh({ load, now: () => clock, random: () => 1, spreadMs: 3000 });
+      refresh.resume();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(load).not.toHaveBeenCalled();
+      refresh.changed();
+      refresh.changed();
+      await vi.advanceTimersByTimeAsync(2999);
+      expect(load).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(load).toHaveBeenCalledTimes(1);
+      // A save during the read: one more read once it ends.
+      refresh.changed();
+      refresh.changed();
+      finish();
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(load).toHaveBeenCalledTimes(2);
+      finish();
+      await vi.advanceTimersByTimeAsync(0);
+      clock = 30_000;
+      refresh.resume();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(load).toHaveBeenCalledTimes(2);
+      clock = 60_000;
+      refresh.resume();
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(load).toHaveBeenCalledTimes(3);
+      finish();
+      refresh.stop();
+      refresh.changed();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(load).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

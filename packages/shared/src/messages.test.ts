@@ -18,6 +18,11 @@ describe('ServerMessageSchema', () => {
     expect(ServerMessageSchema.safeParse({ type: 'noMatch' }).success).toBe(true);
     expect(ServerMessageSchema.safeParse({ type: 'error', message: 'x' }).success).toBe(true);
   });
+  it('accepts the config signal, without data', () => {
+    expect(ServerMessageSchema.parse({ type: 'config' })).toEqual({ type: 'config' });
+    // Extra fields are dropped: the signal never carries data of the client.
+    expect(ServerMessageSchema.parse({ type: 'config', branding: { x: 1 } })).toEqual({ type: 'config' });
+  });
   it('rejects unknown types and missing state', () => {
     expect(ServerMessageSchema.safeParse({ type: 'hello' }).success).toBe(false);
     expect(ServerMessageSchema.safeParse({ type: 'state', matchId: ID, version: 1, state: null }).success).toBe(false);

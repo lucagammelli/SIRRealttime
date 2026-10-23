@@ -14,6 +14,24 @@ const svg = (c: HTMLElement): SVGSVGElement => {
 };
 
 describe('court map options', () => {
+  it('tricolour: three bands of two columns, the white one on the net, readable lines', () => {
+    const options = CourtOptionsSchema.parse({ fieldMode: 'tricolor' });
+    const { container } = render(<CourtMap state={stateAfter()} options={options} />);
+    const root = svg(container);
+    const bands = [...root.querySelectorAll('rect[data-court-band]')];
+    expect(bands.map((b) => b.getAttribute('fill'))).toEqual(['#009246', '#ffffff', '#ce2b37']);
+    expect(bands.map((b) => b.getAttribute('x'))).toEqual(['10', '70', '130']);
+    expect(bands.every((b) => b.getAttribute('width') === '60')).toBe(true);
+    expect(root.querySelectorAll('rect.fill-court').length).toBe(0);
+    expect(root.querySelector('line[stroke="#1f2937"]')).toBeTruthy();
+  });
+
+  it('single colour: both halves the same', () => {
+    const options = CourtOptionsSchema.parse({ fieldMode: 'single', fieldColor: '#112233' });
+    const { container } = render(<CourtMap state={stateAfter()} options={options} />);
+    expect(svg(container).querySelectorAll('rect[fill="#112233"]').length).toBe(2);
+  });
+
   it('without options draws the field and lines of the theme', () => {
     const { container } = render(<CourtMap state={stateAfter()} />);
     const root = svg(container);

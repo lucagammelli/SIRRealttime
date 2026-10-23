@@ -261,6 +261,81 @@ export async function initBranding(options: LoadOptions = {}): Promise<void> {
   }
 }
 
+/** Spread of the reads after a `config` signal: thousands of spectators do not ask the graphics in the same instant. */
+export const CONFIG_REFRESH_SPREAD_MS = 3000;
+/** Least time between two safety reads (reconnection, back in the foreground): the graphics change rarely. */
+export const CONFIG_REFRESH_MIN_INTERVAL_MS = 60_000;
+
+export interface BrandingRefreshOptions {
+  /** The read: by default `initBranding({ fresh: true })`. */
+  load?: () => Promise<void>;
+  now?: () => number;
+  random?: () => number;
+  spreadMs?: number;
+  minIntervalMs?: number;
+}
+
+export interface BrandingRefresh {
+  /** The server said that the graphics were saved (`config`): read again, after a short random wait. */
+  changed(): void;
+  /** A save may have been missed (reconnection, page back in the foreground): read again unless read recently. */
+  resume(): void;
+  stop(): void;
+}
+
+/**
+ * Reads the graphics of the client again while a page stays open, without reloading it (the match on screen stays):
+ * at most one read at a time, the signals that arrive during a read make one more read after it.
+ */
+export function createBrandingRefresh(options: BrandingRefreshOptions = {}): BrandingRefresh {
+  const load = options.load ?? (() => initBranding({ fresh: true }));
+  const now = options.now ?? Date.now;
+  const random = options.random ?? Math.random;
+  const spread = options.spreadMs ?? CONFIG_REFRESH_SPREAD_MS;
+  const minInterval = options.minIntervalMs ?? CONFIG_REFRESH_MIN_INTERVAL_MS;
+  /** Start of the last read (the page read the graphics when it opened). */
+  let lastAt = now();
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let loading = false;
+  let again = false;
+  let stopped = false;
+
+  const run = (): void => {
+    timer = null;
+    if (stopped) return;
+    loading = true;
+    lastAt = now();
+    void load()
+      .catch(() => undefined)
+      .finally(() => {
+        loading = false;
+        if (again && !stopped) {
+          again = false;
+          schedule();
+        }
+      });
+  };
+  const schedule = (): void => {
+    if (stopped || timer !== null) return;
+    if (loading) {
+      again = true;
+      return;
+    }
+    timer = setTimeout(run, Math.round(random() * spread));
+  };
+  return {
+    changed: schedule,
+    resume: () => {
+      if (now() - lastAt >= minInterval) schedule();
+    },
+    stop: () => {
+      stopped = true;
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
+    },
+  };
+}
+
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);

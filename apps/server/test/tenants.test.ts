@@ -416,6 +416,38 @@ describe('isolation of the public routes', () => {
     expect(messages[1]).toMatchObject({ matchId: await matchId(tenantA, 'gara') });
     ws.terminate();
   });
+
+  it('sends config to the public and admin sockets of the client that saved its graphics only', async () => {
+    const linkA = await shareOn(HOST_A, cookieA, null);
+    const linkB = await shareOn(HOST_B, cookieB, null);
+    const publicA: ServerMessage[] = [];
+    const adminA: ServerMessage[] = [];
+    const publicB: ServerMessage[] = [];
+    const adminB: ServerMessage[] = [];
+    const sockets = [
+      await openSocket(`/ws/public/${linkA.token}`, { host: HOST_A }, publicA),
+      await openSocket('/ws/admin', { host: HOST_A, cookie: cookieA }, adminA),
+      await openSocket(`/ws/public/${linkB.token}`, { host: HOST_B }, publicB),
+      await openSocket('/ws/admin', { host: HOST_B, cookie: cookieB }, adminB),
+    ];
+    for (const list of [publicA, adminA, publicB, adminB]) await expect.poll(() => list.length).toBe(1);
+    const current = await call(HOST_A, cookieA, { url: '/api/admin/overlays' });
+    const saved = await call(HOST_A, cookieA, {
+      method: 'PUT',
+      url: '/api/admin/overlays',
+      payload: current.json<{ overlays: unknown }>().overlays as Record<string, unknown>,
+    });
+    expect(saved.statusCode).toBe(200);
+    await expect.poll(() => publicA.length).toBe(2);
+    await expect.poll(() => adminA.length).toBe(2);
+    expect(publicA[1]).toEqual({ type: 'config' });
+    expect(adminA[1]).toEqual({ type: 'config' });
+    // A round trip on B's sockets: whatever was sent to them has arrived by now.
+    await call(HOST_B, null, { url: `/api/public/${linkB.token}/state` });
+    expect(publicB.map((m) => m.type)).toEqual(['state']);
+    expect(adminB.map((m) => m.type)).toEqual(['state']);
+    for (const ws of sockets) ws.terminate();
+  });
 });
 
 describe('origin of the browser requests', () => {

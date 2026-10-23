@@ -145,7 +145,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'In «Pagina live» e in «Pause» ogni blocco e ogni diapositiva ha nella sua riga il pulsante «−» (Rimuovi). Se hai scelto delle opzioni (un testo, gli sponsor) chiede prima «Conferma rimozione». Nelle «Pause» l’interruttore «Attiva» spegne una diapositiva senza perdere le sue opzioni: resta nell’elenco ma i tifosi non la vedono. Nel blocco «Rotazioni» la «Disposizione» sceglie se i grafici delle due squadre stanno «Affiancati» o «Uno sopra l’altro».',
+        text: 'In «Pagina live» e in «Pause» ogni blocco e ogni diapositiva ha nella sua riga il pulsante «−» (Rimuovi). Se hai scelto delle opzioni (un testo, gli sponsor) chiede prima «Conferma rimozione». Nelle «Pause» l’interruttore «Attiva» spegne una diapositiva senza perdere le sue opzioni: resta nell’elenco ma i tifosi non la vedono. Nel blocco «Rotazioni» la «Disposizione» sceglie se i grafici delle due squadre stanno «Affiancati» o «Uno sopra l’altro». Nel blocco «Mappe di campo», «Colore del campo» può essere «Automatico» (due metà con i loro colori), «Colore singolo» (le due metà uguali) o «Tricolore» (tre fasce verticali, per impostazione verde, bianco e rosso; la fascia bianca sta sulla rete).',
       },
       {
         kind: 'text',
@@ -154,6 +154,14 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       {
         kind: 'text',
         text: 'A lato c’è sempre l’anteprima. Puoi sceglierla per TV, tablet o telefono, e aprirla a tutto schermo con «Anteprima a tutto schermo». Quello che vedi lì è quello che vedranno i tifosi.',
+      },
+      {
+        kind: 'text',
+        text: 'Se in «Colori e loghi», sotto «Avanzate», scegli un altro «Modello grafico», colori e caratteri cambiano subito. Lo Studio ti chiede poi «Applicare anche la disposizione dei blocchi del modello?»: con «Sì, applica i blocchi del modello» la «Pagina live» prende i blocchi del modello su tutti i dispositivi (salvala per pubblicarli); con «No, tieni i blocchi attuali» resta com’è.',
+      },
+      {
+        kind: 'text',
+        text: 'Quando salvi una parte dello Studio, i tifosi che hanno già la pagina aperta vedono la nuova grafica entro pochi secondi, senza ricaricarla e senza perdere la partita.',
       },
       {
         kind: 'text',

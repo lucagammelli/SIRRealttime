@@ -1,11 +1,12 @@
 import type { CourtOptions, LayoutBlock } from '@arenalive/shared';
-import { COURT_WIDTH_MAX, COURT_WIDTH_MIN } from '@arenalive/shared';
+import { COURT_TRICOLOR_DEFAULT, COURT_WIDTH_MAX, COURT_WIDTH_MIN } from '@arenalive/shared';
 import { Button } from '../../../components/ui.tsx';
 import { inputClass } from '../forms.tsx';
 
 const selectClass = `${inputClass} w-auto`;
 
-type CourtColorKey = 'fieldOurs' | 'fieldOpponent' | 'linesOurs' | 'linesOpponent' | 'arrowsOurs' | 'arrowsOpponent';
+type CourtColorKey =
+  'fieldOurs' | 'fieldOpponent' | 'fieldColor' | 'linesOurs' | 'linesOpponent' | 'arrowsOurs' | 'arrowsOpponent';
 
 /** Colour shown by the picker while the colour is automatic (the picker needs a value). */
 const AUTO_SWATCH = '#808080';
@@ -70,6 +71,32 @@ export function CourtOptionsFields({
   const color = (key: CourtColorKey, label: string) => (
     <OptionalColor label={label} value={options[key]} onChange={(v) => setColor(key, v)} />
   );
+  const fieldMode = options.fieldMode ?? 'auto';
+  const setFieldMode = (mode: string): void => {
+    const next: CourtOptions = { ...options };
+    delete next.fieldMode;
+    if (mode === 'single' || mode === 'tricolor') next.fieldMode = mode;
+    onChange({ ...block, options: next });
+  };
+  const bandColors = options.tricolor ?? COURT_TRICOLOR_DEFAULT;
+  const setBand = (index: number, value: string): void => {
+    const next: [string, string, string] = [bandColors[0], bandColors[1], bandColors[2]];
+    next[index] = value;
+    onChange({ ...block, options: { ...options, tricolor: next } });
+  };
+  const band = (index: number, label: string) => (
+    <label className="flex flex-wrap items-center gap-2 text-sm text-text">
+      <input
+        type="color"
+        aria-label={label}
+        value={bandColors[index]}
+        onChange={(e) => setBand(index, e.target.value.toLowerCase())}
+        className="h-9 w-12 cursor-pointer rounded-card border border-border bg-surface-2"
+      />
+      {label}
+      <span className="font-mono text-xs text-muted">{bandColors[index]}</span>
+    </label>
+  );
   const width = (key: 'lineWidth' | 'arrowWidth', label: string) => (
     <label className="flex items-center gap-2 text-sm text-text">
       {label}
@@ -90,8 +117,31 @@ export function CourtOptionsFields({
     <div className="space-y-3">
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium text-text">Fondo del campo</legend>
-        {color('fieldOurs', 'Metà della nostra squadra')}
-        {color('fieldOpponent', 'Metà dell’avversario')}
+        <label className="flex flex-wrap items-center gap-2 text-sm text-text">
+          Colore del campo
+          <select className={selectClass} value={fieldMode} onChange={(e) => setFieldMode(e.target.value)}>
+            <option value="auto">Automatico</option>
+            <option value="single">Colore singolo</option>
+            <option value="tricolor">Tricolore</option>
+          </select>
+        </label>
+        {fieldMode === 'auto' && (
+          <>
+            {color('fieldOurs', 'Metà della nostra squadra')}
+            {color('fieldOpponent', 'Metà dell’avversario')}
+          </>
+        )}
+        {fieldMode === 'single' && color('fieldColor', 'Colore del campo (le due metà)')}
+        {fieldMode === 'tricolor' && (
+          <>
+            <p className="text-xs text-muted">
+              Il campo è diviso in tre fasce di due colonne di zone; la fascia centrale sta a cavallo della rete.
+            </p>
+            {band(0, 'Fascia sinistra')}
+            {band(1, 'Fascia centrale (sulla rete)')}
+            {band(2, 'Fascia destra')}
+          </>
+        )}
       </fieldset>
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium text-text">Linee del campo (perimetro, 3 metri, rete)</legend>

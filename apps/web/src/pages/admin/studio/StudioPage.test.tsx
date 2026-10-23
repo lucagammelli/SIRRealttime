@@ -464,6 +464,36 @@ describe('Colori e loghi', () => {
     expect(puts('/api/admin/layout')).toHaveLength(0);
   });
 
+  it('another template asks whether «Pagina live» takes its blocks: no keeps them, yes puts the defaults in the draft', async () => {
+    const { puts } = mockServer({}, 'superadmin');
+    renderAt('/admin/studio/colori');
+    await studio();
+    const pick = (name: RegExp) =>
+      fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Modello grafico' })).getByRole('radio', { name }));
+    const question = () =>
+      screen.queryByRole('alertdialog', { name: 'Applicare anche la disposizione dei blocchi del modello?' });
+    pick(/SIR VOLLEY/);
+    expect(question()).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'No, tieni i blocchi attuali' }));
+    expect(question()).toBeNull();
+    expect(scope().getAttribute('data-template')).toBe('sir-volley');
+    expect(sectionButton(/Pagina live/).textContent).not.toMatch(/●/);
+    // The same template again: nothing to ask.
+    pick(/SIR VOLLEY/);
+    expect(question()).toBeNull();
+    pick(/Standard/);
+    pick(/SIR VOLLEY/);
+    fireEvent.click(screen.getByRole('button', { name: 'Sì, applica i blocchi del modello' }));
+    expect(question()).toBeNull();
+    expect(sectionButton(/Pagina live/).textContent).toMatch(/●/);
+    save();
+    expect(await screen.findByText(/Grafica salvata/)).toBeTruthy();
+    fireEvent.click(sectionButton(/Pagina live/));
+    save();
+    expect(await screen.findByText(/Pagina pubblica salvata/)).toBeTruthy();
+    expect(puts('/api/admin/layout').at(-1)?.body).toEqual(defaultLayout('sir-volley'));
+  });
+
   it('uploads a logo, refuses a file over 2 MB, shows why the server refuses a deletion', async () => {
     const { calls } = mockServer();
     renderAt('/admin/studio/colori');

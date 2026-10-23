@@ -58,7 +58,15 @@ export const PatchMessageSchema = z
 export type PatchMessage = z.infer<typeof PatchMessageSchema>;
 
 /**
- * Messages server→client on `/ws/public/:token` and `/ws/admin` (`patch` only there); also the body of
+ * The graphics of the client (branding, page, pauses, overlays, sponsors) were saved: a signal only, without data.
+ * Sent on `/ws/public/:token` and `/ws/admin` to the sockets of that client only; the page reads
+ * `GET /api/public/tenant` again (spread over a few seconds) and keeps the match it shows.
+ */
+export const ConfigMessageSchema = z.object({ type: z.literal('config') });
+export type ConfigMessage = z.infer<typeof ConfigMessageSchema>;
+
+/**
+ * Messages server→client on `/ws/public/:token` and `/ws/admin` (`patch` and `config` only there); also the body of
  * `GET /api/public/:token/state` (`state`, `noMatch`, `scheduled` or `error`).
  */
 export const ServerMessageSchema = z.discriminatedUnion('type', [
@@ -67,6 +75,7 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
   NoMatchMessageSchema,
   ScheduledMessageSchema,
   ErrorMessageSchema,
+  ConfigMessageSchema,
 ]);
 export type ServerMessage = z.infer<typeof ServerMessageSchema>;
 

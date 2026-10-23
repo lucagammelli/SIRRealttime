@@ -87,7 +87,7 @@ export const BLOCKS: Registry = {
     <PlayerTable state={env.state} className={tv(env) ? TV_CARD : ''} />
   )),
   court: define('court', 'Mappe di campo', 'Direzioni di attacco e battuta sul campo.', (b, env) => (
-    <CourtMap state={env.state} options={b.options} className={tv(env) ? TV_CARD : 'h-full'} />
+    <CourtMap state={env.state} options={b.options} fit={tv(env)} className={tv(env) ? TV_CARD : 'h-full'} />
   )),
   rotations: define('rotations', 'Rotazioni', 'Punti fatti e subiti in ogni rotazione.', (b, env) =>
     tv(env) ? (
@@ -95,7 +95,7 @@ export const BLOCKS: Registry = {
         state={env.state}
         orientation={b.options.orientation}
         className={TV_CARD}
-        chartClassName={b.options.orientation === 'vertical' ? 'h-[min(17vh,9rem)]' : 'h-[min(28vh,14rem)]'}
+        chartClassName={b.options.orientation === 'vertical' ? 'min-h-24 flex-1' : 'h-[min(28vh,14rem)]'}
       />
     ) : (
       <Rotations state={env.state} orientation={b.options.orientation} className="h-full" />

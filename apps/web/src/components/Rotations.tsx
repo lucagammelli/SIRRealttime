@@ -31,13 +31,16 @@ export function Rotations({
 }) {
   const compact = useDeviceContext() === 'phone';
   const [chosen, setChosen] = useState<Side>('home');
-  const chartClass = chartClassName ?? (compact ? 'sir-chart h-36' : 'h-44');
+  const vertical = orientation === 'vertical';
+  // Vertical: the charts share the height of the card (at least their usual height), not only its width.
+  const chartClass = chartClassName ?? (compact ? 'sir-chart h-36' : vertical ? 'min-h-44 flex-1' : 'h-44');
   const sides: Side[] = compact ? [chosen] : ['home', 'away'];
   return (
     <Card
       title="Rotazioni"
       subtitle="Punti vinti e persi per posizione del palleggiatore"
       className={className}
+      bodyClassName={vertical ? 'flex flex-col' : ''}
       actions={
         compact ? (
           <Segmented
@@ -53,10 +56,17 @@ export function Rotations({
         ) : undefined
       }
     >
-      <div className="@container">
-        <div className={orientation === 'vertical' ? 'grid gap-4' : 'grid gap-4 @md:grid-cols-2'}>
+      <div className={vertical ? '@container flex min-h-0 flex-1 flex-col' : '@container'}>
+        <div className={vertical ? 'flex min-h-0 flex-1 flex-col gap-4' : 'grid gap-4 @md:grid-cols-2'}>
           {sides.map((side) => (
-            <TeamRotations key={side} state={state} side={side} chartClassName={chartClass} compact={compact} />
+            <TeamRotations
+              key={side}
+              state={state}
+              side={side}
+              chartClassName={chartClass}
+              compact={compact}
+              fill={vertical}
+            />
           ))}
         </div>
       </div>
@@ -85,11 +95,14 @@ function TeamRotations({
   side,
   chartClassName,
   compact,
+  fill,
 }: {
   state: MatchState;
   side: Side;
   chartClassName: string;
   compact: boolean;
+  /** Takes its share of the height of the card (vertical orientation). */
+  fill: boolean;
 }) {
   const palette = usePalette();
   const data = useMemo(() => rotationSeries(state, side), [state, side]);
@@ -98,7 +111,7 @@ function TeamRotations({
   const now = state.status === 'finished' ? null : state.live.setterPosition[side];
   const name = teamName(state.teams, side);
   return (
-    <div className="min-w-0">
+    <div className={fill ? 'flex min-h-0 min-w-0 flex-1 flex-col' : 'min-w-0'}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className={`text-sm font-bold uppercase ${TEXT[side]}`}>{name}</h3>
         <Legend side={side} />

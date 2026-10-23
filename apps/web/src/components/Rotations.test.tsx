@@ -19,6 +19,14 @@ describe('Rotations', () => {
 
   it('with the vertical orientation puts one chart above the other', () => {
     const { container } = render(<Rotations state={stateAfter()} orientation="vertical" />);
-    expect(grid(container).className).not.toContain('grid-cols-2');
+    expect(container.querySelector('.grid-cols-2, [class*="grid-cols-2"]')).toBeNull();
+    const column = container.querySelector('.\\@container > .flex-col');
+    expect(column?.className).toContain('flex-1');
+  });
+
+  it('with the vertical orientation the charts share the height of the card', () => {
+    const { container } = render(<Rotations state={stateAfter()} orientation="vertical" />);
+    const charts = container.querySelectorAll('.\\@container .flex-1.min-h-44');
+    expect(charts).toHaveLength(2);
   });
 });

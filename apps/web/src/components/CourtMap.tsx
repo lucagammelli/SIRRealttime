@@ -56,9 +56,12 @@ export function CourtMap({
   state,
   className = '',
   options = DEFAULT_COURT_OPTIONS,
+  fit = false,
 }: {
   state: MatchState;
   className?: string;
+  /** Big screen: the field shrinks to the height left in the card (never a scrollbar), keeping its proportions. */
+  fit?: boolean;
   /** Colours and thickness chosen in the «Studio grafico»; the defaults draw the map as it always was. */
   options?: CourtOptions;
 }) {
@@ -150,11 +153,12 @@ export function CourtMap({
     <Card
       title="Mappe di campo"
       className={className}
+      bodyClassName={fit ? 'flex flex-col' : ''}
       subtitle={`${view.total} ${skillLabel} con zone · ${teamName(state.teams, side)} → ${teamName(state.teams, opponent)}`}
     >
       {touch && (
         <>
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
             <Segmented
               label="Squadra"
               size="xs"
@@ -180,21 +184,21 @@ export function CourtMap({
             />
           </div>
           {compact ? (
-            <details className="mb-3 rounded-card border border-border bg-surface-2 px-3 py-1">
+            <details className="mb-3 shrink-0 rounded-card border border-border bg-surface-2 px-3 py-1">
               <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-text">
                 Altri filtri
               </summary>
               <div className="flex flex-col items-start gap-2 pb-2">{extraFilters}</div>
             </details>
           ) : (
-            <div className="mb-3 flex flex-wrap items-center gap-2">{extraFilters}</div>
+            <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">{extraFilters}</div>
           )}
         </>
       )}
 
       <svg
         viewBox="0 0 200 110"
-        className="h-auto w-full"
+        className={fit ? 'min-h-0 w-full flex-1' : 'h-auto w-full'}
         role="img"
         aria-label={`Mappa ${skillLabel} di ${teamName(state.teams, side)}: ${view.total} azioni, traiettorie più frequenti ${shown
           .slice(0, 3)
@@ -384,7 +388,7 @@ export function CourtMap({
       </svg>
 
       {teamArrows ? (
-        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted">
+        <p className="mt-2 flex shrink-0 items-center gap-1.5 text-xs text-muted">
           <span
             aria-hidden="true"
             className={`inline-block h-0.5 w-4 rounded-full ${arrowColor === undefined ? (side === 'home' ? 'bg-home' : 'bg-away') : ''}`}
@@ -394,7 +398,7 @@ export function CourtMap({
           zona.
         </p>
       ) : (
-        <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted" aria-label="Colori delle valutazioni">
+        <ul className="mt-2 flex shrink-0 flex-wrap gap-x-3 gap-y-1 text-xs text-muted" aria-label="Colori delle valutazioni">
           {EVAL_ORDER.map((s) => (
             <li key={s} className="inline-flex items-center gap-1">
               <span aria-hidden="true" className={`inline-block h-1 w-4 rounded-full ${evalClass(s).bg}`} />
@@ -404,7 +408,7 @@ export function CourtMap({
         </ul>
       )}
       {view.arrows.length > MAX_ARROWS && (
-        <p className="mt-1 text-xs text-muted">
+        <p className="mt-1 shrink-0 text-xs text-muted">
           Mostrate le {MAX_ARROWS} traiettorie più frequenti su {view.arrows.length}.
         </p>
       )}

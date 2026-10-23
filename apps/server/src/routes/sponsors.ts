@@ -20,7 +20,7 @@ import { validate } from '../lib/validate.js';
 import { requireRole } from '../security.js';
 import { isUniqueViolation } from '../shareCodes.js';
 import { findSponsor, listSponsors } from '../sponsors.js';
-import { adminTenantId, forgetTenants, tenantScope } from '../tenancy.js';
+import { adminTenantId, tenantConfigChanged, tenantScope } from '../tenancy.js';
 import { assetUse, deleteAssetRow, lockClientAssets } from './branding.js';
 
 /** Small JSON bodies only: names, websites and the list of the ids. */
@@ -87,7 +87,7 @@ export function sponsorRoutes(app: FastifyInstance, ctx: AppContext): void {
       throw err;
     }
     // The public pages show name and website of the sponsors chosen.
-    forgetTenants(ctx);
+    tenantConfigChanged(ctx, tenantId);
     const sponsor = await findSponsor(ctx.db, tenantId, id);
     if (!sponsor) throw notFound();
     request.log.info({ tenantId, sponsorId: id, userId: request.user?.id }, 'sponsor modificato');
@@ -110,7 +110,7 @@ export function sponsorRoutes(app: FastifyInstance, ctx: AppContext): void {
           .set({ position })
           .where(tenantScope(sponsors, tenantId, eq(sponsors.id, sponsorId)));
     });
-    forgetTenants(ctx);
+    tenantConfigChanged(ctx, tenantId);
     request.log.info({ tenantId, userId: request.user?.id }, 'ordine degli sponsor cambiato');
     return { sponsors: await listSponsors(ctx.db, tenantId) };
   });

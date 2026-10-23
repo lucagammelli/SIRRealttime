@@ -48,7 +48,14 @@ import { ImageRejected, inspectImage } from '../lib/images.js';
 import { validate } from '../lib/validate.js';
 import { requireRole } from '../security.js';
 import { publicSponsors, requireOwnSponsors, requireSponsorRoom } from '../sponsors.js';
-import { adminTenantId, findTenant, forgetTenants, hostTenant, tenantDisplayName, tenantScope } from '../tenancy.js';
+import {
+  adminTenantId,
+  findTenant,
+  tenantConfigChanged,
+  hostTenant,
+  tenantDisplayName,
+  tenantScope,
+} from '../tenancy.js';
 
 type AssetRow = typeof assets.$inferSelect;
 type Tx = Parameters<Parameters<AppContext['db']['transaction']>[0]>[0];
@@ -327,7 +334,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       if (updated.length === 0) throw notFound();
     });
     // The public pages read the branding through the cache of the hostnames.
-    forgetTenants(ctx);
+    tenantConfigChanged(ctx, tenantId);
     request.log.info({ tenantId, userId: request.user?.id }, 'grafica del cliente salvata');
     return brandingOf(tenantId);
   });
@@ -359,7 +366,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
         .returning({ id: tenants.id });
       if (updated.length === 0) throw notFound();
     });
-    forgetTenants(ctx);
+    tenantConfigChanged(ctx, tenantId);
     request.log.info({ tenantId, userId: request.user?.id }, 'pagina pubblica del cliente salvata');
     return layoutOf(tenantId);
   });
@@ -393,7 +400,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
         .returning({ id: tenants.id });
       if (updated.length === 0) throw notFound();
     });
-    forgetTenants(ctx);
+    tenantConfigChanged(ctx, tenantId);
     request.log.info({ tenantId, userId: request.user?.id }, 'pause della pagina pubblica salvate');
     return intermissionsOf(tenantId);
   });
@@ -421,7 +428,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       .where(eq(tenants.id, tenantId))
       .returning({ id: tenants.id });
     if (updated.length === 0) throw notFound();
-    forgetTenants(ctx);
+    tenantConfigChanged(ctx, tenantId);
     request.log.info({ tenantId, userId: request.user?.id }, 'avvisi della pagina pubblica salvati');
     return overlaysOf(tenantId);
   });

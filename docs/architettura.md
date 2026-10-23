@@ -78,6 +78,8 @@ Messaggi (`messages.ts`):
 - `StateMessageSchema` / `StateMessage` (`type: 'state'`, `matchId`, `version`, `state`),
   `NoMatchMessageSchema` / `NoMatchMessage`, `ScheduledMessageSchema` / `ScheduledMessage` (`type: 'scheduled'`,
   `fixture`: la «Prossima partita» di un link del calendario prima che arrivi il `.dvw`), `ErrorMessageSchema` / `ErrorMessage`,
+  `ConfigMessageSchema` / `ConfigMessage` (`type: 'config'`, senza dati: «la grafica del cliente è cambiata, rileggila»;
+  il server lo manda ai socket del solo cliente, vedi `docs/server.md` e `docs/portale.md`),
   `ServerMessageSchema` / `ServerMessage` (unione discriminata su `type`);
 - `PatchMessageSchema` / `PatchMessage` (`type: 'patch'`, `matchId`, `baseVersion`, `version`, `ops`): le differenze fra
   due stati consecutivi, parte di `ServerMessage`; `ResyncMessageSchema` / `ClientMessageSchema` (client→server:

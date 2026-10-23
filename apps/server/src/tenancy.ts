@@ -133,6 +133,15 @@ export function forgetTenants(ctx: AppContext): void {
 }
 
 /**
+ * The graphics of the client `tenantId` (branding, page, pauses, overlays, sponsors, profile) were saved: empties the
+ * caches (`forgetTenants`) and sends `config` to the open pages of that client only, which read them again at once.
+ */
+export function tenantConfigChanged(ctx: AppContext, tenantId: string): void {
+  forgetTenants(ctx);
+  ctx.hub.notifyConfig(tenantId);
+}
+
+/**
  * The one filter by client of every query on a table with `tenant_id`: `tenant_id = tenantId AND ...conditions`.
  * Rows of other clients are never read, changed or deleted, whatever id the request carries.
  */

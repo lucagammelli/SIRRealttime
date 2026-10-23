@@ -5,6 +5,7 @@ import type {
   LayoutDevice,
   OverlayKind,
   Sponsor,
+  TemplateId,
   TenantBranding,
   TenantIntermissions,
   TenantLayout,
@@ -19,7 +20,9 @@ import {
   OVERLAY_KINDS,
   OverlaysResponseSchema,
   adminAssetPath,
+  defaultLayout,
   SponsorListResponseSchema,
+  TEMPLATES,
 } from '@arenalive/shared';
 import type { MatchState } from '@arenalive/volley-stats';
 import type { ReactNode } from 'react';
@@ -151,6 +154,8 @@ function Studio({
   const [done, setDone] = useState<string | null>(null);
   const [showChanges, setShowChanges] = useState(false);
   const [guard, setGuard] = useState<Guard | null>(null);
+  /** Template just chosen whose blocks differ from the page: «Applicare anche la disposizione dei blocchi…?». */
+  const [askLayout, setAskLayout] = useState<TemplateId | null>(null);
   // The first setup of a new client is the procedure of `onboarding/`; here the button opens the guided setup.
   const [wizard, setWizard] = useState(false);
   const [announce, setAnnounce] = useState('');
@@ -338,6 +343,27 @@ function Studio({
     }
   };
 
+  /**
+   * Another template in «Colori e loghi»: colours and fonts follow it at once; the blocks of «Pagina live» (saved for
+   * every device after the first save) change only if the user says so.
+   */
+  const chooseTemplate = (template: TemplateId): void => {
+    setBranding((p) => ({ ...p, draft: { ...p.draft, template } }));
+    if (template !== branding.draft.template && !sameValue(layout.draft, defaultLayout(template)))
+      setAskLayout(template);
+  };
+
+  // Stable: the dialog focuses its first button only when it opens (the live preview redraws the Studio often).
+  const keepLayout = useCallback(() => setAskLayout(null), []);
+
+  const applyTemplateLayout = (template: TemplateId): void => {
+    setLayout((p) => ({ ...p, draft: defaultLayout(template) }));
+    setAskLayout(null);
+    setAnnounce(
+      `Disposizione dei blocchi del modello «${TEMPLATES[template].label}» applicata a «Pagina live»: salvala per pubblicarla.`,
+    );
+  };
+
   const undo = (s: StudioSection): void => {
     if (s === 'colori') setBranding((p) => pairOf(p.base));
     else if (s === 'pagina') setLayout((p) => pairOf(p.base));
@@ -453,6 +479,7 @@ function Studio({
         sponsors={sponsors}
         tab={colorsTab}
         onTab={setColorsTab}
+        onTemplate={chooseTemplate}
       />
     );
   else if (section === 'pagina')
@@ -740,6 +767,9 @@ function Studio({
           }}
         />
       )}
+      {askLayout && (
+        <TemplateLayoutDialog template={askLayout} onApply={() => applyTemplateLayout(askLayout)} onKeep={keepLayout} />
+      )}
       {wizard && (
         <StudioWizard
           tenantName={tenantName}
@@ -759,6 +789,55 @@ function Studio({
         />
       )}
     </StudioUiContext.Provider>
+  );
+}
+
+/** Question after choosing another template: do the blocks of «Pagina live» become the ones of the template too? */
+function TemplateLayoutDialog({
+  template,
+  onApply,
+  onKeep,
+}: {
+  template: TemplateId;
+  onApply: () => void;
+  onKeep: () => void;
+}) {
+  const titleId = useId();
+  const keep = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    keep.current?.focus();
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onKeep();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onKeep]);
+  return (
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-bg/80 p-4">
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="w-full max-w-md space-y-3 rounded-panel border border-border bg-surface p-5 shadow-card"
+      >
+        <h2 id={titleId} className="text-lg font-semibold text-text">
+          Applicare anche la disposizione dei blocchi del modello?
+        </h2>
+        <p className="text-sm text-text">
+          Colori e caratteri seguono già il modello «{TEMPLATES[template].label}». Se applichi anche la sua
+          disposizione, i blocchi di «{SECTION_LABELS.pagina}» diventano quelli del modello su tutti i dispositivi (le
+          modifiche fatte ai blocchi si perdono); poi salva anche «{SECTION_LABELS.pagina}».
+        </p>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button ref={keep} type="button" className={buttonClass('ghost')} onClick={onKeep}>
+            No, tieni i blocchi attuali
+          </button>
+          <Button variant="primary" onClick={onApply}>
+            Sì, applica i blocchi del modello
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 

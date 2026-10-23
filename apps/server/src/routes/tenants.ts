@@ -19,7 +19,7 @@ import { validate } from '../lib/validate.js';
 import { lockTenantMatches } from '../matchLock.js';
 import { requireRole } from '../security.js';
 import { dropShareLinks, forgetClubCaches } from '../state.js';
-import { findTenant, forgetTenants, lockTenants, tenantRef } from '../tenancy.js';
+import { findTenant, forgetTenants, lockTenants, tenantConfigChanged, tenantRef } from '../tenancy.js';
 import { deliverInvite, issueLink } from '../userLinks.js';
 import { insertTenantUser } from '../users.js';
 
@@ -151,7 +151,8 @@ export function tenantRoutes(app: FastifyInstance, ctx: AppContext): void {
       await ensureFixtureLinks(tx, ctx.config.shareCodeSecret, id, { renewRevoked: true });
       return { row: updated, linksChanged: true, revoked: [] };
     });
-    forgetTenants(ctx);
+    // Name and hostnames are shown by the open pages of the client.
+    tenantConfigChanged(ctx, row.id);
     if (linksChanged) {
       forgetClubCaches(ctx, row.id);
       dropShareLinks(ctx, revoked);

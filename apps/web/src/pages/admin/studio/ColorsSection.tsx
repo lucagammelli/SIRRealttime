@@ -317,6 +317,7 @@ export function ColorsSection({
   sponsors,
   tab,
   onTab,
+  onTemplate,
 }: {
   tenantName: string;
   draft: TenantBranding;
@@ -329,6 +330,8 @@ export function ColorsSection({
   sponsors: readonly Sponsor[];
   tab: ColorsTab;
   onTab: (tab: ColorsTab) => void;
+  /** Choice of another template (the Studio then asks whether the page takes its blocks); missing: only the draft. */
+  onTemplate?: (template: TemplateId) => void;
 }) {
   const errorMessage = useApiError();
   const { isSuperadmin } = useAuth();
@@ -435,7 +438,7 @@ export function ColorsSection({
                   value={draft.template}
                   current={base.template}
                   superadmin={isSuperadmin}
-                  onChange={(t) => onChange((d) => ({ ...d, template: t }))}
+                  onChange={(t) => (onTemplate ? onTemplate(t) : onChange((d) => ({ ...d, template: t })))}
                 />
               </Setting>
               <div className="pt-2">

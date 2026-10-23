@@ -1,0 +1,1 @@
+ALTER TABLE "matches" ADD COLUMN "finished_at" timestamp with time zone;

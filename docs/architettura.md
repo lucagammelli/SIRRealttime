@@ -170,7 +170,9 @@ se mancante, quindi `version` resta 1): solo gli sponsor scelti da pagina e paus
 coerenza (nessuno sponsor scelto mancante o in più, nessuna immagine di due sponsor); `remapGraphicsSponsorIds` riscrive gli
 id all'importazione; `GraphicsImportResponseSchema` ha anche `sponsors` (numero).
 
-Immagini (`assets.ts`): `AssetKindSchema` (`logo` | `sponsor`), `AssetMimeSchema`, `ASSET_MAX_BYTES` (2 MB),
+Immagini e video (`assets.ts`): `AssetKindSchema` (`logo` | `sponsor` | `overlay`, quest'ultimo per gli sfondi degli avvisi),
+`AssetMimeSchema`, `VideoMimeSchema` (`video/mp4`, `video/webm`), `AssetFileMimeSchema` (immagini e video), `isVideoMime`,
+`VIDEO_MAX_BYTES` (15 MB), `VIDEO_UPLOAD_PATH` (`/api/admin/assets/video`, corpo binario), `ASSET_MAX_BYTES` (2 MB),
 `ASSET_MAX_BASE64_LENGTH`, `UploadAssetRequestSchema` (`kind`, `data` in base64 e `sponsorId` facoltativo, solo per
 `sponsor`), `UpdateAssetRequestSchema` (`PATCH /api/admin/assets/:id`: `{ sponsorId }` o `null`), `AssetSummarySchema`
 (con `sponsorId`), `AssetListResponseSchema`.
@@ -311,7 +313,11 @@ POINT {squadra}», «MATCH POINT {squadra}», «{squadra} vince il {set}° set {
 Time-out spento (la pausa lo mostra già); cambio e scambio lungo non sul telefono. Posizione e dimensione: il documento ha
 `position` (`OVERLAY_POSITIONS`: `top`, `center`, `bottom`; predefinito `OVERLAY_DEFAULT_POSITION` `top`) e `size`
 (`OVERLAY_SIZES`: `small`, `medium`, `large`; predefinita `medium`) generali; ogni avviso può avere `position` e `size`
-propri (facoltativi) e `overlayPlacement(config, overlay)` dà i valori in uso. Un documento salvato prima resta valido. `OverlaysResponseSchema`
+propri (facoltativi) e `overlayPlacement(config, overlay)` dà i valori in uso. Sfondo: ogni avviso può avere `background`
+(`OverlayBackgroundSchema`: `{ kind: 'image' | 'video', assetId }`, `OVERLAY_BACKGROUND_KINDS`; l'asset è di `kind` `overlay`,
+il server verifica proprietà e tipo); funzioni pure `overlayBackgrounds(config)` (gli sfondi in uso) e
+`withoutOverlayBackgrounds(config)` (copia senza sfondi, usata da esportazione e importazione della grafica: i pacchetti non
+portano video). Un documento salvato prima resta valido. `OverlaysResponseSchema`
 (`GET`/`PUT /api/admin/overlays`); `PublicTenantResponseSchema` contiene anche `overlays`. `TENANT_CONFIG_VERSION` resta 1.
 Server in `docs/server.md` («Avvisi sugli eventi»), portale ed editor in `docs/portale.md`.
 

@@ -530,6 +530,8 @@ function Studio({
         tab={overlaysTab}
         onTab={setOverlaysTab}
         state={previewMatch}
+        assets={assets}
+        onAssetsChanged={onAssetsChanged}
         onTry={(k) => {
           setOverlayKind(k);
           setScene('overlay');

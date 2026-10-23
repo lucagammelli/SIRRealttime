@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import type {
+  AssetFileMime,
   AssetKind,
   AssetListResponse,
-  AssetMime,
   AssetSummary,
   BrandingImageSlot,
   BrandingResponse,
@@ -16,7 +16,11 @@ import {
   ASSET_MAX_BASE64_LENGTH,
   ASSET_MAX_BYTES,
   adminAssetPath,
-  AssetMimeSchema,
+  AssetFileMimeSchema,
+  isVideoMime,
+  overlayBackgrounds,
+  VIDEO_MAX_BYTES,
+  VIDEO_UPLOAD_PATH,
   BRANDING_IMAGE_SLOTS,
   IdParamSchema,
   intermissionImageIds,
@@ -46,7 +50,8 @@ import { assets, clientFixtures, tenants } from '../db/index.js';
 import { badRequest, conflict, forbidden, HttpError, notFound } from '../lib/errors.js';
 import { ImageRejected, inspectImage } from '../lib/images.js';
 import { validate } from '../lib/validate.js';
-import { requireRole } from '../security.js';
+import { inspectVideo, VideoRejected } from '../lib/videos.js';
+import { BINARY_BODY, checkRole, requireBinaryBody, requireRole } from '../security.js';
 import { publicSponsors, requireOwnSponsors, requireSponsorRoom } from '../sponsors.js';
 import {
   adminTenantId,
@@ -79,11 +84,14 @@ export const SVG_CSP = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
 const RawDataSchema = z.object({ data: z.string() });
 const tooLarge = (): HttpError => new HttpError(413, 'TOO_LARGE', 'Immagine troppo grande (massimo 2 MB)');
 const imageRejected = (message: string): HttpError => new HttpError(422, 'IMAGE_REJECTED', message);
+const videoTooLarge = (): HttpError =>
+  new HttpError(413, 'TOO_LARGE', `Video troppo grande (massimo ${VIDEO_MAX_BYTES / (1024 * 1024)} MB)`);
+const videoRejected = (message: string): HttpError => new HttpError(422, 'VIDEO_REJECTED', message);
 
 export const assetSummary = (a: AssetRow): AssetSummary => ({
   id: a.id,
   kind: a.kind,
-  mime: AssetMimeSchema.parse(a.mime),
+  mime: AssetFileMimeSchema.parse(a.mime),
   width: a.width,
   height: a.height,
   bytes: a.bytes,
@@ -115,7 +123,7 @@ export async function storeAsset(
   tenantId: string,
   kind: AssetKind,
   data: Buffer,
-  info: { mime: AssetMime; width: number; height: number },
+  info: { mime: AssetFileMime; width: number; height: number },
 ): Promise<{ row: AssetRow; created: boolean }> {
   const sha256 = createHash('sha256').update(data).digest('hex');
   const [existing] = await tx
@@ -126,7 +134,7 @@ export async function storeAsset(
   if (existing) return { row: existing, created: false };
   if ((await usedBytes(tx, tenantId)) + data.length > ctx.config.assetsQuotaBytes) {
     const mb = Math.round(ctx.config.assetsQuotaBytes / (1024 * 1024));
-    throw conflict(`Spazio per le immagini esaurito (${mb} MB): elimina quelle che non usi`);
+    throw conflict(`Spazio per i file esaurito (${mb} MB): elimina quelli che non usi`);
   }
   await writeAssetFile(ctx.config.assetsDir, tenantId, sha256, data);
   const [inserted] = await tx
@@ -139,14 +147,35 @@ export async function storeAsset(
 
 const SLOTS = Object.keys(BRANDING_IMAGE_SLOTS) as BrandingImageSlot[];
 
-/** Under the lock of the client: every image of `ids` is of this client (400 otherwise). */
+/** Under the lock of the client: every image of `ids` is an image (not a video) of this client (400 otherwise). */
 async function requireOwnImages(tx: Tx, tenantId: string, ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   const rows = await tx
-    .select({ id: assets.id })
+    .select({ id: assets.id, mime: assets.mime })
     .from(assets)
     .where(tenantScope(assets, tenantId, inArray(assets.id, ids)));
-  if (rows.length !== ids.length) throw badRequest('Richiesta non valida: immagine non trovata');
+  if (rows.length !== ids.length || rows.some((r) => isVideoMime(r.mime)))
+    throw badRequest('Richiesta non valida: immagine non trovata');
+}
+
+/**
+ * Under the lock of the client: every background of the overlays is a file of this client uploaded for the overlays
+ * (kind `overlay`), an image for `image` and a video for `video` (400 otherwise).
+ */
+async function requireOwnBackgrounds(tx: Tx, tenantId: string, list: { kind: string; assetId: string }[]) {
+  if (list.length === 0) return;
+  const ids = [...new Set(list.map((b) => b.assetId))];
+  const rows = await tx
+    .select({ id: assets.id, kind: assets.kind, mime: assets.mime })
+    .from(assets)
+    .where(tenantScope(assets, tenantId, inArray(assets.id, ids)));
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  for (const background of list) {
+    const row = byId.get(background.assetId);
+    if (!row || row.kind !== 'overlay') throw badRequest('Richiesta non valida: sfondo dell’avviso non trovato');
+    if (isVideoMime(row.mime) !== (background.kind === 'video'))
+      throw badRequest('Richiesta non valida: il tipo dello sfondo non corrisponde al file');
+  }
 }
 
 /**
@@ -172,7 +201,12 @@ async function giveToSponsor(tx: Tx, tenantId: string, row: AssetRow, sponsorId:
  */
 export async function assetUse(tx: Tx, tenantId: string, id: string): Promise<string | null> {
   const [tenant] = await tx
-    .select({ branding: tenants.branding, layout: tenants.layout, intermissions: tenants.intermissions })
+    .select({
+      branding: tenants.branding,
+      layout: tenants.layout,
+      intermissions: tenants.intermissions,
+      overlays: tenants.overlays,
+    })
     .from(tenants)
     .where(eq(tenants.id, tenantId));
   if (brandingIds(resolveBranding(tenant?.branding)).includes(id))
@@ -181,6 +215,8 @@ export async function assetUse(tx: Tx, tenantId: string, id: string): Promise<st
     return 'Immagine in uso nella pagina pubblica: toglila dal blocco sponsor prima di eliminarla';
   if (intermissionImageIds(resolveIntermissions(tenant?.intermissions)).includes(id))
     return 'Immagine in uso nelle pause: toglila dalla diapositiva sponsor prima di eliminarla';
+  if (overlayBackgrounds(resolveOverlays(tenant?.overlays)).some((b) => b.assetId === id))
+    return 'File in uso come sfondo di un avviso: toglilo dall’avviso prima di eliminarlo';
   const [fixture] = await tx
     .select({ id: clientFixtures.id })
     .from(clientFixtures)
@@ -228,7 +264,7 @@ async function sendAsset(
     .from(assets)
     .where(tenantScope(assets, tenantId, eq(assets.id, id)))
     .limit(1);
-  const mime = row ? AssetMimeSchema.safeParse(row.mime) : null;
+  const mime = row ? AssetFileMimeSchema.safeParse(row.mime) : null;
   if (!row || !mime?.success) throw notFound();
   const file = await readAssetFile(ctx.config.assetsDir, row.tenantId, row.sha256);
   if (!file) {
@@ -240,9 +276,42 @@ async function sendAsset(
     .header('content-type', mime.data === 'image/svg+xml' ? 'image/svg+xml; charset=utf-8' : mime.data)
     .header('x-content-type-options', 'nosniff')
     .header('content-disposition', 'inline')
-    .header('cache-control', cache);
+    .header('cache-control', cache)
+    .header('accept-ranges', 'bytes');
   if (mime.data === 'image/svg+xml') void reply.header('content-security-policy', SVG_CSP);
+  // A part of the file (Safari asks the videos this way, a byte range at a time).
+  const range = byteRange(request.headers.range, file.length);
+  if (range === 'invalid') return reply.code(416).header('content-range', `bytes */${file.length}`).send();
+  if (range)
+    return reply
+      .code(206)
+      .header('content-range', `bytes ${range.start}-${range.end}/${file.length}`)
+      .send(file.subarray(range.start, range.end + 1));
   return reply.send(file);
+}
+
+/**
+ * Pure: the one byte range of a `Range` header (`bytes=a-b`, `bytes=a-`, `bytes=-n`) within a file of `length` bytes,
+ * ends included; null without a header or with one not understood (the whole file is sent), `invalid` when it does
+ * not fit the file (416).
+ */
+export function byteRange(
+  header: string | undefined,
+  length: number,
+): { start: number; end: number } | null | 'invalid' {
+  if (header === undefined) return null;
+  const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!match || (match[1] === '' && match[2] === '')) return null;
+  const [, from = '', to = ''] = match;
+  if (from === '') {
+    const suffix = Number(to);
+    if (suffix === 0 || length === 0) return 'invalid';
+    return { start: Math.max(0, length - suffix), end: length - 1 };
+  }
+  const start = Number(from);
+  const end = to === '' ? length - 1 : Math.min(Number(to), length - 1);
+  if (start >= length || end < start) return 'invalid';
+  return { start, end };
 }
 
 /**
@@ -417,17 +486,22 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
 
   /**
    * Replaces the overlays of the events of the match (closed list of events and placeholders, durations, devices and
-   * priorities checked by the shared schema). No images: no check of the assets.
+   * priorities checked by the shared schema); every background is a file of this client for the overlays, of the
+   * kind declared (image or video).
    */
   app.put('/api/admin/overlays', admin, async (request): Promise<OverlaysResponse> => {
     const tenantId = adminTenantId(request);
     const overlays = validate(TenantOverlaysSchema, request.body);
-    const updated = await ctx.db
-      .update(tenants)
-      .set({ overlays })
-      .where(eq(tenants.id, tenantId))
-      .returning({ id: tenants.id });
-    if (updated.length === 0) throw notFound();
+    await ctx.db.transaction(async (tx) => {
+      await lockClientAssets(tx, tenantId);
+      await requireOwnBackgrounds(tx, tenantId, overlayBackgrounds(overlays));
+      const updated = await tx
+        .update(tenants)
+        .set({ overlays })
+        .where(eq(tenants.id, tenantId))
+        .returning({ id: tenants.id });
+      if (updated.length === 0) throw notFound();
+    });
     tenantConfigChanged(ctx, tenantId);
     request.log.info({ tenantId, userId: request.user?.id }, 'avvisi della pagina pubblica salvati');
     return overlaysOf(tenantId);
@@ -496,6 +570,55 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
         return { ...stored, row: await giveToSponsor(tx, tenantId, stored.row, sponsorId) };
       });
       if (created) request.log.info({ assetId: row.id, mime: row.mime, bytes: row.bytes }, 'immagine caricata');
+      void reply.code(created ? 201 : 200);
+      return assetSummary(row);
+    },
+  );
+
+  // The body of the upload of a video: its bytes as they are (only the route with BINARY_BODY accepts this type).
+  app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer' }, (_request, body, done) =>
+    done(null, body),
+  );
+  const adminBeforeBody = checkRole(ctx, 'admin');
+
+  /**
+   * Upload of a video for the backgrounds of the overlays: the bytes of the file as the body
+   * (`application/octet-stream`), type recognized from the bytes (MP4 with an ISO brand or WebM, anything else 422),
+   * at most VIDEO_MAX_BYTES (413, checked before reading when the length is declared), within the quota of the client
+   * (409). Session and role are checked before the body is read. Same file again: the video already stored (200).
+   */
+  app.post(
+    VIDEO_UPLOAD_PATH,
+    {
+      config: { ...admin.config, ...BINARY_BODY },
+      bodyLimit: VIDEO_MAX_BYTES,
+      preParsing: async (request, _reply, payload) => {
+        await adminBeforeBody(request);
+        requireBinaryBody(request);
+        if (Number(request.headers['content-length']) > VIDEO_MAX_BYTES) throw videoTooLarge();
+        return payload;
+      },
+    },
+    async (request, reply): Promise<AssetSummary> => {
+      const tenantId = adminTenantId(request);
+      const data = request.body;
+      if (!Buffer.isBuffer(data) || data.length === 0) throw badRequest('Richiesta non valida: nessun file');
+      if (data.length > VIDEO_MAX_BYTES) throw videoTooLarge();
+      let info;
+      try {
+        info = inspectVideo(data);
+      } catch (err) {
+        if (err instanceof VideoRejected) {
+          request.log.info({ reason: err.message }, 'video rifiutato');
+          throw videoRejected(err.message);
+        }
+        throw err;
+      }
+      const { row, created } = await ctx.db.transaction(async (tx) => {
+        await lockClientAssets(tx, tenantId);
+        return storeAsset(ctx, tx, tenantId, 'overlay', data, info);
+      });
+      if (created) request.log.info({ assetId: row.id, mime: row.mime, bytes: row.bytes }, 'video caricato');
       void reply.code(created ? 201 : 200);
       return assetSummary(row);
     },

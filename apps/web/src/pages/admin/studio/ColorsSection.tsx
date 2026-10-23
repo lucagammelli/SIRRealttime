@@ -16,6 +16,7 @@ import {
   brandContrastIssues,
   defaultBranding,
   HEX_COLOR_PATTERN,
+  isVideoMime,
   MIN_TEXT_CONTRAST,
   OUR_TEAM_CODE_MAX,
   OUR_TEAM_NAME_MAX,
@@ -530,13 +531,27 @@ export function ColorsSection({
               <ul className="divide-y divide-grid">
                 {assets.assets.map((a) => (
                   <li key={a.id} className="flex flex-wrap items-center gap-3 py-2">
-                    <img src={a.url} alt="" className="size-10 rounded object-contain" />
+                    {isVideoMime(a.mime) ? (
+                      <video
+                        src={a.url}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="size-10 rounded object-cover"
+                      />
+                    ) : (
+                      <img src={a.url} alt="" className="size-10 rounded object-contain" />
+                    )}
                     <span className="min-w-0 flex-1 text-sm text-text">
                       {a.kind === 'logo'
                         ? 'Logo'
-                        : a.sponsorId && sponsorName.has(a.sponsorId)
-                          ? `Sponsor: ${sponsorName.get(a.sponsorId) ?? ''}`
-                          : 'Sponsor (senza sponsor)'}{' '}
+                        : a.kind === 'overlay'
+                          ? isVideoMime(a.mime)
+                            ? 'Video dello sfondo di un avviso'
+                            : 'Sfondo di un avviso'
+                          : a.sponsorId && sponsorName.has(a.sponsorId)
+                            ? `Sponsor: ${sponsorName.get(a.sponsorId) ?? ''}`
+                            : 'Sponsor (senza sponsor)'}{' '}
                       · {a.width}×{a.height} px · {megabytes(a.bytes)} MB
                       {usedIds.has(a.id) && <span className="text-muted"> · in uso</span>}
                     </span>

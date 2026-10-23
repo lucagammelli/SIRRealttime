@@ -127,6 +127,13 @@
       "when": 1792520965765,
       "tag": "0017_loghi_sistema_varianti",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792768276991,
+      "tag": "0018_sfondi_avvisi",
+      "breakpoints": true
     }
   ]
 }

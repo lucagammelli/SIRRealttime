@@ -1,6 +1,7 @@
 import type { MatchEventKind } from '@arenalive/volley-stats';
 import { MATCH_EVENT_KINDS, MATCH_EVENT_PRIORITY } from '@arenalive/volley-stats';
 import { z } from 'zod';
+import { AssetIdSchema } from './assets.js';
 import { TENANT_CONFIG_VERSION } from './configVersion.js';
 import type { LayoutDevice } from './layout.js';
 import { plainText } from './strings.js';
@@ -88,6 +89,20 @@ export function fillOverlayText(template: string, values: Partial<Record<Overlay
     .trim();
 }
 
+/** Kinds of background of an overlay: an image or a video of the client (asset of kind `overlay`). */
+export const OVERLAY_BACKGROUND_KINDS = ['image', 'video'] as const;
+export type OverlayBackgroundKind = (typeof OVERLAY_BACKGROUND_KINDS)[number];
+
+/**
+ * Background of an overlay, shown behind its text: an uploaded image or video of the client (the server checks that
+ * the asset is of the client and that its type is the one of `kind`).
+ */
+export const OverlayBackgroundSchema = z.strictObject({
+  kind: z.enum(OVERLAY_BACKGROUND_KINDS),
+  assetId: AssetIdSchema,
+});
+export type OverlayBackground = z.infer<typeof OverlayBackgroundSchema>;
+
 interface OverlayDefaults {
   enabled: boolean;
   text: string;
@@ -137,6 +152,8 @@ const overlaySchema = (kind: OverlayKind) => {
     /** Own position / size of this overlay; missing: the general setting of the document. */
     position: z.enum(OVERLAY_POSITIONS).optional(),
     size: z.enum(OVERLAY_SIZES).optional(),
+    /** Image or video behind the text; missing: only the text (the documents saved before stay valid). */
+    background: OverlayBackgroundSchema.optional(),
   });
 };
 export type Overlay = z.output<ReturnType<typeof overlaySchema>>;
@@ -166,6 +183,21 @@ export function overlayPlacement(
     position: overlay.position ?? config.position ?? OVERLAY_DEFAULT_POSITION,
     size: overlay.size ?? config.size ?? OVERLAY_DEFAULT_SIZE,
   };
+}
+
+/** Pure: the backgrounds of the overlays of a document, in the order of OVERLAY_KINDS (an asset may repeat). */
+export function overlayBackgrounds(config: TenantOverlays): OverlayBackground[] {
+  return OVERLAY_KINDS.flatMap((kind) => {
+    const background = config[kind].background;
+    return background ? [background] : [];
+  });
+}
+
+/** Pure: copy of a document without the backgrounds (packages of the graphics carry no videos). */
+export function withoutOverlayBackgrounds(config: TenantOverlays): TenantOverlays {
+  const out = structuredClone(config);
+  for (const kind of OVERLAY_KINDS) delete out[kind].background;
+  return out;
 }
 
 /** Pure: the default overlays. */

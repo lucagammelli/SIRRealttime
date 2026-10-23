@@ -100,7 +100,11 @@ binario della piattaforma come dipendenza opzionale.
 - Volumi: `pgdata` (database) e `assets` (immagini dei clienti, montato su `/data/assets` nel servizio `server`, con
   `ASSETS_DIR=/data/assets` e `ASSETS_QUOTA_MB`, default 50). Le immagini non stanno nel database: il backup copia anche
   il volume `assets`. nginx accetta corpi fino a 3 MB (`client_max_body_size 3m`) per il caricamento di un'immagine
-  (`POST /api/admin/assets`, 2 MB in base64) e comprime anche `image/svg+xml`.
+  (`POST /api/admin/assets`, 2 MB in base64) e comprime anche `image/svg+xml`. Solo la `location = /api/admin/assets/video`
+  (caricamento di un video per gli sfondi degli avvisi, corpo binario fino a 15 MB) ha `client_max_body_size 16m` e
+  `proxy_read_timeout 120s`; il server ricontrolla dimensione, sessione e ruolo. La CSP di `docker/web.security-headers.conf`
+  ammette `blob:` in `img-src` e `media-src` (gli sfondi sono letti in memoria dalla pagina live). La migrazione
+  `0018_sfondi_avvisi.sql` aggiunge `overlay` all'enum `asset_kind` e **non è reversibile**.
 - `docker/server.Dockerfile`: build multi-stage con Node 24 slim. Lo stadio `build` esegue
   `pnpm install --frozen-lockfile`, `pnpm --filter "@arenalive/server..." build` e `pnpm --filter @arenalive/server deploy --prod /out`;
   lo stadio `runtime` copia `/out`, crea `/data/assets` di proprietà di `node` (il volume nuovo la eredita), gira come utente `node` ed esegue `node dist/main.js` con un healthcheck su

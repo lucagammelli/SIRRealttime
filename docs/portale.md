@@ -321,7 +321,10 @@ avvisi» e «Posizione e dimensione». «Quali avvisi» (scheda «Eventi») elen
 set, Set point, Ace, Muro punto, Sorpasso, Pareggio, Break, Time-out, Scambio lungo, Cambio), ognuno con interruttore e
 pulsante «Modifica» («In modifica» sull'avviso aperto). L'avviso aperto mostra: «Testo» (il risultato con i dati
 d'esempio compare sotto, «Risultato: …», oppure il problema: vuoto, oltre 80 caratteri, segnaposto sconosciuto, `<` o
-`>`), i «Segnaposto» ammessi (`{giocatore}`, `{numero}`, `{squadra}`, `{punteggio}`, `{set}`, `{serie}`, `{attacchi}`),
+`>`), «Sfondo» (`BackgroundSetting`: «Nessuno» / «Immagine» / «Video»; un menu con i file già caricati per gli avvisi e i pulsanti
+«Carica immagine» (PNG, JPEG, WebP o SVG, 2 MB) e «Carica video» (MP4 o WebM, 15 MB, controllati prima dell'invio con
+`videoProblem`; `uploadVideo` in `pages/admin/imageUpload.ts` manda il file come corpo binario), con l'anteprima del file
+scelto; cambiando tipo lo sfondo scelto si toglie), i «Segnaposto» ammessi (`{giocatore}`, `{numero}`, `{squadra}`, `{punteggio}`, `{set}`, `{serie}`, `{attacchi}`),
 «Secondi» (2-8), i dispositivi (TV, tablet, telefono), «Posizione» e «Dimensione» (In alto / Al centro / In basso;
 Piccolo / Medio / Grande; oppure «Come tutti gli avvisi»), «Prova» (lo mostra nell'anteprima con le modifiche non salvate,
 per i suoi secondi, con l'animazione; la scena passa ad «Avviso»), e in «Avanzate» «Priorità» (1-10) e «Ripristina
@@ -1091,6 +1094,15 @@ configurazione del cliente da `overlays` di `GET /api/public/tenant` (`docs/arch
   il cui avviso è acceso e ammesso sul dispositivo; testo da `overlayText` (`fillOverlayText` di `@arenalive/shared`), sempre testo
   semplice, mai HTML. Il riquadro ha il colore della squadra dell'evento (neutro senza squadra), cade dall'alto con
   l'animazione `.sir-overlay` (450 ms, spenta con `prefers-reduced-motion`) e resta per i secondi scelti.
+- **Sfondo immagine o video** (`lib/overlayMedia.ts`, `useOverlayMedia`, usato da `Overlay`): all'apertura della pagina
+  i file degli sfondi sono scaricati in memoria come blob (`URL.createObjectURL`, da `GET /api/public/assets/:id`), così il
+  video parte subito; si precaricano solo gli sfondi degli avvisi **accesi e ammessi sul dispositivo** (`wantedBackgrounds`),
+  ogni file una volta, e gli URL sono rilasciati quando lo sfondo non serve più o la pagina si chiude. **Sul telefono e con
+  meno animazioni (`prefers-reduced-motion`) i video non si scaricano né si mostrano** (restano le immagini sul telefono): è
+  una scelta per dati e memoria della rete mobile. Con uno sfondo il riquadro (`OverlayBanner`, `data-background`) è 16:9
+  (`aspect-video`, larghezza per dispositivo), con l'immagine o il video (muto, `playsInline`, in ciclo) coperti da una velatura
+  del colore della squadra al 65 %, e il testo sopra. **Se il media non è ancora pronto (o non si è potuto leggere) l'avviso
+  esce con il solo testo**, come senza sfondo. La CSP ammette `blob:` (vedi «CSP rigida»).
 - **Posizione e dimensione** (`position`: `top`, `center`, `bottom`, predefinito `top`; `size`: `small`, `medium`,
   `large`, predefinita `medium`; `overlayPlacement` di `@arenalive/shared`): impostazioni generali del documento e override
   facoltativo per ogni avviso. In alto al 12 % dal bordo, al centro, in basso al 14 % sopra la banda delle pause; tre
@@ -1130,7 +1142,8 @@ inline. Ogni testo che vi entra (nomi di squadre e giocatori) passa da `richSafe
 
 ### CSP rigida
 `docker/web.security-headers.conf` imposta `Content-Security-Policy` **senza `unsafe-inline` e senza `unsafe-eval`**
-(`script-src 'self'; style-src 'self'; worker-src 'self'`, il service worker minimo di «App installabile e schermo intero»), più `X-Content-Type-Options`, `Referrer-Policy: no-referrer` (il token è
+(`script-src 'self'; style-src 'self'; worker-src 'self'`, il service worker minimo di «App installabile e schermo intero»;
+`img-src 'self' data: blob:` e `media-src 'self' blob:`, perché gli sfondi degli avvisi sono letti in memoria: «Avvisi sugli eventi»), più `X-Content-Type-Options`, `Referrer-Policy: no-referrer` (il token è
 nell'URL), `X-Frame-Options: DENY`, `Cross-Origin-Opener-Policy` e `Permissions-Policy`. Per rispettarla:
 - zod gira in modalità `jitless` (`z.config({ jitless: true })` in `src/main.tsx`), perché la modalità normale prova
   `new Function`, che sarebbe una violazione `unsafe-eval`;

@@ -113,8 +113,10 @@ paths:
           required: true
           schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
       responses:
-        '200': { description: file dell'immagine (PNG, JPEG, WebP o SVG) }
+        '200': { description: "file dell'immagine (PNG, JPEG, WebP o SVG) o del video (MP4, WebM)" }
+        '206': { description: "una parte del file (intestazione Range bytes=a-b)" }
         '404': { description: immagine inesistente o di un altro cliente }
+        '416': { description: intervallo Range fuori dal file }
   /api/public/team-logos/{id}:
     get:
       parameters:
@@ -532,7 +534,7 @@ paths:
                 matchEnd: { $ref: '#/components/schemas/Overlay' }
       responses:
         '200': { description: avvisi salvati }
-        '400': { description: 'evento o segnaposto sconosciuto, HTML nel testo, durata o priorità fuori dai limiti' }
+        '400': { description: 'evento o segnaposto sconosciuto, HTML nel testo, durata o priorità fuori dai limiti, sfondo non del cliente o di tipo diverso' }
   /api/admin/assets:
     get:
       responses:
@@ -546,7 +548,7 @@ paths:
               type: object
               required: [kind, data]
               properties:
-                kind: { type: string, enum: [logo, sponsor], example: logo }
+                kind: { type: string, enum: [logo, sponsor, overlay], example: logo }
                 data:
                   type: string
                   format: byte
@@ -559,6 +561,25 @@ paths:
         '409': { description: spazio del cliente esaurito }
         '413': { description: immagine oltre 2 MB }
         '422': { description: non è un'immagine ammessa (PNG, JPEG, WebP, SVG senza script) }
+  /api/admin/assets/video:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+              description: byte del video MP4 o WebM (al massimo 15 MB), sfondo degli avvisi
+      responses:
+        '201': { description: video caricato }
+        '200': { description: video già presente }
+        '401': { description: senza sessione }
+        '403': { description: ruolo non admin o origine non ammessa }
+        '409': { description: spazio del cliente esaurito }
+        '413': { description: video oltre 15 MB }
+        '415': { description: corpo non application/octet-stream }
+        '422': { description: non è un video MP4 o WebM }
   /api/admin/assets/{id}:
     patch:
       parameters:
@@ -1176,6 +1197,14 @@ components:
             tablet: { type: boolean, example: true }
             phone: { type: boolean, example: true }
         priority: { type: integer, minimum: 1, maximum: 10, example: 6 }
+        background:
+          type: object
+          description: "sfondo dietro al testo: immagine o video del cliente caricato per gli avvisi (facoltativo)"
+          additionalProperties: false
+          required: [kind, assetId]
+          properties:
+            kind: { type: string, enum: [image, video], example: image }
+            assetId: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
   securitySchemes:
     agentToken:
       type: http

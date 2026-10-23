@@ -1,6 +1,18 @@
-import type { Overlay, OverlayKind, OverlayPosition, OverlaySize, TenantOverlays } from '@arenalive/shared';
+import type {
+  AssetListResponse,
+  AssetSummary,
+  Overlay,
+  OverlayBackgroundKind,
+  OverlayKind,
+  OverlayPosition,
+  OverlaySize,
+  TenantOverlays,
+} from '@arenalive/shared';
 import {
+  adminAssetPath,
+  ASSET_MAX_BYTES,
   defaultOverlay,
+  isVideoMime,
   LAYOUT_DEVICES,
   OVERLAY_KINDS,
   OVERLAY_MAX_PRIORITY,
@@ -16,8 +28,11 @@ import {
 import type { MatchState } from '@arenalive/volley-stats';
 import { useId, useState } from 'react';
 import { Button } from '../../../components/ui.tsx';
+import { megabytes } from '../../../lib/format.ts';
 import { overlayText, sampleEvent } from '../../../lib/overlay.ts';
+import { useApiError } from '../auth.tsx';
 import { inputClass } from '../forms.tsx';
+import { ACCEPT, ACCEPT_VIDEO, IMAGE_TOO_LARGE, uploadImage, uploadVideo, videoProblem } from '../imageUpload.ts';
 import { selectClass } from './blockEditors.tsx';
 import type { StudioModel } from './model.ts';
 import {
@@ -71,6 +86,156 @@ export function textProblem(text: string): string | null {
   return issue ? `Testo non valido: ${issue.message}.` : 'Testo non valido.';
 }
 
+/** Choice of the background of an overlay: none, an image or a video. */
+type BackgroundMode = 'none' | OverlayBackgroundKind;
+const BACKGROUND_LABELS: Record<BackgroundMode, string> = { none: 'Nessuno', image: 'Immagine', video: 'Video' };
+
+/** The overlay without background. */
+export function withoutBackground(overlay: Overlay): Overlay {
+  const { background: _old, ...rest } = overlay;
+  return rest;
+}
+
+/** Pure: the files of the client for the backgrounds of `mode` (images or videos uploaded for the overlays). */
+export function backgroundFiles(assets: readonly AssetSummary[], mode: OverlayBackgroundKind): AssetSummary[] {
+  return assets.filter((a) => a.kind === 'overlay' && isVideoMime(a.mime) === (mode === 'video'));
+}
+
+/**
+ * «Sfondo»: none, an image or a video behind the text, chosen among the files uploaded for the overlays or uploaded
+ * here (an image as the logos, a video MP4 or WebM up to 15 MB: type and size checked before sending).
+ */
+function BackgroundSetting({
+  label,
+  overlay,
+  assets,
+  onChange,
+  onAssetsChanged,
+}: {
+  label: string;
+  overlay: Overlay;
+  assets: AssetListResponse;
+  onChange: (overlay: Overlay) => void;
+  onAssetsChanged: () => void;
+}) {
+  const errorMessage = useApiError();
+  const [mode, setMode] = useState<BackgroundMode>(overlay.background?.kind ?? 'none');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const name = useId();
+  const files = mode === 'none' ? [] : backgroundFiles(assets.assets, mode);
+  const chosen = overlay.background && overlay.background.kind === mode ? overlay.background.assetId : '';
+  const choose = (next: BackgroundMode): void => {
+    setMode(next);
+    setError(null);
+    if (overlay.background && overlay.background.kind !== next) onChange(withoutBackground(overlay));
+  };
+  const upload = async (file: File): Promise<void> => {
+    if (mode === 'none') return;
+    const problem = mode === 'video' ? videoProblem(file) : file.size > ASSET_MAX_BYTES ? IMAGE_TOO_LARGE : null;
+    setError(problem);
+    if (problem) return;
+    setBusy(true);
+    try {
+      const asset = mode === 'video' ? await uploadVideo(file) : await uploadImage(file, 'overlay');
+      if (asset) onChange({ ...overlay, background: { kind: mode, assetId: asset.id } });
+      onAssetsChanged();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="space-y-2 text-sm text-text">
+      <fieldset className="flex flex-wrap items-center gap-3">
+        <legend className="pb-1">Sfondo</legend>
+        {(['none', 'image', 'video'] as const).map((m) => (
+          <label key={m} className="flex items-center gap-1.5">
+            <input type="radio" name={name} checked={mode === m} onChange={() => choose(m)} />
+            {BACKGROUND_LABELS[m]}
+          </label>
+        ))}
+      </fieldset>
+      {mode !== 'none' && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              className={selectClass}
+              aria-label={`${mode === 'video' ? 'Video' : 'Immagine'} dello sfondo: ${label}`}
+              value={chosen}
+              onChange={(e) =>
+                onChange(
+                  e.target.value
+                    ? { ...overlay, background: { kind: mode, assetId: e.target.value } }
+                    : withoutBackground(overlay),
+                )
+              }
+            >
+              <option value="">{files.length === 0 ? 'Nessun file caricato' : 'Scegli…'}</option>
+              {files.map((a, i) => (
+                <option key={a.id} value={a.id}>
+                  {`${mode === 'video' ? 'Video' : 'Immagine'} ${i + 1} · ${a.width}×${a.height} px · ${megabytes(a.bytes)} MB`}
+                </option>
+              ))}
+            </select>
+            <label className="inline-flex min-h-9 cursor-pointer items-center rounded-card border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text hover:bg-surface-2">
+              {busy ? 'Caricamento…' : mode === 'video' ? 'Carica video' : 'Carica immagine'}
+              <input
+                type="file"
+                accept={mode === 'video' ? ACCEPT_VIDEO : ACCEPT}
+                className="sr-only"
+                disabled={busy}
+                aria-label={`${mode === 'video' ? 'Carica video' : 'Carica immagine'} per lo sfondo: ${label}`}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (file) void upload(file);
+                }}
+              />
+            </label>
+          </div>
+          {busy && (
+            <p role="status" className="text-xs text-muted">
+              Caricamento del file in corso…
+            </p>
+          )}
+          {error && (
+            <p role="alert" className="text-xs text-danger">
+              {error}
+            </p>
+          )}
+          {chosen &&
+            (mode === 'video' ? (
+              <video
+                src={adminAssetPath(chosen)}
+                muted
+                playsInline
+                controls
+                preload="metadata"
+                aria-label={`Anteprima del video dello sfondo: ${label}`}
+                className="max-h-32 rounded-card border border-border"
+              />
+            ) : (
+              <img
+                src={adminAssetPath(chosen)}
+                alt={`Anteprima dell’immagine dello sfondo: ${label}`}
+                className="max-h-32 rounded-card border border-border object-contain"
+              />
+            ))}
+          <p className="text-xs text-muted">
+            {mode === 'video'
+              ? 'Video MP4 o WebM, al massimo 15 MB, senza audio: parte subito e gira per i secondi dell’avviso su TV e tablet. Sul telefono il video non si mostra, e nemmeno a chi ha chiesto meno animazioni: lì l’avviso esce con il solo testo.'
+              : 'PNG, JPEG, WebP o SVG, al massimo 2 MB: sta dietro al testo, con una velatura del colore della squadra.'}{' '}
+            Il file si scarica all’apertura della pagina (sul telefono solo le immagini, mai il video): se non è ancora
+            pronto l’avviso esce con il solo testo.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Id of the setting of an overlay (target of a click on the overlay in the preview). */
 export const overlaySettingId = (kind: OverlayKind): string => `overlay-${kind}`;
 
@@ -80,6 +245,8 @@ function OverlayDetail({
   config,
   overlay,
   state,
+  assets,
+  onAssetsChanged,
   onChange,
   onTry,
   onReset,
@@ -88,6 +255,8 @@ function OverlayDetail({
   config: TenantOverlays;
   overlay: Overlay;
   state: MatchState | null;
+  assets: AssetListResponse;
+  onAssetsChanged: () => void;
   onChange: (overlay: Overlay) => void;
   onTry: () => void;
   onReset: () => void;
@@ -195,6 +364,15 @@ function OverlayDetail({
           </label>
         </div>
       </Setting>
+      <Setting id={`${overlaySettingId(kind)}-background`} where={where} scene="overlay" targets={['overlay']}>
+        <BackgroundSetting
+          label={label}
+          overlay={overlay}
+          assets={assets}
+          onChange={onChange}
+          onAssetsChanged={onAssetsChanged}
+        />
+      </Setting>
       <div className="flex flex-wrap items-center gap-2 py-1">
         <Button variant="primary" disabled={problem !== null || !state} onClick={onTry} aria-label={`Prova ${label}`}>
           Prova
@@ -241,6 +419,8 @@ export function OverlaysSection({
   onTab,
   state,
   onTry,
+  assets,
+  onAssetsChanged,
 }: {
   draft: TenantOverlays;
   onChange: (change: (config: TenantOverlays) => TenantOverlays) => void;
@@ -251,6 +431,9 @@ export function OverlaysSection({
   onTab: (tab: OverlaysTab) => void;
   state: MatchState | null;
   onTry: (kind: OverlayKind) => void;
+  /** Files of the client: the backgrounds are chosen among the ones uploaded for the overlays. */
+  assets: AssetListResponse;
+  onAssetsChanged: () => void;
 }) {
   const [announce, setAnnounce] = useState('');
   const set = (k: OverlayKind, overlay: Overlay): void => onChange((d) => ({ ...d, [k]: overlay }));
@@ -327,6 +510,8 @@ export function OverlaysSection({
                         config={draft}
                         overlay={overlay}
                         state={state}
+                        assets={assets}
+                        onAssetsChanged={onAssetsChanged}
                         onChange={(o) => set(k, o)}
                         onTry={() => onTry(k)}
                         onReset={() => {

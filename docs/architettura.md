@@ -362,7 +362,9 @@ maschile è `available`, il femminile è «Presto disponibile»), `LEAGUE_SERIES
 contenere), `seriesOfGender`, `seriesById`, `SelectClubLeagueRequestSchema` (strict: `gender` `M` e `series`, corpo di
 `POST /api/admin/club/league`), `normalizeLeagueText` e le pure `pickSeriesChampionships` (i campionati di una serie fra
 le voci del menu «Campionato»: parole richieste, esclusi coppe, play off e femminili, preferiti i «Regular Season»; A3 ne
-restituisce due, i due gironi) e `pickSeriesChampionship` (il primo). Rotte e scoperta in `docs/server.md` («Serie del
+restituisce due, i due gironi) e `pickSeriesChampionship` (il primo); `COMPETITION_KINDS` e la pura `competitionKind(nome)` (il tipo di una competizione, o
+`null`: nessun cambio di stagione automatico) e `seriesCompetitions(serie, voci)` (le altre competizioni della serie fra le
+voci del menu: tutte tranne i campionati della serie). Rotte e scoperta in `docs/server.md` («Serie del
 club e catalogo»).
 
 Primo accesso (`onboarding.ts`): `OnboardingStatusSchema` (`completed`, `completedAt`), risposta di
@@ -370,7 +372,9 @@ Primo accesso (`onboarding.ts`): `OnboardingStatusSchema` (`completed`, `complet
 procedura è in `docs/portale.md` («Procedura guidata del primo accesso»).
 
 Club e calendario (`club.ts`): il club di un cliente (campionati e squadra in ognuno), le sue partite del calendario con un
-link ciascuna e l'abbinamento fra `.dvw` e partita. `CLUB_MAX_LEAGUES` (8), `ClubLeagueChoiceSchema`,
+link ciascuna e l'abbinamento fra `.dvw` e partita. `CLUB_COMPETITIONS_PATH`, `ClubCompetitionSchema` (`externalId`, `name`,
+`season`), `ClubCompetitionsResponseSchema` (`GET`) e `AddClubCompetitionRequestSchema` (strict, `{ externalId }`, `POST`)
+per `/api/admin/club/competitions`. `CLUB_MAX_LEAGUES` (8), `ClubLeagueChoiceSchema`,
 `UpdateClubRequestSchema` (strict, campionati senza ripetizioni), `ClubResponseSchema` (nome, logo, `ourTeam`, campionati
 scelti, `available`), `ClubLeagueOptionSchema`, `ClubTeamSchema`, `ClubTeamsResponseSchema`, `ClubSyncResponseSchema`;
 `suggestedOurTeamName` (pura: dalla squadra scelta ricava il testo «nostra squadra», città senza provincia o ultima parola

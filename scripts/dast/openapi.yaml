@@ -948,6 +948,29 @@ paths:
       responses:
         '200': { description: serie scelta }
         '400': { description: serie non valida }
+  /api/admin/club/competitions:
+    get:
+      responses:
+        '200': { description: competizioni della serie del club sul sito della Lega }
+        '409': { description: serie del club non scelta }
+        '502': { description: sito della Lega cambiato o non raggiungibile }
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [externalId]
+              additionalProperties: false
+              properties:
+                externalId: { type: integer, example: 988 }
+      responses:
+        '201': { description: competizione aggiunta al club }
+        '200': { description: competizione già scelta }
+        '400': { description: competizione non della serie del club }
+        '409': { description: troppi campionati o serie non scelta }
+        '502': { description: sito della Lega cambiato o non raggiungibile }
   /api/admin/club/leagues/{id}/teams:
     get:
       parameters:

@@ -8,6 +8,8 @@ const USER_ID = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
 const LEAGUE = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
 const PERUGIA = '9a1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7d';
 const CUNEO = '8b1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7e';
+const CUP = '7c1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7f';
+const NEVER = { status: 'never' as const, message: null, at: null, lastSuccessAt: null, running: true };
 
 const option = {
   id: LEAGUE,
@@ -17,6 +19,8 @@ const option = {
   teamCount: 12,
   sync: { status: 'ok' as const, message: null, at: null, lastSuccessAt: '2026-10-16T10:00:00.000Z', running: false },
 };
+
+const cupOption = { ...option, id: CUP, externalId: 1010, name: 'Coppa Italia SuperLega', teamCount: 0, sync: NEVER };
 
 const club = (over: Partial<ClubResponse> = {}): ClubResponse => ({
   name: 'Sir Safety Perugia',
@@ -68,6 +72,22 @@ function mockServer(role: 'admin' | 'superadmin', initial: ClubResponse) {
         );
       if (url === `/api/admin/club/leagues/${LEAGUE}/teams`) return json(teams);
       if (url === '/api/admin/club/sync') return json({ started: 1, busy: 0 }, 202);
+      if (url === '/api/admin/club/competitions' && method === 'GET')
+        return json({
+          competitions: [
+            { externalId: 1004, name: 'Supercoppa A1', season: 2026 },
+            { externalId: 1010, name: 'Coppa Italia SuperLega', season: 2026 },
+          ],
+        });
+      if (url === '/api/admin/club/competitions' && method === 'POST')
+        return json(
+          {
+            ...initial,
+            leagues: [...initial.leagues, { league: cupOption, team: null }],
+            available: [...initial.available, cupOption],
+          },
+          201,
+        );
       if (url === '/api/admin/club/profile') return json(initial);
       if (url === '/api/admin/club/league')
         return json(
@@ -130,6 +150,60 @@ describe('page «Club»', () => {
     expect(screen.getByText(/nome che contiene «Perugia»/)).toBeTruthy();
     // No form to add championships for an admin of the client.
     expect(screen.queryByRole('heading', { name: 'Nuovo campionato della Lega' })).toBeNull();
+  });
+
+  it('adds a competition of the series from the site: the team is chosen by the server, a missing one is said', async () => {
+    const withSeries = club({
+      profile: {
+        ...club().profile,
+        series: 'SuperLega',
+        gender: 'M',
+        seriesId: 'superlega',
+        leagueId: LEAGUE,
+        leagueIds: [LEAGUE],
+      },
+      leagues: [{ league: option, team: teams.teams[1] ?? null }],
+    });
+    const calls = mockServer('admin', withSeries);
+    renderClub();
+    fireEvent.click(await screen.findByRole('button', { name: 'Aggiungi competizione' }));
+    const select = await screen.findByRole('combobox', { name: 'Competizione da aggiungere' });
+    expect(
+      within(select)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Supercoppa A1 2026/2027', 'Coppa Italia SuperLega 2026/2027']);
+    fireEvent.change(select, { target: { value: '1010' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi' }));
+    await waitFor(() =>
+      expect(calls).toContainEqual({ url: '/api/admin/club/competitions', method: 'POST', body: { externalId: 1010 } }),
+    );
+    // The new competition is in the list, still downloading: the team comes by itself, without it no match.
+    expect(await screen.findByText(/Scaricamento in corso: la squadra del club si sceglie da sola/)).toBeTruthy();
+    expect(screen.getAllByRole('combobox', { name: 'Campionato' })).toHaveLength(2);
+  });
+
+  it('says that a championship without team brings no match, and asks to save before adding a competition', async () => {
+    const withSeries = club({
+      profile: {
+        ...club().profile,
+        series: 'SuperLega',
+        gender: 'M',
+        seriesId: 'superlega',
+        leagueId: LEAGUE,
+        leagueIds: [LEAGUE],
+      },
+      leagues: [{ league: option, team: teams.teams[1] ?? null }],
+    });
+    mockServer('admin', withSeries);
+    renderClub();
+    const team = await screen.findByRole('combobox', { name: 'Squadra del club' });
+    await within(team).findByRole('option', { name: 'Sir Susa Scai Perugia (Perugia (PG))' });
+    fireEvent.change(team, { target: { value: '' } });
+    expect(screen.getByText('Senza squadra non arriva nessuna partita: scegli la squadra del club.')).toBeTruthy();
+    expect(screen.getByRole('alert').textContent).toContain('Un campionato è senza squadra');
+    expect(screen.getByRole('button', { name: 'Aggiungi competizione' })).toHaveProperty('disabled', true);
+    expect(screen.getByText('Salva prima le modifiche ai campionati.')).toBeTruthy();
   });
 
   it('starts the update of the calendar of the club', async () => {

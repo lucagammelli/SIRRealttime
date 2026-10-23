@@ -472,6 +472,24 @@ della stagione in corso.
   riusato). Risposta **202** mentre scarica, **200** se pronto; **502** `LEAGUE_UNAVAILABLE` («Il sito della Lega non
   risponde: riprova tra poco») o `LEAGUE_FORMAT` (pagina cambiata o serie assente dalla stagione); 400 per serie non del
   genere.
+- **Altre competizioni della serie** (`CLUB_COMPETITIONS_PATH` = `/api/admin/club/competitions`, `src/routes/clubLeague.ts`,
+  solo admin del cliente, non serve il superadmin): `GET` → `ClubCompetitionsResponse` con le competizioni (coppe, Supercoppa,
+  play off…) della stagione in corso lette dal menu «Campionato» della pagina del primo campionato della serie sul sito
+  della Lega (`LeagueCatalog.competitionsOf` in `src/leagues/catalog.ts`, con cache limitata), escluse le gare della serie
+  (`seriesCompetitions`, `packages/shared/src/leagues.ts`) e quelle già collegate. `POST` (`AddClubCompetitionRequestSchema`,
+  `{ externalId }`; limite per minuto `leagueSync`; `lockTenantMatches` come la copia del calendario): l'id entra in `leagues`
+  solo se è nel menu del sito (400 altrimenti), si collega al cliente senza squadra, si scarica in background se mai
+  scaricata e si ricopia il calendario. Risposta `ClubResponse`: **201**, **200** se già scelta; 409 senza serie o oltre
+  `CLUB_MAX_LEAGUES`; 502 (`LEAGUE_UNAVAILABLE`/`LEAGUE_FORMAT`) se il sito non risponde o è cambiato.
+- **Squadra automatica** (`pickCompetitionTeams` e `findClubTeam`, `src/leagues/competitions.ts`, chiamata nella copia del
+  calendario in `src/club.ts`): per i campionati non della serie e senza squadra, a campionato scaricato, si sceglie la squadra
+  della serie con lo stesso id del sito, poi con lo stesso nome; il ripiego «unica squadra che contiene il nome di nostra squadra»
+  vale solo se la squadra della serie non c'è. Se non si riconosce nessuna squadra, il campionato resta senza squadra e non
+  porta partite (avviso «Senza squadra non arriva nessuna partita»).
+- **Cambio di stagione delle competizioni** (`advanceCompetitions`, `src/leagues/seasons.ts`, in un `try` separato da
+  `advanceSeasons`): ogni competizione di una stagione vecchia passa a quella dello stesso tipo (`competitionKind`) del menu
+  della serie, se è unica, già scaricata e con la squadra riconosciuta; altrimenti resta e si riprova la notte dopo. La serie
+  non è toccata.
 - **A3 ha due gironi**: si scaricano entrambi e `teams` li elenca insieme; quando il cliente sceglie la squadra
   (`PUT /api/admin/club`, anche dalla pagina «Club») il server toglie gli altri gironi della serie e resta collegato solo il
   girone di quella squadra.
@@ -1005,6 +1023,8 @@ server scrive `dist/build-info.json` (`version` e `commit` corto, da `ARENALIVE_
 | POST | `/api/admin/club/league` | sessione, limite proprio `RATE_LIMIT_LEAGUE_SYNC` | admin |
 | GET | `/api/admin/onboarding` | sessione | viewer |
 | POST | `/api/admin/onboarding/complete` | sessione | admin |
+| GET | `/api/admin/club/competitions` | sessione | admin |
+| POST | `/api/admin/club/competitions` | sessione, limite proprio `RATE_LIMIT_LEAGUE_SYNC` | admin |
 | GET | `/api/admin/club/leagues/:id/teams` | sessione | viewer |
 | POST | `/api/admin/club/sync` | sessione, limite proprio `RATE_LIMIT_LEAGUE_SYNC` | admin |
 | GET | `/api/admin/calendar` | sessione | viewer |

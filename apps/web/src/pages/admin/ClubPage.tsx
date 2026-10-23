@@ -1,4 +1,5 @@
 import type {
+  ClubCompetition,
   ClubCoverage,
   ClubLeagueChoice,
   ClubLeagueOption,
@@ -8,7 +9,9 @@ import type {
   UpdateClubProfileRequest,
 } from '@arenalive/shared';
 import {
+  CLUB_COMPETITIONS_PATH,
   CLUB_MAX_LEAGUES,
+  ClubCompetitionsResponseSchema,
   ClubLeagueStatusSchema,
   ClubResponseSchema,
   ClubSyncResponseSchema,
@@ -105,13 +108,114 @@ function TeamSelect({
   );
 }
 
+/** Text under a championship without the team of the club (null: the team is chosen). */
+export function missingTeamText(league: ClubLeagueOption | undefined): string {
+  return league && league.sync.lastSuccessAt === null
+    ? 'Scaricamento in corso: la squadra del club si sceglie da sola appena è pronto, se la riconosciamo. Senza squadra non arriva nessuna partita.'
+    : 'Senza squadra non arriva nessuna partita: scegli la squadra del club.';
+}
+
+/**
+ * «Aggiungi competizione»: the other competitions of the series of the club on the official site (cups, Supercoppa,
+ * play off…), read when opened; the chosen one is added by the server, which downloads it and chooses the team.
+ */
+function CompetitionAdder({ onAdded, blocked }: { onAdded: (c: ClubResponse) => void; blocked: string | null }) {
+  const errorMessage = useApiError();
+  const [list, setList] = useState<ClubCompetition[] | null>(null);
+  const [chosen, setChosen] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const open = async (): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await apiRequest(CLUB_COMPETITIONS_PATH, ClubCompetitionsResponseSchema);
+      setList(res.competitions);
+      setChosen(res.competitions[0] ? String(res.competitions[0].externalId) : '');
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const add = async (): Promise<void> => {
+    if (!chosen) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const club = await apiRequest(CLUB_COMPETITIONS_PATH, ClubResponseSchema, {
+        method: 'POST',
+        body: { externalId: Number(chosen) },
+      });
+      setList(null);
+      onAdded(club);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (list === null)
+    return (
+      <div className="space-y-2">
+        <Button disabled={busy || blocked !== null} onClick={() => void open()}>
+          {busy ? 'Lettura dal sito…' : 'Aggiungi competizione'}
+        </Button>
+        {blocked && <p className="text-xs text-muted">{blocked}</p>}
+        {error && <ErrorBox>{error}</ErrorBox>}
+      </div>
+    );
+  return (
+    <div className="space-y-2 rounded-card border border-border p-3">
+      <p className="text-sm font-medium text-text">Competizioni della serie sul sito della Lega</p>
+      {list.length === 0 ? (
+        <Empty>Nessun’altra competizione della serie in questa stagione.</Empty>
+      ) : (
+        <select
+          value={chosen}
+          onChange={(e) => setChosen(e.target.value)}
+          className={inputClass}
+          aria-label="Competizione da aggiungere"
+        >
+          {list.map((c) => (
+            <option key={c.externalId} value={c.externalId}>
+              {`${c.name} ${seasonLabel(c.season)}`}
+            </option>
+          ))}
+        </select>
+      )}
+      <p className="text-xs text-muted">
+        La squadra del club si sceglie da sola (la stessa della serie): se non la riconosciamo, sceglila tu, perché
+        senza squadra non arriva nessuna partita.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {list.length > 0 && (
+          <Button variant="primary" disabled={busy} onClick={() => void add()}>
+            {busy ? 'Aggiunta…' : 'Aggiungi'}
+          </Button>
+        )}
+        <Button variant="ghost" disabled={busy} onClick={() => setList(null)}>
+          Annulla
+        </Button>
+      </div>
+      {error && <ErrorBox>{error}</ErrorBox>}
+    </div>
+  );
+}
+
 function ClubForm({
   club,
   onSaved,
+  onReplaced,
   reload,
 }: {
   club: ClubResponse;
   onSaved: (c: ClubResponse) => void;
+  /** The championships changed on the server (a competition added): the list starts again from them. */
+  onReplaced: (c: ClubResponse) => void;
   reload: () => void;
 }) {
   const errorMessage = useApiError();
@@ -128,6 +232,7 @@ function ClubForm({
   const free = club.available.filter((l) => !choices.some((c) => c.leagueId === l.id));
   const saved = club.leagues.map((l) => ({ leagueId: l.league.id, teamId: l.team?.id ?? null }));
   const dirty = JSON.stringify(saved) !== JSON.stringify(choices);
+  const withoutTeam = choices.filter((c) => c.teamId === null).length;
 
   const set = (index: number, choice: ClubLeagueChoice): void =>
     setChoices((list) => list.map((c, i) => (i === index ? choice : c)));
@@ -223,6 +328,7 @@ function ClubForm({
                       onChange={(teamId) => set(index, { ...choice, teamId })}
                       disabled={!canEdit}
                     />
+                    {choice.teamId === null && <p className="text-xs text-warn">{missingTeamText(league)}</p>}
                   </div>
                   {canEdit && (
                     <Button variant="ghost" onClick={() => setChoices((list) => list.filter((_, i) => i !== index))}>
@@ -249,6 +355,25 @@ function ClubForm({
               {busy ? 'Salvataggio…' : 'Salva'}
             </Button>
           </div>
+        )}
+        {canEdit && dirty && withoutTeam > 0 && (
+          <p role="alert" className="text-sm text-warn">
+            {withoutTeam === 1
+              ? 'Un campionato è senza squadra: senza squadra non arriva nessuna partita.'
+              : `${withoutTeam} campionati sono senza squadra: senza squadra non arriva nessuna partita.`}
+          </p>
+        )}
+        {canEdit && club.profile.seriesId && (
+          <CompetitionAdder
+            blocked={
+              dirty
+                ? 'Salva prima le modifiche ai campionati.'
+                : choices.length >= CLUB_MAX_LEAGUES
+                  ? `Al massimo ${CLUB_MAX_LEAGUES} campionati: togline uno.`
+                  : null
+            }
+            onAdded={onReplaced}
+          />
         )}
         {error && <ErrorBox>{error}</ErrorBox>}
         {notice && (
@@ -617,7 +742,16 @@ export function ClubPage() {
           }}
         />
       </div>
-      <ClubForm key={`${version}-${leaguesVersion}`} club={current} onSaved={leaguesSaved} reload={club.reload} />
+      <ClubForm
+        key={`${version}-${leaguesVersion}`}
+        club={current}
+        onSaved={leaguesSaved}
+        onReplaced={(c) => {
+          leaguesSaved(c);
+          setLeaguesVersion((v) => v + 1);
+        }}
+        reload={club.reload}
+      />
     </div>
   );
 }

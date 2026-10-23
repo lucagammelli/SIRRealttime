@@ -41,6 +41,7 @@ import {
   tenants,
 } from './db/index.js';
 import { generateToken, hashToken } from './lib/tokens.js';
+import { pickCompetitionTeams } from './leagues/competitions.js';
 import type { CalendarCandidate } from './leagues/match.js';
 import { dvwFacts, linkFixture } from './leagues/match.js';
 import { romeParts } from './leagues/romeTime.js';
@@ -333,6 +334,8 @@ export async function refreshClientFixtures(
 ): Promise<LinkedMatch[]> {
   return db.transaction(async (tx) => {
     await lockTenantMatches(tx, tenantId);
+    // The other competitions (cups, play off…) take the team of the club by themselves once downloaded.
+    await pickCompetitionTeams(tx, tenantId);
     const home = alias(leagueTeams, 'home_team');
     const away = alias(leagueTeams, 'away_team');
     const choices = await tx

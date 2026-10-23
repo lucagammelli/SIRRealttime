@@ -238,6 +238,21 @@ export function PageSection({
         problem={(d) => problems[d] !== undefined}
       />
       <div id={panelId} role="tabpanel" aria-labelledby={`scheda-${device}`} className="space-y-3">
+        <SettingsCard title={`Touch (${DEVICE_LABELS[device]})`}>
+          <div className="flex items-center gap-3">
+            <Toggle
+              checked={draft.touch[device]}
+              label={`Touch: ${DEVICE_LABELS[device]}`}
+              title={draft.touch[device] ? 'Sì' : 'No'}
+              onChange={(touch) => onChange((d) => ({ ...d, touch: { ...d.touch, [device]: touch } }))}
+            />
+            <span className="text-sm font-medium text-text">Touch: {draft.touch[device] ? 'Sì' : 'No'}</span>
+          </div>
+          <p className="text-xs text-muted">
+            Con «No» la pagina pubblica di questo dispositivo non mostra nulla da toccare o cliccare (pulsanti,
+            selettori, link) e i grafici restano sulla vista predefinita. Su TV la rotazione dei blocchi continua.
+          </p>
+        </SettingsCard>
         <SettingsCard title={`Blocchi (${DEVICE_LABELS[device]})`}>
           <p className="text-xs text-muted">
             {device === 'phone'

@@ -149,6 +149,10 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
+        text: 'In «Pagina live», per ogni dispositivo (TV, Tablet, Telefono), l’interruttore «Touch: Sì/No» decide se la pagina pubblica ha qualcosa da toccare. Con «No» spariscono pulsanti, selettori, ordinamento delle colonne, link degli sponsor e pulsanti di schermo intero, tema e pause, e i grafici restano sulla vista predefinita. Su una TV senza touch la rotazione dei blocchi continua da sola.',
+      },
+      {
+        kind: 'text',
         text: 'A lato c’è sempre l’anteprima. Puoi sceglierla per TV, tablet o telefono, e aprirla a tutto schermo con «Anteprima a tutto schermo». Quello che vedi lì è quello che vedranno i tifosi.',
       },
       {

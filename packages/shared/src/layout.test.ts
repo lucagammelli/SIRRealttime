@@ -68,6 +68,14 @@ describe('layout of the public page', () => {
     expect(TenantLayoutSchema.safeParse({ desktop: [] }).success).toBe(false);
   });
 
+  it('touch: every device, true when missing in the saved documents', () => {
+    expect(TenantLayoutSchema.parse({}).touch).toEqual({ tv: true, tablet: true, phone: true });
+    expect(TenantLayoutSchema.parse({ touch: { tv: false } }).touch).toEqual({ tv: false, tablet: true, phone: true });
+    expect(TenantLayoutSchema.safeParse({ touch: { tv: 'no' } }).success).toBe(false);
+    expect(TenantLayoutSchema.safeParse({ touch: { watch: true } }).success).toBe(false);
+    expect(resolveLayout({ touch: { phone: false } }).touch.phone).toBe(false);
+  });
+
   it('fills the options of every type with their defaults', () => {
     for (const type of BLOCK_TYPES) expect(parseBlock({ type }).success).toBe(true);
     expect(parseBlock({ type: 'sponsor' }).data?.options).toEqual({ sponsors: [], images: [], seconds: 8 });

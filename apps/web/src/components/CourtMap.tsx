@@ -6,7 +6,7 @@ import type { ZoneArrow, ZoneSkill } from '../charts/zones.ts';
 import { COURT, EVALUATION_NAMES, ZONES, zoneCenter, zonePlayers, zoneRect, zoneView } from '../charts/zones.ts';
 import { useOurSide, useTemplate } from '../lib/branding.ts';
 import { formatPct, playerName, teamName, teamShort } from '../lib/format.ts';
-import { useDeviceContext } from '../lib/useLayout.ts';
+import { useDeviceContext, useTouch } from '../lib/useLayout.ts';
 import { Card, Segmented } from './ui.tsx';
 
 const MAX_ARROWS = 14;
@@ -49,6 +49,7 @@ export function CourtMap({
 }) {
   const templateTeamArrows = useTemplate().courtArrows === 'team';
   const compact = useDeviceContext() === 'phone';
+  const touch = useTouch();
   const [side, setSide] = useState<Side>('home');
   const [skill, setSkill] = useState<ZoneSkill>('attack');
   const [player, setPlayer] = useState<number | null>(null);
@@ -121,40 +122,44 @@ export function CourtMap({
       className={className}
       subtitle={`${view.total} ${skillLabel} con zone · ${teamName(state.teams, side)} → ${teamName(state.teams, opponent)}`}
     >
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Segmented
-          label="Squadra"
-          size="xs"
-          value={side}
-          onChange={(v) => {
-            setSide(v);
-            setPlayer(null);
-          }}
-          options={[
-            { value: 'home', label: teamShort(state.teams, 'home') },
-            { value: 'away', label: teamShort(state.teams, 'away') },
-          ]}
-        />
-        <Segmented
-          label="Fondamentale"
-          size="xs"
-          value={skill}
-          onChange={setSkill}
-          options={[
-            { value: 'attack', label: 'Attacco' },
-            { value: 'serve', label: 'Battuta' },
-          ]}
-        />
-      </div>
-      {compact ? (
-        <details className="mb-3 rounded-card border border-border bg-surface-2 px-3 py-1">
-          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-text">
-            Altri filtri
-          </summary>
-          <div className="flex flex-col items-start gap-2 pb-2">{extraFilters}</div>
-        </details>
-      ) : (
-        <div className="mb-3 flex flex-wrap items-center gap-2">{extraFilters}</div>
+      {touch && (
+        <>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Segmented
+              label="Squadra"
+              size="xs"
+              value={side}
+              onChange={(v) => {
+                setSide(v);
+                setPlayer(null);
+              }}
+              options={[
+                { value: 'home', label: teamShort(state.teams, 'home') },
+                { value: 'away', label: teamShort(state.teams, 'away') },
+              ]}
+            />
+            <Segmented
+              label="Fondamentale"
+              size="xs"
+              value={skill}
+              onChange={setSkill}
+              options={[
+                { value: 'attack', label: 'Attacco' },
+                { value: 'serve', label: 'Battuta' },
+              ]}
+            />
+          </div>
+          {compact ? (
+            <details className="mb-3 rounded-card border border-border bg-surface-2 px-3 py-1">
+              <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-text">
+                Altri filtri
+              </summary>
+              <div className="flex flex-col items-start gap-2 pb-2">{extraFilters}</div>
+            </details>
+          ) : (
+            <div className="mb-3 flex flex-wrap items-center gap-2">{extraFilters}</div>
+          )}
+        </>
       )}
 
       <svg

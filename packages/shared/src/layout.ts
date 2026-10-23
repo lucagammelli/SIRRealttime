@@ -376,6 +376,17 @@ export const TenantLayoutSchema = z.strictObject({
   tv: DeviceBlocksSchema.default(() => defaultDeviceBlocks('tv')),
   tablet: DeviceBlocksSchema.default(() => defaultDeviceBlocks('tablet')),
   phone: DeviceBlocksSchema.default(() => defaultDeviceBlocks('phone')),
+  /**
+   * «Touch» of every device: with `false` the public page shows nothing to tap or click (no buttons, selectors or
+   * links) and the charts keep their default view. Missing in the documents saved before: `true`.
+   */
+  touch: z
+    .strictObject({
+      tv: z.boolean().default(true),
+      tablet: z.boolean().default(true),
+      phone: z.boolean().default(true),
+    })
+    .default({ tv: true, tablet: true, phone: true }),
 });
 export type TenantLayout = z.output<typeof TenantLayoutSchema>;
 export type TenantLayoutInput = z.input<typeof TenantLayoutSchema>;

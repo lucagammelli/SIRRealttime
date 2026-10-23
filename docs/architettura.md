@@ -262,7 +262,11 @@ stesse delle diapositive omonime): `period` (`STAT_PERIODS`: `set` predefinito, 
 `opposite`/`outside`/`middle`/`setter`/`libero`); `rows` in `teamDuel` (`TEAM_DUEL_KEYS` di volley-stats, chiavi delle righe di `teamDuel`
 di `@arenalive/volley-stats`; vuoto = tutte); `qr` in `nextMatch` (booleano, predefinito `true`); `scope` in `standings`
 (`STANDINGS_SCOPES`: `top` le prime `count` righe, `all` tutta, `around` la nostra squadra ±`STANDINGS_AROUND` = 2;
-predefinito `around`) e `count` (`STANDINGS_MIN_ROWS` 3 - `STANDINGS_MAX_ROWS` 16, predefinito 5, usato solo da `top`). Regole sull'elenco
+predefinito `around`) e `count` (`STANDINGS_MIN_ROWS` 3 - `STANDINGS_MAX_ROWS` 16, predefinito 5, usato solo da `top`); `court`
+(`CourtOptionsSchema`), oltre a colori e spessori, la vista senza tocco: `side` (`COURT_SIDE_MODES`: `cycle` predefinito,
+casa e ospite a turno; `ours` la nostra squadra, casa se non riconosciuta; `home`; `away`), `skill` (`COURT_SKILL_MODES`:
+`attack` predefinito, `serve`, `cycle`) e `cycleSeconds` (`COURT_CYCLE_SECONDS_MIN` 5 - `COURT_CYCLE_SECONDS_MAX` 60,
+predefinito 10); i layout salvati senza questi campi li ricevono predefiniti. Regole sull'elenco
 (`DeviceBlocksSchema`): id unici, un solo `scoreboard`, larghezze ammesse. `{}` vale il predefinito
 (`defaultLayout(template)`, `defaultDeviceBlocks(dispositivo, template)`: per `standard` i sei blocchi di prima con
 larghezze 12/8/6/4; per `sir-volley` la pagina del mockup: tabellone, poi andamento, confronto e mappe di campo a un terzo

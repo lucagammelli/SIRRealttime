@@ -159,6 +159,10 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
+        text: 'Nelle opzioni del blocco «Mappe di campo», alla voce «Cosa mostra senza tocco (TV)», scegli che cosa vede chi non può toccare la pagina. «Squadra»: «A turno» (la scelta iniziale: casa e ospite si alternano), «Solo la nostra squadra», «Casa» o «Ospite». «Fondamentale»: «Attacco», «Battuta» o «A turno». Con «A turno» scegli anche «Secondi per ogni vista» (da 5 a 60). Con tutti e due a turno la mappa mostra casa attacco, ospite attacco, casa battuta, ospite battuta. Il sottotitolo della mappa dice sempre di quale squadra sono le traiettorie. Su tablet e telefono con il tocco i filtri restano e partono dalla tua scelta.',
+      },
+      {
+        kind: 'text',
         text: 'In «Pause», sotto «Come si mostra», «Dimensione a tutto schermo» decide quanto sono grandi le diapositive dove la pausa è a «Tutto schermo»: «Normale» (come sono disegnate, scorrono se non ci stanno), «Grande» (più grandi, finché stanno nello schermo) o «Riempi lo schermo» (occupano tutto lo spazio, senza scorrere). La banda in basso non cambia.',
       },
       {

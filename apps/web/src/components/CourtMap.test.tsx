@@ -1,11 +1,16 @@
 import { CourtOptionsSchema } from '@arenalive/shared';
-import { act, cleanup, render } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { claimOurSide } from '../lib/branding.ts';
 import { stateAfter } from '../test/fixtures.ts';
+import { courtSteps } from '../lib/courtCycle.ts';
+import { TouchContext } from '../lib/useLayout.ts';
 import { CourtMap } from './CourtMap.tsx';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 const svg = (c: HTMLElement): SVGSVGElement => {
   const el = c.querySelector('svg');
@@ -87,5 +92,95 @@ describe('court map options', () => {
     const { container } = render(<CourtMap state={stateAfter()} fit />);
     expect(container.querySelector('.sir-card-body')?.className).toContain('flex-col');
     expect(container.querySelector('svg[viewBox="0 0 200 110"]')?.getAttribute('class')).toContain('flex-1');
+  });
+});
+
+describe('court map without touch (TV): team and skill chosen in the Studio, in turn', () => {
+  const view = (c: HTMLElement) => {
+    const root = svg(c);
+    return `${root.getAttribute('data-court-side')}-${root.getAttribute('data-court-skill')}`;
+  };
+  const tv = (input: Record<string, unknown>) => {
+    const options = CourtOptionsSchema.parse(input);
+    return render(
+      <TouchContext.Provider value={false}>
+        <CourtMap state={stateAfter()} options={options} />
+      </TouchContext.Provider>,
+    );
+  };
+
+  it('the views in turn: for each skill every team', () => {
+    expect(courtSteps('cycle', 'cycle', null)).toEqual([
+      { side: 'home', skill: 'attack' },
+      { side: 'away', skill: 'attack' },
+      { side: 'home', skill: 'serve' },
+      { side: 'away', skill: 'serve' },
+    ]);
+    expect(courtSteps('ours', 'serve', 'away')).toEqual([{ side: 'away', skill: 'serve' }]);
+    expect(courtSteps('ours', 'attack', null)).toEqual([{ side: 'home', skill: 'attack' }]);
+    expect(courtSteps('away', 'cycle', 'home')).toEqual([
+      { side: 'away', skill: 'attack' },
+      { side: 'away', skill: 'serve' },
+    ]);
+  });
+
+  it('by default home and away go in turn every 10 seconds, the subtitle says whose map it is', () => {
+    vi.useFakeTimers();
+    const { container } = tv({});
+    const state = stateAfter();
+    expect(view(container)).toBe('home-attack');
+    expect(container.textContent).toContain(`${state.teams.home.name} → ${state.teams.away.name} · a turno`);
+    act(() => {
+      vi.advanceTimersByTime(9_999);
+    });
+    expect(view(container)).toBe('home-attack');
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(view(container)).toBe('away-attack');
+    expect(container.textContent).toContain(`${state.teams.away.name} → ${state.teams.home.name}`);
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(view(container)).toBe('home-attack');
+  });
+
+  it('both in turn: home attack, away attack, home serve, away serve, with the seconds chosen', () => {
+    vi.useFakeTimers();
+    const { container } = tv({ side: 'cycle', skill: 'cycle', cycleSeconds: 5 });
+    const seen = [view(container)];
+    for (let i = 0; i < 4; i++) {
+      act(() => {
+        vi.advanceTimersByTime(5_000);
+      });
+      seen.push(view(container));
+    }
+    expect(seen).toEqual(['home-attack', 'away-attack', 'home-serve', 'away-serve', 'home-attack']);
+  });
+
+  it('«Solo la nostra squadra»: our team, also when it plays away; one view, nothing in turn', () => {
+    vi.useFakeTimers();
+    const release = claimOurSide('away');
+    const { container } = tv({ side: 'ours', skill: 'serve' });
+    expect(view(container)).toBe('away-serve');
+    expect(container.textContent).not.toContain('a turno');
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(view(container)).toBe('away-serve');
+    release();
+  });
+
+  it('with touch the filters stay and start from the view chosen; nothing goes in turn', () => {
+    vi.useFakeTimers();
+    const options = CourtOptionsSchema.parse({ side: 'away', skill: 'serve' });
+    const { container } = render(<CourtMap state={stateAfter()} options={options} />);
+    expect(view(container)).toBe('away-serve');
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(view(container)).toBe('away-serve');
+    fireEvent.click(screen.getByRole('radio', { name: 'Attacco' }));
+    expect(view(container)).toBe('away-attack');
   });
 });

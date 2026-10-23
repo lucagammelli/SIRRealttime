@@ -5,6 +5,7 @@ import { useId, useMemo, useState } from 'react';
 import type { ZoneArrow, ZoneSkill } from '../charts/zones.ts';
 import { COURT, EVALUATION_NAMES, ZONES, zoneCenter, zonePlayers, zoneRect, zoneView } from '../charts/zones.ts';
 import { useOurSide, useTemplate } from '../lib/branding.ts';
+import { courtSteps, useCourtStep } from '../lib/courtCycle.ts';
 import { formatPct, playerName, teamName, teamShort } from '../lib/format.ts';
 import { useDeviceContext, useTouch } from '../lib/useLayout.ts';
 import { Card, Segmented } from './ui.tsx';
@@ -68,8 +69,18 @@ export function CourtMap({
   const templateTeamArrows = useTemplate().courtArrows === 'team';
   const compact = useDeviceContext() === 'phone';
   const touch = useTouch();
-  const [side, setSide] = useState<Side>('home');
-  const [skill, setSkill] = useState<ZoneSkill>('attack');
+  // «ours» is the team of the client (home when none is known).
+  const ourSide = useOurSide();
+  const ours: Side = ourSide ?? 'home';
+  // Without touch (TV) the view chosen in the Studio, in turn when asked; with touch the filters start from it.
+  const steps = useMemo(() => courtSteps(options.side, options.skill, ourSide), [options.side, options.skill, ourSide]);
+  const step = useCourtStep(steps, options.cycleSeconds, !touch);
+  const [manualSide, setSide] = useState<Side | null>(null);
+  const [manualSkill, setSkill] = useState<ZoneSkill | null>(null);
+  const first = steps[0] ?? step;
+  const side: Side = touch ? (manualSide ?? first.side) : step.side;
+  const skill: ZoneSkill = touch ? (manualSkill ?? first.skill) : step.skill;
+  const inTurn = !touch && steps.length > 1;
   const [player, setPlayer] = useState<number | null>(null);
   const [evaluation, setEvaluation] = useState<string>('all');
   const uid = `court${useId().replace(/[^A-Za-z0-9_-]/g, '')}`;
@@ -85,8 +96,7 @@ export function CourtMap({
   const roster = new Map(state.players[side].map((p) => [p.number, p]));
   const names = EVALUATION_NAMES[skill];
   const opponent: Side = side === 'home' ? 'away' : 'home';
-  // The shown team is on the left half; «ours» is the team of the client (home when none is known).
-  const ours: Side = useOurSide() ?? 'home';
+  // The shown team is on the left half.
   const leftIsOurs = side === ours;
   const left = leftIsOurs
     ? { field: options.fieldOurs, lines: options.linesOurs }
@@ -154,7 +164,7 @@ export function CourtMap({
       title="Mappe di campo"
       className={className}
       bodyClassName={fit ? 'flex flex-col' : ''}
-      subtitle={`${view.total} ${skillLabel} con zone · ${teamName(state.teams, side)} → ${teamName(state.teams, opponent)}`}
+      subtitle={`${view.total} ${skillLabel} con zone · ${teamName(state.teams, side)} → ${teamName(state.teams, opponent)}${inTurn ? ' · a turno' : ''}`}
     >
       {touch && (
         <>
@@ -197,6 +207,8 @@ export function CourtMap({
       )}
 
       <svg
+        data-court-side={side}
+        data-court-skill={skill}
         viewBox="0 0 200 110"
         className={fit ? 'min-h-0 w-full flex-1' : 'h-auto w-full'}
         role="img"
@@ -398,7 +410,10 @@ export function CourtMap({
           zona.
         </p>
       ) : (
-        <ul className="mt-2 flex shrink-0 flex-wrap gap-x-3 gap-y-1 text-xs text-muted" aria-label="Colori delle valutazioni">
+        <ul
+          className="mt-2 flex shrink-0 flex-wrap gap-x-3 gap-y-1 text-xs text-muted"
+          aria-label="Colori delle valutazioni"
+        >
           {EVAL_ORDER.map((s) => (
             <li key={s} className="inline-flex items-center gap-1">
               <span aria-hidden="true" className={`inline-block h-1 w-4 rounded-full ${evalClass(s).bg}`} />

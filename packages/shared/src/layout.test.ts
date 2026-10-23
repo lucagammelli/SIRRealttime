@@ -215,15 +215,18 @@ describe('layout of the public page', () => {
   });
 
   it('reads the options of the court map: old layouts keep the defaults, colours and thickness are checked', () => {
+    // A saved layout without the view options: team in turn, attacks, 10 seconds.
+    const view = { side: 'cycle', skill: 'attack', cycleSeconds: 10 };
     const old = parseBlock({ type: 'court' });
-    expect(old.success && old.data.options).toEqual({ lineWidth: 1, arrowWidth: 1 });
+    expect(old.success && old.data.options).toEqual({ ...view, lineWidth: 1, arrowWidth: 1 });
     const empty = parseBlock({ type: 'court', options: {} });
-    expect(empty.success && empty.data.options).toEqual({ lineWidth: 1, arrowWidth: 1 });
+    expect(empty.success && empty.data.options).toEqual({ ...view, lineWidth: 1, arrowWidth: 1 });
     const set = parseBlock({
       type: 'court',
       options: { fieldOurs: '#AABBCC', linesOpponent: '#000000', lineWidth: 2, arrowsOurs: '#ff0000', arrowWidth: 0.5 },
     });
     expect(set.success && set.data.options).toEqual({
+      ...view,
       fieldOurs: '#aabbcc',
       linesOpponent: '#000000',
       lineWidth: 2,
@@ -234,5 +237,18 @@ describe('layout of the public page', () => {
     expect(parseBlock({ type: 'court', options: { lineWidth: 0.1 } }).success).toBe(false);
     expect(parseBlock({ type: 'court', options: { arrowWidth: 9 } }).success).toBe(false);
     expect(parseBlock({ type: 'court', options: { other: 1 } }).success).toBe(false);
+  });
+
+  it('reads the view of the court map without touch: team, skill and seconds of the turn', () => {
+    const chosen = parseBlock({ type: 'court', options: { side: 'ours', skill: 'cycle', cycleSeconds: 30 } });
+    expect(chosen.success && chosen.data.options).toMatchObject({ side: 'ours', skill: 'cycle', cycleSeconds: 30 });
+    for (const options of [
+      { side: 'both' },
+      { skill: 'block' },
+      { cycleSeconds: 4 },
+      { cycleSeconds: 61 },
+      { cycleSeconds: 7.5 },
+    ])
+      expect(parseBlock({ type: 'court', options }).success).toBe(false);
   });
 });

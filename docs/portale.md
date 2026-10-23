@@ -20,7 +20,7 @@ connessioni. Con un valore valido la pagina si collega a `/ws/public/<token o co
 | Andamento del set | vantaggio punto per punto, selettore «Set» |
 | Confronto squadre | statistiche delle due squadre, selettore «Periodo» |
 | Statistiche giocatori | tabella per squadra («Squadra») e per set («Set») |
-| Mappe di campo | frecce partenza → arrivo di attacchi e battute; filtri «Squadra», «Fondamentale» (Attacco, Battuta), «Giocatore», «Valutazione» |
+| Mappe di campo | frecce partenza → arrivo di attacchi e battute; filtri «Squadra», «Fondamentale» (Attacco, Battuta), «Giocatore», «Valutazione»; senza tocco la vista scelta nello Studio, anche a turno |
 | Rotazioni | «Punti vinti e persi per posizione del palleggiatore» |
 
 Questi sei sono i blocchi predefiniti; il cliente può nasconderli, riordinarli e aggiungerne altri (Logo, Sponsor,
@@ -913,6 +913,15 @@ ciclo e mostra l'avviso.
   inchiostro scuro (#1f2937) o chiaro (#f9fafb) scelto in base alla luminosità del fondo, così restano leggibili anche sul
   bianco; heatmap, linee e frecce restano sopra il fondo. I layout salvati senza `fieldMode` non cambiano.
   Schema `CourtOptionsSchema` in `packages/shared/src/layout.ts`; «nostra» è `currentOurSide()` (casa se non nota).
+  **Vista senza tocco** (dispositivi con «Touch: No», di solito la TV): i filtri non si vedono e la mappa mostra la scelta
+  del gruppo «Cosa mostra senza tocco (TV)» delle opzioni del blocco: «Squadra» «A turno» (predefinita: casa e ospite si
+  alternano), «Solo la nostra squadra» (`useOurSide`, casa se non riconosciuta), «Casa», «Ospite»; «Fondamentale»
+  «Attacco» (predefinito), «Battuta», «A turno»; con almeno un «A turno», «Secondi per ogni vista» (5-60, predefinito 10).
+  Con entrambi a turno il ciclo è casa attacco → ospite attacco → casa battuta → ospite battuta (`courtSteps` e
+  `useCourtStep` in `apps/web/src/lib/courtCycle.ts`). Il sottotitolo dice sempre di chi è la mappa («… · Casa → Ospite»)
+  e aggiunge «a turno» quando la vista cambia da sola; cambiano solo i dati, senza animazioni (va bene anche con
+  `prefers-reduced-motion`). L'anteprima dello Studio mostra l'alternanza quando il dispositivo ha «Touch: No». Con il
+  tocco (tablet, telefono) i filtri restano e partono dalla squadra e dal fondamentale scelti (la prima vista del ciclo).
 - **Pagina predefinita**: ogni modello ha la sua (`docs/architettura.md`, «Pagina pubblica a blocchi»): SIR VOLLEY segue il
   mockup di una schermata a 1920×1080 (tabellone, poi andamento, confronto e mappe di campo in tre colonne, poi giocatori e
   rotazioni); `MomentumChart` è ammesso anche a larghezza 4.

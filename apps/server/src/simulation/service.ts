@@ -31,6 +31,7 @@ import { generateToken, hashToken } from '../lib/tokens.js';
 import { currentShortCode, insertShareToken } from '../shareCodes.js';
 import { forgetShareToken } from '../state.js';
 import { findTenant, publicBaseUrlFor, tenantScope } from '../tenancy.js';
+import { setBreakSeconds } from './breaks.js';
 import type { LoadedMatch } from './source.js';
 import { fileMatch, generatedMatch } from './source.js';
 
@@ -181,7 +182,12 @@ export class SimulationService {
     this.starting.add(tenantId);
     try {
       const match = await this.load(tenantId, request.source);
-      const plan = planPlayback(match.timing, request.pace);
+      // With a speed the break between two sets lasts the «Fine set» pause of the client (the points never cut it).
+      const stored =
+        request.pace.kind === 'speed' ? (await findTenant(this.ctx, { id: tenantId }))?.intermissions : null;
+      const plan = planPlayback(match.timing, request.pace, {
+        minBreakSeconds: (set) => setBreakSeconds(stored, set),
+      });
       // The match of the previous simulation of the client is used again: a screen left on its link goes on.
       const reused = current ?? (await this.storedMatch(tenantId));
       const now = this.ctx.now();

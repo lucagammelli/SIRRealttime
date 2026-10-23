@@ -761,7 +761,10 @@ come l'agente), così il comportamento è quello vero; la partita però è **iso
   `finished`. L'invio rispetta i tempi di `planPlayback` ma al massimo ogni `SIMULATION_MIN_SEND_MS` = 250 ms: le righe
   maturate nel frattempo partono insieme (`append`, `fromIndex` = righe già inviate). Avvio e «Ricomincia» mandano uno
   `snapshot` con l'header; se l'ingest risponde `needSnapshot` o `duplicate` il servizio manda uno `snapshot` di tutte le
-  righe, come l'agente. Un errore ferma la simulazione con l'avviso «La simulazione si è interrotta per un errore del
+  righe, come l'agente. In modo «velocità» la pausa fra due set è almeno la pausa «Fine set» del cliente per quel set
+  (`simulation/breaks.ts`, `setBreakSeconds`: ritardo (5 s) più secondi delle diapositive accese, scelta per set come
+  `intermissionFor`; 20 s se la pausa è spenta), letta dal documento `tenants.intermissions` all'avvio: i punti del set
+  dopo non la troncano. In modo «durata» vale la pausa scelta dall'admin. Un errore ferma la simulazione con l'avviso «La simulazione si è interrotta per un errore del
   server.» (mai un crash). `SimulationTimers` permette ai test un orologio finto.
 - **Pulizia**: ogni `SIMULATION_SWEEP_MS` = 60 s (`sweep`) si cancellano partita e link delle simulazioni ferme o finite da
   almeno `SIMULATION_RETENTION_MS` = 6 ore, di quelle in pausa da 6 ore, e delle partite simulate rimaste orfane dopo un

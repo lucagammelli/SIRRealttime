@@ -146,7 +146,7 @@ Le voci:
 | Posta | `/admin/posta` | solo superadmin (fuori da un cliente) | server di posta per inviti e recupero password, uguale per tutti i clienti, vedi «Posta» |
 | Loghi di sistema | `/admin/loghi-di-sistema` | solo superadmin (fuori da un cliente) | i loghi della piattaforma (sinistro e destro, positivo e negativo), vedi «Loghi di sistema» |
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, «Password (facoltativa)» di almeno 12 caratteri, «Ruolo»: «Lettura e scrittura» o «Sola lettura»; «Crea e invita» se la password è vuota, altrimenti «Crea utente»), scheda «Ruoli» (cosa può fare ciascun ruolo), «Utenti» (per ognuno stato «Attivo»/«Disattivato», ruolo, data di creazione e i comandi descritti sotto), vedi «Utenti del cliente» |
-| Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`) | solo admin (il superadmin dentro un cliente) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
+| Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`, `esporta`) | solo admin (il superadmin dentro un cliente) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
 | Sponsor | `/admin/sponsor` | solo admin (il superadmin dentro un cliente) | anagrafica degli sponsor, vedi «Sponsor» |
 | Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname, «Agenti» = limite di agenti, predefinito 1; «Crea cliente»), «Clienti» con «Entra nel cliente» (il superadmin entra in quel cliente e apre `/admin/live`, vedi «Più clienti») e «Modifica» (nome, hostname e limite di agenti, «Salva»; il limite è mostrato come «un agente» / «fino a N agenti»); riquadro «Primo utente (facoltativo)» nel modulo («Email del primo utente» e «Password del primo utente (facoltativa)»; creato con il ruolo «Lettura e scrittura»; senza password il primo utente è invitato e sotto il modulo compare l'esito dell'invito, vedi «Utenti del cliente»); ogni cliente mostra «nessun utente», «1 utente» o «N utenti» |
 | Esci | - | tutti | chiude la sessione |
@@ -183,7 +183,7 @@ ridotto alle icone). Dati e rotte del server non cambiano
 
 **Tre colonne** (da 768 px; `StudioPage.tsx`):
 - **Sezioni** (a sinistra): «Colori e loghi» (Aspetto di tutta la pagina), «Pagina live» (Blocchi di TV, tablet e
-  telefono), «Pause» (Fine set, time-out, sponsor), «Avvisi» (Ace, muro, set point). Un pallino ● segna le sezioni con
+  telefono), «Pause» (Fine set, time-out, sponsor), «Avvisi» (Ace, muro, set point), «Esporta / Importa» (Salva o carica tutta la grafica). Un pallino ● segna le sezioni con
   modifiche non salvate.
 - **Impostazioni** (al centro): a schede brevi; le impostazioni meno usate stanno in «Avanzate», chiuso all'inizio. Passando
   il mouse (o il focus della tastiera) su un'impostazione, i suoi elementi sono evidenziati nell'anteprima; sotto ogni
@@ -247,7 +247,7 @@ compare.», «Avviso spento: gli spettatori non lo vedono.», «Su <dispositivo>
   proprie dei set; quelli degli avvisi tengono testi, dispositivi, priorità, posizione e dimensione di ogni avviso.
 
 #### Sezione «Colori e loghi»
-Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome», «Squadra», «Immagini», «Esporta / Importa».
+Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome», «Squadra», «Immagini» (l'esportazione è la sezione «Esporta / Importa»).
 - «Colori»: i cinque colori («Colore principale», «Colore di risalto», «Squadra di casa», «Squadra ospite», «Sfondo
   della pagina»), ciascuno con selettore e campo esadecimale `#rrggbb` e «Predefinito»; i colori vanno sopra quelli del
   modello. Avvisi di contrasto (`brandContrastIssues`, sotto 4,5:1), per esempio «Lo sfondo è troppo scuro per il testo
@@ -270,7 +270,14 @@ Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome»
   `/api/public/assets/:id` serve solo il cliente dell'hostname: su un indirizzo IP (installazione di prova) o per il
   superadmin dentro un altro cliente l'immagine risultava rotta. Le anteprime passano `assetPath: adminAssetPath` ai
   blocchi (`BlockBrand` in `blocks/env.ts`, `blockBrandOf`); la pagina pubblica resta su `publicAssetPath`.
-- «Esporta / Importa» (`GraphicsTransfer.tsx`): «Esporta configurazione» scarica `grafica-<slug>-<data>.json`
+
+#### Sezione «Esporta / Importa»
+Quinta sezione dello Studio, elencata sotto «Avvisi» (`/admin/studio/esporta`, `StudioSection` `esporta`). Non ha bozza né
+«Salva», non è mai «modificata» (nessun ●). Contiene `GraphicsTransfer.tsx`. Se altre sezioni hanno modifiche non
+salvate, sopra «Esporta configurazione» compare l'avviso «Hai modifiche non salvate in «…»: il file contiene la grafica già
+salvata…» (si esporta il salvato). Dopo un'importazione lo Studio ricarica i dati salvati (le bozze si azzerano) e mostra
+«Configurazione importata: la pagina pubblica la usa da subito.». La scheda «Esporta / Importa» di «Colori e loghi» non c'è più.
+- `GraphicsTransfer.tsx`: «Esporta configurazione» scarica `grafica-<slug>-<data>.json`
   (`GET /api/admin/branding/export`). «File della configurazione (.json)» legge il file (`readPackage`: messaggi per file
   illeggibile, non nostro, versione non supportata o danneggiato), mostra il «Riepilogo del file» (club di origine,
   esportata il, numero di immagini, modello grafico) e l'avviso «la grafica attuale … verrà sostituita»; «Sostituisci la

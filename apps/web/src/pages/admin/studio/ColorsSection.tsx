@@ -33,18 +33,16 @@ import { megabytes } from '../../../lib/format.ts';
 import { useApiError, useAuth } from '../auth.tsx';
 import { ConfirmButton, Field, inputClass } from '../forms.tsx';
 import { ACCEPT, IMAGE_TOO_LARGE, uploadImage } from '../imageUpload.ts';
-import { GraphicsTransfer } from './GraphicsTransfer.tsx';
 import type { StudioTarget } from './model.ts';
 import { ALL_DEVICES_TEXT, COLOR_LABELS, IMAGE_LABELS } from './model.ts';
 import { Advanced, Setting, SettingsCard, TabList } from './StudioUi.tsx';
 
-export type ColorsTab = 'colori' | 'loghi' | 'squadra' | 'immagini' | 'trasferimento';
+export type ColorsTab = 'colori' | 'loghi' | 'squadra' | 'immagini';
 export const COLORS_TABS: readonly { value: ColorsTab; label: string }[] = [
   { value: 'colori', label: 'Colori' },
   { value: 'loghi', label: 'Loghi e nome' },
   { value: 'squadra', label: 'Squadra' },
   { value: 'immagini', label: 'Immagini' },
-  { value: 'trasferimento', label: 'Esporta / Importa' },
 ];
 
 const SLOTS = Object.keys(BRANDING_IMAGE_SLOTS) as BrandingImageSlot[];
@@ -567,7 +565,6 @@ export function ColorsSection({
             )}
           </section>
         )}
-        {tab === 'trasferimento' && <GraphicsTransfer currentTemplate={base.template} />}
         {error && <ErrorBox>{error}</ErrorBox>}
       </div>
     </div>

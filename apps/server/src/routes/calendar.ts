@@ -49,8 +49,8 @@ async function fixtureOf(tx: Tx, tenantId: string, id: string): Promise<FixtureR
 const onlyManual = () => badRequest('Si modificano e si cancellano solo le partite aggiunte a mano');
 
 /**
- * The matches of the calendar of the client («Calendario», admin): matches added by hand (friendly, cup, other) with
- * their link and QR like the downloaded ones, changed or deleted only by the client; broadcast, hidden and logos of
+ * The matches of the calendar of the client («Calendario», admin): matches added by hand (friendly, cup, other, with
+ * the name of their competition in `league_name`, as the downloaded ones) with their link and QR like the downloaded ones, changed or deleted only by the client; broadcast, hidden and logos of
  * every match. Every query goes through `tenantScope`; the changes run under the lock of the matches of the client
  * (the link of the `.dvw`), the logos are images `logo` of the client.
  */
@@ -84,7 +84,7 @@ export function manualFixtureRoutes(app: FastifyInstance, ctx: AppContext): void
         venue: body.venue,
         venueCity: body.venueCity,
         roundLabel: MANUAL_FIXTURE_LABEL[body.kind],
-        leagueName: null,
+        leagueName: body.competition,
         status: 'scheduled',
       });
     });
@@ -118,6 +118,7 @@ export function manualFixtureRoutes(app: FastifyInstance, ctx: AppContext): void
         venue: body.venue,
         venueCity: body.venueCity,
         roundLabel: MANUAL_FIXTURE_LABEL[body.kind],
+        leagueName: body.competition,
         updatedAt: ctx.now(),
       };
       await tx

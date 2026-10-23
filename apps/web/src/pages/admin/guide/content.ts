@@ -114,7 +114,8 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
         kind: 'list',
         items: [
           'Se il tuo club ha i «Link e QR per singola partita», ogni partita ha il suo link e il suo QR. Altrimenti si usa il «Canale del club».',
-          'Per aggiungere un’amichevole, una coppa o un’altra gara, premi «Nuova partita» e compila tipo, data, ora, avversario e dove si gioca.',
+          'Per aggiungere un’amichevole, una coppa o un’altra gara, premi «Aggiungi partita» e compila tipo, data, ora, avversario e dove si gioca. In «Competizione (facoltativa)» scrivi il nome della competizione, per esempio «Champions League»: il campo suggerisce i campionati del club e i nomi già usati. La competizione compare con la partita nel «Calendario» e nella pagina pubblica.',
+          'Ogni partita mostra la sua competizione: il campionato del sito della Lega o il nome scritto a mano. Con più competizioni, in «Competizione» scegli «Tutte» oppure una sola (o «Senza competizione»).',
           'Se la data è sbagliata o è cambiata, apri la partita, premi «Cambia data e ora» e scrivi quelle giuste. La partita mostra «Modificata a mano».',
           'Per rimettere la data del sito della Lega premi «Torna alla data ufficiale».',
           'Se un file .dvw si è abbinato alla partita sbagliata (per esempio una prova fatta prima della partita vera), accanto a «File .dvw» premi «Scollega» e poi «Conferma: scollega il file»: la partita torna «Programmata» e il file non viene più abbinato da solo.',

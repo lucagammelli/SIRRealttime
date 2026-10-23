@@ -618,7 +618,11 @@ sono più trasmessi (`closeNotBroadcast`). Risponde con `ClubResponse`.
 del cliente, altrimenti 400):
 
 - `POST /api/admin/calendar/fixtures` (`ManualFixtureRequest`: `kind` `friendly`/`cup`/`other`, `startsAt` UTC, `opponent`,
-  `opponentLogo`, `ourSide`, `venue`, `venueCity`) → 201 `{ id }`. La riga ha `origin` `manual`, `league_id` nullo, id esterno
+  `opponentLogo`, `ourSide`, `venue`, `venueCity`, `competition` facoltativa) → 201 `{ id }`. `competition` (testo semplice, al massimo
+  100 caratteri, `null` se manca) è la competizione scritta dal cliente (per esempio «Champions League», che non ha un sito da
+  cui scaricare il calendario): si salva nella colonna esistente `client_fixtures.league_name` (nessuna migrazione) e torna come
+  `leagueName` nel calendario e nei blocchi pubblici «Calendario» e «Prossima partita»; la classifica pubblica resta quella del
+  campionato principale. La `PUT` sostituisce tutto: senza `competition` la competizione si toglie. La riga ha `origin` `manual`, `league_id` nullo, id esterno
   `manual:<id>`, giornata `Amichevole`/`Coppa`/`Partita` (`MANUAL_FIXTURE_LABEL`) e il nome della nostra squadra
   (`ourTeamForManual`); poi `refreshClub` le dà link breve e QR come alle altre e riprova i `.dvw` da confermare;
 - `PUT /api/admin/calendar/fixtures/:id` → 204; `DELETE` → 204. Solo per le partite `manual`, altrimenti 400 «Si modificano

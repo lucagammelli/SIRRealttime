@@ -51,6 +51,8 @@ async function serverMessage(res: Response): Promise<string | null> {
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
+  /** The bytes of a file as the body (`application/octet-stream`, the upload of a video) instead of `body` as JSON. */
+  file?: Blob;
   signal?: AbortSignal;
   fetch?: typeof fetch;
 }
@@ -58,10 +60,10 @@ export interface RequestOptions {
 async function send(path: string, options: RequestOptions): Promise<Response> {
   const method = options.method ?? 'GET';
   const headers: Record<string, string> = { accept: 'application/json' };
-  let body: string | undefined;
+  let body: string | Blob | undefined;
   if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
-    headers['content-type'] = 'application/json';
-    body = JSON.stringify(options.body ?? {});
+    headers['content-type'] = options.file ? 'application/octet-stream' : 'application/json';
+    body = options.file ?? JSON.stringify(options.body ?? {});
   }
   let res: Response;
   try {

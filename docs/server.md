@@ -159,7 +159,10 @@ resta 1.
   viene dal database (riconosciuto dai byte al caricamento), con `X-Content-Type-Options: nosniff`, `Content-Disposition:
   inline` e `Cache-Control: public, max-age=31536000, immutable`: l'`id` cambia a ogni file nuovo (una riga nuova con il
   suo sha256), quindi la cache non invecchia. Gli SVG escono con `image/svg+xml; charset=utf-8` e CSP `default-src 'none';
-  style-src 'unsafe-inline'; sandbox`, perché aperti direttamente non eseguano né carichino nulla.
+  style-src 'unsafe-inline'; sandbox`, perché aperti direttamente non eseguano né carichino nulla. Le due rotte di lettura
+  dei file (`sendAsset`) mandano `Accept-Ranges: bytes` e rispondono a un `Range` con un solo intervallo (`bytes=a-b`,
+  `bytes=a-`, `bytes=-n`, funzione pura `byteRange`): **206** con `Content-Range`, **416** con `Content-Range: bytes */N`
+  se l'intervallo non sta nel file; un `Range` non capito dà il file intero. Serve a Safari, che chiede i video a pezzi.
 - **Rotte admin** (ruolo `admin`; il superadmin lavora sul cliente attivo, `adminTenantId`): `GET`/`PUT
   /api/admin/branding` (il corpo del `PUT` è il branding; ogni immagine deve essere di quel cliente e del tipo del suo
   posto, `BRANDING_IMAGE_SLOTS`: `logoMain` e `logoMark` sono `logo`, `sponsorLogo` è `sponsor`, altrimenti 400); `GET
@@ -173,9 +176,18 @@ resta 1.
   usa subito la nuova grafica; `PUT` è nei metodi CORS.
 - **Caricamento**: JSON `{ kind, data }` con `data` in base64 (`UploadAssetRequestSchema`; il guard delle rotte admin
   accetta solo JSON). Errori: 413 oltre 2 MB (`ASSET_MAX_BYTES`), 422 immagine non ammessa, 409 quota esaurita
-  («Spazio per le immagini esaurito (… MB): elimina quelle che non usi») o, in eliminazione, immagine in uso («Immagine
+  («Spazio per i file esaurito (… MB): elimina quelli che non usi») o, in eliminazione, immagine in uso («Immagine
   in uso nella grafica: toglila prima di eliminarla»). Lo stesso file caricato di nuovo (stesso cliente, sha256 e `kind`)
   restituisce l'immagine già salvata con 200 (201 se nuova).
+- **Caricamento di un video** (`POST /api/admin/assets/video`, `VIDEO_UPLOAD_PATH`, per gli sfondi degli avvisi): il corpo
+  è il file stesso, `Content-Type: application/octet-stream` (rotta con `BINARY_BODY` in `src/security.ts`; tutte le altre
+  restano solo JSON), senza base64. Ordine dei controlli: sessione e ruolo `admin` (403) prima di leggere il corpo, tipo
+  (415 se non è `octet-stream`), dimensione (413 oltre 15 MB, `VIDEO_MAX_BYTES`, già dalla `Content-Length`), contenuto
+  (422 `VIDEO_REJECTED` se i byte non sono MP4 con marca ISO né WebM: `inspectVideo` in `src/lib/videos.ts`, mai dal nome o dal
+  tipo dichiarato), quota (409 «Spazio per i file esaurito (N MB): elimina quelli che non usi»). Il file è un asset di
+  `kind` `overlay`; stessa quota, stesso blocco per cliente e stesso `storeAsset` delle immagini. Lo stesso file di nuovo:
+  200 con il video già salvato (201 se nuovo). Le immagini degli sfondi usano `POST /api/admin/assets` con `kind: 'overlay'`.
+  Le immagini di logo, sponsor e pagina rifiutano i video (400).
 - **Controllo dell'immagine** (`src/lib/images.ts`, `inspectImage`): tipo e dimensioni dai byte, mai dal nome o dal tipo
   dichiarato. PNG, JPEG e WebP (rifiutati se hanno dati dopo la fine del file), massimo 4096 px per lato
   (`IMAGE_MAX_SIDE`). SVG (`checkSvg`) solo UTF-8 e solo con una lista di elementi ammessi; rifiutati script,
@@ -304,8 +316,12 @@ da `@arenalive/volley-stats` (`docs/statistiche.md`) e viaggiano nello stato com
 - **Rotte admin** (ruolo `admin`; il superadmin lavora sul cliente attivo, `adminTenantId`): `GET /api/admin/overlays` e
   `PUT /api/admin/overlays`; il corpo del `PUT` è il documento degli avvisi e la risposta è `OverlaysResponse`
   (`tenantName`, `overlays`). Validazione con lo schema condiviso (eventi e segnaposto in lista chiusa, testo senza `<` e `>`,
-  durata 2-8 s, priorità 1-10): altrimenti 400. Nessuna immagine, quindi nessun controllo sugli asset. Dopo il salvataggio si
-  svuota la cache degli hostname (`forgetTenants`).
+  durata 2-8 s, priorità 1-10): altrimenti 400. Ogni avviso può avere `background` (`{ kind: 'image' | 'video', assetId }`):
+  il `PUT` verifica (`requireOwnBackgrounds`, sotto il blocco del cliente) che il file sia del cliente, di `kind` `overlay` e
+  del tipo dichiarato (video per `video`, immagine per `image`), altrimenti 400. Un file usato come sfondo non si può
+  eliminare (`assetUse`, 409 «File in uso come sfondo di un avviso…»). L'esportazione e l'importazione della grafica
+  (`graphicsTransfer.ts`) tolgono gli sfondi (`withoutOverlayBackgrounds`): i video fino a 15 MB non viaggiano nel
+  pacchetto e gli avvisi restano con il solo testo. Dopo il salvataggio si svuota la cache degli hostname (`forgetTenants`).
 - **Rotta pubblica**: `overlays` è anche in `GET /api/public/tenant` (`PublicTenantResponseSchema`), con i predefiniti se il
   cliente non ha configurato nulla (`apps/server/src/tenancy.ts` legge la colonna).
 
@@ -948,6 +964,7 @@ server scrive `dist/build-info.json` (`version` e `commit` corto, da `ARENALIVE_
 | GET | `/api/admin/assets` | sessione | viewer |
 | GET | `/api/admin/assets/:id/file` | sessione | viewer |
 | POST | `/api/admin/assets` | sessione (corpo fino a ~2,7 MB) | admin |
+| POST | `/api/admin/assets/video` | sessione (corpo binario `application/octet-stream`, fino a 15 MB) | admin |
 | DELETE | `/api/admin/assets/:id` | sessione | admin |
 | GET | `/api/admin/agent/info` | sessione | admin |
 | GET | `/api/admin/agent/download` | sessione, limite proprio `RATE_LIMIT_AGENT_DOWNLOAD` | admin |
@@ -1186,7 +1203,7 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `tenant_leagues` | scelta del cliente (migrazione `0006_club.sql`): `tenant_id`, `league_id`, `league_team_id` (la squadra del club, nulla finché non scelta; `ON DELETE SET NULL`); unica per cliente e campionato |
 | `client_fixtures` | copia delle partite del club dal calendario (migrazione `0006_club.sql`; `0007_ruoli_calendario.sql` aggiunge `origin` `league`/`manual`, `manual_kind` `friendly`/`cup`/`other`, `broadcast` `auto`/`on`/`off`, `hidden`, `our_logo_asset_id` e `opponent_logo_asset_id` → `assets` `ON DELETE SET NULL`, e rende `league_id` nullo; vincolo: `league_id` nullo se e solo se `origin` è `manual`): `tenant_id`, `league_id`, `fixture_external_id` (unica con cliente e campionato), `fixture_id`, `removed_at` (la partita non è più nel calendario, il link resta), `starts_at`, `our_side` (`club_side`: `home`/`away`), nomi, città e loghi delle due squadre, impianto, `round_label`, `league_name`, `status`, `home_sets`, `away_sets` |
 | `share_tokens` | `tenant_id`, `token_hash`, `match_id` (null: segue la live), `client_fixture_id` (link di una partita del calendario, `ON DELETE CASCADE`; unico quando non nullo e non revocato: indice parziale dalla migrazione `0014_link_partita.sql`), `label`, `expires_at`, `revoked`, `short_code_hash` (unica, null finché non assegnato), `short_code_salt` (migrazioni `0004_short_codes.sql`, `0006_club.sql`) |
-| `assets` | `tenant_id`, `kind` (enum `asset_kind`: `logo`/`sponsor`), `sha256`, `mime`, `width`, `height`, `bytes`, `created_at`; indice univoco `assets_tenant_sha256_kind_idx` su cliente + `sha256` + `kind` (migrazione `0003_assets.sql`) |
+| `assets` | `tenant_id`, `kind` (enum `asset_kind`: `logo`/`sponsor`/`overlay`), `sha256`, `mime` (immagini e `video/mp4`/`video/webm`), `width`, `height`, `bytes`, `created_at`; indice univoco `assets_tenant_sha256_kind_idx` su cliente + `sha256` + `kind` (migrazione `0003_assets.sql`; `overlay` aggiunto dalla `0018_sfondi_avvisi.sql`, `ALTER TYPE … ADD VALUE`, **non reversibile**: Postgres non toglie un valore da un enum) |
 | `sponsors` | anagrafica degli sponsor (migrazione `0015_sponsor.sql`): `tenant_id`, `name` (1-80, CHECK; unico per cliente: `sponsors_tenant_name_idx`), `website` (nullo o `https://…`, CHECK), `position`, `created_at`; `assets.sponsor_id` (→ `sponsors`, `ON DELETE SET NULL`, indice `assets_sponsor_idx`) |
 | `agent_registrations` | `tenant_id`, `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at`, `agent_expires_at` (validità scelta all'approvazione; migrazioni `0001_agent_registrations.sql`, `0007_ruoli_calendario.sql`) |
 | `agents`, `tenants` (colonne di `0007_ruoli_calendario.sql`) | `agents.expires_at` (nulla = senza scadenza); `tenants.club_profile` (jsonb, predefinito `{}`) e `tenants.agent_quota` (intero, predefinito 1; la migrazione la porta a max(1, agenti non revocati) per i clienti esistenti) |

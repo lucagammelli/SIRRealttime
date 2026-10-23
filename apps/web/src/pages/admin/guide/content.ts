@@ -169,7 +169,11 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'Per portare tutta la grafica da un portale a un altro (colori, loghi, pagina live, pause, avvisi, sponsor scelti e immagini) apri «Colori e loghi», scheda «Esporta / Importa». Con «Esporta configurazione» scarichi un file; con «Importa configurazione» scegli il file, controlli il riepilogo (club di origine, data, immagini, modello grafico) e confermi: la grafica attuale viene sostituita. Il file non contiene partite, utenti né link. Un tema personalizzato lo può importare solo il superadmin.',
+        text: 'Per portare tutta la grafica da un portale a un altro (colori, loghi, pagina live, pause, avvisi, sponsor scelti e immagini) apri «Colori e loghi», scheda «Esporta / Importa». Con «Esporta configurazione» scarichi un file; con «Importa configurazione» scegli il file, controlli il riepilogo (club di origine, data, immagini, modello grafico) e confermi: la grafica attuale viene sostituita. Il file non contiene partite, utenti né link, né gli sfondi degli avvisi: quelli vanno caricati di nuovo. Un tema personalizzato lo può importare solo il superadmin.',
+      },
+      {
+        kind: 'text',
+        text: 'In «Avvisi», con «Modifica» su un avviso (per esempio «Ace»), alla voce «Sfondo» scegli «Nessuno», «Immagine» o «Video». Con «Carica immagine» (PNG, JPEG, WebP o SVG, al massimo 2 MB) o «Carica video» (MP4 o WebM, al massimo 15 MB, senza audio) il file viene caricato e scelto; poi puoi sceglierlo dall’elenco anche per altri avvisi. L’avviso diventa più grande, con lo sfondo dietro al testo e una velatura del colore della squadra. La pagina live scarica gli sfondi appena si apre, così il video parte subito; se non è ancora pronto l’avviso esce con il solo testo. Sul telefono il video non si mostra, e nemmeno a chi ha chiesto meno animazioni: lì l’avviso esce con il solo testo (o con lo sfondo immagine). Con «Prova» vedi l’avviso con lo sfondo nell’anteprima. Un file usato come sfondo non si può eliminare: prima toglilo dall’avviso.',
       },
     ],
     links: [

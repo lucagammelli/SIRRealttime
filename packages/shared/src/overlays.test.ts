@@ -1,6 +1,8 @@
 import { MATCH_EVENT_KINDS, MATCH_EVENT_PRIORITY } from '@arenalive/volley-stats';
 import { describe, expect, it } from 'vitest';
 import {
+  AssetKindSchema,
+  AssetSummarySchema,
   defaultOverlay,
   defaultOverlays,
   defaultOverlayText,
@@ -17,6 +19,9 @@ import {
   PublicTenantResponseSchema,
   resolveOverlays,
   TenantOverlaysSchema,
+  isVideoMime,
+  overlayBackgrounds,
+  withoutOverlayBackgrounds,
 } from './index.js';
 
 describe('overlays: defaults', () => {
@@ -161,5 +166,55 @@ describe('overlays: text of an overlay', () => {
 
   it('a value is inserted as text, never read again as a placeholder or as HTML', () => {
     expect(fillOverlayText('Muro di {giocatore}', { giocatore: '{squadra} <b>' })).toBe('Muro di {squadra} <b>');
+  });
+});
+
+describe('overlays: background', () => {
+  const ID = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
+  const ID2 = '8a2d4e6f-1b3c-4d5e-8f7a-9b0c1d2e3f4a';
+
+  it('is optional: the documents saved before stay valid, and an image or a video is accepted', () => {
+    expect(TenantOverlaysSchema.parse({ ace: { text: 'ACE!' } }).ace.background).toBeUndefined();
+    const doc = TenantOverlaysSchema.parse({
+      ace: { background: { kind: 'video', assetId: ID } },
+      block: { background: { kind: 'image', assetId: ID2 } },
+    });
+    expect(doc.ace.background).toEqual({ kind: 'video', assetId: ID });
+    expect(overlayBackgrounds(doc)).toEqual([
+      { kind: 'video', assetId: ID },
+      { kind: 'image', assetId: ID2 },
+    ]);
+    const plain = withoutOverlayBackgrounds(doc);
+    expect(overlayBackgrounds(plain)).toEqual([]);
+    expect(doc.ace.background).toBeDefined();
+  });
+
+  it('refuses another kind, an id that is not a uuid and extra fields', () => {
+    for (const background of [
+      { kind: 'gif', assetId: ID },
+      { kind: 'image', assetId: 'x' },
+      { kind: 'image', assetId: ID, url: 'https://evil.test/a.png' },
+      { kind: 'image' },
+    ])
+      expect(TenantOverlaysSchema.safeParse({ ace: { background } }).success).toBe(false);
+  });
+
+  it('assets: kind overlay and video types in the summary', () => {
+    expect(AssetKindSchema.parse('overlay')).toBe('overlay');
+    expect(isVideoMime('video/webm')).toBe(true);
+    expect(isVideoMime('image/png')).toBe(false);
+    const summary = {
+      id: ID,
+      kind: 'overlay',
+      mime: 'video/mp4',
+      width: 1280,
+      height: 720,
+      bytes: 1000,
+      sha256: 'a'.repeat(64),
+      createdAt: '2026-10-14T10:00:00.000Z',
+      url: `/api/admin/assets/${ID}/file`,
+    };
+    expect(AssetSummarySchema.parse(summary).mime).toBe('video/mp4');
+    expect(AssetSummarySchema.safeParse({ ...summary, mime: 'video/quicktime' }).success).toBe(false);
   });
 });

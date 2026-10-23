@@ -464,3 +464,4 @@ Una riga per decisione: data, scelta, motivo.
   richiederebbe la sfida DNS-01 e un plugin del provider DNS); la rotta è difesa rifiutando (404) le richieste con
   intestazioni di inoltro invece di un listener separato, e il limite è fisso a 600 richieste al minuto, perché Caddy
   chiede solo per hostname senza certificato (`docs/infrastruttura.md`, `docs/server.md`).
+- 2026-10-23: a video la scritta «MVP» diventa «Miglior Realizzatore» (diapositiva delle pause, riga compatta, titolo); il criterio resta quello del 2026-10-15 e l'id `mvp` e `matchMvp` non cambiano. I giocatori si mostrano ovunque con il solo cognome (`playerName`); il blocco Rotazioni ha l'opzione «Disposizione» (affiancati / uno sopra l'altro).

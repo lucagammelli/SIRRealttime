@@ -11,7 +11,8 @@ import { duelRoles, visibleSlides } from '../lib/intermission.ts';
 import type { SlideEnv, SlideSize } from './IntermissionSlides.tsx';
 import { renderSlide } from './IntermissionSlides.tsx';
 import { loadSampleMatch } from './sampleMatch.ts';
-import { ROLE_LABELS, surname } from './StatSlides.tsx';
+import { playerName } from '../lib/format.ts';
+import { ROLE_LABELS } from './StatSlides.tsx';
 
 vi.mock('../charts/EChart.tsx', () => ({
   EChart: ({ label }: { label: string }) => <div role="img" aria-label={label} />,
@@ -99,7 +100,7 @@ describe('statistics slides with the example match', () => {
       expect(items).toHaveLength(top.length);
       expect(items.length).toBeLessThanOrEqual(3);
       const first = top[0];
-      if (first) expect(items[0]?.textContent).toContain(surname(first.player, first.number));
+      if (first) expect(items[0]?.textContent).toContain(playerName(first.player, first.number));
     }
   });
 
@@ -120,7 +121,7 @@ describe('statistics slides with the example match', () => {
     expect(slideText()).toContain('Ace');
     expect(slideText()).toContain(String(summary.teams.home.aces));
     const first = summary.teams.home.aceScorers[0] ?? summary.teams.away.aceScorers[0];
-    if (first) expect(slideText()).toContain(surname(first.player, first.number));
+    if (first) expect(slideText()).toContain(playerName(first.player, first.number));
     cleanup();
     draw(sample, { type: 'blocks', options: { period: 'match' } }, 1, 'compact');
     expect(slideText()).toContain('Muri vincenti · Partita');
@@ -158,7 +159,7 @@ describe('statistics slides with the example match', () => {
     expect(slideText()).toContain('Sfida tra opposti');
     for (const line of [duel.home, duel.away]) {
       expect(slideText()).toContain(String(line.number));
-      expect(slideText()).toContain(surname(line.player, line.number));
+      expect(slideText()).toContain(playerName(line.player, line.number));
     }
     for (const row of ['Punti', 'Ace', 'Muri', 'Attacco %']) expect(screen.getByText(row)).toBeTruthy();
   });

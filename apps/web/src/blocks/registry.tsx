@@ -89,11 +89,16 @@ export const BLOCKS: Registry = {
   court: define('court', 'Mappe di campo', 'Direzioni di attacco e battuta sul campo.', (b, env) => (
     <CourtMap state={env.state} options={b.options} className={tv(env) ? TV_CARD : 'h-full'} />
   )),
-  rotations: define('rotations', 'Rotazioni', 'Punti fatti e subiti in ogni rotazione.', (_b, env) =>
+  rotations: define('rotations', 'Rotazioni', 'Punti fatti e subiti in ogni rotazione.', (b, env) =>
     tv(env) ? (
-      <Rotations state={env.state} className={TV_CARD} chartClassName="h-[min(28vh,14rem)]" />
+      <Rotations
+        state={env.state}
+        orientation={b.options.orientation}
+        className={TV_CARD}
+        chartClassName={b.options.orientation === 'vertical' ? 'h-[min(17vh,9rem)]' : 'h-[min(28vh,14rem)]'}
+      />
     ) : (
-      <Rotations state={env.state} className="h-full" />
+      <Rotations state={env.state} orientation={b.options.orientation} className="h-full" />
     ),
   ),
   lastPoint: define('lastPoint', 'Ultimo punto', 'Chi ha fatto l’ultimo punto e come.', (_b, env) => (

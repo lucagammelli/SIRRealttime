@@ -74,6 +74,11 @@ describe('layout of the public page', () => {
     expect(parseBlock({ type: 'qr' }).data?.options).toEqual({ caption: 'Segui la partita sul telefono' });
     expect(parseBlock({ type: 'topPlayers' }).data?.options).toEqual({ count: 5, team: 'both' });
     expect(parseBlock({ type: 'logo' }).data?.options).toEqual({ variant: 'main' });
+    expect(parseBlock({ type: 'rotations' }).data?.options).toEqual({ orientation: 'horizontal' });
+    expect(parseBlock({ type: 'rotations', options: { orientation: 'vertical' } }).data?.options).toEqual({
+      orientation: 'vertical',
+    });
+    expect(parseBlock({ type: 'rotations', options: { orientation: 'diagonal' } }).success).toBe(false);
     expect(parseBlock({ type: 'momentum', options: { any: 1 } }).success).toBe(false);
   });
 

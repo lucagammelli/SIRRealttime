@@ -196,6 +196,25 @@ export function BlockOptionsEditor({
           </select>
         </label>
       );
+    case 'rotations':
+      return (
+        <label className="flex flex-wrap items-center gap-2 text-sm text-text">
+          Disposizione
+          <select
+            className={selectClass}
+            value={block.options.orientation}
+            onChange={(e) =>
+              onChange({
+                ...block,
+                options: { orientation: e.target.value === 'vertical' ? 'vertical' : 'horizontal' },
+              })
+            }
+          >
+            <option value="horizontal">Affiancati</option>
+            <option value="vertical">Uno sopra l'altro</option>
+          </select>
+        </label>
+      );
     case 'message':
       return (
         <div className="flex flex-wrap items-end gap-2">

@@ -105,6 +105,11 @@ export const LogoOptionsSchema = z.strictObject({
   variant: z.enum(['main', 'mark']).default('main'),
 });
 
+export const RotationsOptionsSchema = z.strictObject({
+  /** `horizontal`: the two teams side by side; `vertical`: one chart above the other. */
+  orientation: z.enum(['horizontal', 'vertical']).default('horizontal'),
+});
+
 export const SponsorOptionsSchema = z.strictObject({
   /**
    * Sponsors of the client (ids of `sponsors`, checked by the server): all their images in turn, in the order of the
@@ -244,7 +249,7 @@ export const BLOCK_OPTIONS = {
   comparison: NoOptionsSchema,
   players: NoOptionsSchema,
   court: CourtOptionsSchema,
-  rotations: NoOptionsSchema,
+  rotations: RotationsOptionsSchema,
   logo: LogoOptionsSchema,
   sponsor: SponsorOptionsSchema,
   message: MessageOptionsSchema,

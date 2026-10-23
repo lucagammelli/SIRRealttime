@@ -54,11 +54,10 @@ export function teamShort(teams: Record<Side, TeamRef>, side: Side): string {
   );
 }
 
-/** "Rossi M." from a player reference; "#12" if the name is missing. */
-export function playerName(player: PlayerRef | undefined, number: number): string {
+/** Surname only («Rossi»); the first name if the surname is missing; "#12" if both are. */
+export function playerName(player: PlayerRef | null | undefined, number: number): string {
   const last = player?.lastName?.trim();
   const first = player?.firstName?.trim();
-  if (last && first) return `${last} ${first.charAt(0)}.`;
   if (last) return last;
   if (first) return first;
   return `#${number}`;

@@ -250,7 +250,9 @@ partita» e «Classifica» del club, larghezze 4/6/8/12, vedi «Club e calendari
 `variant` (`main` | `mark`); `sponsor` `sponsors` (al massimo `SPONSOR_BLOCK_MAX_SPONSORS` = 12 id di sponsor del cliente,
 predefinito vuoto: le immagini di ogni sponsor ruotano nell'ordine dell'elenco), `images` (legacy, mantenuto per
 compatibilità: al massimo `SPONSOR_MAX_IMAGES` = 12 id di immagini singole del cliente, che ruotano dopo quelle degli
-sponsor) e `seconds` (3-60, predefinito 8); `message` `text` (testo semplice, al massimo `MESSAGE_MAX_LENGTH` = 280) e `size`
+sponsor), `display` (`rotate` | `all`, `SPONSOR_DISPLAYS`, predefinito `rotate`: una immagine alla volta o tutte in una
+pagina; i documenti e i file di esportazione grafica salvati prima restano validi, formato invariato) e `seconds` (3-60,
+predefinito 8, usato solo con `rotate`); `message` `text` (testo semplice, al massimo `MESSAGE_MAX_LENGTH` = 280) e `size`
 (`normal` | `large`); `qr` `caption` (al massimo `QR_CAPTION_MAX_LENGTH` = 80, predefinito `QR_DEFAULT_CAPTION`);
 `topPlayers` `count` (1-`TOP_PLAYERS_MAX` = 10) e `team` (`both` | `home` | `away`). Opzioni dei sei nuovi blocchi (le
 stesse delle diapositive omonime): `period` (`STAT_PERIODS`: `set` predefinito, `match`) in tutti; `limit` in `setScorers`
@@ -275,7 +277,9 @@ Pause della partita (`intermissions.ts`): `TenantIntermissionsSchema` / `TenantI
 setBreak, setBreakBySet, matchEnd, milestone }`. Quattro tipi di pausa (`INTERMISSION_KINDS`: `timeout`, `setBreak`,
 `matchEnd`, come i `kind` di `MatchPhase` in `docs/statistiche.md`, e `milestone`, «ogni N punti», che non è una fase).
 Ogni pausa ha `enabled`, `modes` (per `tv`, `tablet`, `phone`:
-`fullscreen` o `banner`, `INTERMISSION_MODES`), `delaySeconds` (0-`INTERMISSION_MAX_DELAY_SECONDS` = 60) e `slides`
+`fullscreen` o `banner`, `INTERMISSION_MODES`), `fullscreenSize` (`normal` | `large` | `fill`,
+`INTERMISSION_FULLSCREEN_SIZES`, predefinito `normal`: quanto è grande la diapositiva a tutto schermo; i documenti salvati
+prima restano validi), `delaySeconds` (0-`INTERMISSION_MAX_DELAY_SECONDS` = 60) e `slides`
 (al massimo `INTERMISSION_MAX_SLIDES` = 12, id unici). Una pausa attiva ha almeno una diapositiva. Tipi di diapositiva
 (`SLIDE_TYPES`): `setSummary`, `finalResult`, `mvp`, `setScores` (senza opzioni) e `setScorers`, `aces`, `blocks`,
 `attack`, `roleDuel`, `teamDuel`, `nextMatch`, `standings`, `sponsor`, `message`, `qr`, `logo` (le stesse opzioni dei blocchi omonimi,

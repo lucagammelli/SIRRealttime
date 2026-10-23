@@ -29,7 +29,11 @@ scout. Il formato scritto è quello letto da `docs/dvw-parser.md`.
   - `{ kind: 'duration', setSeconds, breakSeconds }` («durata»): ogni set dura `setSeconds` e ogni pausa tra due set
     `breakSeconds`; le righe di un set si distribuiscono nel suo tempo seguendo il proprio ritmo. Le righe fuori da un
     set (dopo l'ultimo, o file senza punti) seguono subito quelle prima;
-  - `{ kind: 'speed', speed }` («velocità»): il ritmo reale delle righe diviso `speed`.
+  - `{ kind: 'speed', speed }` («velocità»): il ritmo reale delle righe diviso `speed`. Fra l'ultima riga di un set e la
+    prima del successivo passano almeno `MIN_SPEED_BREAK_SECONDS` (20 s): i `.dvw` veri non hanno pausa fra i set e a
+    velocità alta quella dei file generati si ridurrebbe a pochi secondi, e il set dopo partiva durante la pausa a schermo.
+    Il terzo parametro opzionale di `planPlayback` (`PlaybackOptions.minBreakSeconds(setFinito)`) sostituisce quei 20 s
+    set per set: la simulazione del server passa la durata della pausa «Fine set» del cliente (vedi `docs/server.md`).
   Il «ritmo reale» (`matchSeconds`) usa gli orari `HH.MM.SS` scritti da DataVolley (`timeSeconds`: secondi dalla
   mezzanotte, `null` se manca o non è un orario valido): lo scarto dalla riga con orario precedente; oltre la mezzanotte
   continua (uno scarto negativo oltre mezza giornata aggiunge 24 h), una riga indietro nel tempo non fa tornare l'orologio,
@@ -51,11 +55,11 @@ scout. Il formato scritto è quello letto da `docs/dvw-parser.md`.
 - `renderDvw(match, upToLine, { encoding }): Uint8Array`. `encoding` è `'win1252'` (default) o `'utf8'`.
 - `applyCorrection(match, lineIndex, seed, visible?): GeneratedMatch`: restituisce una nuova partita con una sola riga
   corretta, cercando da `lineIndex` e solo tra le prime `visible` righe (default tutte); l'originale non cambia.
-- `play(match, { out, speed, mode, corrections, signal?, seed?, onWrite? }): Promise<void>`. `speed` accelera il tempo,
+- `play(match, { out, speed, mode, corrections, minBreakSeconds?, signal?, seed?, onWrite? }): Promise<void>`. `speed` accelera il tempo,
   `mode` è `'atomic'` o `'direct'`, `signal` (`AbortSignal`) interrompe, `seed` governa le correzioni (default 1),
   `onWrite(righeVisibili)` è chiamata dopo ogni riscrittura.
-- `planPlayback(righe, ritmo): PlaybackPlan`, `matchSeconds`, `timeSeconds`, `AVERAGE_GAP_SECONDS`,
-  `MAX_REAL_GAP_SECONDS` (`src/schedule.ts`, vedi sopra).
+- `planPlayback(righe, ritmo, { minBreakSeconds? }): PlaybackPlan`, `matchSeconds`, `timeSeconds`, `AVERAGE_GAP_SECONDS`,
+  `MAX_REAL_GAP_SECONDS`, `MIN_SPEED_BREAK_SECONDS` (`src/schedule.ts`, vedi sopra); `playGapMs` (attesa prima di una riga di `play`, con la pausa minima dopo `endset`; `minBreakSeconds` vale 0 se omesso).
 - Anche `scoutLineText`, `Rng` e i tipi (`src/types.ts`).
 
 ## Configurazione
@@ -64,7 +68,7 @@ Nessun file né variabile d'ambiente. Opzioni della CLI (`src/cli.ts`, bin `dvw-
 | Comando | Opzioni |
 |---|---|
 | `dvw-simulator generate` | `--out <file>` (obbligatoria), `--seed N` (default 1), `--sets N` (3, 4 o 5; default 3) |
-| `dvw-simulator play` | come `generate`, più `--speed N` (default 20), `--mode atomic\|direct` (default `atomic`), `--corrections` |
+| `dvw-simulator play` | come `generate`, più `--speed N` (default 20), `--min-break N` (pausa minima in secondi reali dopo la fine di un set, default 20), `--mode atomic\|direct` (default `atomic`), `--corrections` |
 
 `--help` mostra l'aiuto. La CLI non espone nomi squadra né `startTime`. Ctrl+C ferma `play`.
 

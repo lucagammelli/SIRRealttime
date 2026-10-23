@@ -16,6 +16,11 @@ export interface PlayOptions {
   signal?: AbortSignal;
   /** Seed of the random choices of the corrections. Default 1. */
   seed?: number;
+  /**
+   * Shortest wait (real seconds) between the end of a set and the next row: at a high speed the simulated break of
+   * five minutes would last a few seconds and the break of the portal would not show. Default 0 (no minimum).
+   */
+  minBreakSeconds?: number;
   /** Called after each rewrite with the number of visible rows. */
   onWrite?: (visibleLines: number) => void;
 }
@@ -46,6 +51,13 @@ async function writeFileDirect(path: string, data: Uint8Array, pauseMs: number, 
   }
 }
 
+/** Pure: real milliseconds to wait before writing row `n` (1-based): its simulated gap over `speed`, at least the break after a set. */
+export function playGapMs(match: GeneratedMatch, n: number, speed: number, minBreakSeconds = 0): number {
+  const prev = match.lines[n - 2]?.second ?? 0;
+  const gapMs = (((match.lines[n - 1]?.second ?? prev) - prev) * 1000) / speed;
+  return match.lines[n - 2]?.kind === 'endset' ? Math.max(gapMs, minBreakSeconds * 1000) : gapMs;
+}
+
 /**
  * Replays the match over time: at every new row the whole file is rewritten, as DataVolley does.
  * Resolves when the match is over or the signal is aborted.
@@ -71,8 +83,7 @@ export async function play(match: GeneratedMatch, options: PlayOptions): Promise
   await write(0, 0);
   for (let n = 1; n <= total; n++) {
     if (signal?.aborted) return;
-    const prev = match.lines[n - 2]?.second ?? 0;
-    const gapMs = (((match.lines[n - 1]?.second ?? prev) - prev) * 1000) / speed;
+    const gapMs = playGapMs(match, n, speed, options.minBreakSeconds);
     await sleep(gapMs, signal);
     if (signal?.aborted) return;
     if (corrections && n > 5 && rng.chance(0.05)) {

@@ -45,6 +45,13 @@ export const AVERAGE_GAP_SECONDS = { action: 3, point: 20, timeout: 60, setEnd: 
 /** A longer gap between two timed lines (the scoutman stopped, a wrong clock) counts as this many seconds. */
 export const MAX_REAL_GAP_SECONDS = 600;
 
+/**
+ * `speed`: shortest break (seconds, after the speed is applied) between the end of a set and the first line of the
+ * next one. The times of a real file hold no break between two sets (or one that the speed squeezes to a few seconds),
+ * and the break of the portal needs time to show: the next set never starts before it.
+ */
+export const MIN_SPEED_BREAK_SECONDS = 20;
+
 const DAY_SECONDS = 86_400;
 const TIME = /^(\d{1,2})\.(\d{2})\.(\d{2})$/;
 
@@ -101,8 +108,21 @@ function setOfLines(lines: readonly PlaybackLine[]): number[] {
   });
 }
 
-/** Pure: when each line is sent (see `PlaybackPace`), deterministic for the same lines and pace. */
-export function planPlayback(lines: readonly PlaybackLine[], pace: PlaybackPace): PlaybackPlan {
+/** Options of `planPlayback`. */
+export interface PlaybackOptions {
+  /**
+   * `speed`: shortest break (seconds) after the set `endedSet` (1-based) before the next one; the default is
+   * MIN_SPEED_BREAK_SECONDS for every set. The server passes the length of the «Fine set» pause of the client.
+   */
+  minBreakSeconds?: (endedSet: number) => number;
+}
+
+/** Pure: when each line is sent (see `PlaybackPace`), deterministic for the same lines, pace and options. */
+export function planPlayback(
+  lines: readonly PlaybackLine[],
+  pace: PlaybackPace,
+  options: PlaybackOptions = {},
+): PlaybackPlan {
   const seconds = matchSeconds(lines);
   const setOf = setOfLines(lines);
   const groups = new Map<number, number[]>();
@@ -116,7 +136,23 @@ export function planPlayback(lines: readonly PlaybackLine[], pace: PlaybackPace)
 
   if (pace.kind === 'speed') {
     const speed = pace.speed > 0 ? pace.speed : 1;
-    seconds.forEach((s, i) => (offsetsMs[i] = Math.round((s * 1000) / speed)));
+    const minBreak = options.minBreakSeconds ?? (() => MIN_SPEED_BREAK_SECONDS);
+    let extra = 0;
+    let previous: { set: number; indexes: number[] } | null = null;
+    for (const [set, indexes] of groups) {
+      if (!indexes.some((i) => lines[i]?.kind === 'point')) {
+        // Lines out of a set go with what came before.
+        for (const i of indexes) offsetsMs[i] = Math.round(((seconds[i] ?? 0) * 1000) / speed) + extra;
+        continue;
+      }
+      if (previous) {
+        // Real gap (accelerated) between the end of the previous set and the first line of this one.
+        const gap = (((seconds[indexes[0] ?? 0] ?? 0) - (seconds[previous.indexes.at(-1) ?? 0] ?? 0)) * 1000) / speed;
+        extra += Math.max(0, Math.max(0, minBreak(previous.set)) * 1000 - gap);
+      }
+      for (const i of indexes) offsetsMs[i] = Math.round(((seconds[i] ?? 0) * 1000) / speed) + extra;
+      previous = { set, indexes };
+    }
   } else {
     const setMs = Math.max(0, pace.setSeconds) * 1000;
     const breakMs = Math.max(0, pace.breakSeconds) * 1000;

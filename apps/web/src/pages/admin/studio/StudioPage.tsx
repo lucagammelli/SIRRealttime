@@ -40,6 +40,7 @@ import { pauseProblems } from '../intermissionEditor.ts';
 import { layoutProblems } from '../layoutEditor.ts';
 import { blockBrandOf } from './blockEditors.tsx';
 import type { ColorsTab } from './ColorsSection.tsx';
+import { GraphicsTransfer } from './GraphicsTransfer.tsx';
 import { ColorsSection } from './ColorsSection.tsx';
 import type { StudioChange, StudioDocs, StudioScene, StudioSection, StudioTarget } from './model.ts';
 import {
@@ -102,6 +103,7 @@ const SAVED_TEXT: Record<StudioSection, string> = {
   pagina: 'Pagina pubblica salvata: la vedono da subito tutti gli spettatori.',
   pause: 'Pause salvate: valgono da subito per tutti gli spettatori.',
   avvisi: 'Avvisi salvati: valgono da subito per tutti gli spettatori.',
+  esporta: 'Configurazione importata: la pagina pubblica la usa da subito.',
 };
 
 /** Block types whose colours are the team colours: a click on them in «Colori e loghi» opens the colours. */
@@ -116,6 +118,8 @@ function Studio({
   onAssetsChanged,
   sponsors,
   hasSection,
+  onImported,
+  notice,
 }: {
   tenantName: string;
   saved: StudioDocs;
@@ -125,6 +129,10 @@ function Studio({
   sponsors: readonly Sponsor[];
   /** The address names a section (the phone opens it at once instead of the list of sections). */
   hasSection: boolean;
+  /** A configuration was imported: the saved data of the Studio are loaded again. */
+  onImported: () => void;
+  /** Message shown at the start (the import that reloaded the Studio). */
+  notice: string | null;
 }) {
   const params = useParams();
   const navigate = useNavigate();
@@ -151,7 +159,7 @@ function Studio({
   const [trial, setTrial] = useState<OverlayTrial | null>(null);
   const [saving, setSaving] = useState<StudioSection | 'guidata' | null>(null);
   const [errors, setErrors] = useState<Partial<Record<StudioSection | 'guidata', string>>>({});
-  const [done, setDone] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(notice);
   const [showChanges, setShowChanges] = useState(false);
   const [guard, setGuard] = useState<Guard | null>(null);
   /** Template just chosen whose blocks differ from the page: «Applicare anche la disposizione dei blocchi…?». */
@@ -190,6 +198,7 @@ function Studio({
       pagina: layoutChanges(layout.base, layout.draft),
       pause: intermissionChanges(intermissions.base, intermissions.draft),
       avvisi: overlayChanges(overlays.base, overlays.draft),
+      esporta: [],
     }),
     [branding, layout, intermissions, overlays],
   );
@@ -198,6 +207,8 @@ function Studio({
     pagina: !sameValue(layout.base, layout.draft),
     pause: !sameValue(intermissions.base, intermissions.draft),
     avvisi: !sameValue(overlays.base, overlays.draft),
+    // «Esporta / Importa» has no draft and no «Salva».
+    esporta: false,
   };
   const anyDirty = Object.values(dirty).some(Boolean);
   const layoutIssues = useMemo(() => layoutProblems(layout.draft), [layout.draft]);
@@ -216,6 +227,7 @@ function Studio({
     avvisi: OVERLAY_KINDS.some((k) => textProblem(overlays.draft[k].text) !== null)
       ? 'Alcuni testi non sono validi (vuoti, troppo lunghi o con segnaposto sconosciuti): correggili prima di salvare.'
       : null,
+    esporta: null,
   };
 
   // Example match (or the live one) of the preview, with the team of the client as the home team.
@@ -515,6 +527,14 @@ function Studio({
         }}
         assets={assets}
         sponsors={sponsors}
+      />
+    );
+  else if (section === 'esporta')
+    panel = (
+      <GraphicsTransfer
+        currentTemplate={branding.base.template}
+        unsaved={STUDIO_SECTIONS.filter((s) => dirty[s.id]).map((s) => s.label)}
+        onImported={onImported}
       />
     );
   else
@@ -957,6 +977,16 @@ export function StudioPage() {
   );
   const sponsors = useAsync(loadSponsors);
 
+  // After an import the four documents arrive again: the Studio starts over from them (drafts included).
+  const [loaded, setLoaded] = useState<readonly unknown[]>([]);
+  const [epoch, setEpoch] = useState(0);
+  const [note, setNote] = useState<string | null>(null);
+  const now = [branding.data, layout.data, pauses.data, overlays.data];
+  if (now.some((d, i) => d !== loaded[i])) {
+    setLoaded(now);
+    if (loaded.length > 0 && loaded.every((d) => d !== null)) setEpoch((e) => e + 1);
+  }
+
   for (const part of [branding, layout, pauses, overlays, sponsors]) {
     if (part.error !== null) return <ErrorBox onRetry={part.reload}>{errorMessage(part.error)}</ErrorBox>;
   }
@@ -966,6 +996,8 @@ export function StudioPage() {
     return <Spinner label="Caricamento dello Studio grafico…" />;
   return (
     <Studio
+      key={epoch}
+      notice={note}
       tenantName={branding.data.tenantName}
       saved={{
         branding: branding.data.branding,
@@ -977,6 +1009,10 @@ export function StudioPage() {
       onAssetsChanged={assets.reload}
       sponsors={sponsors.data.sponsors}
       hasSection={isStudioSection(params.section)}
+      onImported={() => {
+        setNote(SAVED_TEXT.esporta);
+        for (const part of [branding, layout, pauses, overlays, assets, sponsors]) part.reload();
+      }}
     />
   );
 }

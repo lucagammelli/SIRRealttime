@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTouch } from '../lib/useLayout.ts';
 import { Card } from '../components/ui.tsx';
 import type { SponsorItem } from '../lib/sponsors.ts';
-import { sponsorItems } from '../lib/sponsors.ts';
+import { sponsorGridColumns, sponsorItems } from '../lib/sponsors.ts';
 import { ShareQr } from '../qr/ShareQr.tsx';
 import type { BlockEnv } from './env.ts';
 
@@ -58,17 +58,55 @@ export function sponsorAlt(item: SponsorItem, index: number, count: number): str
 }
 
 /**
- * Images of the sponsors chosen (in the order of the list of the sponsors), then the single images, in turn, each for
- * `seconds` (stopped with the rotation of the big screen). The image changes with a short fade, none with reduced
- * motion.
+ * Every image of the sponsors together in one page («tutti in una pagina»): a grid as square as possible, each image
+ * centred in its cell and never taller than `imageClassName` allows; `row`: side by side on one line (the banner).
+ */
+export function SponsorGrid({
+  items,
+  imageClassName = 'max-h-40',
+  row = false,
+}: {
+  items: readonly SponsorItem[];
+  imageClassName?: string;
+  row?: boolean;
+}) {
+  return (
+    <ul
+      aria-label="Sponsor"
+      data-sponsor-grid={items.length}
+      className={row ? 'flex flex-wrap items-center gap-2' : 'grid w-full gap-4'}
+      {...(row
+        ? {}
+        : { style: { gridTemplateColumns: `repeat(${sponsorGridColumns(items.length)}, minmax(0, 1fr))` } })}
+    >
+      {items.map((item, i) => (
+        <li key={`${item.src}-${i}`} className="flex min-h-0 min-w-0 items-center justify-center">
+          <SponsorImage
+            item={item}
+            alt={sponsorAlt(item, i, items.length)}
+            className={`w-auto max-w-full object-contain ${imageClassName}`}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * Images of the sponsors chosen (in the order of the list of the sponsors), then the single images: in turn, each for
+ * `seconds` (stopped with the rotation of the big screen; a short fade, none with reduced motion), or all together in
+ * one page (`display: 'all'`).
  */
 export function SponsorBlock({ options, env }: { options: BlockOptions<'sponsor'>; env: BlockEnv }) {
   const items = sponsorItems(options, env.brand?.sponsors ?? [], env.brand?.assetPath);
-  const index = useImageRotation(items.length, options.seconds, env.paused);
+  const all = options.display === 'all' && items.length > 1;
+  const index = useImageRotation(all ? 0 : items.length, options.seconds, env.paused);
   const current = items[index];
   return (
     <Card title="Sponsor" className={FILL} bodyClassName="flex items-center justify-center">
-      {current ? (
+      {all ? (
+        <SponsorGrid items={items} />
+      ) : current ? (
         <SponsorImage
           key={current.src}
           item={current}

@@ -398,6 +398,51 @@ describe('inventory: every option of the old pages is in the Studio', () => {
 });
 
 describe('Colori e loghi', () => {
+  it('draws the TV page in a box with the rem of the big screen (same groups of blocks as the real page)', async () => {
+    mockServer();
+    renderAt('/admin/studio/colori');
+    await studio();
+    const page = (await screen.findByTestId('anteprima-tv')).querySelector<HTMLElement>('[data-studio-page]');
+    // jsdom has no --sir-tv-font-size: default theme at 1920 × 1080 = 23.76 px per rem against the 16 px of the area.
+    const width = Number.parseFloat(page?.style.width ?? '0');
+    expect(width).toBeCloseTo((1920 * 16) / 23.76, 0);
+    expect(Number.parseFloat(page?.style.height ?? '0')).toBeCloseTo((1080 * 16) / 23.76, 0);
+  });
+
+  it('follows the template of the draft: another text size of the big screen redraws the TV page', async () => {
+    // jsdom does not compute the themes: each template gets its --sir-tv-font-size from the scope of the preview.
+    const real = window.getComputedStyle.bind(window);
+    const spy = vi.spyOn(window, 'getComputedStyle').mockImplementation((el, pseudo) => {
+      const style = real(el, pseudo);
+      const template = el.closest('[data-template]')?.getAttribute('data-template');
+      const raw = template === 'sir-volley' ? 'clamp(14px, min(0.9vw, 1.6vh), 36px)' : '';
+      return new Proxy(style, {
+        get: (t, k) =>
+          k === 'getPropertyValue'
+            ? (name: string) => (name === '--sir-tv-font-size' && raw ? raw : t.getPropertyValue(name))
+            : (Reflect.get(t, k) as unknown),
+      });
+    });
+    try {
+      mockServer({}, 'superadmin');
+      renderAt('/admin/studio/colori');
+      await studio();
+      const width = () =>
+        Number.parseFloat(
+          screen.getByTestId('anteprima-tv').querySelector<HTMLElement>('[data-studio-page]')?.style.width ?? '0',
+        );
+      expect(width()).toBeCloseTo((1920 * 16) / 23.76, 0);
+      fireEvent.click(
+        within(screen.getByRole('radiogroup', { name: 'Modello grafico' })).getByRole('radio', { name: /SIR VOLLEY/ }),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'No, tieni i blocchi attuali' }));
+      // SIR VOLLEY at 1920 × 1080: min(17.28, 17.28) px per rem.
+      await waitFor(() => expect(width()).toBeCloseTo((1920 * 16) / 17.28, 0));
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('the preview uses the real page with the colours of the draft', async () => {
     mockServer();
     renderAt('/admin/studio/colori');
@@ -589,6 +634,41 @@ describe('one save for each section', () => {
     expect(puts('/api/admin/branding')).toHaveLength(1);
   });
 
+  it('«Esporta / Importa» is a section under «Avvisi», no longer a tab of «Colori e loghi»', async () => {
+    mockServer();
+    renderAt('/admin/studio/colori');
+    await studio();
+    expect(screen.queryByRole('tab', { name: 'Esporta / Importa' })).toBeNull();
+    const names = within(screen.getByRole('navigation', { name: 'Sezioni dello Studio' }))
+      .getAllByRole('button')
+      .map((b) => b.textContent ?? '');
+    expect(names.map((n) => n.split(/Ace|Aspetto|Blocchi|Fine set|Salva/)[0])).toEqual([
+      'Colori e loghi',
+      'Pagina live',
+      'Pause',
+      'Avvisi',
+      'Esporta / Importa',
+    ]);
+    fireEvent.click(sectionButton(/^Esporta \/ Importa/));
+    expect(where()).toBe('/admin/studio/esporta');
+    expect(screen.getByRole('button', { name: 'Esporta configurazione' })).toBeTruthy();
+    expect(screen.getByLabelText(/File della configurazione/)).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Modifiche non salvate' })).toBeNull();
+    expect(screen.queryByTestId('export-unsaved')).toBeNull();
+  });
+
+  it('warns in «Esporta / Importa» that the file has the saved graphics, not the changes in progress', async () => {
+    mockServer();
+    renderAt('/admin/studio/avvisi');
+    const ace = await overlayRow('ace');
+    fireEvent.click(within(ace).getByRole('switch', { name: 'Ace' }));
+    fireEvent.click(sectionButton(/^Esporta \/ Importa/));
+    fireEvent.click(screen.getByRole('button', { name: 'Continua senza salvare' }));
+    const warning = await screen.findByTestId('export-unsaved');
+    expect(warning.textContent).toContain('«Avvisi»');
+    expect(warning.textContent).toContain('già salvata');
+  });
+
   it('asks before leaving the Studio with changes not saved', async () => {
     mockServer();
     renderAt('/admin/studio/avvisi');
@@ -753,6 +833,14 @@ describe('Pause', () => {
     expect(slideOrder()).toEqual(['message', 'sponsor']);
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sposta giù Messaggio' }));
     fireEvent.click(screen.getByRole('checkbox', { name: /Bar Centrale · 1 immagine/ }));
+    expect(screen.getByRole('combobox', { name: 'Dimensione a tutto schermo' })).toHaveProperty('value', 'normal');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Dimensione a tutto schermo' }), {
+      target: { value: 'fill' },
+    });
+    expect(screen.getByLabelText('Secondi per immagine')).toBeTruthy();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Come mostrarli' }), { target: { value: 'all' } });
+    // All in one page: no seconds per image (the slide keeps its own seconds).
+    expect(screen.queryByLabelText('Secondi per immagine')).toBeNull();
     save();
     expect(await screen.findByText(/Pause salvate/)).toBeTruthy();
     const body = puts('/api/admin/intermissions').at(-1)?.body as TenantIntermissions;
@@ -761,9 +849,10 @@ describe('Pause', () => {
     expect(body.timeout).toMatchObject({
       modes: { tv: 'fullscreen', tablet: 'banner', phone: 'banner' },
       delaySeconds: 3,
+      fullscreenSize: 'fill',
       slides: [
         { id: 'message', type: 'message' },
-        { id: 'sponsor', options: { sponsors: [SPONSOR_ID], images: [] } },
+        { id: 'sponsor', options: { sponsors: [SPONSOR_ID], images: [], display: 'all' } },
       ],
     });
   });

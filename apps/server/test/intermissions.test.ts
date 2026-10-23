@@ -80,7 +80,7 @@ describe('pauses of the public page', () => {
       seconds: 6,
       // Saved without the field: the slide is on.
       enabled: true,
-      options: { sponsors: [], images: [sponsor.id], seconds: 4 },
+      options: { sponsors: [], images: [sponsor.id], seconds: 4, display: 'rotate' },
     });
     expect((await call(HOST_A, cookieA, { url: URL })).json<IntermissionsResponse>().intermissions).toEqual(saved);
   });

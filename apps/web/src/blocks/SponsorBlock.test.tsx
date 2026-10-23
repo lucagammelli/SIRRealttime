@@ -9,7 +9,7 @@ import {
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { visibleSlides } from '../lib/intermission.ts';
-import { publicSponsorsOf, sponsorItems } from '../lib/sponsors.ts';
+import { publicSponsorsOf, sponsorGridColumns, sponsorItems } from '../lib/sponsors.ts';
 import { midMatchState } from '../test/fixtures.ts';
 import { SponsorBlock } from './BrandBlocks.tsx';
 import type { BlockEnv } from './env.ts';
@@ -104,6 +104,55 @@ describe('block «Sponsor»', () => {
     cleanup();
     render(<SponsorBlock options={SponsorOptionsSchema.parse({})} env={env()} />);
     expect(screen.getByText('Nessuno sponsor scelto.')).toBeTruthy();
+  });
+});
+
+describe('sponsors «Tutti in una pagina»', () => {
+  it('columns of the grid: as square as possible, never more than the images', () => {
+    expect([0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 12].map(sponsorGridColumns)).toEqual([1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4]);
+  });
+
+  it('shows every image together in a grid and does not rotate', () => {
+    vi.useFakeTimers();
+    const options = SponsorOptionsSchema.parse({ sponsors: [S1, S2], images: [LEGACY], seconds: 3, display: 'all' });
+    render(<SponsorBlock options={options} env={env()} />);
+    const grid = screen.getByRole('list', { name: 'Sponsor' });
+    expect(grid.getAttribute('data-sponsor-grid')).toBe('4');
+    expect(grid.getAttribute('style')).toContain('repeat(2, minmax(0, 1fr))');
+    const srcs = () => screen.getAllByRole('img').map((i) => i.getAttribute('src'));
+    expect(srcs()).toEqual([
+      '/api/public/assets/a1',
+      '/api/public/assets/b1',
+      '/api/public/assets/b2',
+      publicAssetPath(LEGACY),
+    ]);
+    act(() => {
+      vi.advanceTimersByTime(9000);
+    });
+    expect(srcs()).toHaveLength(4);
+  });
+
+  it('a single image stays as it is; the default is one at a time', () => {
+    render(<SponsorBlock options={SponsorOptionsSchema.parse({ sponsors: [S2], display: 'all' })} env={env()} />);
+    expect(screen.queryByRole('list', { name: 'Sponsor' })).toBeNull();
+    expect(screen.getByRole('img', { name: 'Sponsor: Autofficina' })).toBeTruthy();
+    expect(SponsorOptionsSchema.parse({}).display).toBe('rotate');
+  });
+
+  it('in the pauses: the grid on full screen, the logos side by side on the banner', () => {
+    const slide = IntermissionSlideSchema.parse({
+      id: 'sp',
+      type: 'sponsor',
+      options: { sponsors: [S1, S2], display: 'all' },
+    });
+    const slideEnv: SlideEnv = { ...env(), set: 1, sponsorLogo: null };
+    render(<>{renderSlide(slide, slideEnv, 'full')}</>);
+    expect(screen.getByRole('list', { name: 'Sponsor' }).className).toContain('grid');
+    expect(screen.getAllByRole('img')).toHaveLength(3);
+    cleanup();
+    render(<>{renderSlide(slide, slideEnv, 'compact')}</>);
+    expect(screen.getByRole('list', { name: 'Sponsor' }).className).toContain('flex');
+    expect(screen.getAllByRole('img')).toHaveLength(3);
   });
 });
 

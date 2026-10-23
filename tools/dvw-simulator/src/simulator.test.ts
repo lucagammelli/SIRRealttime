@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import iconv from 'iconv-lite';
 import { afterEach, describe, expect, it } from 'vitest';
-import { applyCorrection, generateMatch, play, renderDvw } from './index.js';
+import { applyCorrection, generateMatch, play, playGapMs, renderDvw } from './index.js';
 
 const decode = (b: Uint8Array): string => iconv.decode(Buffer.from(b), 'win1252');
 const scoutRows = (text: string): string[] =>
@@ -141,6 +141,20 @@ describe('applyCorrection visible', () => {
       expect(idx).toBeGreaterThanOrEqual(0);
       expect(idx).toBeLessThan(30);
     }
+  });
+});
+
+describe('playGapMs', () => {
+  it('waits at least the minimum break after the end of a set, whatever the speed', () => {
+    const match = generateMatch({ seed: 1 });
+    const end = match.lines.findIndex((l) => l.kind === 'endset');
+    const n = end + 2; // 1-based row right after the `endset` row
+    expect(playGapMs(match, n, 1000, 0)).toBeLessThan(1000);
+    expect(playGapMs(match, n, 1000, 20)).toBe(20_000);
+    // At normal speed the real break (5 minutes) is longer than the minimum: it stays.
+    expect(playGapMs(match, n, 1, 20)).toBe(300_000);
+    // A row in the middle of a rally is not affected.
+    expect(playGapMs(match, 3, 1000, 20)).toBeLessThan(1000);
   });
 });
 

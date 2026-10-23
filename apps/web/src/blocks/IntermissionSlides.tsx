@@ -18,6 +18,7 @@ import {
   shortCodeOf,
   sponsorAlt,
   SponsorBlock,
+  SponsorGrid,
   SponsorImage,
   useImageRotation,
 } from './BrandBlocks.tsx';
@@ -67,7 +68,10 @@ export const SLIDE_LABELS: Record<SlideType, { label: string; description: strin
     label: 'Classifica',
     description: 'La classifica del campionato del club, con la nostra squadra evidenziata (solo con un club).',
   },
-  sponsor: { label: 'Sponsor', description: 'Immagini degli sponsor a rotazione (o il logo sponsor della grafica).' },
+  sponsor: {
+    label: 'Sponsor',
+    description: 'Immagini degli sponsor a rotazione o tutte in una pagina (o il logo sponsor della grafica).',
+  },
   message: { label: 'Messaggio', description: 'Un testo a scelta (senza formattazione).' },
   qr: { label: 'Codice QR', description: 'QR del link di questa pagina.' },
   logo: { label: 'Logo', description: 'Logo del cliente.' },
@@ -219,7 +223,9 @@ function MvpSlide({ env, size }: { env: SlideEnv; size: SlideSize }) {
   }
   return (
     <div className="flex min-h-full flex-col items-center justify-center gap-4 text-center">
-      <p className="font-display text-xl font-semibold uppercase tracking-wide text-muted">Miglior Realizzatore della partita</p>
+      <p className="font-display text-xl font-semibold uppercase tracking-wide text-muted">
+        Miglior Realizzatore della partita
+      </p>
       <p className="font-display text-5xl font-bold uppercase text-text">
         <span className={`tabular mr-4 ${TEXT[mvp.team]}`}>{mvp.number}</span>
         {name}
@@ -245,10 +251,13 @@ function SponsorSlide({
   size: SlideSize;
 }) {
   const items = sponsorItems(slide.options, env.brand?.sponsors ?? [], env.brand?.assetPath);
-  const index = useImageRotation(items.length, slide.options.seconds, env.paused);
+  const all = slide.options.display === 'all' && items.length > 1;
+  const index = useImageRotation(all ? 0 : items.length, slide.options.seconds, env.paused);
   // Nothing chosen: the sponsor logo of the branding.
   const current = items[index] ?? (env.sponsorLogo ? { src: env.sponsorLogo, name: null, website: null } : null);
   if (size === 'full' && items.length > 0) return <SponsorBlock options={slide.options} env={env} />;
+  // All together on the banner line: small logos side by side.
+  if (all) return <SponsorGrid items={items} imageClassName="max-h-12" row />;
   if (!current) return null;
   const alt = items.length > 0 ? sponsorAlt(current, index, items.length) : 'Sponsor';
   return (

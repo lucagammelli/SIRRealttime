@@ -4,6 +4,17 @@ Le versioni seguono il versionamento semantico (`vX.Y.Z`); la fonte della versio
 `package.json` alla radice. Le sezioni nuove le aggiunge `scripts/rilascia.sh` con i titoli dei commit dal tag
 precedente; le note della release su GitHub sono la sezione della versione (`docs/regole/test-job-rilasci.md`).
 
+## [2.2.0] - 2026-10-23
+
+- Documenti: schermata dopo la partita
+- Migrazione 0019: ora di fine partita
+- Schermata dopo la partita (lavoro in corso, migrazione da rigenerare)
+- Sfondo immagine o video negli avvisi
+- Opzione Touch Sì/No per dispositivo
+- Mappa del campo: colore singolo o tricolore
+- La pagina live recepisce subito le modifiche dello Studio
+- Solo cognome dei giocatori, «Miglior Realizzatore», rotazioni in verticale
+
 ## [2.1.0] - 2026-10-23
 
 - Certificati automatici per gli hostname dei clienti

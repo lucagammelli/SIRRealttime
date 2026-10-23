@@ -117,6 +117,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
           'Per aggiungere un’amichevole, una coppa o un’altra gara, premi «Nuova partita» e compila tipo, data, ora, avversario e dove si gioca.',
           'Se la data è sbagliata o è cambiata, apri la partita, premi «Cambia data e ora» e scrivi quelle giuste. La partita mostra «Modificata a mano».',
           'Per rimettere la data del sito della Lega premi «Torna alla data ufficiale».',
+          'Se un file .dvw si è abbinato alla partita sbagliata (per esempio una prova fatta prima della partita vera), accanto a «File .dvw» premi «Scollega» e poi «Conferma: scollega il file»: la partita torna «Programmata» e il file non viene più abbinato da solo.',
         ],
       },
     ],
@@ -153,6 +154,10 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
+        text: 'In «Pause», sotto «Come si mostra», «Dimensione a tutto schermo» decide quanto sono grandi le diapositive dove la pausa è a «Tutto schermo»: «Normale» (come sono disegnate, scorrono se non ci stanno), «Grande» (più grandi, finché stanno nello schermo) o «Riempi lo schermo» (occupano tutto lo spazio, senza scorrere). La banda in basso non cambia.',
+      },
+      {
+        kind: 'text',
         text: 'In «Pause», nella scheda «Fine partita», la parte «Dopo la partita» mostra una foto a tutto schermo quando la partita è finita da un po’. Accendi «Mostra la foto dopo la partita», carica la foto con «Carica immagine» oppure scegline una già caricata, e scrivi i «Minuti dopo la fine della partita» (da 0 a 240, di solito 30). Passati quei minuti il link della diretta mostra la foto e, sopra, il conto alla rovescia della prossima partita del calendario, con le squadre, il giorno e l’ora; se non c’è una prossima partita resta solo la foto. Prende il posto della pausa di fine partita, non ha niente da toccare e funziona anche con «Touch: No». Con «Togli foto» la togli; una foto in uso qui non si può eliminare.',
       },
       {
@@ -173,11 +178,11 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'Poi, nello «Studio grafico», nel blocco «Sponsor» della pagina live e nella diapositiva «Sponsor» delle pause spunta gli sponsor da mostrare: tutte le loro immagini ruotano una dopo l’altra. Se lo sponsor ha un sito, toccando l’immagine il tifoso lo apre. Uno sponsor scelto nella pagina o nelle pause non si può eliminare: prima toglilo da lì.',
+        text: 'Poi, nello «Studio grafico», nel blocco «Sponsor» della pagina live e nella diapositiva «Sponsor» delle pause spunta gli sponsor da mostrare. Con «Come mostrarli» scegli «Uno alla volta» (le immagini ruotano una dopo l’altra, ognuna per i «Secondi per immagine») oppure «Tutti in una pagina» (tutte le immagini insieme, in una griglia; nelle pause la pagina resta per i secondi della diapositiva). Se lo sponsor ha un sito, toccando l’immagine il tifoso lo apre. Uno sponsor scelto nella pagina o nelle pause non si può eliminare: prima toglilo da lì.',
       },
       {
         kind: 'text',
-        text: 'Per portare tutta la grafica da un portale a un altro (colori, loghi, pagina live, pause, avvisi, sponsor scelti e immagini) apri «Colori e loghi», scheda «Esporta / Importa». Con «Esporta configurazione» scarichi un file; con «Importa configurazione» scegli il file, controlli il riepilogo (club di origine, data, immagini, modello grafico) e confermi: la grafica attuale viene sostituita. Il file non contiene partite, utenti né link, né gli sfondi degli avvisi: quelli vanno caricati di nuovo. Un tema personalizzato lo può importare solo il superadmin.',
+        text: 'Per portare tutta la grafica da un portale a un altro (colori, loghi, pagina live, pause, avvisi, sponsor scelti e immagini) apri lo «Studio grafico» e scegli la sezione «Esporta / Importa» (sotto «Avvisi»). Se hai modifiche non salvate, salvale prima di esportare: il file contiene solo la grafica già salvata. Con «Esporta configurazione» scarichi un file; con «Importa configurazione» scegli il file, controlli il riepilogo (club di origine, data, immagini, modello grafico) e confermi: la grafica attuale viene sostituita. Il file non contiene partite, utenti né link, né gli sfondi degli avvisi: quelli vanno caricati di nuovo. Un tema personalizzato lo può importare solo il superadmin.',
       },
       {
         kind: 'text',

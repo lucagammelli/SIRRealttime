@@ -2,6 +2,7 @@ import type {
   BrandColorKey,
   BrandingImageSlot,
   Intermission,
+  IntermissionFullscreenSize,
   IntermissionKind,
   IntermissionMode,
   IntermissionSlide,
@@ -47,13 +48,19 @@ import { pauseAt } from '../intermissionEditor.ts';
  * the pauses and of the overlays, the texts «Compare: …» and the marks that find an element in the preview.
  */
 
-export type StudioSection = 'colori' | 'pagina' | 'pause' | 'avvisi';
+export type StudioSection = 'colori' | 'pagina' | 'pause' | 'avvisi' | 'esporta';
 
 export const STUDIO_SECTIONS: readonly { id: StudioSection; label: string; short: string; description: string }[] = [
   { id: 'colori', label: 'Colori e loghi', short: 'Colori', description: 'Aspetto di tutta la pagina' },
   { id: 'pagina', label: 'Pagina live', short: 'Pagina', description: 'Blocchi di TV, tablet e telefono' },
   { id: 'pause', label: 'Pause', short: 'Pause', description: 'Fine set, time-out, sponsor' },
   { id: 'avvisi', label: 'Avvisi', short: 'Avvisi', description: 'Ace, muro, set point' },
+  {
+    id: 'esporta',
+    label: 'Esporta / Importa',
+    short: 'Esporta',
+    description: 'Salva o carica tutta la grafica',
+  },
 ];
 
 export const SECTION_LABELS: Record<StudioSection, string> = {
@@ -61,10 +68,11 @@ export const SECTION_LABELS: Record<StudioSection, string> = {
   pagina: 'Pagina live',
   pause: 'Pause',
   avvisi: 'Avvisi',
+  esporta: 'Esporta / Importa',
 };
 
 export const isStudioSection = (value: string | undefined): value is StudioSection =>
-  value === 'colori' || value === 'pagina' || value === 'pause' || value === 'avvisi';
+  value === 'colori' || value === 'pagina' || value === 'pause' || value === 'avvisi' || value === 'esporta';
 
 /** Old pages of the reserved area and the section of the Studio that took their place (redirects). */
 export const LEGACY_PAGES: Record<'grafica' | 'pagina' | 'pause' | 'avvisi', StudioSection> = {
@@ -145,6 +153,13 @@ export const KIND_LABELS: Record<IntermissionKind, string> = {
 };
 export const PAUSE_KINDS: readonly IntermissionKind[] = ['timeout', 'setBreak', 'matchEnd', 'milestone'];
 export const MODE_LABELS: Record<IntermissionMode, string> = { fullscreen: 'Tutto schermo', banner: 'Banda in basso' };
+
+/** Names of the sizes of the slides on full screen, in the order of the menu. */
+export const FULLSCREEN_SIZE_LABELS: Record<IntermissionFullscreenSize, string> = {
+  normal: 'Normale',
+  large: 'Grande',
+  fill: 'Riempi lo schermo',
+};
 
 export const OVERLAY_LABELS: Record<OverlayKind, { label: string; hint: string }> = {
   matchEnd: { label: 'Fine partita', hint: 'Alla fine dell’ultimo set, prima della pausa di fine partita.' },

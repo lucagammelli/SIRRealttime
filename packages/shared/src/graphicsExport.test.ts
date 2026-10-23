@@ -42,6 +42,22 @@ describe('GraphicsExportSchema', () => {
     expect(isGraphicsExportFormat('altro')).toBe(false);
   });
 
+  it('imports a package made before the size of the pauses and the display of the sponsors with their defaults', () => {
+    const old = base();
+    const intermissions = structuredClone(old.intermissions) as unknown as Record<string, Record<string, unknown>>;
+    for (const kind of ['timeout', 'setBreak', 'matchEnd', 'milestone']) {
+      const pause = intermissions[kind];
+      if (!pause) throw new Error('missing pause');
+      delete pause.fullscreenSize;
+      for (const slide of pause.slides as { type: string; options: Record<string, unknown> }[])
+        if (slide.type === 'sponsor') delete slide.options.display;
+    }
+    const parsed = GraphicsExportSchema.parse({ ...old, intermissions });
+    expect(parsed.intermissions.setBreak.fullscreenSize).toBe('normal');
+    const sponsor = parsed.intermissions.timeout.slides.find((s) => s.type === 'sponsor');
+    expect(sponsor?.type === 'sponsor' && sponsor.options.display).toBe('rotate');
+  });
+
   it('refuses another format or version', () => {
     expect(GraphicsExportSchema.safeParse({ ...base(), version: 2 }).success).toBe(false);
     expect(GraphicsExportSchema.safeParse({ ...base(), format: 'altro' }).success).toBe(false);

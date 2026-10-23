@@ -37,3 +37,13 @@ export function sponsorItems(
 export function publicSponsorsOf(list: readonly Sponsor[]): PublicSponsor[] {
   return list.map((s) => ({ id: s.id, name: s.name, website: s.website, images: s.imageIds.map(adminAssetPath) }));
 }
+
+/**
+ * Pure: columns of the grid of «tutti in una pagina» for `count` images: as square as possible, never more columns
+ * than images (1 → 1, 2 → 2, 3-4 → 2, 5-6 → 3, 7-9 → 3, 10-12 → 4).
+ */
+export function sponsorGridColumns(count: number): number {
+  if (count <= 1) return 1;
+  if (count === 2) return 2;
+  return Math.ceil(Math.sqrt(count));
+}

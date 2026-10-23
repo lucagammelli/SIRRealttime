@@ -64,7 +64,7 @@ describe('sponsor contracts', () => {
     const old = { tv: [{ id: 'sp', type: 'sponsor', options: { images: [IMG], seconds: 5 } }] };
     const layout = resolveLayout(old);
     expect(layout.tv[0]).toMatchObject({ options: { sponsors: [], images: [IMG], seconds: 5 } });
-    expect(SponsorOptionsSchema.parse({})).toEqual({ sponsors: [], images: [], seconds: 8 });
+    expect(SponsorOptionsSchema.parse({})).toEqual({ sponsors: [], images: [], seconds: 8, display: 'rotate' });
     expect(SponsorOptionsSchema.safeParse({ sponsors: [S1, S1] }).success).toBe(false);
     const pauses = resolveIntermissions({
       timeout: { slides: [{ id: 'sp', type: 'sponsor', options: { sponsors: [S2] } }] },

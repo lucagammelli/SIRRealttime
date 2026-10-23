@@ -90,6 +90,9 @@ export const SPONSOR_BLOCK_MAX_SPONSORS = 12;
 export const SPONSOR_MIN_SECONDS = 3;
 export const SPONSOR_MAX_SECONDS = 60;
 export const SPONSOR_DEFAULT_SECONDS = 8;
+/** `rotate`: one image at a time, each for `seconds`; `all`: every image together in one page (a grid). */
+export const SPONSOR_DISPLAYS = ['rotate', 'all'] as const;
+export type SponsorDisplay = (typeof SPONSOR_DISPLAYS)[number];
 /** Longest text of a message block. */
 export const MESSAGE_MAX_LENGTH = 280;
 /** Longest text under the QR code. */
@@ -127,6 +130,8 @@ export const SponsorOptionsSchema = z.strictObject({
     .refine((ids) => new Set(ids).size === ids.length, { message: 'immagine ripetuta' })
     .default([]),
   seconds: z.int().min(SPONSOR_MIN_SECONDS).max(SPONSOR_MAX_SECONDS).default(SPONSOR_DEFAULT_SECONDS),
+  /** One at a time or all together (missing in a layout saved before: one at a time). */
+  display: z.enum(SPONSOR_DISPLAYS).default('rotate'),
 });
 
 export const MessageOptionsSchema = z.strictObject({

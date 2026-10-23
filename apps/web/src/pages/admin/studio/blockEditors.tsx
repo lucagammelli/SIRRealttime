@@ -4,6 +4,7 @@ import type {
   LayoutBlock,
   LayoutDevice,
   Sponsor,
+  TemplateId,
   TenantLayout,
 } from '@arenalive/shared';
 import {
@@ -17,14 +18,16 @@ import {
 } from '@arenalive/shared';
 import type { MatchState } from '@arenalive/volley-stats';
 import type { ReactNode, RefObject } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import type { BlockBrand } from '../../../blocks/env.ts';
 import { BLOCKS } from '../../../blocks/registry.tsx';
 import { SAMPLE_SCHEDULE } from '../../../blocks/sampleSchedule.ts';
 import { MatchView } from '../../../components/MatchView.tsx';
 import { publicSponsorsOf } from '../../../lib/sponsors.ts';
-import { LayoutScaleContext, useElementSize } from '../../../lib/useLayout.ts';
+import { useTemplate } from '../../../lib/branding.ts';
+import { TV_FONT_VAR, tvRemPx } from '../../../lib/tvScreen.ts';
+import { LayoutScaleContext, rootFontPx, useElementSize } from '../../../lib/useLayout.ts';
 import { CalendarOptionsFields } from '../CalendarOptionsFields.tsx';
 import { inputClass } from '../forms.tsx';
 import { StatOptionsFields, withStatOptions } from '../StatOptionsFields.tsx';
@@ -92,6 +95,7 @@ export function DevicePreview({
   source,
   fit = false,
   top = false,
+  template: draftTemplate,
   children,
 }: {
   device: LayoutDevice;
@@ -103,13 +107,31 @@ export function DevicePreview({
   fit?: boolean;
   /** `fit`: the frame at the top of the room (no empty space above it) instead of in the middle. */
   top?: boolean;
+  /** Template drawn in the preview (the draft of the Studio); the saved one when absent. */
+  template?: TemplateId;
   children?: ReactNode;
 }) {
   const frame = useRef<HTMLDivElement>(null);
   const area = useRef<HTMLDivElement>(null);
   const measured = useElementWidth(frame);
   const room = useElementSize(area);
-  const size = VIRTUAL[device];
+  const savedTemplate = useTemplate().id;
+  const template = draftTemplate ?? savedTemplate;
+  // The big screen has its own text size (`html.sir-tv`, 1 rem = 17-24 px at 1920 × 1080), the reserved area has 16 px.
+  // The page is drawn in a box smaller by the ratio of the two rem, then scaled up: the same number of rem fits in the
+  // screen, so texts and groups of blocks are the ones of the real screen.
+  const [remRatio, setRemRatio] = useState(1);
+  useLayoutEffect(() => {
+    const el = frame.current;
+    if (device !== 'tv' || !el) {
+      setRemRatio(1);
+      return;
+    }
+    const raw = getComputedStyle(el).getPropertyValue(TV_FONT_VAR);
+    setRemRatio(rootFontPx() / tvRemPx(raw, VIRTUAL.tv.width, VIRTUAL.tv.height));
+  }, [device, template]);
+  const base = VIRTUAL[device];
+  const size = { ...base, width: base.width * remRatio, height: base.height * remRatio };
   // `fit`: the biggest scale at which the whole page fits the room (minus the 4 px border on each side).
   const fitScale =
     room.width > 0 && room.height > 0
@@ -139,7 +161,7 @@ export function DevicePreview({
           <div
             inert
             data-studio-page=""
-            className={`absolute left-0 top-0 border-t-4 border-accent bg-bg text-text ${
+            className={`absolute left-0 top-0 bg-bg text-text ${template === 'standard' ? 'border-t-4 border-accent' : ''} ${
               tv ? 'flex flex-col overflow-hidden p-5' : 'overflow-y-auto p-3'
             }`}
             style={{ width: size.width, height: size.height, transform: `scale(${scale})`, transformOrigin: '0 0' }}
@@ -312,7 +334,7 @@ export function BlockOptionsEditor({
         <div className="space-y-2 text-sm text-text">
           <fieldset className="space-y-1">
             <legend className="text-sm text-text">
-              Sponsor a rotazione ({chosen.size} di al massimo {SPONSOR_BLOCK_MAX_SPONSORS})
+              Sponsor ({chosen.size} di al massimo {SPONSOR_BLOCK_MAX_SPONSORS})
             </legend>
             {sponsors.length === 0 ? (
               <p className="text-xs text-muted">Nessuno sponsor: aggiungili nella pagina «Sponsor».</p>
@@ -374,19 +396,32 @@ export function BlockOptionsEditor({
           )}
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2">
-              Secondi per immagine
+              Come mostrarli
               <select
                 className={selectClass}
-                value={options.seconds}
-                onChange={(e) => setOptions({ seconds: Number(e.target.value) })}
+                value={options.display}
+                onChange={(e) => setOptions({ display: e.target.value === 'all' ? 'all' : 'rotate' })}
               >
-                {SPONSOR_SECONDS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
+                <option value="rotate">Uno alla volta</option>
+                <option value="all">Tutti in una pagina</option>
               </select>
             </label>
+            {options.display === 'rotate' && (
+              <label className="flex items-center gap-2">
+                Secondi per immagine
+                <select
+                  className={selectClass}
+                  value={options.seconds}
+                  onChange={(e) => setOptions({ seconds: Number(e.target.value) })}
+                >
+                  {SPONSOR_SECONDS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <Link to="/admin/sponsor" className="text-sm font-medium text-text underline">
               Gestisci sponsor
             </Link>

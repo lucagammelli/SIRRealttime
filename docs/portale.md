@@ -146,7 +146,7 @@ Le voci:
 | Posta | `/admin/posta` | solo superadmin (fuori da un cliente) | server di posta per inviti e recupero password, uguale per tutti i clienti, vedi «Posta» |
 | Loghi di sistema | `/admin/loghi-di-sistema` | solo superadmin (fuori da un cliente) | i loghi della piattaforma (sinistro e destro, positivo e negativo), vedi «Loghi di sistema» |
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, «Password (facoltativa)» di almeno 12 caratteri, «Ruolo»: «Lettura e scrittura» o «Sola lettura»; «Crea e invita» se la password è vuota, altrimenti «Crea utente»), scheda «Ruoli» (cosa può fare ciascun ruolo), «Utenti» (per ognuno stato «Attivo»/«Disattivato», ruolo, data di creazione e i comandi descritti sotto), vedi «Utenti del cliente» |
-| Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`) | solo admin (il superadmin dentro un cliente) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
+| Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`, `esporta`) | solo admin (il superadmin dentro un cliente) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
 | Sponsor | `/admin/sponsor` | solo admin (il superadmin dentro un cliente) | anagrafica degli sponsor, vedi «Sponsor» |
 | Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname, «Agenti» = limite di agenti, predefinito 1; «Crea cliente»), «Clienti» con «Entra nel cliente» (il superadmin entra in quel cliente e apre `/admin/live`, vedi «Più clienti») e «Modifica» (nome, hostname e limite di agenti, «Salva»; il limite è mostrato come «un agente» / «fino a N agenti»); riquadro «Primo utente (facoltativo)» nel modulo («Email del primo utente» e «Password del primo utente (facoltativa)»; creato con il ruolo «Lettura e scrittura»; senza password il primo utente è invitato e sotto il modulo compare l'esito dell'invito, vedi «Utenti del cliente»); ogni cliente mostra «nessun utente», «1 utente» o «N utenti» |
 | Esci | - | tutti | chiude la sessione |
@@ -183,7 +183,7 @@ ridotto alle icone). Dati e rotte del server non cambiano
 
 **Tre colonne** (da 768 px; `StudioPage.tsx`):
 - **Sezioni** (a sinistra): «Colori e loghi» (Aspetto di tutta la pagina), «Pagina live» (Blocchi di TV, tablet e
-  telefono), «Pause» (Fine set, time-out, sponsor), «Avvisi» (Ace, muro, set point). Un pallino ● segna le sezioni con
+  telefono), «Pause» (Fine set, time-out, sponsor), «Avvisi» (Ace, muro, set point), «Esporta / Importa» (Salva o carica tutta la grafica). Un pallino ● segna le sezioni con
   modifiche non salvate.
 - **Impostazioni** (al centro): a schede brevi; le impostazioni meno usate stanno in «Avanzate», chiuso all'inizio. Passando
   il mouse (o il focus della tastiera) su un'impostazione, i suoi elementi sono evidenziati nell'anteprima; sotto ogni
@@ -247,7 +247,7 @@ compare.», «Avviso spento: gli spettatori non lo vedono.», «Su <dispositivo>
   proprie dei set; quelli degli avvisi tengono testi, dispositivi, priorità, posizione e dimensione di ogni avviso.
 
 #### Sezione «Colori e loghi»
-Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome», «Squadra», «Immagini», «Esporta / Importa».
+Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome», «Squadra», «Immagini» (l'esportazione è la sezione «Esporta / Importa»).
 - «Colori»: i cinque colori («Colore principale», «Colore di risalto», «Squadra di casa», «Squadra ospite», «Sfondo
   della pagina»), ciascuno con selettore e campo esadecimale `#rrggbb` e «Predefinito»; i colori vanno sopra quelli del
   modello. Avvisi di contrasto (`brandContrastIssues`, sotto 4,5:1), per esempio «Lo sfondo è troppo scuro per il testo
@@ -270,7 +270,14 @@ Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome»
   `/api/public/assets/:id` serve solo il cliente dell'hostname: su un indirizzo IP (installazione di prova) o per il
   superadmin dentro un altro cliente l'immagine risultava rotta. Le anteprime passano `assetPath: adminAssetPath` ai
   blocchi (`BlockBrand` in `blocks/env.ts`, `blockBrandOf`); la pagina pubblica resta su `publicAssetPath`.
-- «Esporta / Importa» (`GraphicsTransfer.tsx`): «Esporta configurazione» scarica `grafica-<slug>-<data>.json`
+
+#### Sezione «Esporta / Importa»
+Quinta sezione dello Studio, elencata sotto «Avvisi» (`/admin/studio/esporta`, `StudioSection` `esporta`). Non ha bozza né
+«Salva», non è mai «modificata» (nessun ●). Contiene `GraphicsTransfer.tsx`. Se altre sezioni hanno modifiche non
+salvate, sopra «Esporta configurazione» compare l'avviso «Hai modifiche non salvate in «…»: il file contiene la grafica già
+salvata…» (si esporta il salvato). Dopo un'importazione lo Studio ricarica i dati salvati (le bozze si azzerano) e mostra
+«Configurazione importata: la pagina pubblica la usa da subito.». La scheda «Esporta / Importa» di «Colori e loghi» non c'è più.
+- `GraphicsTransfer.tsx`: «Esporta configurazione» scarica `grafica-<slug>-<data>.json`
   (`GET /api/admin/branding/export`). «File della configurazione (.json)» legge il file (`readPackage`: messaggi per file
   illeggibile, non nostro, versione non supportata o danneggiato), mostra il «Riepilogo del file» (club di origine,
   esportata il, numero di immagini, modello grafico) e l'avviso «la grafica attuale … verrà sostituita»; «Sostituisci la
@@ -302,14 +309,15 @@ Ex pagina «Pause» (`PausesSection.tsx`, vedi «Pause della partita»). In alto
 con la casella «Pausa propria per la fine del N° set» (senza, quel set usa «Tutti i set»). «Ogni N punti» ha la scheda
 «Regola» con «Ogni quanti punti» (4-25) e «Non negli ultimi punti del set» (`stopBeforeEnd`, con il traguardo da
 `setTarget` di volley-stats). Per ogni pausa, «Quando e come»: «Pausa attiva» e «Come si mostra» (per TV, tablet e
-telefono «Tutto schermo» o «Banda in basso»); «Diapositive»: elenco riordinabile con «Sposta su» e «Sposta giù» (niente
+telefono «Tutto schermo» o «Banda in basso») e, subito sotto, «Dimensione a tutto schermo» (`fullscreenSize`: «Normale»,
+«Grande», «Riempi lo schermo», vedi «Pause della partita»; vale per tutte le diapositive della pausa); «Diapositive»: elenco riordinabile con «Sposta su» e «Sposta giù» (niente
 trascinamento); in una riga sotto il nome di ogni diapositiva l'interruttore «Attiva: <tipo>» e «Rimuovi» (icona «−»; con «Conferma rimozione» solo
 se la diapositiva ha opzioni diverse da quelle predefinite, `slideHasSettings`). Una diapositiva disattivata (campo
 `enabled` della diapositiva, predefinito attivo: i documenti salvati prima restano tutti attivi) resta nell'elenco con le
 sue opzioni, segnata «(disattivata)», ma non compare né sulla pagina pubblica né nell'anteprima (`visibleSlides`); se
 tutte sono disattivate la pausa non compare (`intermissionFor` dà null) e l'elenco lo dice («Tutte le diapositive sono
 disattivate: la pausa non compare.»). Sotto «Opzioni» «Secondi sullo schermo» e le opzioni del tipo (come nei blocchi;
-lo sponsor sceglie gli sponsor come il blocco); in fondo «Tipo di diapositiva» con «Aggiungi diapositiva» (al massimo 12). In «Avanzate»: «Ritardo prima della
+lo sponsor sceglie gli sponsor e «Come mostrarli» come il blocco); in fondo «Tipo di diapositiva» con «Aggiungi diapositiva» (al massimo 12). In «Avanzate»: «Ritardo prima della
 pausa (secondi)» e «Ripristina predefinito» (solo della pausa aperta). «Salva» è disattivato se una pausa attiva non ha
 diapositive o un testo è vuoto. Nella scheda «Fine partita» c'è anche la card «Dopo la partita» (`AfterMatchEditor`):
 «Mostra la foto dopo la partita» (interruttore), «Foto a tutto schermo» con «Carica immagine» e «Togli foto», «Oppure
@@ -540,7 +548,10 @@ automatici spenti sul server (LEAGUE_SYNC=off).») e «Aggiorna ora». Durante u
 **«Calendario»** (`/admin/calendario`): la scheda «Calendario» elenca le partite del club per data: giornata, data e ora
 italiane (`formatFixtureDate`), squadre con logo (in grassetto la nostra), risultato in set, palazzetto, un'etichetta di stato
 («Programmata», «In diretta», «Finita», «Rinviata», «Da confermare», «Non più in calendario»), il file `.dvw` abbinato
-(«abbinata da sola» o «abbinata a mano») e il link breve con codice, «Copia link» e «Scarica QR» (stesso QR dei link
+(«abbinata da sola» o «abbinata a mano») con il pulsante «Scollega» (solo per chi può modificare; chiede conferma con
+«Conferma: scollega il file»: chiama `PUT /api/admin/matches/:id/fixture` con `clientFixtureId: null`, il file passa a
+«nessuna» e la partita torna «Programmata»; il server non lo riabbina più da solo, solo a mano da «Da confermare» o dal
+dettaglio partita) e il link breve con codice, «Copia link» e «Scarica QR» (stesso QR dei link
 pubblici); un link revocato mostra «Link revocato.». Sopra, la scheda «Da confermare» compare solo se ci sono `.dvw` di
 cui il server non è sicuro: per ognuno un menu con i candidati («somiglianza N%»), «Nessuna (amichevole)» e «Altre partite
 del calendario», e il pulsante «Conferma». Finché non è confermata, la partita ha comunque i suoi link. «Aggiorna
@@ -1007,7 +1018,10 @@ Sono blocchi della pagina (larghezze 4/6/8/12) e diapositive delle pause (stesse
   `layoutEditor.ts`).
 - **Anteprima**: la pagina del dispositivo scelto è disegnata alla grandezza vera (`DevicePreview`: 1920×1080,
   1024×768, 390×845) e ridotta, non interattiva (si può solo cliccare un elemento per aprirne l'impostazione), con le
-  modifiche non ancora salvate. Usa la partita live del cliente (`/ws/admin`: «Dati della partita live.») oppure, se non c'è,
+  modifiche non ancora salvate. Per la TV il riquadro è più piccolo in rapporto al `rem` dell'area riservata (16 px) e quello
+  della TV vera a 1920×1080 col modello scelto (`tvRemPx` in `lib/tvScreen.ts` legge `--sir-tv-font-size`): in rem lo
+  schermo ha le stesse misure della pagina vera, quindi testi e raggruppamento dei blocchi in schermate (`tvGroups`)
+  coincidono; il bordo alto «accento» c'è solo col modello «standard», come in `LivePage`. Usa la partita live del cliente (`/ws/admin`: «Dati della partita live.») oppure, se non c'è,
   la «Partita d'esempio» (`src/blocks/sampleMatch.json`, caricata solo dall'editor in un suo file separato; si rigenera con
   `pnpm --filter @arenalive/web sample-match`).
 - **Limiti noti**: un'immagine singola di un blocco sponsor non si può eliminare finché non viene tolta dal blocco. Un layout salvato e poi non più valido (per esempio di versione futura) si legge come
@@ -1025,14 +1039,18 @@ Anagrafica degli sponsor del cliente, nel gruppo di menu «Pagina pubblica». Se
   JPEG, WebP o SVG, al massimo 2 MB, 12 per sponsor). Scheda «Immagini senza sponsor» (visibile solo se ce ne sono: quelle
   caricate prima dell'anagrafica o tolte a uno sponsor) con «Assegna a» e la scelta dello sponsor. Gli errori del server
   (nome già usato, sponsor in uso in pagina o pause, immagine già di un altro sponsor) sono mostrati in italiano.
-- **Studio grafico**: il blocco sponsor e la diapositiva sponsor delle pause hanno una casella per ogni sponsor («Sponsor a
-  rotazione (N di al massimo 12)»), l'elenco «Immagini singole» con «Togli» (compare solo se il documento ne ha: sono
+- **Studio grafico**: il blocco sponsor e la diapositiva sponsor delle pause hanno una casella per ogni sponsor («Sponsor
+  (N di al massimo 12)»), la scelta «Come mostrarli» («Uno alla volta», predefinito, o «Tutti in una pagina»; opzione
+  `display` `rotate`|`all`; «Secondi per immagine» compare solo con «Uno alla volta»), l'elenco «Immagini singole» con «Togli» (compare solo se il documento ne ha: sono
   l'opzione `images` salvata prima dell'anagrafica, mantenuta per compatibilità) e il link «Gestisci sponsor» a questa
   pagina; non c'è più il caricamento diretto dal blocco. Le anteprime usano gli sponsor dell'anagrafica
   (`publicSponsorsOf` in `lib/sponsors.ts`, con le immagini da `adminAssetPath`). Le miniature della pagina «Sponsor»
   usano l'`url` di `AssetSummary` (`/api/admin/assets/:id/file`, vedi «Miniature e anteprime dell'area riservata»).
 - **Pagina pubblica**: gli sponsor arrivano in `sponsors` di `GET /api/public/tenant` (solo quelli scelti); la rotazione è
-  descritta in «Pagina pubblica a blocchi».
+  descritta in «Pagina pubblica a blocchi». Con «Tutti in una pagina» (`display: 'all'`, e almeno due immagini) il blocco
+  mostra tutte le immagini insieme in una griglia quasi quadrata (`SponsorGrid` in `blocks/BrandBlocks.tsx`,
+  `sponsorGridColumns` in `lib/sponsors.ts`: 4 colonne con 10-12 loghi); nella banda delle pause sono piccoli, in fila;
+  con una sola immagine resta come prima. Non c'è rotazione: nella diapositiva la pagina dura i secondi della diapositiva.
 - **Caricamento**: gli helper sono in `pages/admin/imageUpload.ts` (`uploadImage`, `uploadSponsorImage`, `ACCEPT`,
   `IMAGE_TOO_LARGE`, `imageCountText`), condivisi da questa pagina e dallo Studio. Test: `SponsorsPage.test.tsx`, `SponsorBlock.test.tsx`.
 
@@ -1067,6 +1085,12 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
 - **Tutto schermo**: finestra di dialogo (`role="dialog"`, `aria-modal`) sopra la pagina con i pulsanti «Torna alla
   partita» e (con più diapositive) «Ferma rotazione»; Esc chiude, il focus va su «Torna alla partita», resta intrappolato
   nella finestra e torna dov'era alla chiusura.
+- **Dimensione a tutto schermo** (`fullscreenSize` della pausa, ereditata dalle pause per set; `components/SlideFit.tsx`,
+  usato in `Intermission.tsx`): «Normale» è la diapositiva com'era disegnata (scorre se non ci sta); «Grande» la
+  ingrandisce fino a 1,5× finché sta nello schermo (se già non ci sta, resta com'è e scorre); «Riempi lo schermo» la scala
+  alla misura più grande che entra (0,4-4×), senza scorrimento. Si usa `transform: scale` (non `zoom`) con ricerca per
+  bisezione (`largestFit`, limiti in `FIT_LIMITS`), così le misure restano affidabili anche nell'anteprima scalata dello
+  Studio; si rimisura al cambio di spazio o di diapositiva. La banda in basso non cambia.
 - **Banda**: fissa in basso, una riga compatta con titolo, diapositiva, punti indicatori (per i lettori di schermo «Schermata N di M»), «Ferma rotazione»
   e «Chiudi»; non prende il focus (un messaggio `role="status"` avvisa i lettori di schermo). Sul telefono e sul tablet
   la pagina ha uno spazio vuoto sotto di pari altezza, così la banda non copre il tabellone.

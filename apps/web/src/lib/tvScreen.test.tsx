@@ -1,6 +1,6 @@
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { TV_ROOT_CLASS, useIdle, useTvRootClass, useWakeLock } from './tvScreen.ts';
+import { TV_ROOT_CLASS, tvRemPx, useIdle, useTvRootClass, useWakeLock } from './tvScreen.ts';
 
 afterEach(() => {
   cleanup();
@@ -115,5 +115,20 @@ describe('useTvRootClass', () => {
     rerender(<RootClass on />);
     unmount();
     expect(document.documentElement.classList.contains(TV_ROOT_CLASS)).toBe(false);
+  });
+});
+
+describe('tvRemPx', () => {
+  it('computes the clamp of the variable for a viewport', () => {
+    expect(tvRemPx('clamp(16px, min(1.25vw, 2.2vh), 48px)', 1920, 1080)).toBeCloseTo(23.76);
+    expect(tvRemPx('clamp(14px, min(0.9vw, 1.6vh), 36px)', 1920, 1080)).toBeCloseTo(17.28);
+    expect(tvRemPx('clamp(14px, min(0.9vw, 1.6vh), 36px)', 800, 450)).toBe(14);
+    expect(tvRemPx('clamp(14px, min(0.9vw, 1.6vh), 36px)', 7680, 4320)).toBe(36);
+  });
+
+  it('falls back to the default theme when the text is not readable', () => {
+    expect(tvRemPx('', 1920, 1080)).toBeCloseTo(23.76);
+    expect(tvRemPx(null, 1920, 1080)).toBeCloseTo(23.76);
+    expect(tvRemPx('20px', 1920, 1080)).toBeCloseTo(23.76);
   });
 });

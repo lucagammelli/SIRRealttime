@@ -302,14 +302,15 @@ Ex pagina «Pause» (`PausesSection.tsx`, vedi «Pause della partita»). In alto
 con la casella «Pausa propria per la fine del N° set» (senza, quel set usa «Tutti i set»). «Ogni N punti» ha la scheda
 «Regola» con «Ogni quanti punti» (4-25) e «Non negli ultimi punti del set» (`stopBeforeEnd`, con il traguardo da
 `setTarget` di volley-stats). Per ogni pausa, «Quando e come»: «Pausa attiva» e «Come si mostra» (per TV, tablet e
-telefono «Tutto schermo» o «Banda in basso»); «Diapositive»: elenco riordinabile con «Sposta su» e «Sposta giù» (niente
+telefono «Tutto schermo» o «Banda in basso») e, subito sotto, «Dimensione a tutto schermo» (`fullscreenSize`: «Normale»,
+«Grande», «Riempi lo schermo», vedi «Pause della partita»; vale per tutte le diapositive della pausa); «Diapositive»: elenco riordinabile con «Sposta su» e «Sposta giù» (niente
 trascinamento); in una riga sotto il nome di ogni diapositiva l'interruttore «Attiva: <tipo>» e «Rimuovi» (icona «−»; con «Conferma rimozione» solo
 se la diapositiva ha opzioni diverse da quelle predefinite, `slideHasSettings`). Una diapositiva disattivata (campo
 `enabled` della diapositiva, predefinito attivo: i documenti salvati prima restano tutti attivi) resta nell'elenco con le
 sue opzioni, segnata «(disattivata)», ma non compare né sulla pagina pubblica né nell'anteprima (`visibleSlides`); se
 tutte sono disattivate la pausa non compare (`intermissionFor` dà null) e l'elenco lo dice («Tutte le diapositive sono
 disattivate: la pausa non compare.»). Sotto «Opzioni» «Secondi sullo schermo» e le opzioni del tipo (come nei blocchi;
-lo sponsor sceglie gli sponsor come il blocco); in fondo «Tipo di diapositiva» con «Aggiungi diapositiva» (al massimo 12). In «Avanzate»: «Ritardo prima della
+lo sponsor sceglie gli sponsor e «Come mostrarli» come il blocco); in fondo «Tipo di diapositiva» con «Aggiungi diapositiva» (al massimo 12). In «Avanzate»: «Ritardo prima della
 pausa (secondi)» e «Ripristina predefinito» (solo della pausa aperta). «Salva» è disattivato se una pausa attiva non ha
 diapositive o un testo è vuoto. Nella scheda «Fine partita» c'è anche la card «Dopo la partita» (`AfterMatchEditor`):
 «Mostra la foto dopo la partita» (interruttore), «Foto a tutto schermo» con «Carica immagine» e «Togli foto», «Oppure
@@ -1025,14 +1026,18 @@ Anagrafica degli sponsor del cliente, nel gruppo di menu «Pagina pubblica». Se
   JPEG, WebP o SVG, al massimo 2 MB, 12 per sponsor). Scheda «Immagini senza sponsor» (visibile solo se ce ne sono: quelle
   caricate prima dell'anagrafica o tolte a uno sponsor) con «Assegna a» e la scelta dello sponsor. Gli errori del server
   (nome già usato, sponsor in uso in pagina o pause, immagine già di un altro sponsor) sono mostrati in italiano.
-- **Studio grafico**: il blocco sponsor e la diapositiva sponsor delle pause hanno una casella per ogni sponsor («Sponsor a
-  rotazione (N di al massimo 12)»), l'elenco «Immagini singole» con «Togli» (compare solo se il documento ne ha: sono
+- **Studio grafico**: il blocco sponsor e la diapositiva sponsor delle pause hanno una casella per ogni sponsor («Sponsor
+  (N di al massimo 12)»), la scelta «Come mostrarli» («Uno alla volta», predefinito, o «Tutti in una pagina»; opzione
+  `display` `rotate`|`all`; «Secondi per immagine» compare solo con «Uno alla volta»), l'elenco «Immagini singole» con «Togli» (compare solo se il documento ne ha: sono
   l'opzione `images` salvata prima dell'anagrafica, mantenuta per compatibilità) e il link «Gestisci sponsor» a questa
   pagina; non c'è più il caricamento diretto dal blocco. Le anteprime usano gli sponsor dell'anagrafica
   (`publicSponsorsOf` in `lib/sponsors.ts`, con le immagini da `adminAssetPath`). Le miniature della pagina «Sponsor»
   usano l'`url` di `AssetSummary` (`/api/admin/assets/:id/file`, vedi «Miniature e anteprime dell'area riservata»).
 - **Pagina pubblica**: gli sponsor arrivano in `sponsors` di `GET /api/public/tenant` (solo quelli scelti); la rotazione è
-  descritta in «Pagina pubblica a blocchi».
+  descritta in «Pagina pubblica a blocchi». Con «Tutti in una pagina» (`display: 'all'`, e almeno due immagini) il blocco
+  mostra tutte le immagini insieme in una griglia quasi quadrata (`SponsorGrid` in `blocks/BrandBlocks.tsx`,
+  `sponsorGridColumns` in `lib/sponsors.ts`: 4 colonne con 10-12 loghi); nella banda delle pause sono piccoli, in fila;
+  con una sola immagine resta come prima. Non c'è rotazione: nella diapositiva la pagina dura i secondi della diapositiva.
 - **Caricamento**: gli helper sono in `pages/admin/imageUpload.ts` (`uploadImage`, `uploadSponsorImage`, `ACCEPT`,
   `IMAGE_TOO_LARGE`, `imageCountText`), condivisi da questa pagina e dallo Studio. Test: `SponsorsPage.test.tsx`, `SponsorBlock.test.tsx`.
 
@@ -1067,6 +1072,12 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
 - **Tutto schermo**: finestra di dialogo (`role="dialog"`, `aria-modal`) sopra la pagina con i pulsanti «Torna alla
   partita» e (con più diapositive) «Ferma rotazione»; Esc chiude, il focus va su «Torna alla partita», resta intrappolato
   nella finestra e torna dov'era alla chiusura.
+- **Dimensione a tutto schermo** (`fullscreenSize` della pausa, ereditata dalle pause per set; `components/SlideFit.tsx`,
+  usato in `Intermission.tsx`): «Normale» è la diapositiva com'era disegnata (scorre se non ci sta); «Grande» la
+  ingrandisce fino a 1,5× finché sta nello schermo (se già non ci sta, resta com'è e scorre); «Riempi lo schermo» la scala
+  alla misura più grande che entra (0,4-4×), senza scorrimento. Si usa `transform: scale` (non `zoom`) con ricerca per
+  bisezione (`largestFit`, limiti in `FIT_LIMITS`), così le misure restano affidabili anche nell'anteprima scalata dello
+  Studio; si rimisura al cambio di spazio o di diapositiva. La banda in basso non cambia.
 - **Banda**: fissa in basso, una riga compatta con titolo, diapositiva, punti indicatori (per i lettori di schermo «Schermata N di M»), «Ferma rotazione»
   e «Chiudi»; non prende il focus (un messaggio `role="status"` avvisa i lettori di schermo). Sul telefono e sul tablet
   la pagina ha uno spazio vuoto sotto di pari altezza, così la banda non copre il tabellone.

@@ -16,6 +16,7 @@ import {
   allIntermissions,
   defaultIntermission,
   defaultIntermissions,
+  INTERMISSION_FULLSCREEN_SIZES,
   INTERMISSION_MAX_DELAY_SECONDS,
   INTERMISSION_MAX_SLIDES,
   intermissionFor,
@@ -160,6 +161,20 @@ describe('pauses of the public page: defaults', () => {
     expect(types(parsed.data.matchEnd.slides)).toEqual(['mvp']);
     expect(parsed.data.milestone).toEqual(defaultIntermission('milestone'));
     expect(resolveIntermissions(old)).toEqual(parsed.data);
+  });
+
+  it('size on full screen: «normal» by default and in a document saved before it, one of the closed list', () => {
+    for (const pause of allIntermissions(defaultIntermissions())) expect(pause.fullscreenSize).toBe('normal');
+    const old = { setBreak: { modes: { tv: 'fullscreen' }, delaySeconds: 3 }, setBreakBySet: { '1': {} } };
+    const parsed = TenantIntermissionsSchema.parse(old);
+    expect(parsed.setBreak.fullscreenSize).toBe('normal');
+    expect(parsed.setBreakBySet['1']?.fullscreenSize).toBe('normal');
+    expect(INTERMISSION_FULLSCREEN_SIZES).toEqual(['normal', 'large', 'fill']);
+    for (const size of INTERMISSION_FULLSCREEN_SIZES)
+      expect(TenantIntermissionsSchema.parse({ milestone: { fullscreenSize: size } }).milestone.fullscreenSize).toBe(
+        size,
+      );
+    expect(TenantIntermissionsSchema.safeParse({ timeout: { fullscreenSize: 'huge' } }).success).toBe(false);
   });
 });
 

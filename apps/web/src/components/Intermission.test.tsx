@@ -170,6 +170,22 @@ describe('Intermission: full screen and banner', () => {
     expect(banner()?.className).not.toMatch(OPACITY_ANIMATIONS);
   });
 
+  it('full screen slide: as designed by default, fitted to the space with «Grande» or «Riempi lo schermo»', () => {
+    setup(setBreak, { device: 'tablet' });
+    expect(dialog()?.querySelector('[data-studio-slide]')?.hasAttribute('data-slide-fit')).toBe(false);
+    cleanup();
+    for (const size of ['large', 'fill'] as const) {
+      setup(setBreak, { device: 'tablet', config: { setBreak: { fullscreenSize: size } } });
+      const slide = dialog()?.querySelector('[data-studio-slide]');
+      expect(slide?.getAttribute('data-slide-fit')).toBe(size);
+      expect(slide?.parentElement).toBe(dialog());
+      cleanup();
+    }
+    // The banner does not change.
+    setup(setBreak, { device: 'phone', config: { setBreak: { fullscreenSize: 'fill' } } });
+    expect(banner()?.querySelector('[data-slide-fit]')).toBeNull();
+  });
+
   it('time-out: compact banner with the sponsor and the team that called it', () => {
     setup(timeout, {
       device: 'tv',

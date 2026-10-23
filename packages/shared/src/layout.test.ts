@@ -87,7 +87,12 @@ describe('layout of the public page', () => {
 
   it('fills the options of every type with their defaults', () => {
     for (const type of BLOCK_TYPES) expect(parseBlock({ type }).success).toBe(true);
-    expect(parseBlock({ type: 'sponsor' }).data?.options).toEqual({ sponsors: [], images: [], seconds: 8 });
+    expect(parseBlock({ type: 'sponsor' }).data?.options).toEqual({
+      sponsors: [],
+      images: [],
+      seconds: 8,
+      display: 'rotate',
+    });
     expect(parseBlock({ type: 'qr' }).data?.options).toEqual({ caption: 'Segui la partita sul telefono' });
     expect(parseBlock({ type: 'topPlayers' }).data?.options).toEqual({ count: 5, team: 'both' });
     expect(parseBlock({ type: 'logo' }).data?.options).toEqual({ variant: 'main' });
@@ -148,6 +153,10 @@ describe('layout of the public page', () => {
     expect(parseBlock({ type: 'sponsor', options: { images: [IMG_A], seconds: 61 } }).success).toBe(false);
     expect(parseBlock({ type: 'sponsor', options: { images: [IMG_A], seconds: 4.5 } }).success).toBe(false);
     expect(parseBlock({ type: 'sponsor', options: { images: [IMG_A, IMG_B], seconds: 60 } }).success).toBe(true);
+    expect(parseBlock({ type: 'sponsor', options: { display: 'all' } }).data?.options).toMatchObject({
+      display: 'all',
+    });
+    expect(parseBlock({ type: 'sponsor', options: { display: 'grid' } }).success).toBe(false);
     expect(parseBlock({ type: 'topPlayers', options: { count: 0 } }).success).toBe(false);
     expect(parseBlock({ type: 'topPlayers', options: { count: 11 } }).success).toBe(false);
     expect(parseBlock({ type: 'topPlayers', options: { team: 'tutti' } }).success).toBe(false);

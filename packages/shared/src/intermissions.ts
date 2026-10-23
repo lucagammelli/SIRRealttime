@@ -24,6 +24,14 @@ export type IntermissionKind = (typeof INTERMISSION_KINDS)[number];
 export const INTERMISSION_MODES = ['fullscreen', 'banner'] as const;
 export type IntermissionMode = (typeof INTERMISSION_MODES)[number];
 
+/**
+ * Size of the slides of a pause on full screen: `normal` as designed (centred, the slide scrolls when taller than
+ * the screen); `large` bigger, up to 1.5 times, only as far as it stays on the screen without scrolling; `fill` as
+ * big (or as small) as the space of the screen allows, never scrolling. Missing in a saved document: `normal`.
+ */
+export const INTERMISSION_FULLSCREEN_SIZES = ['normal', 'large', 'fill'] as const;
+export type IntermissionFullscreenSize = (typeof INTERMISSION_FULLSCREEN_SIZES)[number];
+
 /** Sets that can have their own end-of-set pause (the 5th set ends the match). */
 export const SET_BREAK_SETS = ['1', '2', '3', '4'] as const;
 export type SetBreakSet = (typeof SET_BREAK_SETS)[number];
@@ -233,6 +241,8 @@ const pauseShape = (kind: IntermissionKind) => {
       .prefault({}),
     /** Seconds between the start of the pause and its screen (the scoreboard shows the end of the set first). */
     delaySeconds: z.int().min(0).max(INTERMISSION_MAX_DELAY_SECONDS).default(d.delaySeconds),
+    /** Size of the slides on full screen (the banner does not change). */
+    fullscreenSize: z.enum(INTERMISSION_FULLSCREEN_SIZES).default('normal'),
     slides: IntermissionSlidesSchema.default(() => IntermissionSlidesSchema.parse(d.slides)),
   };
 };

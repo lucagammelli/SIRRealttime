@@ -312,7 +312,7 @@ export function BlockOptionsEditor({
         <div className="space-y-2 text-sm text-text">
           <fieldset className="space-y-1">
             <legend className="text-sm text-text">
-              Sponsor a rotazione ({chosen.size} di al massimo {SPONSOR_BLOCK_MAX_SPONSORS})
+              Sponsor ({chosen.size} di al massimo {SPONSOR_BLOCK_MAX_SPONSORS})
             </legend>
             {sponsors.length === 0 ? (
               <p className="text-xs text-muted">Nessuno sponsor: aggiungili nella pagina «Sponsor».</p>
@@ -374,19 +374,32 @@ export function BlockOptionsEditor({
           )}
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2">
-              Secondi per immagine
+              Come mostrarli
               <select
                 className={selectClass}
-                value={options.seconds}
-                onChange={(e) => setOptions({ seconds: Number(e.target.value) })}
+                value={options.display}
+                onChange={(e) => setOptions({ display: e.target.value === 'all' ? 'all' : 'rotate' })}
               >
-                {SPONSOR_SECONDS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
+                <option value="rotate">Uno alla volta</option>
+                <option value="all">Tutti in una pagina</option>
               </select>
             </label>
+            {options.display === 'rotate' && (
+              <label className="flex items-center gap-2">
+                Secondi per immagine
+                <select
+                  className={selectClass}
+                  value={options.seconds}
+                  onChange={(e) => setOptions({ seconds: Number(e.target.value) })}
+                >
+                  {SPONSOR_SECONDS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <Link to="/admin/sponsor" className="text-sm font-medium text-text underline">
               Gestisci sponsor
             </Link>

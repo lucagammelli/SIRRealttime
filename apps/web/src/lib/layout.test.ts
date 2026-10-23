@@ -16,8 +16,11 @@ import {
   packRows,
   rotationIndex,
   rowMinRem,
+  groupMinRem,
   tvGroups,
   tvModeOf,
+  tvZoom,
+  TV_MAX_SHRINK,
 } from './layout.ts';
 
 let next = 0;
@@ -179,6 +182,68 @@ describe('packRows', () => {
 
   it('measures a row by its tallest block', () => {
     expect(rowMinRem([block({ type: 'momentum', width: 6 }), block({ type: 'players', width: 6 })])).toBe(22);
+  });
+});
+
+describe('screens of a TV page with long lists (sir-volley, 1920 × 1080: 1 rem = 17.28 px, 40.1 rem under the scoreboard)', () => {
+  // Page of a client: aces, blocks and attack in a row, scorers, then the court with the vertical rotations.
+  const page = () => [
+    block({ type: 'scoreboard', width: 12 }),
+    block({ type: 'aces', width: 4 }),
+    block({ type: 'blocks', width: 4 }),
+    block({ type: 'attack', width: 4 }),
+    block({ type: 'setScorers', width: 12 }),
+    block({ type: 'court', width: 8 }),
+    block({ type: 'rotations', width: 4 }),
+  ];
+  // Heights measured on the real screen with 3 attackers and 5 scorers per team (rem).
+  const measuredOf = (tv: LayoutBlock[]): Record<string, number> => {
+    const id = (type: string) => tv.find((b) => b.type === type)?.id ?? '';
+    return { [id('attack')]: 21.43, [id('setScorers')]: 21.03, [id('rotations')]: 21.66 };
+  };
+  const minRem = tvMinRemFor('sir-volley');
+
+  it('before: the measured heights do not fit two rows in one screen, three screens', () => {
+    const tv = page();
+    expect(types(tvGroups(tv, 40.1, 1, minRem, measuredOf(tv)))).toEqual([
+      [['aces', 'blocks', 'attack']],
+      [['setScorers']],
+      [['court', 'rotations']],
+    ]);
+  });
+
+  it('a screen may need up to 1 / TV_MAX_SHRINK of the space: two screens, the first scaled down', () => {
+    const tv = page();
+    const measured = measuredOf(tv);
+    const groups = tvGroups(tv, 40.1, 1, minRem, measured, TV_MAX_SHRINK);
+    expect(types(groups)).toEqual([[['aces', 'blocks', 'attack'], ['setScorers']], [['court', 'rotations']]]);
+    const first = groups[0] ?? [];
+    expect(groupMinRem(first, 1, minRem, measured)).toBeCloseTo(21.43 + 1 + 21.03, 5);
+    expect(tvZoom(groupMinRem(first, 1, minRem, measured), 40.1)).toBeCloseTo(40.1 / 43.46, 3);
+    // The last screen fits as it is.
+    expect(tvZoom(groupMinRem(groups[1] ?? [], 1, minRem, measured), 40.1)).toBe(1);
+  });
+
+  it('never makes a screen smaller than TV_MAX_SHRINK: a row too tall for it goes to the next screen', () => {
+    const tv = page();
+    const measured = { ...measuredOf(tv), [tv[4]?.id ?? '']: 30 };
+    // 21.43 + 1 + 30 = 52.43 > 40.1 / 0.85 = 47.2
+    expect(types(tvGroups(tv, 40.1, 1, minRem, measured, TV_MAX_SHRINK))[0]).toEqual([['aces', 'blocks', 'attack']]);
+    expect(tvZoom(60, 40.1)).toBe(TV_MAX_SHRINK);
+  });
+});
+
+describe('tvZoom', () => {
+  it('is 1 when the screen fits or there is nothing to measure', () => {
+    expect(tvZoom(30, 40)).toBe(1);
+    expect(tvZoom(40, 40)).toBe(1);
+    expect(tvZoom(30, 0)).toBe(1);
+    expect(tvZoom(0, 0)).toBe(1);
+  });
+
+  it('scales down in proportion, to the minimum', () => {
+    expect(tvZoom(44, 40)).toBeCloseTo(40 / 44, 6);
+    expect(tvZoom(100, 40)).toBe(0.85);
   });
 });
 

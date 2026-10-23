@@ -312,6 +312,14 @@ function FixtureItem({ f, onChanged }: { f: ClubFixture; onChanged: () => void }
       });
       onChanged();
     });
+  const unlink = (matchId: string) =>
+    act(async () => {
+      await apiCommand(`/api/admin/matches/${encodeURIComponent(matchId)}/fixture`, {
+        method: 'PUT',
+        body: { clientFixtureId: null },
+      });
+      onChanged();
+    });
   const remove = () =>
     act(async () => {
       await apiCommand(`/api/admin/calendar/fixtures/${encodeURIComponent(f.id)}`, { method: 'DELETE' });
@@ -356,12 +364,21 @@ function FixtureItem({ f, onChanged }: { f: ClubFixture; onChanged: () => void }
             <p className="text-xs text-muted">{[f.venue, f.venueCity].filter(Boolean).join(' · ')}</p>
           )}
           {f.match && (
-            <p className="text-xs text-muted">
-              File .dvw:{' '}
+            <p className="flex flex-wrap items-center gap-2 text-xs text-muted" data-testid="fixture-match">
+              <span>File .dvw:</span>
               <Link className="text-text underline" to={`/admin/partite/${f.match.id}`}>
                 {[f.match.homeName, f.match.awayName].filter(Boolean).join(' – ') || 'partita'}
               </Link>
-              {f.match.link === 'manual' ? ' (abbinata a mano)' : ' (abbinata da sola)'}
+              <span>{f.match.link === 'manual' ? '(abbinata a mano)' : '(abbinata da sola)'}</span>
+              {canEdit && (
+                <ConfirmButton
+                  label="Scollega"
+                  confirmLabel="Conferma: scollega il file"
+                  ariaLabel="Scollega il file .dvw dalla partita"
+                  busy={busy}
+                  onConfirm={() => void unlink(f.match?.id ?? '')}
+                />
+              )}
             </p>
           )}
         </div>

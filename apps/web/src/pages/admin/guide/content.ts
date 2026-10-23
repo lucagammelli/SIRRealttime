@@ -117,6 +117,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
           'Per aggiungere un’amichevole, una coppa o un’altra gara, premi «Nuova partita» e compila tipo, data, ora, avversario e dove si gioca.',
           'Se la data è sbagliata o è cambiata, apri la partita, premi «Cambia data e ora» e scrivi quelle giuste. La partita mostra «Modificata a mano».',
           'Per rimettere la data del sito della Lega premi «Torna alla data ufficiale».',
+          'Se un file .dvw si è abbinato alla partita sbagliata (per esempio una prova fatta prima della partita vera), accanto a «File .dvw» premi «Scollega» e poi «Conferma: scollega il file»: la partita torna «Programmata» e il file non viene più abbinato da solo.',
         ],
       },
     ],

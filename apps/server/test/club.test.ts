@@ -13,6 +13,7 @@ import { and, eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { WebSocket } from 'ws';
+import { relinkPending } from '../src/club.js';
 import { clientFixtures, fixtures, matches, shareTokens } from '../src/db/index.js';
 import type { TestServer } from './helpers.js';
 import {
@@ -410,6 +411,25 @@ describe('confirmation of a live .dvw', () => {
     expect(await matchRow(second)).toMatchObject({ fixtureLink: 'manual', clientFixtureId: n7.id, live: false });
     expect((await matchRow(onAir)).live).toBe(true);
     expect(await publicState(n7.link?.shortCode ?? '')).toMatchObject({ body: { type: 'state', matchId: onAir } });
+  });
+
+  it('keeps a .dvw unlinked by hand unlinked: new rows and the search of the pending ones leave it alone', async () => {
+    const n5 = await byExternal('n5');
+    const matchN5 = n5.match?.id ?? '';
+    expect(matchN5).not.toBe('');
+    const res = await call({
+      method: 'PUT',
+      url: `/api/admin/matches/${matchN5}/fixture`,
+      payload: { clientFixtureId: null },
+    });
+    expect(res.statusCode).toBe(204);
+    expect(await matchRow(matchN5)).toMatchObject({ fixtureLink: 'none', clientFixtureId: null });
+    expect((await byExternal('n5')).match).toBeNull();
+    await send(agent1, 'cuneo-perugia', CUNEO_PERUGIA, 90);
+    await server.database.db.transaction((tx) => relinkPending(tx, server.tenantId));
+    expect(await matchRow(matchN5)).toMatchObject({ fixtureLink: 'none', clientFixtureId: null });
+    expect((await calendar()).pending).not.toContainEqual(expect.objectContaining({ id: matchN5 }));
+    expect((await byExternal('n5')).match).toBeNull();
   });
 
   it('proposes candidates with the same similarity always in the same order', async () => {

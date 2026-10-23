@@ -6,9 +6,7 @@ precedente; le note della release su GitHub sono la sezione della versione (`doc
 
 ## [2.2.0] - 2026-10-23
 
-- Documenti: schermata dopo la partita
-- Migrazione 0019: ora di fine partita
-- Schermata dopo la partita (lavoro in corso, migrazione da rigenerare)
+- Foto a tutto schermo dopo la partita con conto alla rovescia della prossima
 - Sfondo immagine o video negli avvisi
 - Opzione Touch Sì/No per dispositivo
 - Mappa del campo: colore singolo o tricolore

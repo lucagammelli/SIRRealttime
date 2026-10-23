@@ -865,6 +865,8 @@ ciclo e mostra l'avviso.
   (o con due) restano i colori casa/ospite del file.
 - **Mappe di campo** (`CourtMap`): con SIR VOLLEY le frecce hanno il colore della squadra che attacca, spessore 1,5 px e
   opacità 85%; nello standard restano colorate per valutazione.
+  Sulla TV il campo si adatta all'altezza che resta nella card dopo filtri e legenda (prop `fit`, proporzioni
+  mantenute): mai una barra di scorrimento dentro la card.
   Nello Studio grafico («Pagina», opzioni del blocco «Mappe di campo», `CourtOptionsFields.tsx`) si scelgono, per la
   nostra squadra e per l'avversario: colore del fondo di ciascuna metà, colore delle linee (perimetro, 3 metri; la rete
   segue la nostra metà), colore delle traiettorie; più lo spessore delle linee e delle traiettorie (da 0,5× a 3×).
@@ -952,7 +954,7 @@ pagina di prima.
 | Blocco | Opzioni | Comportamento |
 |---|---|---|
 | Logo | Orizzontale / Quadrato | logo del cliente in un `<img>`; senza logo, il nome |
-| Rotazioni | «Disposizione»: «Affiancati» (predefinita) / «Uno sopra l'altro» (opzione `orientation`: `horizontal` / `vertical`; i layout salvati senza il campo restano validi) | i due grafici affiancati se la card è larga, oppure sempre uno sopra l'altro; sulla TV in verticale i grafici sono più bassi perché stiano nella card; sul telefono non cambia |
+| Rotazioni | «Disposizione»: «Affiancati» (predefinita) / «Uno sopra l'altro» (opzione `orientation`: `horizontal` / `vertical`; i layout salvati senza il campo restano validi) | i due grafici affiancati se la card è larga, oppure sempre uno sopra l'altro; in verticale i due grafici si dividono tutta l'altezza della card (tablet/desktop almeno 11 rem ciascuno, TV almeno 6 rem); sul telefono non cambia |
 | Sponsor | gli sponsor scelti (al massimo 12; opzione `sponsors`), «Immagini singole» (opzione `images`, fino a 12, solo quelle già nei documenti salvati prima: si possono togliere, non aggiungere), «Secondi per immagine» (3-60, predefinito 8) | immagini a rotazione con dissolvenza breve (nessuna con `prefers-reduced-motion`): prima tutte le immagini degli sponsor nell'ordine della lista «Sponsor», poi le immagini singole (`sponsorItems` in `lib/sponsors.ts`); l'immagine di uno sponsor con sito è un link in una nuova scheda (`target="_blank"`, `rel="noopener noreferrer"`, `SponsorImage` in `BrandBlocks.tsx`); si ferma con «Ferma rotazione» della TV; senza immagini: «Nessuna immagine sponsor scelta.» (in una diapositiva si usa il logo sponsor della grafica, `sponsorLogo`) |
 | Messaggio | testo (al massimo 280 caratteri, una riga), «Dimensione» Normale / Grande | sempre testo semplice, mai HTML |
 | Codice QR | testo sopra il codice (al massimo 80 caratteri, predefinito «Segui la partita sul telefono») | QR del link della pagina aperta (origine + percorso, senza query come `?tv=1`); il codice breve sotto compare solo se la pagina è aperta con `/l/<codice>` |

@@ -82,4 +82,10 @@ describe('court map options', () => {
     expect(leftFill()).toBe('#445566');
     act(release);
   });
+
+  it('on the big screen fits the field to the height of the card instead of scrolling', () => {
+    const { container } = render(<CourtMap state={stateAfter()} fit />);
+    expect(container.querySelector('.sir-card-body')?.className).toContain('flex-col');
+    expect(container.querySelector('svg[viewBox="0 0 200 110"]')?.getAttribute('class')).toContain('flex-1');
+  });
 });

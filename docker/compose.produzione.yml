@@ -2,6 +2,8 @@
 # Uso a mano:  docker compose -f docker-compose.yml -f docker/compose.produzione.yml up -d
 # Cosa cambia rispetto allo sviluppo:
 #  - Caddy è l'unico servizio pubblicato (80, 443): certificati automatici per ARENALIVE_HOSTNAMES (Let's Encrypt, o CA interna con ARENALIVE_TLS_MODE=interno), redirect 80 -> 443;
+#    per gli hostname dei clienti aggiunti in admin certificato «on demand», solo se il server lo conferma
+#    (GET http://server:8090/internal/tls/ask sulla rete interna, docker/Caddyfile);
 #  - server e web non pubblicano più nessuna porta sull'host (nemmeno su 127.0.0.1): si raggiungono solo dalla rete interna;
 #  - nginx (web) si fida di X-Forwarded-For solo da Caddy (rete con indirizzi fissi), così rate limit e log vedono l'IP vero;
 #  - log dei container a rotazione (altrimenti crescono senza limite); Postgres senza porta pubblicata (già così nel base).
@@ -21,7 +23,8 @@ services:
       web:
         condition: service_healthy
     environment:
-      # Elenco di hostname separati da virgola (portale e domini dei clienti): scritto da installa-produzione.sh nel .env.
+      # Hostname separati da virgola e spazio con certificato richiesto all'avvio (portale e ALTRI_HOSTNAME): scritto da
+      # installa-produzione.sh nel .env. Gli altri hostname dei clienti hanno il certificato on demand.
       ARENALIVE_HOSTNAMES: ${ARENALIVE_HOSTNAMES:?imposta ARENALIVE_HOSTNAMES in .env}
       # letsencrypt (predefinito) oppure interno (CA locale di Caddy, per hostname non pubblici): scritto da installa-produzione.sh.
       ARENALIVE_TLS_MODE: ${ARENALIVE_TLS_MODE:-letsencrypt}

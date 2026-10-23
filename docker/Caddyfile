@@ -1,12 +1,23 @@
 # Proxy TLS di produzione (docker/compose.produzione.yml). ARENALIVE_HOSTNAMES e ACME_EMAIL arrivano dal .env.
 # ARENALIVE_TLS_MODE (nel .env, scritto da installa-produzione.sh) sceglie il certificato:
-#  - letsencrypt: Caddy ottiene e rinnova da solo i certificati Let's Encrypt per ogni hostname;
+#  - letsencrypt: Caddy ottiene e rinnova da solo i certificati Let's Encrypt;
 #  - interno: certificati firmati dalla CA locale di Caddy (radice generata sul server), per hostname non pubblici;
 #    la radice pubblica (mai la chiave) è servita su /arenalive-ca.crt.
+# Due tipi di hostname:
+#  - ARENALIVE_HOSTNAMES (portale e domini già noti all'installazione): certificato richiesto all'avvio;
+#  - ogni altro hostname (domini dei clienti aggiunti in admin): certificato «on demand» alla prima connessione HTTPS,
+#    solo se il server conferma che l'hostname è di un cliente (GET /internal/tls/ask?domain=<host>, vedi sotto).
 # In entrambi i modi 80 -> 443 è reindirizzato.
 # Nessun access log: nel percorso ci sono i token dei link (/live/<token>, /l/<codice>) che nginx maschera nei suoi log.
 {
 	email {$ACME_EMAIL}
+
+	# Prima di chiedere un certificato per un hostname non in ARENALIVE_HOSTNAMES Caddy chiede al server (rete Docker
+	# interna, mai esposta da nginx) se l'hostname è assegnato a un cliente: solo 200 dà il certificato. Senza questo
+	# controllo chiunque potrebbe far chiedere certificati per nomi arbitrari (limiti di Let's Encrypt, disco).
+	on_demand_tls {
+		ask http://server:8090/internal/tls/ask
+	}
 
 	# Log di runtime senza l'oggetto «request» (URI, intestazioni, IP): un errore del reverse_proxy altrimenti
 	# scriverebbe il percorso con i token dei link.
@@ -21,14 +32,9 @@
 	}
 }
 
-# Snippet scelto da «import modo_{$ARENALIVE_TLS_MODE}». Con letsencrypt non aggiunge nulla (comportamento predefinito di Caddy).
-(modo_letsencrypt) {
-}
-
-(modo_interno) {
-	tls internal
-
-	# Solo la radice pubblica, copiata da installa-produzione.sh in una cartella montata in sola lettura.
+# Radice pubblica della CA locale (solo modo interno), copiata da installa-produzione.sh in una cartella montata in
+# sola lettura.
+(ca_interna) {
 	handle /arenalive-ca.crt {
 		root * /srv/ca
 		header Content-Type application/x-x509-ca-cert
@@ -36,9 +42,32 @@
 	}
 }
 
-{$ARENALIVE_HOSTNAMES} {
-	import modo_{$ARENALIVE_TLS_MODE}
+# Snippet degli hostname di ARENALIVE_HOSTNAMES, scelto da «import modo_{$ARENALIVE_TLS_MODE}». Con letsencrypt non
+# aggiunge nulla (comportamento predefinito di Caddy).
+(modo_letsencrypt) {
+}
 
+(modo_interno) {
+	tls internal
+	import ca_interna
+}
+
+# Snippet degli hostname dei clienti (certificato alla prima connessione), scelto da «import on_demand_{$ARENALIVE_TLS_MODE}».
+(on_demand_letsencrypt) {
+	tls {
+		on_demand
+	}
+}
+
+(on_demand_interno) {
+	tls internal {
+		on_demand
+	}
+	import ca_interna
+}
+
+# Uguale per tutti gli hostname: intestazioni e inoltro a nginx.
+(portale) {
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		-Server
@@ -49,4 +78,21 @@
 		header_up X-Forwarded-For {remote_host}
 		flush_interval -1
 	}
+}
+
+{$ARENALIVE_HOSTNAMES} {
+	import modo_{$ARENALIVE_TLS_MODE}
+	import portale
+}
+
+# Ogni altro hostname in HTTPS: certificato on demand (solo hostname dei clienti, controllati dal server).
+https:// {
+	import on_demand_{$ARENALIVE_TLS_MODE}
+	import portale
+}
+
+# Ogni altro hostname in HTTP: redirect a HTTPS. Le challenge HTTP-01 di Let's Encrypt le risponde Caddy prima di
+# questo blocco, quindi non vengono reindirizzate.
+http:// {
+	redir https://{host}{uri} 308
 }

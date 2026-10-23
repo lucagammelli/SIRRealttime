@@ -114,6 +114,15 @@ async function resolveHost(ctx: AppContext, hostname: string | null): Promise<Te
 }
 
 /**
+ * True when `hostname` (already normalized: lower case, no port) is listed by a client. Same lookup and cache as
+ * `hostTenant` (an unknown hostname resolves to the default client, which does not list it).
+ */
+export async function isTenantHostname(ctx: AppContext, hostname: string): Promise<boolean> {
+  const tenant = await resolveHost(ctx, hostname);
+  return tenant?.hostnames.includes(hostname) ?? false;
+}
+
+/**
  * Empties the hostname cache: a new or changed client may take a hostname that resolved to another one, and a saved
  * branding or layout must reach the public pages at once.
  */

@@ -1,4 +1,4 @@
-import type { MatchEventKind } from '@arenalive/volley-stats';
+import type { MatchEventKind, Side } from '@arenalive/volley-stats';
 import { MATCH_EVENT_KINDS, MATCH_EVENT_PRIORITY } from '@arenalive/volley-stats';
 import { z } from 'zod';
 import { AssetIdSchema } from './assets.js';
@@ -93,15 +93,49 @@ export function fillOverlayText(template: string, values: Partial<Record<Overlay
 export const OVERLAY_BACKGROUND_KINDS = ['image', 'video'] as const;
 export type OverlayBackgroundKind = (typeof OVERLAY_BACKGROUND_KINDS)[number];
 
+/** Where a video background plays: in the box of the overlay (as before the setting existed) or on the whole screen. */
+export const OVERLAY_VIDEO_FITS = ['center', 'fullscreen'] as const;
+export type OverlayVideoFit = (typeof OVERLAY_VIDEO_FITS)[number];
+
+/**
+ * Events whose overlay shows the video: only those of our team (the team of the client, at home or away; also the
+ * ones of no team, as a tie), or those of both teams. For an event of the opponent with `ours` the overlay comes out
+ * without the video (text only).
+ */
+export const OVERLAY_VIDEO_TEAMS = ['ours', 'both'] as const;
+export type OverlayVideoTeams = (typeof OVERLAY_VIDEO_TEAMS)[number];
+
 /**
  * Background of an overlay, shown behind its text: an uploaded image or video of the client (the server checks that
- * the asset is of the client and that its type is the one of `kind`).
+ * the asset is of the client and that its type is the one of `kind`). `audio`, `fit` and `teams` are the options of a
+ * video (an image ignores them); missing in a document saved before them: muted, in the box, our team only.
  */
 export const OverlayBackgroundSchema = z.strictObject({
   kind: z.enum(OVERLAY_BACKGROUND_KINDS),
   assetId: AssetIdSchema,
+  /** The video plays with its sound (a browser that refuses plays it muted). */
+  audio: z.boolean().default(false),
+  fit: z.enum(OVERLAY_VIDEO_FITS).default('center'),
+  teams: z.enum(OVERLAY_VIDEO_TEAMS).default('ours'),
 });
-export type OverlayBackground = z.infer<typeof OverlayBackgroundSchema>;
+export type OverlayBackground = z.output<typeof OverlayBackgroundSchema>;
+export type OverlayBackgroundInput = z.input<typeof OverlayBackgroundSchema>;
+
+/**
+ * Pure: the background of an overlay for an event of `team` (null: of no team) when our team plays on `ourSide`: a
+ * video set for our team only is dropped for an event of the opponent (undefined: text only). With `ourSide` unknown
+ * (null: no team of the client in the match) the video stays, as for both teams; an image always stays.
+ */
+export function backgroundForTeam(
+  background: OverlayBackground | undefined,
+  team: Side | null,
+  ourSide: Side | null,
+): OverlayBackground | undefined {
+  if (!background) return undefined;
+  const opponent = team !== null && ourSide !== null && team !== ourSide;
+  if (background.kind === 'video' && background.teams === 'ours' && opponent) return undefined;
+  return background;
+}
 
 interface OverlayDefaults {
   enabled: boolean;

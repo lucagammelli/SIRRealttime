@@ -141,6 +141,13 @@
       "when": 1792771720743,
       "tag": "0019_dopo_partita",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792784177701,
+      "tag": "0020_nomi_file",
+      "breakpoints": true
     }
   ]
 }

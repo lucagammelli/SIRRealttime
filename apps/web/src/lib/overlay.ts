@@ -12,7 +12,7 @@ import type {
   OverlaySize,
   TenantOverlays,
 } from '@arenalive/shared';
-import { fillOverlayText, overlayPlacement } from '@arenalive/shared';
+import { backgroundForTeam, fillOverlayText, overlayPlacement } from '@arenalive/shared';
 import type { MatchEvent, MatchState, Side } from '@arenalive/volley-stats';
 import { playerName, teamName } from './format.ts';
 
@@ -32,7 +32,7 @@ export interface QueuedOverlay {
   receivedAt: number;
   /** Line of the event: same priority, the earlier one first. */
   index: number;
-  /** Image or video behind the text (missing: text only). */
+  /** Image or video behind the text, with the options of a video (missing: text only). */
   background?: OverlayBackground;
 }
 
@@ -79,12 +79,16 @@ export function overlayFor(
   config: TenantOverlays,
   device: LayoutDevice,
   now: number,
+  /** Side of our team in the match (null: unknown, a video for our team only is then shown for both). */
+  ourSide: Side | null = null,
 ): QueuedOverlay | null {
   const overlay = (config as Partial<TenantOverlays>)[event.kind];
   if (!overlay || !overlay.enabled || !overlay.devices[device]) return null;
   const text = overlayText(event, state, overlay);
   if (text === '') return null;
   const { position, size } = overlayPlacement(config, overlay);
+  // A video for our team only: none for an event of the opponent (text only, as without background).
+  const background = backgroundForTeam(overlay.background, event.team, ourSide);
   return {
     id: event.id,
     text,
@@ -95,7 +99,7 @@ export function overlayFor(
     priority: overlay.priority,
     receivedAt: now,
     index: event.index,
-    ...(overlay.background ? { background: overlay.background } : {}),
+    ...(background ? { background } : {}),
   };
 }
 
@@ -139,17 +143,17 @@ export function nextOverlay(
 
 /**
  * Example event of `kind` for the editor of the overlays: the score of `state` (live match or the example match), the
- * home team and its first player; 3 points in a row, 4 attacks. Only to show the text, never a real event.
+ * team of `side` (default home: in the Studio our team) and its first player; 3 points in a row, 4 attacks. Only to show the text, never a real event.
  */
-export function sampleEvent(kind: MatchEvent['kind'], state: MatchState): MatchEvent {
-  const player = state.players.home[0];
+export function sampleEvent(kind: MatchEvent['kind'], state: MatchState, side: Side = 'home'): MatchEvent {
+  const player = state.players[side][0];
   const withPlayer = kind === 'ace' || kind === 'block' || kind === 'substitution';
   return {
     id: `prova-${kind}`,
     kind,
     index: 0,
     set: state.live.set,
-    team: 'home',
+    team: side,
     player:
       withPlayer && player
         ? { number: player.number, firstName: player.firstName, lastName: player.lastName }

@@ -1,6 +1,8 @@
 import { MATCH_EVENT_KINDS, MATCH_EVENT_PRIORITY } from '@arenalive/volley-stats';
 import { describe, expect, it } from 'vitest';
 import {
+  backgroundForTeam,
+  OverlayBackgroundSchema,
   AssetKindSchema,
   AssetSummarySchema,
   defaultOverlay,
@@ -179,10 +181,12 @@ describe('overlays: background', () => {
       ace: { background: { kind: 'video', assetId: ID } },
       block: { background: { kind: 'image', assetId: ID2 } },
     });
-    expect(doc.ace.background).toEqual({ kind: 'video', assetId: ID });
+    // A background saved before the options of the video: muted, in the box, our team only.
+    const plainOptions = { audio: false, fit: 'center', teams: 'ours' } as const;
+    expect(doc.ace.background).toEqual({ kind: 'video', assetId: ID, ...plainOptions });
     expect(overlayBackgrounds(doc)).toEqual([
-      { kind: 'video', assetId: ID },
-      { kind: 'image', assetId: ID2 },
+      { kind: 'video', assetId: ID, ...plainOptions },
+      { kind: 'image', assetId: ID2, ...plainOptions },
     ]);
     const plain = withoutOverlayBackgrounds(doc);
     expect(overlayBackgrounds(plain)).toEqual([]);
@@ -195,8 +199,37 @@ describe('overlays: background', () => {
       { kind: 'image', assetId: 'x' },
       { kind: 'image', assetId: ID, url: 'https://evil.test/a.png' },
       { kind: 'image' },
+      { kind: 'video', assetId: ID, audio: 'sì' },
+      { kind: 'video', assetId: ID, fit: 'cover' },
+      { kind: 'video', assetId: ID, teams: 'away' },
+      { kind: 'video', assetId: ID, teams: 'home' },
     ])
       expect(TenantOverlaysSchema.safeParse({ ace: { background } }).success).toBe(false);
+  });
+
+  it('keeps the options of a video: sound, whole screen, both teams', () => {
+    const doc = TenantOverlaysSchema.parse({
+      ace: { background: { kind: 'video', assetId: ID, audio: true, fit: 'fullscreen', teams: 'both' } },
+    });
+    expect(doc.ace.background).toEqual({ kind: 'video', assetId: ID, audio: true, fit: 'fullscreen', teams: 'both' });
+  });
+
+  it('a video for our team only is dropped for an event of the opponent, at home or away; an image always stays', () => {
+    const video = OverlayBackgroundSchema.parse({ kind: 'video', assetId: ID });
+    const both = OverlayBackgroundSchema.parse({ kind: 'video', assetId: ID, teams: 'both' });
+    const image = OverlayBackgroundSchema.parse({ kind: 'image', assetId: ID2 });
+    // Our team at home.
+    expect(backgroundForTeam(video, 'home', 'home')).toBe(video);
+    expect(backgroundForTeam(video, 'away', 'home')).toBeUndefined();
+    // Our team away: the video goes with the away side.
+    expect(backgroundForTeam(video, 'away', 'away')).toBe(video);
+    expect(backgroundForTeam(video, 'home', 'away')).toBeUndefined();
+    // An event of no team, or our side unknown: the video stays (as for both teams).
+    expect(backgroundForTeam(video, null, 'home')).toBe(video);
+    expect(backgroundForTeam(video, 'away', null)).toBe(video);
+    expect(backgroundForTeam(both, 'away', 'home')).toBe(both);
+    expect(backgroundForTeam(image, 'away', 'home')).toBe(image);
+    expect(backgroundForTeam(undefined, 'home', 'home')).toBeUndefined();
   });
 
   it('assets: kind overlay and video types in the summary', () => {
@@ -215,6 +248,9 @@ describe('overlays: background', () => {
       url: `/api/admin/assets/${ID}/file`,
     };
     expect(AssetSummarySchema.parse(summary).mime).toBe('video/mp4');
+    // An older answer without the name reads as a file without name.
+    expect(AssetSummarySchema.parse(summary).name).toBeNull();
+    expect(AssetSummarySchema.parse({ ...summary, name: 'ace.mp4' }).name).toBe('ace.mp4');
     expect(AssetSummarySchema.safeParse({ ...summary, mime: 'video/quicktime' }).success).toBe(false);
   });
 });

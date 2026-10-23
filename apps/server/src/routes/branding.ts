@@ -15,6 +15,9 @@ import type {
 import {
   ASSET_MAX_BASE64_LENGTH,
   ASSET_MAX_BYTES,
+  ASSET_NAME_MAX,
+  AssetNameSchema,
+  FILE_NAME_HEADER,
   adminAssetPath,
   AssetFileMimeSchema,
   isVideoMime,
@@ -88,6 +91,29 @@ const videoTooLarge = (): HttpError =>
   new HttpError(413, 'TOO_LARGE', `Video troppo grande (massimo ${VIDEO_MAX_BYTES / (1024 * 1024)} MB)`);
 const videoRejected = (message: string): HttpError => new HttpError(422, 'VIDEO_REJECTED', message);
 
+const FileNameHeaderSchema = z
+  .string()
+  .max(ASSET_NAME_MAX * 12)
+  .optional();
+
+/**
+ * The name of an uploaded video from its header (`encodeURIComponent` of the name): null when missing, 400 when it
+ * cannot be decoded or is not a valid name (AssetNameSchema).
+ */
+export function uploadedFileName(header: unknown): string | null {
+  const raw = validate(FileNameHeaderSchema, header);
+  if (raw === undefined || raw === '') return null;
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    throw badRequest('Richiesta non valida: nome del file');
+  }
+  const parsed = AssetNameSchema.safeParse(decoded);
+  if (!parsed.success) throw badRequest('Richiesta non valida: nome del file');
+  return parsed.data;
+}
+
 export const assetSummary = (a: AssetRow): AssetSummary => ({
   id: a.id,
   kind: a.kind,
@@ -99,6 +125,7 @@ export const assetSummary = (a: AssetRow): AssetSummary => ({
   createdAt: a.createdAt.toISOString(),
   url: adminAssetPath(a.id),
   sponsorId: a.sponsorId,
+  name: a.name,
 });
 
 /** Lock of the images and of the graphics of a client (uploads, deletions, branding, profile of the club). */
@@ -124,6 +151,7 @@ export async function storeAsset(
   kind: AssetKind,
   data: Buffer,
   info: { mime: AssetFileMime; width: number; height: number },
+  name: string | null = null,
 ): Promise<{ row: AssetRow; created: boolean }> {
   const sha256 = createHash('sha256').update(data).digest('hex');
   const [existing] = await tx
@@ -131,7 +159,16 @@ export async function storeAsset(
     .from(assets)
     .where(tenantScope(assets, tenantId, eq(assets.sha256, sha256), eq(assets.kind, kind)))
     .limit(1);
-  if (existing) return { row: existing, created: false };
+  if (existing) {
+    // The same file again: it keeps its name; one uploaded before the names takes the one of now.
+    if (existing.name !== null || name === null) return { row: existing, created: false };
+    const [named] = await tx
+      .update(assets)
+      .set({ name })
+      .where(tenantScope(assets, tenantId, eq(assets.id, existing.id)))
+      .returning();
+    return { row: named ?? existing, created: false };
+  }
   if ((await usedBytes(tx, tenantId)) + data.length > ctx.config.assetsQuotaBytes) {
     const mb = Math.round(ctx.config.assetsQuotaBytes / (1024 * 1024));
     throw conflict(`Spazio per i file esaurito (${mb} MB): elimina quelli che non usi`);
@@ -139,7 +176,16 @@ export async function storeAsset(
   await writeAssetFile(ctx.config.assetsDir, tenantId, sha256, data);
   const [inserted] = await tx
     .insert(assets)
-    .values({ tenantId, kind, sha256, mime: info.mime, width: info.width, height: info.height, bytes: data.length })
+    .values({
+      tenantId,
+      kind,
+      sha256,
+      mime: info.mime,
+      width: info.width,
+      height: info.height,
+      bytes: data.length,
+      name,
+    })
     .returning();
   if (!inserted) throw new Error('asset not inserted');
   return { row: inserted, created: true };
@@ -563,9 +609,10 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       if (sponsorId !== undefined && body.kind !== 'sponsor') throw badRequest('Richiesta non valida: sponsorId');
       const { row, created } = await ctx.db.transaction(async (tx) => {
         await lockClientAssets(tx, tenantId);
-        if (sponsorId === undefined) return storeAsset(ctx, tx, tenantId, body.kind, data, info);
+        const name = body.name ?? null;
+        if (sponsorId === undefined) return storeAsset(ctx, tx, tenantId, body.kind, data, info, name);
         await requireOwnSponsors(tx, tenantId, [sponsorId]);
-        const stored = await storeAsset(ctx, tx, tenantId, body.kind, data, info);
+        const stored = await storeAsset(ctx, tx, tenantId, body.kind, data, info, name);
         if (stored.row.sponsorId === sponsorId) return stored;
         return { ...stored, row: await giveToSponsor(tx, tenantId, stored.row, sponsorId) };
       });
@@ -586,6 +633,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
    * (`application/octet-stream`), type recognized from the bytes (MP4 with an ISO brand or WebM, anything else 422),
    * at most VIDEO_MAX_BYTES (413, checked before reading when the length is declared), within the quota of the client
    * (409). Session and role are checked before the body is read. Same file again: the video already stored (200).
+   * The name of the file comes in the header FILE_NAME_HEADER (encoded, AssetNameSchema: 400 when not valid).
    */
   app.post(
     VIDEO_UPLOAD_PATH,
@@ -601,6 +649,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     },
     async (request, reply): Promise<AssetSummary> => {
       const tenantId = adminTenantId(request);
+      const name = uploadedFileName(request.headers[FILE_NAME_HEADER]);
       const data = request.body;
       if (!Buffer.isBuffer(data) || data.length === 0) throw badRequest('Richiesta non valida: nessun file');
       if (data.length > VIDEO_MAX_BYTES) throw videoTooLarge();
@@ -616,7 +665,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       }
       const { row, created } = await ctx.db.transaction(async (tx) => {
         await lockClientAssets(tx, tenantId);
-        return storeAsset(ctx, tx, tenantId, 'overlay', data, info);
+        return storeAsset(ctx, tx, tenantId, 'overlay', data, info, name);
       });
       if (created) request.log.info({ assetId: row.id, mime: row.mime, bytes: row.bytes }, 'video caricato');
       void reply.code(created ? 201 : 200);
@@ -625,8 +674,8 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
   );
 
   /**
-   * Gives a sponsor image to a sponsor of the client (409 when it has SPONSOR_IMAGES_MAX), or takes it away (null).
-   * A logo never belongs to a sponsor (400).
+   * Gives a sponsor image to a sponsor of the client (409 when it has SPONSOR_IMAGES_MAX), or takes it away (null);
+   * renames a file (`name`, null: no name). A logo never belongs to a sponsor (400).
    */
   app.patch('/api/admin/assets/:id', admin, async (request): Promise<AssetSummary> => {
     const tenantId = adminTenantId(request);
@@ -634,12 +683,22 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const body = validate(UpdateAssetRequestSchema, request.body);
     const row = await ctx.db.transaction(async (tx) => {
       await lockClientAssets(tx, tenantId);
-      const [current] = await tx
+      const [found] = await tx
         .select()
         .from(assets)
         .where(tenantScope(assets, tenantId, eq(assets.id, id)))
         .limit(1);
-      if (!current) throw notFound();
+      if (!found) throw notFound();
+      let current = found;
+      if (body.name !== undefined && body.name !== current.name) {
+        const [renamed] = await tx
+          .update(assets)
+          .set({ name: body.name })
+          .where(tenantScope(assets, tenantId, eq(assets.id, id)))
+          .returning();
+        current = renamed ?? current;
+      }
+      if (body.sponsorId === undefined) return current;
       if (body.sponsorId === null) {
         const [updated] = await tx
           .update(assets)
@@ -653,10 +712,12 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       await requireOwnSponsors(tx, tenantId, [body.sponsorId]);
       return giveToSponsor(tx, tenantId, { ...current, sponsorId: null }, body.sponsorId);
     });
-    request.log.info(
-      { assetId: id, sponsorId: row.sponsorId, userId: request.user?.id },
-      'sponsor dell’immagine cambiato',
-    );
+    if (body.name !== undefined) request.log.info({ assetId: id, userId: request.user?.id }, 'file rinominato');
+    if (body.sponsorId !== undefined)
+      request.log.info(
+        { assetId: id, sponsorId: row.sponsorId, userId: request.user?.id },
+        'sponsor dell’immagine cambiato',
+      );
     return assetSummary(row);
   });
 

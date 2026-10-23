@@ -31,6 +31,7 @@ const asset = (id: string, sponsorId: string | null): AssetSummary => ({
   createdAt: '2026-10-15T10:00:00.000Z',
   url: `/api/admin/assets/${id}/file`,
   sponsorId,
+  name: null,
 });
 
 const SPONSORS = [sponsor(S1, 'Bar Centrale', 0, [IMG]), sponsor(S2, 'Autofficina', 1)];

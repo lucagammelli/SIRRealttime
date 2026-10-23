@@ -175,8 +175,9 @@ Immagini e video (`assets.ts`): `AssetKindSchema` (`logo` | `sponsor` | `overlay
 `AssetMimeSchema`, `VideoMimeSchema` (`video/mp4`, `video/webm`), `AssetFileMimeSchema` (immagini e video), `isVideoMime`,
 `VIDEO_MAX_BYTES` (15 MB), `VIDEO_UPLOAD_PATH` (`/api/admin/assets/video`, corpo binario), `ASSET_MAX_BYTES` (2 MB),
 `ASSET_MAX_BASE64_LENGTH`, `UploadAssetRequestSchema` (`kind`, `data` in base64 e `sponsorId` facoltativo, solo per
-`sponsor`), `UpdateAssetRequestSchema` (`PATCH /api/admin/assets/:id`: `{ sponsorId }` o `null`), `AssetSummarySchema`
-(con `sponsorId`), `AssetListResponseSchema`.
+`sponsor`; `name` facoltativo), `AssetNameSchema` / `ASSET_NAME_MAX` (120) / `cleanAssetName` (pura: ripulisce il nome del file scelto) /
+`FILE_NAME_HEADER` (`x-file-name`, per il video), `UpdateAssetRequestSchema` (`PATCH /api/admin/assets/:id`: `sponsorId` e/o
+`name`, ognuno o `null`), `AssetSummarySchema` (con `sponsorId` e `name`), `AssetListResponseSchema`.
 
 Loghi di sistema (`systemLogos.ts`): quattro loghi della piattaforma (lato sinistro/destro × variante positiva/negativa)
 uguali per tutti i clienti, caricati solo dal superadmin. `SYSTEM_LOGO_SLOTS` (`left`, `right`), `SYSTEM_LOGO_VARIANTS`
@@ -325,8 +326,13 @@ Time-out spento (la pausa lo mostra già); cambio e scambio lungo non sul telefo
 `position` (`OVERLAY_POSITIONS`: `top`, `center`, `bottom`; predefinito `OVERLAY_DEFAULT_POSITION` `top`) e `size`
 (`OVERLAY_SIZES`: `small`, `medium`, `large`; predefinita `medium`) generali; ogni avviso può avere `position` e `size`
 propri (facoltativi) e `overlayPlacement(config, overlay)` dà i valori in uso. Sfondo: ogni avviso può avere `background`
-(`OverlayBackgroundSchema`: `{ kind: 'image' | 'video', assetId }`, `OVERLAY_BACKGROUND_KINDS`; l'asset è di `kind` `overlay`,
-il server verifica proprietà e tipo); funzioni pure `overlayBackgrounds(config)` (gli sfondi in uso) e
+(`OverlayBackgroundSchema`: `{ kind: 'image' | 'video', assetId, audio, fit, teams }`, `OVERLAY_BACKGROUND_KINDS`; l'asset è di `kind` `overlay`,
+il server verifica proprietà e tipo). Opzioni del video (un'immagine le ignora; mancanti in un documento salvato prima valgono i
+predefiniti): `audio` (predefinito `false`), `fit` (`center` | `fullscreen`, `OVERLAY_VIDEO_FITS`, predefinito `center`),
+`teams` (`ours` | `both`, `OVERLAY_VIDEO_TEAMS`, predefinito `ours`: «la nostra squadra» è quella del cliente, in casa o in
+trasferta). `backgroundForTeam(sfondo, squadra, latoNostro)` (pura): per un evento della squadra avversaria con `teams: 'ours'`
+il video è tolto (resta il testo); immagini, eventi senza squadra e lato del cliente ignoto (video per entrambe) invariati.
+Funzioni pure `overlayBackgrounds(config)` (gli sfondi in uso) e
 `withoutOverlayBackgrounds(config)` (copia senza sfondi, usata da esportazione e importazione della grafica: i pacchetti non
 portano video). Un documento salvato prima resta valido. `OverlaysResponseSchema`
 (`GET`/`PUT /api/admin/overlays`); `PublicTenantResponseSchema` contiene anche `overlays`. `TENANT_CONFIG_VERSION` resta 1.

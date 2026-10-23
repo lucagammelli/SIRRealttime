@@ -833,6 +833,14 @@ describe('Pause', () => {
     expect(slideOrder()).toEqual(['message', 'sponsor']);
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sposta giù Messaggio' }));
     fireEvent.click(screen.getByRole('checkbox', { name: /Bar Centrale · 1 immagine/ }));
+    expect(screen.getByRole('combobox', { name: 'Dimensione a tutto schermo' })).toHaveProperty('value', 'normal');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Dimensione a tutto schermo' }), {
+      target: { value: 'fill' },
+    });
+    expect(screen.getByLabelText('Secondi per immagine')).toBeTruthy();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Come mostrarli' }), { target: { value: 'all' } });
+    // All in one page: no seconds per image (the slide keeps its own seconds).
+    expect(screen.queryByLabelText('Secondi per immagine')).toBeNull();
     save();
     expect(await screen.findByText(/Pause salvate/)).toBeTruthy();
     const body = puts('/api/admin/intermissions').at(-1)?.body as TenantIntermissions;
@@ -841,9 +849,10 @@ describe('Pause', () => {
     expect(body.timeout).toMatchObject({
       modes: { tv: 'fullscreen', tablet: 'banner', phone: 'banner' },
       delaySeconds: 3,
+      fullscreenSize: 'fill',
       slides: [
         { id: 'message', type: 'message' },
-        { id: 'sponsor', options: { sponsors: [SPONSOR_ID], images: [] } },
+        { id: 'sponsor', options: { sponsors: [SPONSOR_ID], images: [], display: 'all' } },
       ],
     });
   });

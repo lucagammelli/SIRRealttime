@@ -2,6 +2,7 @@ import type {
   BrandColorKey,
   BrandingImageSlot,
   Intermission,
+  IntermissionFullscreenSize,
   IntermissionKind,
   IntermissionMode,
   IntermissionSlide,
@@ -152,6 +153,13 @@ export const KIND_LABELS: Record<IntermissionKind, string> = {
 };
 export const PAUSE_KINDS: readonly IntermissionKind[] = ['timeout', 'setBreak', 'matchEnd', 'milestone'];
 export const MODE_LABELS: Record<IntermissionMode, string> = { fullscreen: 'Tutto schermo', banner: 'Banda in basso' };
+
+/** Names of the sizes of the slides on full screen, in the order of the menu. */
+export const FULLSCREEN_SIZE_LABELS: Record<IntermissionFullscreenSize, string> = {
+  normal: 'Normale',
+  large: 'Grande',
+  fill: 'Riempi lo schermo',
+};
 
 export const OVERLAY_LABELS: Record<OverlayKind, { label: string; hint: string }> = {
   matchEnd: { label: 'Fine partita', hint: 'Alla fine dell’ultimo set, prima della pausa di fine partita.' },

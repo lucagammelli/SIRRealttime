@@ -20,6 +20,7 @@ import type { Device } from '../lib/layout.ts';
 import { intermissionsUseSchedule, isScheduleType, useSchedule } from '../lib/schedule.ts';
 import { useReducedMotion } from '../lib/theme.ts';
 import { useElementHeight, useTouch } from '../lib/useLayout.ts';
+import { SlideFit } from './SlideFit.tsx';
 
 const BUTTON =
   'inline-flex min-h-9 items-center justify-center gap-2 rounded-card px-3 py-1.5 text-sm font-medium transition-opacity';
@@ -374,14 +375,16 @@ function PauseView({
           )}
         </div>
       </header>
-      {/* Taller than the screen (many rows, small screen): the slide scrolls, it is never cut. */}
-      <div
+      {/* Taller than the screen (many rows, small screen): the slide scrolls, it is never cut; bigger or fitted to the
+          space as the pause chooses. */}
+      <SlideFit
         key={`${slide.id}-${tick}`}
         data-studio-slide={slide.id}
-        className="sir-fade min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        size={active.pause.fullscreenSize}
+        className="sir-fade min-h-0 flex-1"
       >
         {renderSlide(slide, env, 'full')}
-      </div>
+      </SlideFit>
       {dots}
     </div>
   );

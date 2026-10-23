@@ -3,6 +3,7 @@ import type {
   AssetListResponse,
   Sponsor,
   Intermission as PauseConfig,
+  IntermissionFullscreenSize,
   IntermissionKind,
   IntermissionMode,
   IntermissionSlide,
@@ -15,6 +16,7 @@ import type {
 import {
   adminAssetPath,
   AFTER_MATCH_MAX_DELAY_MINUTES,
+  INTERMISSION_FULLSCREEN_SIZES,
   INTERMISSION_MAX_DELAY_SECONDS,
   INTERMISSION_MAX_SLIDES,
   IntermissionSlideSchema,
@@ -60,6 +62,7 @@ import {
   applyPauseModel,
   DEVICE_LABELS,
   KIND_LABELS,
+  FULLSCREEN_SIZE_LABELS,
   MODE_LABELS,
   PAUSE_KINDS,
   PAUSE_MODEL_LABELS,
@@ -494,6 +497,29 @@ function PauseEditor({
               ))}
             </div>
           </fieldset>
+        </Setting>
+        <Setting id="pause-fullscreen-size" where={where} scene={kind} targets={['pause']}>
+          <label className="flex items-center justify-between gap-2 text-sm text-text">
+            Dimensione a tutto schermo
+            <select
+              className={selectClass}
+              value={pause.fullscreenSize}
+              onChange={(e) => {
+                const size = INTERMISSION_FULLSCREEN_SIZES.find((s) => s === e.target.value) ?? 'normal';
+                onChange((p) => ({ ...p, fullscreenSize: size }));
+              }}
+            >
+              {INTERMISSION_FULLSCREEN_SIZES.map((s: IntermissionFullscreenSize) => (
+                <option key={s} value={s}>
+                  {FULLSCREEN_SIZE_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="text-xs text-muted">
+            Solo dove la pausa è a «Tutto schermo»: «Grande» ingrandisce le diapositive finché stanno nello schermo,
+            «Riempi lo schermo» le adatta a tutto lo spazio, senza scorrere.
+          </p>
         </Setting>
       </SettingsCard>
       <SettingsCard title="Diapositive">

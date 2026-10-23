@@ -35,4 +35,21 @@ describe('options editor of the court map', () => {
     fireEvent.change(screen.getByLabelText('Spessore delle traiettorie'), { target: { value: '0.5' } });
     expect((onChange.mock.calls[1]?.[0] as LayoutBlock).options).toMatchObject({ lineWidth: 1, arrowWidth: 0.5 });
   });
+
+  it('chooses single colour or tricolour for the field', () => {
+    const onChange = vi.fn();
+    render(<CourtOptionsFields block={court()} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText('Colore del campo'), { target: { value: 'single' } });
+    expect((onChange.mock.calls[0]?.[0] as LayoutBlock).options).toMatchObject({ fieldMode: 'single' });
+    cleanup();
+    const tri = { ...court(), options: { ...court().options, fieldMode: 'tricolor' as const } };
+    onChange.mockClear();
+    render(<CourtOptionsFields block={tri} onChange={onChange} />);
+    expect(screen.getByLabelText<HTMLInputElement>('Fascia sinistra').value).toBe('#009246');
+    expect(screen.getByLabelText<HTMLInputElement>('Fascia centrale (sulla rete)').value).toBe('#ffffff');
+    fireEvent.change(screen.getByLabelText('Fascia destra'), { target: { value: '#112233' } });
+    expect((onChange.mock.calls[0]?.[0] as LayoutBlock).options).toMatchObject({
+      tricolor: ['#009246', '#ffffff', '#112233'],
+    });
+  });
 });

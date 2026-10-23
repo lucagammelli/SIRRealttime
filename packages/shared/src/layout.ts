@@ -222,12 +222,24 @@ export const COURT_WIDTH_MIN = 0.5;
 export const COURT_WIDTH_MAX = 3;
 export const COURT_WIDTH_DEFAULT = 1;
 
+/** Colours of the three bands of the court in «tricolore» (flag of Italy): green, white, red. */
+export const COURT_TRICOLOR_DEFAULT = ['#009246', '#ffffff', '#ce2b37'] as const;
+export const COURT_FIELD_MODES = ['single', 'tricolor'] as const;
+
 /**
  * «Mappe di campo»: colours of the field, of the lines and of the arrows for our team and for the opponent, and
  * thickness of lines and arrows. A colour that is missing follows the theme (light or dark) and, for the arrows, the
  * template: with no options the map looks as it always did.
  */
 export const CourtOptionsSchema = z.strictObject({
+  /**
+   * `single`: both halves in `fieldColor`; `tricolor`: the whole court in three bands of two columns of zones, with
+   * the colours of `tricolor` (default: green, white, red; the white band straddles the net). Missing: the halves
+   * follow `fieldOurs` / `fieldOpponent`.
+   */
+  fieldMode: z.enum(COURT_FIELD_MODES).optional(),
+  fieldColor: HexColorSchema.optional(),
+  tricolor: z.tuple([HexColorSchema, HexColorSchema, HexColorSchema]).optional(),
   /** Field of the half of our team / of the opponent. */
   fieldOurs: HexColorSchema.optional(),
   fieldOpponent: HexColorSchema.optional(),

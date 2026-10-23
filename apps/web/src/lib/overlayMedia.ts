@@ -1,12 +1,31 @@
-import type { LayoutDevice, OverlayBackground, OverlayBackgroundKind, TenantOverlays } from '@arenalive/shared';
+import type {
+  LayoutDevice,
+  OverlayBackground,
+  OverlayBackgroundKind,
+  OverlayVideoFit,
+  TenantOverlays,
+} from '@arenalive/shared';
 import { OVERLAY_KINDS, publicAssetPath } from '@arenalive/shared';
 import { useEffect, useRef, useState } from 'react';
 
-/** Media ready to be drawn behind an overlay: its kind and an address (an object URL in memory, or a file path). */
+/**
+ * Media ready to be drawn behind an overlay: its kind and an address (an object URL in memory, or a file path); for a
+ * video also its sound and where it plays (missing: muted, in the box).
+ */
 export interface OverlayMedia {
   kind: OverlayBackgroundKind;
   url: string;
+  audio?: boolean;
+  fit?: OverlayVideoFit;
 }
+
+/** Pure: the media of `background` at `url`, with the options of a video. */
+export const mediaOf = (background: OverlayBackground, url: string): OverlayMedia => ({
+  kind: background.kind,
+  url,
+  audio: background.audio,
+  fit: background.fit,
+});
 
 /**
  * Pure: the backgrounds to keep ready on this device: of the overlays on and shown on `device`, each file once; no

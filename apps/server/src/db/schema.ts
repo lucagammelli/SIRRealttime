@@ -365,10 +365,17 @@ export const assets = pgTable(
     height: integer('height').notNull(),
     bytes: integer('bytes').notNull(),
     createdAt: createdAt(),
+    /**
+     * Name of the file when it was uploaded, or as renamed by the client (AssetNameSchema: only shown in the lists,
+     * never used as a path); null: uploaded before the names or without one.
+     */
+    name: text('name'),
   },
   (t) => [
     uniqueIndex('assets_tenant_sha256_kind_idx').on(t.tenantId, t.sha256, t.kind),
     index('assets_sponsor_idx').on(t.sponsorId),
+    // 120: ASSET_NAME_MAX of @arenalive/shared (a literal: drizzle-kit reads this file without the workspace).
+    check('assets_name_check', sql`${t.name} is null or char_length(${t.name}) between 1 and 120`),
   ],
 );
 

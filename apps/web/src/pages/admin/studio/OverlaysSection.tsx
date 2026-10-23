@@ -2,7 +2,10 @@ import type {
   AssetListResponse,
   AssetSummary,
   Overlay,
+  OverlayBackground,
   OverlayBackgroundKind,
+  OverlayVideoFit,
+  OverlayVideoTeams,
   OverlayKind,
   OverlayPosition,
   OverlaySize,
@@ -23,16 +26,26 @@ import {
   OVERLAY_POSITIONS,
   OVERLAY_SIZES,
   OVERLAY_TEXT_MAX,
+  OverlayBackgroundSchema,
   OverlayTextSchema,
+  OVERLAY_VIDEO_FITS,
+  OVERLAY_VIDEO_TEAMS,
 } from '@arenalive/shared';
 import type { MatchState } from '@arenalive/volley-stats';
 import { useId, useState } from 'react';
 import { Button } from '../../../components/ui.tsx';
-import { megabytes } from '../../../lib/format.ts';
 import { overlayText, sampleEvent } from '../../../lib/overlay.ts';
 import { useApiError } from '../auth.tsx';
 import { inputClass } from '../forms.tsx';
-import { ACCEPT, ACCEPT_VIDEO, IMAGE_TOO_LARGE, uploadImage, uploadVideo, videoProblem } from '../imageUpload.ts';
+import {
+  ACCEPT,
+  ACCEPT_VIDEO,
+  assetOptionText,
+  IMAGE_TOO_LARGE,
+  uploadImage,
+  uploadVideo,
+  videoProblem,
+} from '../imageUpload.ts';
 import { selectClass } from './blockEditors.tsx';
 import type { StudioModel } from './model.ts';
 import {
@@ -96,6 +109,37 @@ export function withoutBackground(overlay: Overlay): Overlay {
   return rest;
 }
 
+/** Labels of the options of a video background. */
+export const VIDEO_FIT_LABELS: Record<OverlayVideoFit, string> = {
+  center: 'Al centro',
+  fullscreen: 'A tutto schermo',
+};
+export const VIDEO_TEAMS_LABELS: Record<OverlayVideoTeams, string> = {
+  ours: 'Solo la nostra squadra',
+  both: 'Entrambe le squadre',
+};
+
+/** Pure: the overlay with the file `assetId` as background of `kind`, keeping the options chosen for the one before. */
+export function withBackgroundFile(overlay: Overlay, kind: OverlayBackgroundKind, assetId: string): Overlay {
+  const fresh = OverlayBackgroundSchema.parse({ kind, assetId });
+  const old = overlay.background;
+  return {
+    ...overlay,
+    background: old ? { ...fresh, audio: old.audio, fit: old.fit, teams: old.teams } : fresh,
+  };
+}
+
+/** Pure: the overlay with some options of its background changed (no background: unchanged). */
+export function withBackgroundOptions(
+  overlay: Overlay,
+  options: Partial<Pick<OverlayBackground, 'audio' | 'fit' | 'teams'>>,
+): Overlay {
+  return overlay.background ? { ...overlay, background: { ...overlay.background, ...options } } : overlay;
+}
+
+const isFit = (v: string): v is OverlayVideoFit => (OVERLAY_VIDEO_FITS as readonly string[]).includes(v);
+const isTeams = (v: string): v is OverlayVideoTeams => (OVERLAY_VIDEO_TEAMS as readonly string[]).includes(v);
+
 /** Pure: the files of the client for the backgrounds of `mode` (images or videos uploaded for the overlays). */
 export function backgroundFiles(assets: readonly AssetSummary[], mode: OverlayBackgroundKind): AssetSummary[] {
   return assets.filter((a) => a.kind === 'overlay' && isVideoMime(a.mime) === (mode === 'video'));
@@ -138,7 +182,7 @@ function BackgroundSetting({
     setBusy(true);
     try {
       const asset = mode === 'video' ? await uploadVideo(file) : await uploadImage(file, 'overlay');
-      if (asset) onChange({ ...overlay, background: { kind: mode, assetId: asset.id } });
+      if (asset) onChange(withBackgroundFile(overlay, mode, asset.id));
       onAssetsChanged();
     } catch (err) {
       setError(errorMessage(err));
@@ -166,16 +210,14 @@ function BackgroundSetting({
               value={chosen}
               onChange={(e) =>
                 onChange(
-                  e.target.value
-                    ? { ...overlay, background: { kind: mode, assetId: e.target.value } }
-                    : withoutBackground(overlay),
+                  e.target.value ? withBackgroundFile(overlay, mode, e.target.value) : withoutBackground(overlay),
                 )
               }
             >
               <option value="">{files.length === 0 ? 'Nessun file caricato' : 'Scegli…'}</option>
-              {files.map((a, i) => (
+              {files.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {`${mode === 'video' ? 'Video' : 'Immagine'} ${i + 1} · ${a.width}×${a.height} px · ${megabytes(a.bytes)} MB`}
+                  {assetOptionText(a)}
                 </option>
               ))}
             </select>
@@ -208,6 +250,8 @@ function BackgroundSetting({
           {chosen &&
             (mode === 'video' ? (
               <video
+                // A new element for every file: the same <video> with another src may keep showing the first one.
+                key={chosen}
                 src={adminAssetPath(chosen)}
                 muted
                 playsInline
@@ -218,20 +262,85 @@ function BackgroundSetting({
               />
             ) : (
               <img
+                key={chosen}
                 src={adminAssetPath(chosen)}
                 alt={`Anteprima dell’immagine dello sfondo: ${label}`}
                 className="max-h-32 rounded-card border border-border object-contain"
               />
             ))}
+          {mode === 'video' && chosen && overlay.background?.kind === 'video' && (
+            <VideoOptions label={label} background={overlay.background} overlay={overlay} onChange={onChange} />
+          )}
           <p className="text-xs text-muted">
             {mode === 'video'
-              ? 'Video MP4 o WebM, al massimo 15 MB, senza audio: parte subito e gira per i secondi dell’avviso su TV e tablet. Sul telefono il video non si mostra, e nemmeno a chi ha chiesto meno animazioni: lì l’avviso esce con il solo testo.'
+              ? 'Video MP4 o WebM, al massimo 15 MB: parte subito e gira per i secondi dell’avviso su TV e tablet. Con «Audio» acceso si sente anche il sonoro, se il browser lo permette (altrimenti parte senza audio). Con «Solo la nostra squadra» gli avvisi della squadra avversaria escono senza video, in casa e in trasferta (la nostra squadra è quella scelta in «Colori e loghi» › «Squadra»: se non la si riconosce nella partita, il video compare per tutte e due). Sul telefono il video non si mostra, e nemmeno a chi ha chiesto meno animazioni: lì l’avviso esce con il solo testo.'
               : 'PNG, JPEG, WebP o SVG, al massimo 2 MB: sta dietro al testo, con una velatura del colore della squadra.'}{' '}
             Il file si scarica all’apertura della pagina (sul telefono solo le immagini, mai il video): se non è ancora
             pronto l’avviso esce con il solo testo.
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Options of a video background: sound, where it plays, for which team. */
+function VideoOptions({
+  label,
+  background,
+  overlay,
+  onChange,
+}: {
+  label: string;
+  background: OverlayBackground;
+  overlay: Overlay;
+  onChange: (overlay: Overlay) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <label className="flex items-center gap-1.5">
+        <input
+          type="checkbox"
+          checked={background.audio}
+          aria-label={`Audio del video: ${label}`}
+          onChange={(e) => onChange(withBackgroundOptions(overlay, { audio: e.target.checked }))}
+        />
+        Audio
+      </label>
+      <label className="flex items-center gap-1.5">
+        Posizione del video
+        <select
+          className={selectClass}
+          aria-label={`Posizione del video: ${label}`}
+          value={background.fit}
+          onChange={(e) => {
+            if (isFit(e.target.value)) onChange(withBackgroundOptions(overlay, { fit: e.target.value }));
+          }}
+        >
+          {OVERLAY_VIDEO_FITS.map((f) => (
+            <option key={f} value={f}>
+              {VIDEO_FIT_LABELS[f]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex items-center gap-1.5">
+        Video per
+        <select
+          className={selectClass}
+          aria-label={`Video per: ${label}`}
+          value={background.teams}
+          onChange={(e) => {
+            if (isTeams(e.target.value)) onChange(withBackgroundOptions(overlay, { teams: e.target.value }));
+          }}
+        >
+          {OVERLAY_VIDEO_TEAMS.map((t) => (
+            <option key={t} value={t}>
+              {VIDEO_TEAMS_LABELS[t]}
+            </option>
+          ))}
+        </select>
+      </label>
     </div>
   );
 }

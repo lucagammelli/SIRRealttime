@@ -20,6 +20,7 @@ import { PreviewFullscreen } from '../../../components/PreviewDock.tsx';
 import { buttonClass, Segmented, Spinner } from '../../../components/ui.tsx';
 import { previewState, visibleSlides } from '../../../lib/intermission.ts';
 import { overlayText, sampleEvent } from '../../../lib/overlay.ts';
+import { mediaOf } from '../../../lib/overlayMedia.ts';
 import { teamColorVars } from '../../../lib/teamColors.ts';
 import { useResolvedTheme } from '../../../lib/theme.ts';
 import type { PauseTarget } from '../intermissionEditor.ts';
@@ -181,6 +182,8 @@ function Stage({
   const overlayKindShown = trial?.kind ?? overlayKind;
   const overlay = docs.overlays[overlayKindShown];
   const placement = overlayPlacement(docs.overlays, overlay);
+  // The example event is of our team (home when the team of the client is not in the match): its video is shown.
+  const trialSide = ourTeamSide(shown.teams, docs.branding.ourTeam) ?? 'home';
   const slides =
     pause && kind
       ? visibleSlides(
@@ -228,13 +231,17 @@ function Stage({
           {showOverlay && (
             <OverlayBanner
               key={trial ? `prova-${trial.key}` : overlayKindShown}
-              text={overlayText(sampleEvent(overlayKindShown, shown), shown, overlay)}
-              team="home"
+              text={overlayText(sampleEvent(overlayKindShown, shown, trialSide), shown, overlay)}
+              team={trialSide}
               device={device}
               size={placement.size}
               media={
                 overlay.background
-                  ? { kind: overlay.background.kind, url: adminAssetPath(overlay.background.assetId) }
+                  ? {
+                      ...mediaOf(overlay.background, adminAssetPath(overlay.background.assetId)),
+                      // The sound only in a «Prova»: the preview always in view stays silent.
+                      audio: overlay.background.audio && trial !== null,
+                    }
                   : null
               }
             />

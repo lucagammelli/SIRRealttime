@@ -2,12 +2,16 @@ import type { AssetKind, AssetSummary } from '@arenalive/shared';
 import {
   ASSET_MAX_BYTES,
   AssetSummarySchema,
+  cleanAssetName,
+  FILE_NAME_HEADER,
   VIDEO_MAX_BYTES,
+  isVideoMime,
   VIDEO_UPLOAD_PATH,
   VideoMimeSchema,
 } from '@arenalive/shared';
 import { apiRequest } from '../../lib/api.ts';
 import { fileToBase64 } from '../../lib/base64.ts';
+import { formatDay, megabytes } from '../../lib/format.ts';
 
 /** Upload of the images of the client (logos of the «Studio grafico», images of the sponsors, backgrounds of the overlays) and of the videos of the backgrounds. */
 
@@ -18,15 +22,17 @@ export const ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml';
 export const IMAGE_TOO_LARGE = 'Immagine troppo grande: al massimo 2 MB.';
 
 /**
- * Uploads an image of the client of `kind` (a sponsor image optionally for one of its sponsors); null when the file is
+ * Uploads an image of the client of `kind` (a sponsor image optionally for one of its sponsors), with the name of the
+ * file (cleaned); null when the file is
  * over ASSET_MAX_BYTES (nothing sent).
  */
 export async function uploadImage(file: File, kind: AssetKind, sponsorId?: string): Promise<AssetSummary | null> {
   if (file.size > ASSET_MAX_BYTES) return null;
   const data = await fileToBase64(file);
+  const name = cleanAssetName(file.name);
   return apiRequest('/api/admin/assets', AssetSummarySchema, {
     method: 'POST',
-    body: { kind, data, ...(sponsorId === undefined ? {} : { sponsorId }) },
+    body: { kind, data, ...(sponsorId === undefined ? {} : { sponsorId }), ...(name ? { name } : {}) },
   });
 }
 
@@ -46,13 +52,19 @@ export function videoProblem(file: Pick<File, 'size' | 'type'>): string | null {
 }
 
 /**
- * Uploads a video for the backgrounds of the overlays as bytes (never base64); throws an Error with the text of
+ * Uploads a video for the backgrounds of the overlays as bytes (never base64), with the name of the file (cleaned) in
+ * FILE_NAME_HEADER; throws an Error with the text of
  * `videoProblem` when it is refused before sending.
  */
 export async function uploadVideo(file: File): Promise<AssetSummary> {
   const problem = videoProblem(file);
   if (problem) throw new Error(problem);
-  return apiRequest(VIDEO_UPLOAD_PATH, AssetSummarySchema, { method: 'POST', file });
+  const name = cleanAssetName(file.name);
+  return apiRequest(VIDEO_UPLOAD_PATH, AssetSummarySchema, {
+    method: 'POST',
+    file,
+    ...(name ? { headers: { [FILE_NAME_HEADER]: encodeURIComponent(name) } } : {}),
+  });
 }
 
 /** Uploads a sponsor image for a sponsor of the client (see `uploadImage`). */
@@ -62,3 +74,21 @@ export const uploadSponsorImage = (file: File, sponsorId: string): Promise<Asset
 /** Pure: «1 immagine», «3 immagini», «nessuna immagine». */
 export const imageCountText = (n: number): string =>
   n === 0 ? 'nessuna immagine' : n === 1 ? '1 immagine' : `${n} immagini`;
+
+/**
+ * Pure: the name of a file in the lists: its name, or for a file uploaded before the names «Video del 23/10/2026 ·
+ * 1920×1080» (the day it was uploaded and its size: never a number of position, which changes with the list).
+ */
+export function assetLabel(asset: Pick<AssetSummary, 'name' | 'mime' | 'createdAt' | 'width' | 'height'>): string {
+  if (asset.name) return asset.name;
+  const what = isVideoMime(asset.mime) ? 'Video' : 'Immagine';
+  return `${what} del ${formatDay(asset.createdAt)} · ${asset.width}×${asset.height}`;
+}
+
+/** Pure: size and weight of a file, «1920×1080 px · 3,2 MB». */
+export const assetDetails = (asset: Pick<AssetSummary, 'width' | 'height' | 'bytes'>): string =>
+  `${asset.width}×${asset.height} px · ${megabytes(asset.bytes)} MB`;
+
+/** Pure: the text of a file in a list to choose from: name (or the fallback of assetLabel), size and weight. */
+export const assetOptionText = (asset: AssetSummary): string =>
+  asset.name ? `${asset.name} · ${assetDetails(asset)}` : `${assetLabel(asset)} px · ${megabytes(asset.bytes)} MB`;

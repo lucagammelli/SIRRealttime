@@ -186,7 +186,10 @@ resta 1.
   (422 `VIDEO_REJECTED` se i byte non sono MP4 con marca ISO né WebM: `inspectVideo` in `src/lib/videos.ts`, mai dal nome o dal
   tipo dichiarato), quota (409 «Spazio per i file esaurito (N MB): elimina quelli che non usi»). Il file è un asset di
   `kind` `overlay`; stessa quota, stesso blocco per cliente e stesso `storeAsset` delle immagini. Lo stesso file di nuovo:
-  200 con il video già salvato (201 se nuovo). Le immagini degli sfondi usano `POST /api/admin/assets` con `kind: 'overlay'`.
+  200 con il video già salvato (201 se nuovo). Il nome originale arriva nell'header `X-File-Name` (`FILE_NAME_HEADER`,
+  `encodeURIComponent` del nome; validato con `AssetNameSchema`, al massimo `ASSET_NAME_MAX` = 120 caratteri, niente percorsi,
+  caratteri di controllo o bidi: 400 se non valido o non decodificabile); ricaricando lo stesso file, uno che non aveva nome
+  prende quello nuovo. Il file su disco resta per sha256. Le immagini degli sfondi usano `POST /api/admin/assets` con `kind: 'overlay'`.
   Le immagini di logo, sponsor e pagina rifiutano i video (400).
 - **Controllo dell'immagine** (`src/lib/images.ts`, `inspectImage`): tipo e dimensioni dai byte, mai dal nome o dal tipo
   dichiarato. PNG, JPEG e WebP (rifiutati se hanno dati dopo la fine del file), massimo 4096 px per lato
@@ -301,9 +304,10 @@ sponsor delle pause scelgono gli sponsor e ne mostrano le immagini a rotazione (
   (branding o immagini singole di un blocco): quelle ancora usate restano, senza sponsor.
 - **Immagini**: `POST /api/admin/assets` accetta `sponsorId` (solo con `kind: 'sponsor'`, sponsor del cliente: 400
   altrimenti; 409 se lo sponsor ha già 12 immagini o se lo stesso file è già immagine di un altro sponsor). `PATCH
-  /api/admin/assets/:id` (`UpdateAssetRequestSchema`, `{ sponsorId }`) assegna un'immagine sponsor a uno sponsor o la toglie
+  /api/admin/assets/:id` (`UpdateAssetRequestSchema`, `{ sponsorId }` e/o `{ name }`; `name` rinomina il file nelle liste,
+  `null` lo toglie) assegna un'immagine sponsor a uno sponsor o la toglie
   (`null`); un logo non può avere uno sponsor (400); un'immagine già di un altro sponsor si sposta con questa rotta.
-  `AssetSummary` contiene `sponsorId`.
+  `POST /api/admin/assets` accetta anche `name` (nome del file scelto, `AssetNameSchema`). `AssetSummary` contiene `sponsorId` e `name`.
 - **Pagina e pause**: `PUT /api/admin/layout` e `PUT /api/admin/intermissions` rifiutano (400) sponsor di altri clienti.
 - **Rotta pubblica**: `GET /api/public/tenant` espone `sponsors` (`{ id, name, website, images }`) solo per gli sponsor
   usati da pagina e pause; la modifica di nome, sito, ordine o scelta svuota la cache degli hostname (`forgetTenants`).
@@ -1221,7 +1225,7 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `tenant_leagues` | scelta del cliente (migrazione `0006_club.sql`): `tenant_id`, `league_id`, `league_team_id` (la squadra del club, nulla finché non scelta; `ON DELETE SET NULL`); unica per cliente e campionato |
 | `client_fixtures` | copia delle partite del club dal calendario (migrazione `0006_club.sql`; `0007_ruoli_calendario.sql` aggiunge `origin` `league`/`manual`, `manual_kind` `friendly`/`cup`/`other`, `broadcast` `auto`/`on`/`off`, `hidden`, `our_logo_asset_id` e `opponent_logo_asset_id` → `assets` `ON DELETE SET NULL`, e rende `league_id` nullo; vincolo: `league_id` nullo se e solo se `origin` è `manual`): `tenant_id`, `league_id`, `fixture_external_id` (unica con cliente e campionato), `fixture_id`, `removed_at` (la partita non è più nel calendario, il link resta), `starts_at`, `our_side` (`club_side`: `home`/`away`), nomi, città e loghi delle due squadre, impianto, `round_label`, `league_name`, `status`, `home_sets`, `away_sets` |
 | `share_tokens` | `tenant_id`, `token_hash`, `match_id` (null: segue la live), `client_fixture_id` (link di una partita del calendario, `ON DELETE CASCADE`; unico quando non nullo e non revocato: indice parziale dalla migrazione `0014_link_partita.sql`), `label`, `expires_at`, `revoked`, `short_code_hash` (unica, null finché non assegnato), `short_code_salt` (migrazioni `0004_short_codes.sql`, `0006_club.sql`) |
-| `assets` | `tenant_id`, `kind` (enum `asset_kind`: `logo`/`sponsor`/`overlay`), `sha256`, `mime` (immagini e `video/mp4`/`video/webm`), `width`, `height`, `bytes`, `created_at`; indice univoco `assets_tenant_sha256_kind_idx` su cliente + `sha256` + `kind` (migrazione `0003_assets.sql`; `overlay` aggiunto dalla `0018_sfondi_avvisi.sql`, `ALTER TYPE … ADD VALUE`, **non reversibile**: Postgres non toglie un valore da un enum) |
+| `assets` | `tenant_id`, `kind` (enum `asset_kind`: `logo`/`sponsor`/`overlay`), `sha256`, `mime` (immagini e `video/mp4`/`video/webm`), `width`, `height`, `bytes`, `name` (nullable, nome del file al caricamento o dopo «Rinomina»; CHECK di lunghezza 1-120, `assets_name_check`; migrazione `0020_nomi_file.sql`, reversibile: le istruzioni sono in testa al file), `created_at`; indice univoco `assets_tenant_sha256_kind_idx` su cliente + `sha256` + `kind` (migrazione `0003_assets.sql`; `overlay` aggiunto dalla `0018_sfondi_avvisi.sql`, `ALTER TYPE … ADD VALUE`, **non reversibile**: Postgres non toglie un valore da un enum) |
 | `sponsors` | anagrafica degli sponsor (migrazione `0015_sponsor.sql`): `tenant_id`, `name` (1-80, CHECK; unico per cliente: `sponsors_tenant_name_idx`), `website` (nullo o `https://…`, CHECK), `position`, `created_at`; `assets.sponsor_id` (→ `sponsors`, `ON DELETE SET NULL`, indice `assets_sponsor_idx`) |
 | `agent_registrations` | `tenant_id`, `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at`, `agent_expires_at` (validità scelta all'approvazione; migrazioni `0001_agent_registrations.sql`, `0007_ruoli_calendario.sql`) |
 | `agents`, `tenants` (colonne di `0007_ruoli_calendario.sql`) | `agents.expires_at` (nulla = senza scadenza); `tenants.club_profile` (jsonb, predefinito `{}`) e `tenants.agent_quota` (intero, predefinito 1; la migrazione la porta a max(1, agenti non revocati) per i clienti esistenti) |

@@ -266,7 +266,9 @@ Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome»
   sponsor») con «Carica immagine» (PNG, JPEG, WebP o SVG, al massimo 2 MB) e «Togli».
 - «Squadra»: «Nostra squadra» («Codice squadra», es. PER, e «Testo nel nome della squadra», es. Perugia, entrambi
   facoltativi).
-- «Immagini»: scheda «Immagini caricate» (sottotitolo «Spazio usato: … MB di … MB») con l'elenco, «in uso» e «Elimina» /
+- «Immagini»: scheda «Immagini e video caricati» (sottotitolo «Spazio usato: … MB di … MB») con l'elenco: per ogni file nome
+  (quello del file al caricamento; per i file senza nome il ripiego «Video del gg/mm/aaaa · L×A»), uso, misure, peso,
+  «Rinomina» con «Salva nome» (`PATCH /api/admin/assets/:id`, `{ name }`; vuoto toglie il nome), «in uso» e «Elimina» /
   «Conferma eliminazione»; vuota: «Nessuna immagine caricata.». Il caricamento invia il file in base64 (`fileToBase64`,
   `src/lib/base64.ts`) a `POST /api/admin/assets`; il salvataggio è `PUT /api/admin/branding`. Per le immagini sponsor
   l'elenco dice di quale sponsor sono («Sponsor: <nome>») o «Sponsor (senza sponsor)»; si caricano e si assegnano dalla
@@ -343,7 +345,8 @@ d'esempio compare sotto, «Risultato: …», oppure il problema: vuoto, oltre 80
 `>`), «Sfondo» (`BackgroundSetting`: «Nessuno» / «Immagine» / «Video»; un menu con i file già caricati per gli avvisi e i pulsanti
 «Carica immagine» (PNG, JPEG, WebP o SVG, 2 MB) e «Carica video» (MP4 o WebM, 15 MB, controllati prima dell'invio con
 `videoProblem`; `uploadVideo` in `pages/admin/imageUpload.ts` manda il file come corpo binario), con l'anteprima del file
-scelto; cambiando tipo lo sfondo scelto si toglie), i «Segnaposto» ammessi (`{giocatore}`, `{numero}`, `{squadra}`, `{punteggio}`, `{set}`, `{serie}`, `{attacchi}`),
+scelto; cambiando tipo lo sfondo scelto si toglie; per il video anche «Audio», «Posizione del video» («Al centro» / «A tutto
+schermo») e «Video per» («Solo la nostra squadra» / «Entrambe le squadre»); nell'anteprima l'audio suona solo durante «Prova» e l'evento di prova è della nostra squadra), i «Segnaposto» ammessi (`{giocatore}`, `{numero}`, `{squadra}`, `{punteggio}`, `{set}`, `{serie}`, `{attacchi}`),
 «Secondi» (2-8), i dispositivi (TV, tablet, telefono), «Posizione» e «Dimensione» (In alto / Al centro / In basso;
 Piccolo / Medio / Grande; oppure «Come tutti gli avvisi»), «Prova» (lo mostra nell'anteprima con le modifiche non salvate,
 per i suoi secondi, con l'animazione; la scena passa ad «Avviso»), e in «Avanzate» «Priorità» (1-10) e «Ripristina
@@ -1151,7 +1154,7 @@ configurazione del cliente da `overlays` di `GET /api/public/tenant` (`docs/arch
   ogni file una volta, e gli URL sono rilasciati quando lo sfondo non serve più o la pagina si chiude. **Sul telefono e con
   meno animazioni (`prefers-reduced-motion`) i video non si scaricano né si mostrano** (restano le immagini sul telefono): è
   una scelta per dati e memoria della rete mobile. Con uno sfondo il riquadro (`OverlayBanner`, `data-background`) è 16:9
-  (`aspect-video`, larghezza per dispositivo), con l'immagine o il video (muto, `playsInline`, in ciclo) coperti da una velatura
+  (`aspect-video`, larghezza per dispositivo), con l'immagine o il video (`playsInline`, in ciclo; muto salvo l'opzione `audio`: se il browser rifiuta l'avvio con audio il video riparte muto; con `fit: 'fullscreen'` il video copre lo schermo, `fixed inset-0` e `pointer-events-none`; cambiando video il `key` è l'URL, così l'anteprima non resta sul precedente; per gli eventi della squadra avversaria con `teams: 'ours'` il video non c'è, `backgroundForTeam`, e l'avviso esce col solo testo; «la nostra squadra» è quella del cliente ovunque giochi, il lato viene da `useOurSide()` in `lib/branding.ts` (lo stesso dei colori «nostra squadra»); se il lato non è noto il video compare per entrambe) coperti da una velatura
   del colore della squadra al 65 %, e il testo sopra. **Se il media non è ancora pronto (o non si è potuto leggere) l'avviso
   esce con il solo testo**, come senza sfondo. La CSP ammette `blob:` (vedi «CSP rigida»).
 - **Posizione e dimensione** (`position`: `top`, `center`, `bottom`, predefinito `top`; `size`: `small`, `medium`,

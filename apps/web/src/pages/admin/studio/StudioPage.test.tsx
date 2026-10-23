@@ -81,6 +81,7 @@ const asset = (id: string, kind: 'logo' | 'sponsor', width = 300, height = 100):
   createdAt: '2026-10-15T10:00:00.000Z',
   url: `/api/public/assets/${id}`,
   sponsorId: null,
+  name: null,
 });
 
 interface Saved {
@@ -96,6 +97,7 @@ const SAVED_BRANDING: TenantBranding = { ...defaultBranding(), colors: { home: '
 function mockServer(
   initial: Partial<Saved> = {},
   role: MeResponse['role'] = 'admin',
+  extraAssets: AssetSummary[] = [],
 ): { calls: Call[]; puts: (url: string) => Call[] } {
   const saved: Saved = {
     branding: SAVED_BRANDING,
@@ -104,7 +106,7 @@ function mockServer(
     overlays: defaultOverlays(),
     ...initial,
   };
-  let assets = [asset(LOGO, 'logo', 240, 60), asset(SPONSOR, 'sponsor')];
+  let assets = [...extraAssets, asset(LOGO, 'logo', 240, 60), asset(SPONSOR, 'sponsor')];
   const calls: Call[] = [];
   const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
   vi.stubGlobal('WebSocket', SilentSocket);
@@ -140,14 +142,22 @@ function mockServer(
         return json(created, 201);
       }
       if (url === '/api/admin/assets/video' && method === 'POST') {
+        const header = (init?.headers as Record<string, string> | undefined)?.['x-file-name'];
         const created: AssetSummary = {
           ...asset(VIDEO_ID, 'sponsor', 1280, 720),
           kind: 'overlay',
           mime: 'video/mp4',
           url: `/api/admin/assets/${VIDEO_ID}/file`,
+          name: header ? decodeURIComponent(header) : null,
         };
         assets = [created, ...assets];
         return json(created, 201);
+      }
+      if (url.startsWith('/api/admin/assets/') && method === 'PATCH') {
+        const id = url.split('/').at(-1) ?? '';
+        const name = (body as { name: string | null }).name;
+        assets = assets.map((a) => (a.id === id ? { ...a, name } : a));
+        return json(assets.find((a) => a.id === id));
       }
       if (url.startsWith('/api/admin/assets/') && method === 'DELETE')
         return json({ error: 'Immagine in uso nella grafica: toglila prima di eliminarla' }, 409);
@@ -289,9 +299,10 @@ describe('inventory: every option of the old pages is in the Studio', () => {
     expect(screen.getByRole('textbox', { name: /Codice squadra/ })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: /Testo nel nome/ })).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Immagini' }));
-    expect(screen.getByRole('heading', { name: 'Immagini caricate' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Immagini e video caricati' })).toBeTruthy();
     expect(screen.getByText(/Spazio usato: .* MB di 50/)).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: 'Elimina' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /^Elimina / })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /^Rinomina / })).toHaveLength(2);
   });
 
   it('«Pagina pubblica» → Pagina live: every block of the registry with its options, widths and order', async () => {
@@ -563,17 +574,44 @@ describe('Colori e loghi', () => {
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
       kind: 'logo',
       data: Buffer.from(bytes).toString('base64'),
+      name: 'logo.png',
     });
     expect(await screen.findByRole('img', { name: 'Logo quadrato' })).toBeTruthy();
     const big = new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'grande.png', { type: 'image/png' });
     fireEvent.change(screen.getByLabelText('Carica logo orizzontale'), { target: { files: [big] } });
     expect(await screen.findByText('Immagine troppo grande: al massimo 2 MB.')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Immagini' }));
-    const list = screen.getByRole('heading', { name: 'Immagini caricate' }).closest('section');
+    const list = screen.getByRole('heading', { name: 'Immagini e video caricati' }).closest('section');
     if (!list) throw new Error('no list');
-    fireEvent.click(within(list).getAllByRole('button', { name: 'Elimina' })[0] as HTMLElement);
+    fireEvent.click(within(list).getAllByRole('button', { name: /^Elimina / })[0] as HTMLElement);
     fireEvent.click(within(list).getByRole('button', { name: 'Conferma eliminazione' }));
     expect(await screen.findByText(/Immagine in uso nella grafica/)).toBeTruthy();
+  });
+
+  it('«Immagini»: every file with its name (or day and size), kind, size and weight; «Rinomina» changes the name', async () => {
+    const { calls } = mockServer();
+    renderAt('/admin/studio/colori');
+    await studio();
+    fireEvent.click(screen.getByRole('tab', { name: 'Immagini' }));
+    const list = screen.getByRole('heading', { name: 'Immagini e video caricati' }).closest('section');
+    if (!list) throw new Error('no list');
+    // Files uploaded before the names: the day and the size, never a number of position.
+    expect(within(list).getByText('Immagine del 15/10/2026 · 240×60')).toBeTruthy();
+    expect(within(list).getByText(/^Logo · 240×60 px · 0 MB/)).toBeTruthy();
+    fireEvent.click(within(list).getByRole('button', { name: 'Rinomina Immagine del 15/10/2026 · 240×60' }));
+    const field = within(list).getByRole('textbox', { name: 'Nuovo nome di Immagine del 15/10/2026 · 240×60' });
+    fireEvent.change(field, { target: { value: 'loghi/club.png' } });
+    expect(within(list).getByRole('alert').textContent).toContain('Nome non valido');
+    expect(within(list).getByRole('button', { name: 'Salva nome' })).toHaveProperty('disabled', true);
+    fireEvent.change(field, { target: { value: '  Logo del club  ' } });
+    fireEvent.click(within(list).getByRole('button', { name: 'Salva nome' }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'PATCH')).toMatchObject({
+        url: `/api/admin/assets/${LOGO}`,
+        body: { name: 'Logo del club' },
+      }),
+    );
+    expect(await within(list).findByText('Logo del club')).toBeTruthy();
   });
 
   it('pure helpers of the colours', () => {
@@ -1020,6 +1058,17 @@ describe('Avvisi', () => {
     );
     const sent = vi.mocked(fetch).mock.calls.find((c) => c[0] === '/api/admin/assets/video')?.[1];
     expect((sent?.headers as Record<string, string>)['content-type']).toBe('application/octet-stream');
+    // The name of the file goes with it and names the video in the list.
+    expect((sent?.headers as Record<string, string>)['x-file-name']).toBe('ace.mp4');
+    expect(
+      within(within(ace).getByRole('combobox', { name: 'Video dello sfondo: Ace' })).getByRole('option', {
+        name: /^ace\.mp4 · 1280×720 px/,
+      }),
+    ).toBeTruthy();
+    // Options of the video: muted, in the box, our team only by default.
+    expect(within(ace).getByRole('checkbox', { name: 'Audio del video: Ace' })).toHaveProperty('checked', false);
+    expect(within(ace).getByRole('combobox', { name: 'Posizione del video: Ace' })).toHaveProperty('value', 'center');
+    expect(within(ace).getByRole('combobox', { name: 'Video per: Ace' })).toHaveProperty('value', 'ours');
     expect(sent?.body).toBeInstanceOf(File);
     expect(within(ace).getByLabelText('Anteprima del video dello sfondo: Ace').tagName).toBe('VIDEO');
     // The preview of the overlay has the video behind its text.
@@ -1027,17 +1076,77 @@ describe('Avvisi', () => {
     expect(region.querySelector('[data-background="video"] video')?.getAttribute('src')).toBe(
       `/api/admin/assets/${VIDEO_ID}/file`,
     );
+    fireEvent.click(within(ace).getByRole('checkbox', { name: 'Audio del video: Ace' }));
+    fireEvent.change(within(ace).getByRole('combobox', { name: 'Posizione del video: Ace' }), {
+      target: { value: 'fullscreen' },
+    });
+    fireEvent.change(within(ace).getByRole('combobox', { name: 'Video per: Ace' }), { target: { value: 'both' } });
+    expect(region.querySelector('[data-background="video"]')?.getAttribute('data-fit')).toBe('fullscreen');
+    // The preview always in view stays silent: the sound only in a «Prova».
+    expect(region.querySelector('video')?.muted).toBe(true);
     save();
     expect(await screen.findByText(/Avvisi salvati/)).toBeTruthy();
     expect((puts('/api/admin/overlays').at(-1)?.body as TenantOverlays).ace.background).toEqual({
       kind: 'video',
       assetId: VIDEO_ID,
+      audio: true,
+      fit: 'fullscreen',
+      teams: 'both',
     });
     // Back to none: the background goes.
     fireEvent.click(within(await overlayRow('ace')).getByRole('radio', { name: 'Nessuno' }));
     save();
     await waitFor(() =>
       expect((puts('/api/admin/overlays').at(-1)?.body as TenantOverlays).ace.background).toBeUndefined(),
+    );
+  });
+
+  it('the videos are listed by name (a file without name by day and size); choosing another one changes the preview', async () => {
+    const video = (id: string, name: string | null): AssetSummary => ({
+      ...asset(id, 'sponsor', 1920, 1080),
+      kind: 'overlay',
+      mime: 'video/mp4',
+      url: `/api/admin/assets/${id}/file`,
+      name,
+    });
+    const OTHER = '1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d';
+    mockServer({}, 'admin', [video(VIDEO_ID, 'Sigla ace.mp4'), video(OTHER, null)]);
+    renderAt('/admin/studio/avvisi');
+    const ace = await overlayRow('ace');
+    fireEvent.click(within(ace).getByRole('radio', { name: 'Video' }));
+    const select = await within(ace).findByRole('combobox', { name: 'Video dello sfondo: Ace' });
+    await waitFor(() => expect(within(select).getAllByRole('option')).toHaveLength(3));
+    expect(
+      within(select)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Scegli…', 'Sigla ace.mp4 · 1920×1080 px · 0 MB', 'Video del 15/10/2026 · 1920×1080 px · 0 MB']);
+    const region = screen.getByTestId('prova-avviso');
+    fireEvent.change(select, { target: { value: VIDEO_ID } });
+    const first = region.querySelector('video');
+    expect(first?.getAttribute('src')).toBe(`/api/admin/assets/${VIDEO_ID}/file`);
+    fireEvent.change(select, { target: { value: OTHER } });
+    const second = region.querySelector('video');
+    expect(second).not.toBe(first);
+    expect(second?.getAttribute('src')).toBe(`/api/admin/assets/${OTHER}/file`);
+    expect(within(ace).getByLabelText('Anteprima del video dello sfondo: Ace').getAttribute('src')).toBe(
+      `/api/admin/assets/${OTHER}/file`,
+    );
+  });
+
+  it('the example overlay is of our team: its video for our team only is shown', async () => {
+    mockServer({
+      branding: { ...SAVED_BRANDING, ourTeam: { code: 'SIR', name: 'Sir Susa' } },
+      overlays: TenantOverlaysSchema.parse({ ace: { background: { kind: 'video', assetId: VIDEO_ID } } }),
+    });
+    renderAt('/admin/studio/avvisi');
+    await overlayRow('ace');
+    const region = await screen.findByTestId('prova-avviso');
+    // The example match has our team at home: the example ace is ours, with the video.
+    await waitFor(() =>
+      expect(region.querySelector('[data-overlay="home"] video')?.getAttribute('src')).toBe(
+        `/api/admin/assets/${VIDEO_ID}/file`,
+      ),
     );
   });
 

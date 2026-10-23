@@ -562,6 +562,7 @@ paths:
                   description: immagine in base64 (al massimo 2 MB)
                   example: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABc3UBGAAAAABJRU5ErkJggg==
                 sponsorId: { type: string, format: uuid, description: 'sponsor del cliente (solo kind sponsor)' }
+                name: { type: string, maxLength: 120, description: 'nome del file scelto (senza percorso)', example: logo.png }
       responses:
         '201': { description: immagine caricata }
         '200': { description: immagine già presente }
@@ -570,6 +571,12 @@ paths:
         '422': { description: non è un'immagine ammessa (PNG, JPEG, WebP, SVG senza script) }
   /api/admin/assets/video:
     post:
+      parameters:
+        - name: X-File-Name
+          in: header
+          required: false
+          description: nome del file (encodeURIComponent, al massimo 120 caratteri, senza percorso)
+          schema: { type: string, example: sigla.mp4 }
       requestBody:
         required: true
         content:
@@ -581,6 +588,7 @@ paths:
       responses:
         '201': { description: video caricato }
         '200': { description: video già presente }
+        '400': { description: nome del file non valido }
         '401': { description: senza sessione }
         '403': { description: ruolo non admin o origine non ammessa }
         '409': { description: spazio del cliente esaurito }
@@ -600,13 +608,14 @@ paths:
           application/json:
             schema:
               type: object
-              required: [sponsorId]
               additionalProperties: false
+              minProperties: 1
               properties:
                 sponsorId: { type: string, format: uuid, nullable: true, example: null }
+                name: { type: string, maxLength: 120, nullable: true, example: Sigla ACE }
       responses:
-        '200': { description: sponsor dell'immagine cambiato }
-        '400': { description: sponsor non del cliente o immagine non sponsor }
+        '200': { description: sponsor dell'immagine cambiato o file rinominato }
+        '400': { description: sponsor non del cliente, immagine non sponsor o nome non valido }
         '404': { description: non trovata }
         '409': { description: sponsor con troppe immagini o immagine di un altro sponsor }
     delete:

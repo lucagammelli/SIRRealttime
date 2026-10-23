@@ -5,7 +5,8 @@ import type { Device } from '../lib/layout.ts';
 import type { QueuedOverlay } from '../lib/overlay.ts';
 import { enqueue, eventsOf, nextOverlay, overlayFor, unseenEvents } from '../lib/overlay.ts';
 import type { OverlayMedia } from '../lib/overlayMedia.ts';
-import { useOverlayMedia } from '../lib/overlayMedia.ts';
+import { mediaOf, useOverlayMedia } from '../lib/overlayMedia.ts';
+import { useOurSide } from '../lib/branding.ts';
 import { useReducedMotion } from '../lib/theme.ts';
 
 const TONE: Record<Side | 'neutral', string> = {
@@ -57,8 +58,9 @@ const BOX_SIZE: Record<Device, Record<OverlaySize, string>> = {
 /**
  * The box of an overlay: plain text (never HTML) in the colour of the team of the event, entering with a short
  * animation (none with reduced motion). With `media` (ready in memory) the box is larger, with the image or the video
- * behind the text under a veil of the team colour; a video plays muted, inline and in a loop while the overlay is on,
- * never with reduced motion (text only, as without media). Also the «Prova» of the editor.
+ * behind the text under a veil of the team colour; a video plays inline and in a loop while the overlay is on, muted
+ * unless its sound is on (muted anyway when the browser refuses the sound), in the box or on the whole screen
+ * (`fit`), never with reduced motion (text only, as without media). Also the «Prova» of the editor.
  */
 export function OverlayBanner({
   text,
@@ -87,17 +89,24 @@ export function OverlayBanner({
         {text}
       </div>
     );
+  const fullscreen = shown.kind === 'video' && shown.fit === 'fullscreen';
+  // On the whole screen (of the page, or of the frame of the preview): the region is only where the text would be.
+  const box = fullscreen
+    ? 'fixed inset-0'
+    : `relative aspect-video max-w-[90%] rounded-panel shadow-card ${MEDIA_BOX[device]}`;
   return (
     <div
       data-overlay={tone}
       data-size={size}
       data-background={shown.kind}
-      className={`${reduced ? '' : 'sir-overlay'} relative flex aspect-video max-w-[90%] items-center justify-center overflow-hidden rounded-panel text-center font-display font-bold uppercase tracking-wide shadow-card ${MEDIA_BOX[device]} ${TEXT_TONE[tone]}`}
+      data-fit={fullscreen ? 'fullscreen' : 'center'}
+      className={`${reduced ? '' : 'sir-overlay'} flex items-center justify-center overflow-hidden text-center font-display font-bold uppercase tracking-wide ${box} ${TEXT_TONE[tone]}`}
     >
       {shown.kind === 'video' ? (
-        <OverlayVideo url={shown.url} />
+        // A new element for every file: the same <video> with another src may keep showing the first one.
+        <OverlayVideo key={shown.url} url={shown.url} audio={shown.audio === true} />
       ) : (
-        <img src={shown.url} alt="" className="absolute inset-0 size-full object-cover" />
+        <img key={shown.url} src={shown.url} alt="" className="absolute inset-0 size-full object-cover" />
       )}
       <div aria-hidden="true" className={`absolute inset-0 ${VEIL[tone]}`} />
       <span className={`relative ${BOX_SIZE[device][size]}`}>{text}</span>
@@ -105,30 +114,48 @@ export function OverlayBanner({
   );
 }
 
-/** Video behind an overlay: muted (the only way a browser starts it by itself), inline, in a loop, no controls. */
-function OverlayVideo({ url }: { url: string }) {
+/**
+ * Video behind an overlay: inline, in a loop, no controls. Muted unless `audio`; with `audio` a browser that refuses
+ * to start it with its sound (no click on the page yet) plays it muted, without any error.
+ */
+function OverlayVideo({ url, audio }: { url: string; audio: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const video = ref.current;
     if (!video) return;
     // React does not always write `muted` as an attribute: set on the element, so that autoplay is allowed.
-    video.muted = true;
-    void video.play?.()?.catch(() => undefined);
-  }, [url]);
+    video.muted = !audio;
+    const started = video.play?.();
+    void started?.catch(() => {
+      if (!audio || ref.current !== video) return;
+      video.muted = true;
+      void video.play?.()?.catch(() => undefined);
+    });
+  }, [url, audio]);
   return (
     <video
       ref={ref}
       src={url}
       aria-hidden="true"
-      muted
+      muted={!audio}
       playsInline
       autoPlay
       loop
       preload="auto"
       disablePictureInPicture
+      data-audio={audio ? 'on' : 'off'}
       className="absolute inset-0 size-full object-cover"
     />
   );
+}
+
+/** The media of the background of an overlay, from the files read into memory; null when none or not ready yet. */
+function backgroundMedia(
+  background: QueuedOverlay['background'],
+  ready: ReadonlyMap<string, OverlayMedia>,
+): OverlayMedia | null {
+  const file = background ? ready.get(background.assetId) : undefined;
+  return background && file ? mediaOf(background, file.url) : null;
 }
 
 /**
@@ -163,6 +190,8 @@ export function Overlay({
   const [arrivals, setArrivals] = useState(0);
   // The backgrounds of the overlays on for this device, read into memory now: an overlay lasts only a few seconds.
   const media = useOverlayMedia(config, device, useReducedMotion());
+  // Side of our team, claimed by the match view (team chosen in «Grafica»): a video for our team only follows it.
+  const ourSide = useOurSide();
 
   // New events of a live update go in the queue; everything else is only remembered as seen.
   useEffect(() => {
@@ -179,12 +208,12 @@ export function Overlay({
     if (!live || config === null || blocked || fresh.length === 0) return;
     const now = Date.now();
     const items = fresh
-      .map((e) => overlayFor(e, state, config, device, now))
+      .map((e) => overlayFor(e, state, config, device, now, ourSide))
       .filter((o): o is QueuedOverlay => o !== null);
     if (items.length === 0) return;
     queue.current = enqueue(queue.current, items);
     setArrivals((n) => n + 1);
-  }, [state, live, config, device, blocked]);
+  }, [state, live, config, device, blocked, ourSide]);
 
   // A full screen pause: nothing over it.
   useEffect(() => {
@@ -222,7 +251,7 @@ export function Overlay({
           team={current.team}
           device={device}
           size={current.size}
-          media={current.background ? (media.get(current.background.assetId) ?? null) : null}
+          media={backgroundMedia(current.background, media)}
         />
       )}
     </div>

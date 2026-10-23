@@ -1007,7 +1007,10 @@ Sono blocchi della pagina (larghezze 4/6/8/12) e diapositive delle pause (stesse
   `layoutEditor.ts`).
 - **Anteprima**: la pagina del dispositivo scelto è disegnata alla grandezza vera (`DevicePreview`: 1920×1080,
   1024×768, 390×845) e ridotta, non interattiva (si può solo cliccare un elemento per aprirne l'impostazione), con le
-  modifiche non ancora salvate. Usa la partita live del cliente (`/ws/admin`: «Dati della partita live.») oppure, se non c'è,
+  modifiche non ancora salvate. Per la TV il riquadro è più piccolo in rapporto al `rem` dell'area riservata (16 px) e quello
+  della TV vera a 1920×1080 col modello scelto (`tvRemPx` in `lib/tvScreen.ts` legge `--sir-tv-font-size`): in rem lo
+  schermo ha le stesse misure della pagina vera, quindi testi e raggruppamento dei blocchi in schermate (`tvGroups`)
+  coincidono; il bordo alto «accento» c'è solo col modello «standard», come in `LivePage`. Usa la partita live del cliente (`/ws/admin`: «Dati della partita live.») oppure, se non c'è,
   la «Partita d'esempio» (`src/blocks/sampleMatch.json`, caricata solo dall'editor in un suo file separato; si rigenera con
   `pnpm --filter @arenalive/web sample-match`).
 - **Limiti noti**: un'immagine singola di un blocco sponsor non si può eliminare finché non viene tolta dal blocco. Un layout salvato e poi non più valido (per esempio di versione futura) si legge come

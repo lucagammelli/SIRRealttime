@@ -75,7 +75,8 @@ Ingest (`ingest.ts`):
 
 Messaggi (`messages.ts`):
 
-- `StateMessageSchema` / `StateMessage` (`type: 'state'`, `matchId`, `version`, `state`),
+- `StateMessageSchema` / `StateMessage` (`type: 'state'`, `matchId`, `version`, `state`, `finishedAt` facoltativo: ISO UTC
+  dell'ora di fine partita, vedi «Dopo la partita» sotto),
   `NoMatchMessageSchema` / `NoMatchMessage`, `ScheduledMessageSchema` / `ScheduledMessage` (`type: 'scheduled'`,
   `fixture`: la «Prossima partita» di un link del calendario prima che arrivi il `.dvw`), `ErrorMessageSchema` / `ErrorMessage`,
   `ConfigMessageSchema` / `ConfigMessage` (`type: 'config'`, senza dati: «la grafica del cliente è cambiata, rileggila»;
@@ -295,7 +296,13 @@ contratto); predefiniti: attiva per tutti i clienti, banda su tablet e telefono 
 diapositive `setScorers` e `teamDuel` del set in corso. Funzioni pure:
 `resolveIntermissions` (un documento non valido vale i predefiniti), `intermissionFor(config, kind, set?)` (la pausa da
 usare, null se spenta o senza diapositive attive), `allIntermissions`, `intermissionImageIds` (immagini singole) e `intermissionSponsorIds` (sponsor scelti) delle diapositive
-sponsor, per i controlli del server. `IntermissionsResponseSchema` (`GET`/`PUT /api/admin/intermissions`);
+sponsor, per i controlli del server (`intermissionImageIds` include anche l'immagine di «Dopo la partita», anche se spenta).
+«Dopo la partita» (`afterMatch` nel documento, `AfterMatchSchema`, strict): `enabled` (predefinito `false`), `image`
+(`AssetId` o `null`) e `delayMinutes` (minuti dopo la fine della partita, da 0 a 240, predefinito 30; limiti in
+`intermissions.ts`); `afterMatchImage(config)` dà l'immagine solo se la schermata è accesa, altrimenti `null`. Un
+documento salvato prima prende i predefiniti. Il messaggio `state` ha il campo facoltativo `finishedAt` (ISO UTC, ora di
+fine partita, solo con la partita finita; `docs/server.md`, «Ingest»). L'esportazione/importazione della grafica rimappa
+anche `afterMatch.image` (`graphicsExport.ts`). `IntermissionsResponseSchema` (`GET`/`PUT /api/admin/intermissions`);
 `PublicTenantResponseSchema` contiene anche `intermissions`. Server in `docs/server.md` («Pause della partita»),
 schermate ed editor in `docs/portale.md`, fase e riepiloghi in `docs/statistiche.md`.
 

@@ -134,6 +134,13 @@
       "when": 1792768276991,
       "tag": "0018_sfondi_avvisi",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792771720743,
+      "tag": "0019_dopo_partita",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,5 @@
 import type { ClubCoverage, MatchLogoInfo, ServerMessage, ShareAccess, StateMessage } from '@arenalive/shared';
+import type { MatchState } from '@arenalive/volley-stats';
 import { ClientMessageSchema, effectiveStartsAt, LiveSocketQuerySchema, matchTeamLogos } from '@arenalive/shared';
 import { and, desc, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import {
@@ -40,6 +41,18 @@ export async function withLogos(
     ctx.caches.logos.set(key, info);
   }
   return { ...message, logos: matchTeamLogos(info, message.state.teams) };
+}
+
+/**
+ * Pure: the `finishedAt` of a state message: when the match ended (`finished_at`; for a match finished before the
+ * column existed, its last update), only while its state is `finished`.
+ */
+export function finishedAtField(
+  state: Pick<MatchState, 'status'>,
+  finishedAt: Date | null,
+  updatedAt: Date,
+): { finishedAt?: string } {
+  return state.status === 'finished' ? { finishedAt: (finishedAt ?? updatedAt).toISOString() } : {};
 }
 
 /** A match being played that has sent nothing for this long no longer holds the channel (agent left on). */
@@ -86,6 +99,7 @@ export async function channelMessage(ctx: AppContext, tenantId: string): Promise
       live: matches.live,
       clientFixtureId: matches.clientFixtureId,
       updatedAt: matches.updatedAt,
+      finishedAt: matches.finishedAt,
     })
     .from(matches)
     .leftJoin(clientFixtures, eq(clientFixtures.id, matches.clientFixtureId))
@@ -113,7 +127,13 @@ export async function channelMessage(ctx: AppContext, tenantId: string): Promise
   });
   let message: ServerMessage;
   if (choice === 'latest' && latest) {
-    const state = { type: 'state', matchId: latest.id, version: latest.version, state: latest.state } as const;
+    const state: StateMessage = {
+      type: 'state',
+      matchId: latest.id,
+      version: latest.version,
+      state: latest.state,
+      ...finishedAtField(latest.state, latest.finishedAt, latest.updatedAt),
+    };
     message = await withLogos(ctx, tenantId, state, latest.clientFixtureId);
     ctx.hub.remember(tenantId, message, latest.live, latest.clientFixtureId);
     ctx.hub.setChannelMatch(tenantId, latest.id);
@@ -143,6 +163,8 @@ export async function currentMessage(ctx: AppContext, target: Target): Promise<S
       live: matches.live,
       clientFixtureId: matches.clientFixtureId,
       simulated: matches.simulated,
+      updatedAt: matches.updatedAt,
+      finishedAt: matches.finishedAt,
     })
     .from(matches)
     .where(tenantScope(matches, target.tenantId, whereOf(target), sql`${matches.state} is not null`))
@@ -161,6 +183,7 @@ export async function currentMessage(ctx: AppContext, target: Target): Promise<S
     version: row.version,
     state: row.state,
     ...(row.simulated ? { simulated: true as const } : {}),
+    ...finishedAtField(row.state, row.finishedAt, row.updatedAt),
   };
   const message = await withLogos(ctx, target.tenantId, state, row.clientFixtureId);
   ctx.hub.remember(target.tenantId, message, row.live, row.clientFixtureId);
@@ -357,7 +380,13 @@ export const targetOf = (share: ResolvedShareToken): Target =>
 export async function announceFixture(ctx: AppContext, tenantId: string, clientFixtureId: string): Promise<void> {
   const target: Target = { kind: 'fixture', tenantId, clientFixtureId };
   const [row] = await ctx.db
-    .select({ id: matches.id, version: matches.version, state: matches.state })
+    .select({
+      id: matches.id,
+      version: matches.version,
+      state: matches.state,
+      updatedAt: matches.updatedAt,
+      finishedAt: matches.finishedAt,
+    })
     .from(matches)
     .where(tenantScope(matches, tenantId, whereOf(target), sql`${matches.state} is not null`))
     .orderBy(desc(matches.live), sql`${matches.liveSince} desc nulls last`, desc(matches.updatedAt))
@@ -366,7 +395,13 @@ export async function announceFixture(ctx: AppContext, tenantId: string, clientF
     ? await withLogos(
         ctx,
         tenantId,
-        { type: 'state', matchId: row.id, version: row.version, state: row.state },
+        {
+          type: 'state',
+          matchId: row.id,
+          version: row.version,
+          state: row.state,
+          ...finishedAtField(row.state, row.finishedAt, row.updatedAt),
+        },
         clientFixtureId,
       )
     : ((await scheduledMessage(ctx.db, tenantId, clientFixtureId)) ?? { type: 'noMatch' });

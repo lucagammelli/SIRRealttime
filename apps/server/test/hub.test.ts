@@ -247,6 +247,17 @@ describe('LiveHub', () => {
     expect(client.messages()[1]).toMatchObject({ type: 'state', version: 2 });
   });
 
+  it('sends the full state when finishedAt changes (a patch carries only the state)', () => {
+    const client = add(share);
+    hub.publish(TENANT, big(1, 0));
+    const at = '2026-01-01T12:00:00.000Z';
+    hub.publish(TENANT, { ...big(2, 1), finishedAt: at });
+    hub.publish(TENANT, { ...big(3, 2), finishedAt: at });
+    hub.publish(TENANT, big(4, 3));
+    expect(client.messages().map((m) => m.type)).toEqual(['state', 'state', 'patch', 'state']);
+    expect(client.messages()[1]).toMatchObject({ type: 'state', version: 2, finishedAt: at });
+  });
+
   it('sends the full state again after forget (resync)', () => {
     const client = add(share);
     hub.publish(TENANT, big(1, 0));

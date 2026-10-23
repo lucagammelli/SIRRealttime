@@ -11,7 +11,7 @@ import type { PublishRoute } from './hub.js';
 import { conflict, HttpError } from './lib/errors.js';
 import type { Tx } from './matchLock.js';
 import { lockTenantMatches, switchOffOthers } from './matchLock.js';
-import { channelAllowed, withLogos } from './state.js';
+import { channelAllowed, finishedAtField, withLogos } from './state.js';
 import { tenantScope } from './tenancy.js';
 
 const INSERT_CHUNK = 1000;
@@ -58,6 +58,16 @@ const describe = (row: MatchRow, status: IngestResponse['status']): IngestRespon
   lineCount: row.lineCount,
   ...(row.contentHash ? { contentHash: row.contentHash } : {}),
 });
+
+/**
+ * When the match ended, for its new state (`finished`: yes or no): the time already saved (a match finished before the
+ * column existed: its last update), otherwise now; null when a correction takes it out of `finished`.
+ */
+function endOf(row: MatchRow, finished: boolean, now: Date): Date | null {
+  if (!finished) return null;
+  if (row.finishedAt) return row.finishedAt;
+  return row.state?.status === 'finished' ? row.updatedAt : now;
+}
 
 /**
  * Applies `append`/`snapshot` requests: the database is the source of truth, a small in-memory cache
@@ -130,6 +140,7 @@ export class IngestService {
           link = (await evaluateFixtureLink(tx, tenantId, parsed)) ?? link;
         }
         const now = this.now();
+        const finishedAt = endOf(row, state.status === 'finished', now);
         if (!simulated) await switchOffOthers(tx, tenantId, row.id, link.clientFixtureId);
         await tx
           .update(matches)
@@ -144,13 +155,21 @@ export class IngestService {
             state,
             version,
             ...link,
+            finishedAt,
             updatedAt: now,
           })
           .where(eq(matches.id, row.id));
         return {
           outcome: {
             response: { status: 'ok', seq: req.seq, lineCount: lines.length, contentHash },
-            published: { type: 'state', matchId: row.id, version, state, ...(simulated ? { simulated: true } : {}) },
+            published: {
+              type: 'state',
+              matchId: row.id,
+              version,
+              state,
+              ...(simulated ? { simulated: true } : {}),
+              ...finishedAtField(state, finishedAt, now),
+            },
             route: simulated
               ? { clientFixtureId: null, becameLive: false, channel: false, isolated: true }
               : { clientFixtureId: link.clientFixtureId, becameLive: !row.live },

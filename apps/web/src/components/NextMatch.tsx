@@ -26,7 +26,7 @@ export function countdownTo(startsAt: string | null, now: number): Countdown | n
 }
 
 /** Current time, refreshed every second while mounted. */
-function useNow(): number {
+export function useNow(): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -82,7 +82,8 @@ function TeamBadge({ team, side, big }: { team: ClubFixtureTeam; side: 'home' | 
   );
 }
 
-function CountdownView({ left, big }: { left: Countdown; big: boolean }) {
+/** Days, hours, minutes and seconds left, in four boxes (one sentence for the screen readers). */
+export function CountdownView({ left, big }: { left: Countdown; big: boolean }) {
   const parts: [number, string][] = [
     [left.days, left.days === 1 ? 'giorno' : 'giorni'],
     [left.hours, left.hours === 1 ? 'ora' : 'ore'],

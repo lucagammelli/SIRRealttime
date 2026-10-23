@@ -25,6 +25,8 @@ export type LiveData =
       logos?: TeamLogoPair;
       /** A match of the simulation of the server: the page shows «Simulazione». */
       simulated?: boolean;
+      /** When the match ended (ISO UTC), while it is finished: «Dopo la partita» starts from it. */
+      finishedAt?: string;
     }
   | { kind: 'noMatch' }
   /** Link of a match of the calendar before its start: «Prossima partita». */
@@ -113,6 +115,7 @@ export function applyMessage(current: LiveData | null, message: ServerMessage): 
     state: message.state,
     ...(message.logos ? { logos: message.logos } : {}),
     ...(message.simulated ? { simulated: true } : {}),
+    ...(message.finishedAt ? { finishedAt: message.finishedAt } : {}),
   };
 }
 
@@ -131,7 +134,8 @@ export function applyPatchMessage(current: LiveData | null, message: PatchMessag
     return 'resync';
   }
   if (!looksLikeMatchState(next)) return 'resync';
-  // A patch changes only the state: the logos stay those of the full state it applies to.
+  // A patch changes only the state: the logos (and the end of the match, which the server sends with a full state
+  // when it changes) stay those of the full state it applies to.
   return {
     kind: 'state',
     matchId: message.matchId,
@@ -139,6 +143,7 @@ export function applyPatchMessage(current: LiveData | null, message: PatchMessag
     state: next,
     ...(current.logos ? { logos: current.logos } : {}),
     ...(current.simulated ? { simulated: true } : {}),
+    ...(current.finishedAt && next.status === 'finished' ? { finishedAt: current.finishedAt } : {}),
   };
 }
 

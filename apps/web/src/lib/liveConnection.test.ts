@@ -159,6 +159,19 @@ describe('applyMessage', () => {
     expect(applyMessage(null, stateMsg(MATCH_A, 1))).not.toHaveProperty('logos');
   });
 
+  it('keeps the end of the match (finishedAt) across the patches, only while the match is finished', () => {
+    const at = '2026-10-23T19:00:00.000Z';
+    const done = { ...state, status: 'finished' as const };
+    const full = applyMessage(null, { ...stateMsg(MATCH_A, 1), state: done, finishedAt: at });
+    expect(full).toMatchObject({ kind: 'state', finishedAt: at });
+    const patch = { type: 'patch', matchId: MATCH_A, baseVersion: 1, version: 2 } as const;
+    expect(applyPatchMessage(full, { ...patch, ops: [] })).toMatchObject({ version: 2, finishedAt: at });
+    const reopened = applyPatchMessage(full, { ...patch, ops: [{ op: 'set', path: ['status'], value: 'inProgress' }] });
+    expect(reopened).toMatchObject({ version: 2 });
+    expect(reopened).not.toHaveProperty('finishedAt');
+    expect(applyMessage(null, stateMsg(MATCH_A, 1))).not.toHaveProperty('finishedAt');
+  });
+
   it('shows «Prossima partita» until the first state of the match of the calendar', () => {
     const fixture = {
       startsAt: null,

@@ -468,7 +468,7 @@ paths:
       responses:
         '200':
           {
-            description: 'pause della pagina pubblica del cliente della sessione: time-out, fine set, fine partita, ogni N punti',
+            description: 'pause della pagina pubblica del cliente della sessione: time-out, fine set, fine partita, ogni N punti, dopo la partita',
           }
     put:
       requestBody:
@@ -502,6 +502,13 @@ paths:
                             example: 5,
                             description: 'niente pausa negli ultimi K punti del set (traguardo 25, 15 al tie-break)',
                           }
+                afterMatch:
+                  type: object
+                  description: 'Dopo la partita: foto a tutto schermo con il conto alla rovescia della prossima partita'
+                  properties:
+                    enabled: { type: boolean, example: false }
+                    image: { type: string, format: uuid, nullable: true, description: 'immagine (sponsor) del cliente' }
+                    delayMinutes: { type: integer, minimum: 0, maximum: 240, example: 30 }
       responses:
         '200': { description: pause salvate }
         '400':

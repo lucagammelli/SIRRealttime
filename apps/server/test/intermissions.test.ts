@@ -179,6 +179,23 @@ describe('pauses of the public page', () => {
     expect((await del()).statusCode).toBe(204);
   });
 
+  it('«Dopo la partita»: saves an own image, refuses one of another client, keeps it from being deleted', async () => {
+    const own = await uploadSponsor(HOST_A, cookieA, 144);
+    const other = await uploadSponsor(HOST_B, cookieB, 145);
+    const afterMatch = (image: string) => ({ afterMatch: { enabled: true, image, delayMinutes: 45 } });
+    expect((await putPauses(HOST_A, cookieA, afterMatch(other.id))).statusCode).toBe(400);
+    expect((await putPauses(HOST_A, cookieA, afterMatch(MISSING))).statusCode).toBe(400);
+    expect((await putPauses(HOST_A, cookieA, { afterMatch: { delayMinutes: 241 } })).statusCode).toBe(400);
+    expect((await putPauses(HOST_A, cookieA, afterMatch(own.id))).statusCode).toBe(200);
+    expect((await publicPauses(HOST_A)).afterMatch).toEqual({ enabled: true, image: own.id, delayMinutes: 45 });
+    const del = () => call(HOST_A, cookieA, { method: 'DELETE', url: `/api/admin/assets/${own.id}` });
+    const refused = await del();
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json<{ error: string }>().error).toContain('Dopo la partita');
+    expect((await putPauses(HOST_A, cookieA, {})).statusCode).toBe(200);
+    expect((await del()).statusCode).toBe(204);
+  });
+
   it('is read-only for a viewer; a superadmin works on its active client', async () => {
     expect((await call(HOST_A, cookieViewerA, { url: URL })).statusCode).toBe(200);
     expect((await putPauses(HOST_A, cookieViewerA, {})).statusCode).toBe(403);

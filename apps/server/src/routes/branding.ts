@@ -214,7 +214,7 @@ export async function assetUse(tx: Tx, tenantId: string, id: string): Promise<st
   if (layoutImageIds(resolveLayout(tenant?.layout)).includes(id))
     return 'Immagine in uso nella pagina pubblica: toglila dal blocco sponsor prima di eliminarla';
   if (intermissionImageIds(resolveIntermissions(tenant?.intermissions)).includes(id))
-    return 'Immagine in uso nelle pause: toglila dalla diapositiva sponsor prima di eliminarla';
+    return 'Immagine in uso nelle pause: toglila dalla diapositiva sponsor o da «Dopo la partita» prima di eliminarla';
   if (overlayBackgrounds(resolveOverlays(tenant?.overlays)).some((b) => b.assetId === id))
     return 'File in uso come sfondo di un avviso: toglilo dall’avviso prima di eliminarlo';
   const [fixture] = await tx

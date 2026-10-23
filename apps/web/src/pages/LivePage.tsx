@@ -1,6 +1,7 @@
-import { QR_QUERY_PARAM, SHARE_TOKEN_PATTERN, hasSystemLogo } from '@arenalive/shared';
+import { QR_QUERY_PARAM, SHARE_TOKEN_PATTERN, hasSystemLogo, publicAssetPath } from '@arenalive/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
+import { AfterMatchScreen } from '../components/AfterMatchScreen.tsx';
 import { BrandMark } from '../components/BrandMark.tsx';
 import { FullscreenHint, InstallButton } from '../components/AppInstall.tsx';
 import { Intermission } from '../components/Intermission.tsx';
@@ -8,6 +9,8 @@ import { LiveMatch } from '../components/LiveMatch.tsx';
 import { Overlay } from '../components/Overlay.tsx';
 import { StatusScreen } from '../components/StatusScreen.tsx';
 import { SystemLogosBar } from '../components/SystemLogosBar.tsx';
+import { useAfterMatchImage } from '../lib/afterMatch.ts';
+import { nextFixture, useSchedule } from '../lib/schedule.ts';
 import { useSystemLogos } from '../lib/systemLogos.ts';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import type { ProbeResult } from '../lib/liveConnection.ts';
@@ -66,7 +69,9 @@ export async function probeShareToken(token: string, fetchImpl: typeof fetch = f
  * end of match) the pause chosen by the client (page «Pause») goes over the page or at its bottom: none while
  * its graphics are loading, the default pauses when they cannot be loaded. The events of the match that arrive live
  * (ace, set point, ...) show an overlay for a few seconds as chosen by the client (page «Avvisi»), never over a full
- * screen pause. During the set the «ogni N punti» pause opens with the live updates only.
+ * screen pause. During the set the «ogni N punti» pause opens with the live updates only. Some minutes after the end
+ * of the match «Dopo la partita» (when on, with its photo) takes the place of the end-of-match pause and of the
+ * overlays: the photo full screen with the countdown to the next match of the club.
  */
 export function LivePage() {
   const { token = '' } = useParams();
@@ -128,6 +133,9 @@ export function LivePage() {
   const overlays = useTenantOverlays();
   const template = useTemplate();
   const [pauseFullscreen, setPauseFullscreen] = useState(false);
+  const afterMatchImage = useAfterMatchImage(data, intermissions?.afterMatch ?? null);
+  // The schedule is read only while «Dopo la partita» is on screen (shared with the blocks that read it).
+  const afterMatchFixture = nextFixture(useSchedule(afterMatchImage !== null));
   const blockBrand = useMemo(
     () =>
       look
@@ -269,10 +277,10 @@ export function LivePage() {
             live={data.live === true}
             config={overlays}
             device={device}
-            blocked={pauseFullscreen}
+            blocked={pauseFullscreen || afterMatchImage !== null}
           />
         )}
-        {data?.kind === 'state' && (
+        {data?.kind === 'state' && afterMatchImage === null && (
           <Intermission
             key={data.matchId}
             onFullscreenChange={setPauseFullscreen}
@@ -285,6 +293,9 @@ export function LivePage() {
             look={blockBrand}
             sponsorLogo={look?.images.sponsorLogo ?? null}
           />
+        )}
+        {afterMatchImage !== null && (
+          <AfterMatchScreen imageUrl={publicAssetPath(afterMatchImage)} fixture={afterMatchFixture} device={device} />
         )}
       </div>
     </TouchContext.Provider>

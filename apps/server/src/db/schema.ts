@@ -247,6 +247,11 @@ export const matches = pgTable(
      * channel and of the lists; deleted 6 hours after its end.
      */
     simulated: boolean('simulated').notNull().default(false),
+    /**
+     * When the state became `finished` (kept by the later updates, cleared when a correction takes it out of
+     * `finished`); null: not finished, or finished before the column existed (`updated_at` is used then).
+     */
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

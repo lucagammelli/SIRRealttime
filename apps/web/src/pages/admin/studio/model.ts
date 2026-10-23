@@ -442,8 +442,8 @@ const SPONSOR_FIRST = { tv: 'fullscreen', tablet: 'fullscreen', phone: 'banner' 
 /**
  * Pure: the pauses of a ready-made model. «Essenziale»: few slides, no «ogni N punti»; «Completo»: the defaults;
  * «Sponsor in evidenza»: the sponsors on their own slides, big, also every N points. On the phone the end of set stays a
- * banner at the bottom, as by default. The sponsor images and the rule of the «ogni N punti» of `config` are kept; the
- * own pauses of the sets are taken away.
+ * banner at the bottom, as by default. The sponsor images, the rule of the «ogni N punti» and «Dopo la partita» of
+ * `config` are kept; the own pauses of the sets are taken away.
  */
 export function applyPauseModel(config: TenantIntermissions, model: StudioModel): TenantIntermissions {
   const images = sponsorImages(config);
@@ -454,7 +454,8 @@ export function applyPauseModel(config: TenantIntermissions, model: StudioModel)
     seconds: 8,
     options: { text: THANKS_MESSAGE, size: 'large' },
   };
-  const defaults = defaultIntermissions();
+  // «Dopo la partita» is not part of the models: it stays as it is.
+  const defaults = { ...defaultIntermissions(), afterMatch: config.afterMatch };
   const milestoneDefault = defaults.milestone;
   if (model === 'completo') {
     return {

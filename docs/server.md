@@ -274,7 +274,11 @@ nulla, la fase viaggia nello stato come ogni altro campo. `{}` è valido e vale 
   validi); `intermissionFor` dà `null` se la pausa non ha nessuna diapositiva attiva, e gli sponsor e le immagini di una
   diapositiva spenta contano comunque «in uso» per i controlli di eliminazione.
 - **Eliminazione di un'immagine**: se è usata in una diapositiva sponsor, `DELETE /api/admin/assets/:id` risponde 409
-  «Immagine in uso nelle pause: toglila dalla diapositiva sponsor prima di eliminarla».
+  «Immagine in uso nelle pause: toglila dalla diapositiva sponsor o da «Dopo la partita» prima di eliminarla».
+- **«Dopo la partita»** (`afterMatch`: `enabled`, `image`, `delayMinutes`; contratto in `docs/architettura.md`): l'immagine
+  rientra in `intermissionImageIds`, quindi il `PUT` la verifica (400 se non è del cliente) e conta «in uso» anche a
+  schermata spenta. L'importazione della grafica (`graphicsTransfer.ts`) rimappa anche questa immagine sui nuovi id.
+  L'orario di fine è salvato dal server (sotto, in «Ingest»), non è nella configurazione.
 
 ### Sponsor (`apps/server/src/routes/sponsors.ts`, `apps/server/src/sponsors.ts`)
 Anagrafica degli sponsor di un cliente: nome, sito facoltativo e immagini. Il blocco sponsor della pagina e la diapositiva
@@ -716,6 +720,12 @@ in una transazione:
    calendario (`evaluateFixtureLink`, vedi «Club, calendario e abbinamento»); la partita diventa `live` e le altre dello
    stesso gruppo (stessa partita del calendario, oppure tutte le non abbinate) vanno a `live = false`
    (`switchOffOthers`); `live_since` si imposta quando diventa live; `version` aumenta di 1, `state` è salvato;
+   **Ora di fine partita** (`endOf` in `ingest.ts`, colonna `matches.finished_at`): nel `.dvw` manca la data, quindi la
+   scrive il server. Alla prima ingest in cui lo stato è `finished` vale l'ora corrente e poi non cambia più; se una
+   correzione dello scout riporta la partita fuori da `finished` torna `null` (e si riconta se finisce di nuovo). Una
+   partita già finita prima della colonna usa `updated_at`. Il valore viaggia nel campo facoltativo `finishedAt` (ISO UTC) di
+   `StateMessage`, presente solo con la partita finita (`finishedAtField` in `src/state.ts`, usato da ingest, stato
+   iniziale e `resync`).
 9. dopo il commit il nuovo stato (`StateMessage`) passa a `publisher.publish` con la rotta (`PublishRoute`: partita del
    calendario e se è appena diventata live; oggi `LiveHub`, vedi «WebSocket») e arriva ai client WebSocket di quel cliente
    che seguono la partita: come patch o come stato intero.
@@ -1066,7 +1076,8 @@ Payload massimo 4 KB.
 - L'hub tiene in memoria l'ultimo stato di ogni partita (al massimo 64, `SNAPSHOT_LIMIT`), per patch, stato iniziale e
   `resync`; dopo un riavvio lo rilegge dal database alla prima richiesta (`remember`).
 - A ogni `publish` il patch si calcola **una volta** con `diffJson`; se il suo testo supera il 50% dello stato intero
-  (`PATCH_MAX_RATIO`) si manda lo stato intero. Un publish con `version` non maggiore di quella nota è scartato.
+  (`PATCH_MAX_RATIO`) si manda lo stato intero, e lo si manda anche quando `finishedAt` cambia (la partita finisce o una
+  correzione la riapre), perché un patch porta solo lo `state`. Un publish con `version` non maggiore di quella nota è scartato.
 - Ogni frame è serializzato **una volta** e, per chi ha aperto il socket con `?enc=gzip`, compresso **una volta** con
   gzip livello 6 (`GZIP_LEVEL`) e inviato come frame binario; senza `enc=gzip` i frame sono testo JSON
   (`LiveSocketQuerySchema`, `encodingOf` in `src/state.ts`). Scelta documentata in `docs/decisioni.md`.
@@ -1191,7 +1202,7 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `users` | `tenant_id` (null solo per il superadmin; CHECK `superadmin` ⇔ `tenant_id` nullo), `email` (minuscola, unica su tutti i clienti), `password_hash` (argon2id), `role` (`superadmin`/`admin`/`viewer`), `disabled` (booleano, predefinito falso; migrazione `0008_utenti_clienti.sql`) |
 | `sessions` | `token_hash` (sha256 del cookie), `user_id`, `expires_at`, `active_tenant_id` (cliente in cui è entrato il superadmin, `ON DELETE SET NULL`) |
 | `agents` | `tenant_id`, `name`, `token_hash`, `revoked`, `last_seen_at` |
-| `matches` | `tenant_id`, `match_key` (unica per `tenant_id` + `match_key`), `header`, `line_count`, `content_hash`, `last_seq`, `agent_id`, `live` (una per partita del calendario più una tra le non abbinate: indici parziali `matches_one_live_per_fixture_idx` e `matches_one_live_unlinked_idx`), `live_since`, `state` (jsonb), `version`, `client_fixture_id` (→ `client_fixtures`, `ON DELETE SET NULL`), `fixture_link` (enum `fixture_link`: `auto`/`manual`/`pending`/`none`; nullo = non ancora valutato), `fixture_candidates` (jsonb: candidati con somiglianza; migrazione `0006_club.sql`) |
+| `matches` | `tenant_id`, `match_key` (unica per `tenant_id` + `match_key`), `finished_at` (quando la partita è finita, nullable; migrazione `0019_dopo_partita.sql`, solo `ADD COLUMN`; vedi «Ora di fine partita» in «Ingest»), `header`, `line_count`, `content_hash`, `last_seq`, `agent_id`, `live` (una per partita del calendario più una tra le non abbinate: indici parziali `matches_one_live_per_fixture_idx` e `matches_one_live_unlinked_idx`), `live_since`, `state` (jsonb), `version`, `client_fixture_id` (→ `client_fixtures`, `ON DELETE SET NULL`), `fixture_link` (enum `fixture_link`: `auto`/`manual`/`pending`/`none`; nullo = non ancora valutato), `fixture_candidates` (jsonb: candidati con somiglianza; migrazione `0006_club.sql`) |
 | `scout_lines` | `match_id`, `idx`, `text` (chiave primaria `match_id` + `idx`) |
 | `leagues` | **comune a tutti i clienti** (migrazione `0005_leagues.sql`): `provider`, `external_id` (`IdCampionato`; unico con `provider`), `season`, `name`, `phases` (jsonb), `last_sync_at`, `last_success_at`, `last_status` (`never`/`ok`/`error`), `last_message`, `sync_started_at` (lease) |
 | `league_teams` | `league_id`, `external_id` (unico per campionato), `name`, `short_name`, `city`, `venue`, `venue_address`, `logo_id`, `details_fetched_at`, `logo_fetched_at` |

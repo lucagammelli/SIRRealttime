@@ -25,6 +25,11 @@ export const StateMessageSchema = z.object({
    * «Simulazione». Missing for the real matches.
    */
   simulated: z.literal(true).optional(),
+  /**
+   * When the match ended (ISO 8601 UTC), while its state is `finished`; missing otherwise (and from older servers,
+   * which older clients ignore). The public page shows «Dopo la partita» some minutes after it.
+   */
+  finishedAt: z.iso.datetime().optional(),
 });
 export type StateMessage = z.infer<typeof StateMessageSchema>;
 

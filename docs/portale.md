@@ -154,7 +154,7 @@ Le voci:
 | Posta | `/admin/posta` | solo superadmin (fuori da un cliente) | server di posta per inviti e recupero password, uguale per tutti i clienti, vedi «Posta» |
 | Loghi di sistema | `/admin/loghi-di-sistema` | solo superadmin (fuori da un cliente) | i loghi della piattaforma (sinistro e destro, positivo e negativo), vedi «Loghi di sistema» |
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, «Password (facoltativa)» di almeno 12 caratteri, «Ruolo»: «Lettura e scrittura» o «Sola lettura»; «Crea e invita» se la password è vuota, altrimenti «Crea utente»), scheda «Ruoli» (cosa può fare ciascun ruolo), «Utenti» (per ognuno stato «Attivo»/«Disattivato», ruolo, data di creazione e i comandi descritti sotto), vedi «Utenti del cliente» |
-| Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`, `esporta`) | solo admin (il superadmin dentro un cliente) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
+| Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`, `esporta`, `libreria`) | solo admin (il superadmin dentro un cliente) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
 | Sponsor | `/admin/sponsor` | solo admin (il superadmin dentro un cliente) | anagrafica degli sponsor, vedi «Sponsor» |
 | Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname, «Agenti» = limite di agenti, predefinito 1; «Crea cliente»), «Clienti» con «Entra nel cliente» (il superadmin entra in quel cliente e apre `/admin/live`, vedi «Più clienti») e «Modifica» (nome, hostname e limite di agenti, «Salva»; il limite è mostrato come «un agente» / «fino a N agenti»); riquadro «Primo utente (facoltativo)» nel modulo («Email del primo utente» e «Password del primo utente (facoltativa)»; creato con il ruolo «Lettura e scrittura»; senza password il primo utente è invitato e sotto il modulo compare l'esito dell'invito, vedi «Utenti del cliente»); ogni cliente mostra «nessun utente», «1 utente» o «N utenti» |
 | Esci | - | tutti | chiude la sessione |
@@ -255,7 +255,7 @@ compare.», «Avviso spento: gli spettatori non lo vedono.», «Su <dispositivo>
   proprie dei set; quelli degli avvisi tengono testi, dispositivi, priorità, posizione e dimensione di ogni avviso.
 
 #### Sezione «Colori e loghi»
-Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome», «Squadra», «Immagini» (l'esportazione è la sezione «Esporta / Importa»).
+Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome», «Squadra» (la libreria dei file è la sezione «Immagini e video», l'esportazione è la sezione «Esporta / Importa»).
 - «Colori»: i cinque colori («Colore principale», «Colore di risalto», «Squadra di casa», «Squadra ospite», «Sfondo
   della pagina»), ciascuno con selettore e campo esadecimale `#rrggbb` e «Predefinito»; i colori vanno sopra quelli del
   modello. Avvisi di contrasto (`brandContrastIssues`, sotto 4,5:1), per esempio «Lo sfondo è troppo scuro per il testo
@@ -266,13 +266,18 @@ Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome»
   sponsor») con «Carica immagine» (PNG, JPEG, WebP o SVG, al massimo 2 MB) e «Togli».
 - «Squadra»: «Nostra squadra» («Codice squadra», es. PER, e «Testo nel nome della squadra», es. Perugia, entrambi
   facoltativi).
-- «Immagini»: scheda «Immagini e video caricati» (sottotitolo «Spazio usato: … MB di … MB») con l'elenco: per ogni file nome
+- «Immagini e video» (`LibrarySection.tsx`, sezione `libreria`, `/admin/studio/libreria`, elencata sotto «Esporta / Importa»;
+  descrizione «Libreria dei file caricati»; senza bozza né «Salva», niente ●; era la scheda «Immagini» di «Colori e loghi»,
+  che non c'è più): scheda «Immagini e video caricati" (sottotitolo «Spazio usato: … MB di … MB») con l'elenco: per ogni file nome
   (quello del file al caricamento; per i file senza nome il ripiego «Video del gg/mm/aaaa · L×A»), uso, misure, peso,
   «Rinomina» con «Salva nome» (`PATCH /api/admin/assets/:id`, `{ name }`; vuoto toglie il nome), «in uso» e «Elimina» /
-  «Conferma eliminazione»; vuota: «Nessuna immagine caricata.». Il caricamento invia il file in base64 (`fileToBase64`,
+  «Conferma eliminazione» (l'eliminazione toglie il file anche dalle bozze dei loghi; il caricamento resta dove il file si usa:
+  loghi in «Loghi e nome», sfondi in «Avvisi», sponsor in «Sponsor»); vuota: «Nessuna immagine caricata.». Il caricamento invia il file in base64 (`fileToBase64`,
   `src/lib/base64.ts`) a `POST /api/admin/assets`; il salvataggio è `PUT /api/admin/branding`. Per le immagini sponsor
   l'elenco dice di quale sponsor sono («Sponsor: <nome>») o «Sponsor (senza sponsor)»; si caricano e si assegnano dalla
-  pagina «Sponsor» (`ColorsSection.tsx`).
+  pagina «Sponsor» (`assetUseText`). «in uso» (`assetsInUse`) considera i documenti **salvati**: loghi della grafica, immagini dei blocchi
+  «Sponsor» e delle pause (diapositive «Sponsor», «Dopo la partita»), sfondi degli avvisi, immagini degli sponsor scelti
+  da un blocco o da una diapositiva.
 - **Miniature e anteprime dell'area riservata**: ogni immagine del cliente (miniature di «Immagini», dei loghi, della
   pagina «Sponsor», dei loghi delle partite in «Calendario», anteprime dello Studio e della prima configurazione) si
   carica da `GET /api/admin/assets/:id/file` (`adminAssetPath` di `packages/shared/src/tenant.ts`; `url` di

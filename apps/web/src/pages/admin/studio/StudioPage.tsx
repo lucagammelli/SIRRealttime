@@ -13,6 +13,7 @@ import type {
 } from '@arenalive/shared';
 import {
   AssetListResponseSchema,
+  BRANDING_IMAGE_SLOTS,
   BrandingResponseSchema,
   IntermissionsResponseSchema,
   LAYOUT_DEVICES,
@@ -41,6 +42,7 @@ import { layoutProblems } from '../layoutEditor.ts';
 import { blockBrandOf } from './blockEditors.tsx';
 import type { ColorsTab } from './ColorsSection.tsx';
 import { GraphicsTransfer } from './GraphicsTransfer.tsx';
+import { LibrarySection } from './LibrarySection.tsx';
 import { ColorsSection } from './ColorsSection.tsx';
 import type { StudioChange, StudioDocs, StudioScene, StudioSection, StudioTarget } from './model.ts';
 import {
@@ -104,6 +106,7 @@ const SAVED_TEXT: Record<StudioSection, string> = {
   pause: 'Pause salvate: valgono da subito per tutti gli spettatori.',
   avvisi: 'Avvisi salvati: valgono da subito per tutti gli spettatori.',
   esporta: 'Configurazione importata: la pagina pubblica la usa da subito.',
+  libreria: '',
 };
 
 /** Block types whose colours are the team colours: a click on them in «Colori e loghi» opens the colours. */
@@ -199,6 +202,7 @@ function Studio({
       pause: intermissionChanges(intermissions.base, intermissions.draft),
       avvisi: overlayChanges(overlays.base, overlays.draft),
       esporta: [],
+      libreria: [],
     }),
     [branding, layout, intermissions, overlays],
   );
@@ -209,6 +213,7 @@ function Studio({
     avvisi: !sameValue(overlays.base, overlays.draft),
     // «Esporta / Importa» has no draft and no «Salva».
     esporta: false,
+    libreria: false,
   };
   const anyDirty = Object.values(dirty).some(Boolean);
   const layoutIssues = useMemo(() => layoutProblems(layout.draft), [layout.draft]);
@@ -228,6 +233,7 @@ function Studio({
       ? 'Alcuni testi non sono validi (vuoti, troppo lunghi o con segnaposto sconosciuti): correggili prima di salvare.'
       : null,
     esporta: null,
+    libreria: null,
   };
 
   // Example match (or the live one) of the preview, with the team of the client as the home team.
@@ -488,7 +494,6 @@ function Studio({
         onChange={(c) => setBranding((p) => ({ ...p, draft: c(p.draft) }))}
         assets={assets}
         onAssetsChanged={onAssetsChanged}
-        sponsors={sponsors}
         tab={colorsTab}
         onTab={setColorsTab}
         onTemplate={chooseTemplate}
@@ -527,6 +532,28 @@ function Studio({
         }}
         assets={assets}
         sponsors={sponsors}
+      />
+    );
+  else if (section === 'libreria')
+    panel = (
+      <LibrarySection
+        assets={assets}
+        sponsors={sponsors}
+        saved={{
+          branding: branding.base,
+          layout: layout.base,
+          intermissions: intermissions.base,
+          overlays: overlays.base,
+        }}
+        onAssetsChanged={onAssetsChanged}
+        onDeleted={(id) =>
+          setBranding((p) => {
+            const next = { ...p.draft };
+            for (const slot of Object.keys(BRANDING_IMAGE_SLOTS) as (keyof typeof BRANDING_IMAGE_SLOTS)[])
+              if (next[slot] === id) next[slot] = null;
+            return { ...p, draft: next };
+          })
+        }
       />
     );
   else if (section === 'esporta')

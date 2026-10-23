@@ -48,7 +48,7 @@ import { pauseAt } from '../intermissionEditor.ts';
  * the pauses and of the overlays, the texts «Compare: …» and the marks that find an element in the preview.
  */
 
-export type StudioSection = 'colori' | 'pagina' | 'pause' | 'avvisi' | 'esporta';
+export type StudioSection = 'colori' | 'pagina' | 'pause' | 'avvisi' | 'esporta' | 'libreria';
 
 export const STUDIO_SECTIONS: readonly { id: StudioSection; label: string; short: string; description: string }[] = [
   { id: 'colori', label: 'Colori e loghi', short: 'Colori', description: 'Aspetto di tutta la pagina' },
@@ -61,6 +61,7 @@ export const STUDIO_SECTIONS: readonly { id: StudioSection; label: string; short
     short: 'Esporta',
     description: 'Salva o carica tutta la grafica',
   },
+  { id: 'libreria', label: 'Immagini e video', short: 'Immagini', description: 'Libreria dei file caricati' },
 ];
 
 export const SECTION_LABELS: Record<StudioSection, string> = {
@@ -69,10 +70,16 @@ export const SECTION_LABELS: Record<StudioSection, string> = {
   pause: 'Pause',
   avvisi: 'Avvisi',
   esporta: 'Esporta / Importa',
+  libreria: 'Immagini e video',
 };
 
 export const isStudioSection = (value: string | undefined): value is StudioSection =>
-  value === 'colori' || value === 'pagina' || value === 'pause' || value === 'avvisi' || value === 'esporta';
+  value === 'colori' ||
+  value === 'pagina' ||
+  value === 'pause' ||
+  value === 'avvisi' ||
+  value === 'esporta' ||
+  value === 'libreria';
 
 /** Old pages of the reserved area and the section of the Studio that took their place (redirects). */
 export const LEGACY_PAGES: Record<'grafica' | 'pagina' | 'pause' | 'avvisi', StudioSection> = {

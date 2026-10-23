@@ -275,7 +275,7 @@ describe('menu, routes and old pages', () => {
 });
 
 describe('inventory: every option of the old pages is in the Studio', () => {
-  it('«Grafica» → Colori e loghi (colori, loghi e nome, squadra, immagini; modello in «Avanzate»)', async () => {
+  it('«Grafica» → Colori e loghi (colori, loghi e nome, squadra; modello in «Avanzate»)', async () => {
     mockServer();
     renderAt('/admin/studio/colori');
     await studio();
@@ -298,8 +298,12 @@ describe('inventory: every option of the old pages is in the Studio', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Squadra' }));
     expect(screen.getByRole('textbox', { name: /Codice squadra/ })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: /Testo nel nome/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole('tab', { name: 'Immagini' }));
+    // The library of the files is a section of its own, no longer a tab of «Colori e loghi».
+    expect(screen.queryByRole('tab', { name: 'Immagini' })).toBeNull();
+    fireEvent.click(sectionButton(/^Immagini e video/));
+    expect(where()).toBe('/admin/studio/libreria');
     expect(screen.getByRole('heading', { name: 'Immagini e video caricati' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Modifiche non salvate' })).toBeNull();
     expect(screen.getByText(/Spazio usato: .* MB di 50/)).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /^Elimina / })).toHaveLength(2);
     expect(screen.getAllByRole('button', { name: /^Rinomina / })).toHaveLength(2);
@@ -580,8 +584,9 @@ describe('Colori e loghi', () => {
     const big = new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'grande.png', { type: 'image/png' });
     fireEvent.change(screen.getByLabelText('Carica logo orizzontale'), { target: { files: [big] } });
     expect(await screen.findByText('Immagine troppo grande: al massimo 2 MB.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('tab', { name: 'Immagini' }));
-    const list = screen.getByRole('heading', { name: 'Immagini e video caricati' }).closest('section');
+    fireEvent.click(sectionButton(/^Immagini e video/));
+    fireEvent.click(screen.getByRole('button', { name: 'Continua senza salvare' }));
+    const list = (await screen.findByRole('heading', { name: 'Immagini e video caricati' })).closest('section');
     if (!list) throw new Error('no list');
     fireEvent.click(within(list).getAllByRole('button', { name: /^Elimina / })[0] as HTMLElement);
     fireEvent.click(within(list).getByRole('button', { name: 'Conferma eliminazione' }));
@@ -590,9 +595,8 @@ describe('Colori e loghi', () => {
 
   it('«Immagini»: every file with its name (or day and size), kind, size and weight; «Rinomina» changes the name', async () => {
     const { calls } = mockServer();
-    renderAt('/admin/studio/colori');
+    renderAt('/admin/studio/libreria');
     await studio();
-    fireEvent.click(screen.getByRole('tab', { name: 'Immagini' }));
     const list = screen.getByRole('heading', { name: 'Immagini e video caricati' }).closest('section');
     if (!list) throw new Error('no list');
     // Files uploaded before the names: the day and the size, never a number of position.
@@ -612,6 +616,25 @@ describe('Colori e loghi', () => {
       }),
     );
     expect(await within(list).findByText('Logo del club')).toBeTruthy();
+  });
+
+  it('«Immagini e video»: «in uso» counts the logos, the backgrounds of the overlays, the pauses and the sponsors', async () => {
+    const OVERLAY = '1b2c3d4e-5f60-4718-9a2b-3c4d5e6f7a8b';
+    const UNUSED = '2c3d4e5f-6071-4829-8b3c-4d5e6f7a8b9c';
+    const overlay = { ...asset(OVERLAY, 'logo'), kind: 'overlay' as const, name: 'Sfondo ace' };
+    const spare = { ...asset(UNUSED, 'logo'), name: 'Logo vecchio' };
+    const overlays = defaultOverlays();
+    overlays.ace = { ...overlays.ace, background: { kind: 'image', assetId: OVERLAY } } as typeof overlays.ace;
+    mockServer({ overlays }, 'admin', [overlay, spare]);
+    renderAt('/admin/studio/libreria');
+    await studio();
+    const list = screen.getByRole('heading', { name: 'Immagini e video caricati' }).closest('section');
+    if (!list) throw new Error('no list');
+    const row = (name: string) => within(list).getByText(name).closest('li') as HTMLElement;
+    expect(row('Sfondo ace').textContent).toContain('in uso');
+    expect(row('Logo vecchio').textContent).not.toContain('in uso');
+    // The saved logo (logoMain)
+    expect(within(list).getAllByText(/· in uso/).length).toBeGreaterThanOrEqual(2);
   });
 
   it('pure helpers of the colours', () => {
@@ -680,12 +703,13 @@ describe('one save for each section', () => {
     const names = within(screen.getByRole('navigation', { name: 'Sezioni dello Studio' }))
       .getAllByRole('button')
       .map((b) => b.textContent ?? '');
-    expect(names.map((n) => n.split(/Ace|Aspetto|Blocchi|Fine set|Salva/)[0])).toEqual([
+    expect(names.map((n) => n.split(/Ace|Aspetto|Blocchi|Fine set|Salva|Libreria/)[0])).toEqual([
       'Colori e loghi',
       'Pagina live',
       'Pause',
       'Avvisi',
       'Esporta / Importa',
+      'Immagini e video',
     ]);
     fireEvent.click(sectionButton(/^Esporta \/ Importa/));
     expect(where()).toBe('/admin/studio/esporta');

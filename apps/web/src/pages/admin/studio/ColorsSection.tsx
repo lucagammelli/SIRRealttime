@@ -3,7 +3,6 @@ import type {
   AssetSummary,
   BrandColorKey,
   BrandingImageSlot,
-  Sponsor,
   ContrastIssue,
   OurTeam,
   TemplateId,
@@ -11,14 +10,11 @@ import type {
 } from '@arenalive/shared';
 import {
   ASSET_MAX_BYTES,
-  ASSET_NAME_MAX,
-  AssetNameSchema,
   BRAND_COLOR_KEYS,
   BRANDING_IMAGE_SLOTS,
   brandContrastIssues,
   defaultBranding,
   HEX_COLOR_PATTERN,
-  isVideoMime,
   MIN_TEXT_CONTRAST,
   OUR_TEAM_CODE_MAX,
   OUR_TEAM_NAME_MAX,
@@ -29,22 +25,19 @@ import {
 } from '@arenalive/shared';
 import type { ChangeEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Empty, ErrorBox } from '../../../components/ui.tsx';
-import { apiCommand } from '../../../lib/api.ts';
-import { megabytes } from '../../../lib/format.ts';
+import { Button, ErrorBox } from '../../../components/ui.tsx';
 import { useApiError, useAuth } from '../auth.tsx';
-import { ConfirmButton, Field, inputClass } from '../forms.tsx';
-import { ACCEPT, assetDetails, assetLabel, IMAGE_TOO_LARGE, uploadImage } from '../imageUpload.ts';
+import { Field, inputClass } from '../forms.tsx';
+import { ACCEPT, IMAGE_TOO_LARGE, uploadImage } from '../imageUpload.ts';
 import type { StudioTarget } from './model.ts';
 import { ALL_DEVICES_TEXT, COLOR_LABELS, IMAGE_LABELS } from './model.ts';
 import { Advanced, Setting, SettingsCard, TabList } from './StudioUi.tsx';
 
-export type ColorsTab = 'colori' | 'loghi' | 'squadra' | 'immagini';
+export type ColorsTab = 'colori' | 'loghi' | 'squadra';
 export const COLORS_TABS: readonly { value: ColorsTab; label: string }[] = [
   { value: 'colori', label: 'Colori' },
   { value: 'loghi', label: 'Loghi e nome' },
   { value: 'squadra', label: 'Squadra' },
-  { value: 'immagini', label: 'Immagini' },
 ];
 
 const SLOTS = Object.keys(BRANDING_IMAGE_SLOTS) as BrandingImageSlot[];
@@ -57,88 +50,6 @@ export function contrastText(issue: ContrastIssue): string {
   if (issue.color === 'text')
     return `Lo sfondo è troppo scuro per il testo della pagina (contrasto ${ratio(issue.ratio)}:1, minimo ${min}:1).`;
   return `«${COLOR_LABELS[issue.color].label}» ha contrasto ${ratio(issue.ratio)}:1 sullo sfondo (minimo ${min}:1): i testi in questo colore si leggono male.`;
-}
-
-/** Pure: what a file of the list is for: «Logo», «Video dello sfondo di un avviso», «Sponsor: Bar Sport»… */
-export function assetUseText(a: AssetSummary, sponsorName: ReadonlyMap<string, string>): string {
-  if (a.kind === 'logo') return 'Logo';
-  if (a.kind === 'overlay') return isVideoMime(a.mime) ? 'Video dello sfondo di un avviso' : 'Sfondo di un avviso';
-  const sponsor = a.sponsorId ? sponsorName.get(a.sponsorId) : undefined;
-  return sponsor === undefined ? 'Sponsor (senza sponsor)' : `Sponsor: ${sponsor}`;
-}
-
-/**
- * «Rinomina» of a file of the list: the name shown in the lists (never the file on the server); empty: back to no
- * name. Checked with the shared schema before sending.
- */
-function RenameAsset({
-  asset,
-  onRenamed,
-  onError,
-}: {
-  asset: AssetSummary;
-  onRenamed: () => void;
-  onError: (err: unknown) => void;
-}) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const label = assetLabel(asset);
-  if (draft === null)
-    return (
-      <Button variant="ghost" aria-label={`Rinomina ${label}`} onClick={() => setDraft(asset.name ?? '')}>
-        Rinomina
-      </Button>
-    );
-  const trimmed = draft.trim();
-  const parsed = trimmed === '' ? null : AssetNameSchema.safeParse(trimmed);
-  const invalid = parsed !== null && !parsed.success;
-  const save = async (): Promise<void> => {
-    if (invalid) return;
-    setBusy(true);
-    onError(null);
-    try {
-      await apiCommand(`/api/admin/assets/${encodeURIComponent(asset.id)}`, {
-        method: 'PATCH',
-        body: { name: parsed?.success ? parsed.data : null },
-      });
-      setDraft(null);
-      onRenamed();
-    } catch (err) {
-      onError(err);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <form
-      className="flex flex-wrap items-center gap-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void save();
-      }}
-    >
-      <input
-        type="text"
-        value={draft}
-        maxLength={ASSET_NAME_MAX}
-        aria-label={`Nuovo nome di ${label}`}
-        aria-invalid={invalid}
-        onChange={(e) => setDraft(e.target.value)}
-        className={inputClass}
-      />
-      <Button type="submit" disabled={busy || invalid}>
-        {busy ? 'Attendere…' : 'Salva nome'}
-      </Button>
-      <Button variant="ghost" onClick={() => setDraft(null)} disabled={busy}>
-        Annulla
-      </Button>
-      {invalid && (
-        <p role="alert" className="w-full text-xs text-danger">
-          Nome non valido: niente «/», «\» né caratteri speciali invisibili.
-        </p>
-      )}
-    </form>
-  );
 }
 
 /** Pure: the team of the client with a typed field: trimmed, empty as null. */
@@ -397,20 +308,17 @@ export function ColorsSection({
   onChange,
   assets,
   onAssetsChanged,
-  sponsors,
   tab,
   onTab,
   onTemplate,
 }: {
   tenantName: string;
   draft: TenantBranding;
-  /** Saved branding: an image in use there cannot be deleted. */
+  /** Saved branding (the template a client already has stays available). */
   base: TenantBranding;
   onChange: (change: (branding: TenantBranding) => TenantBranding) => void;
   assets: AssetListResponse;
   onAssetsChanged: () => void;
-  /** Sponsors of the client: the tab «Immagini» names the sponsor of each image. */
-  sponsors: readonly Sponsor[];
   tab: ColorsTab;
   onTab: (tab: ColorsTab) => void;
   /** Choice of another template (the Studio then asks whether the page takes its blocks); missing: only the draft. */
@@ -419,13 +327,10 @@ export function ColorsSection({
   const errorMessage = useApiError();
   const { isSuperadmin } = useAuth();
   const [uploading, setUploading] = useState<BrandingImageSlot | null>(null);
-  const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const issues = useMemo(() => brandContrastIssues(draft.colors, draft.template), [draft.colors, draft.template]);
   const template = templateOf(draft.template);
   const byId = useMemo(() => new Map(assets.assets.map((a) => [a.id, a])), [assets]);
-  const usedIds = new Set(SLOTS.map((s) => base[s]).filter((id) => id !== null));
-  const sponsorName = new Map(sponsors.map((s) => [s.id, s.name]));
 
   const upload = async (slot: BrandingImageSlot, file: File): Promise<void> => {
     setError(null);
@@ -442,24 +347,6 @@ export function ColorsSection({
       setError(errorMessage(err));
     } finally {
       setUploading(null);
-    }
-  };
-
-  const remove = async (id: string): Promise<void> => {
-    setError(null);
-    setDeleting(id);
-    try {
-      await apiCommand(`/api/admin/assets/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      onChange((d) => {
-        const next = { ...d };
-        for (const slot of SLOTS) if (next[slot] === id) next[slot] = null;
-        return next;
-      });
-      onAssetsChanged();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setDeleting(null);
     }
   };
 
@@ -598,58 +485,6 @@ export function ColorsSection({
               <OurTeamFields value={draft.ourTeam} onChange={(t) => onChange((d) => ({ ...d, ourTeam: t }))} />
             </Setting>
           </SettingsCard>
-        )}
-        {tab === 'immagini' && (
-          <section aria-labelledby="immagini-caricate" className="rounded-panel border border-border bg-surface p-3">
-            <h3 id="immagini-caricate" className="text-sm font-semibold text-text">
-              Immagini e video caricati
-            </h3>
-            <p className="pb-2 text-xs text-muted">
-              Spazio usato: {megabytes(assets.usedBytes)} MB di {megabytes(assets.quotaBytes)} MB
-            </p>
-            {assets.assets.length === 0 ? (
-              <Empty>Nessun file caricato.</Empty>
-            ) : (
-              <ul className="divide-y divide-grid">
-                {assets.assets.map((a) => (
-                  <li key={a.id} className="flex flex-wrap items-center gap-3 py-2">
-                    {isVideoMime(a.mime) ? (
-                      <video
-                        src={a.url}
-                        muted
-                        playsInline
-                        preload="metadata"
-                        className="size-10 rounded object-cover"
-                      />
-                    ) : (
-                      <img src={a.url} alt="" className="size-10 rounded object-contain" />
-                    )}
-                    <span className="min-w-0 flex-1 text-sm text-text">
-                      <span className="block truncate font-medium" title={assetLabel(a)}>
-                        {assetLabel(a)}
-                      </span>
-                      <span className="block text-xs text-muted">
-                        {assetUseText(a, sponsorName)} · {assetDetails(a)}
-                        {usedIds.has(a.id) && ' · in uso'}
-                      </span>
-                    </span>
-                    <RenameAsset
-                      asset={a}
-                      onRenamed={onAssetsChanged}
-                      onError={(err) => setError(err === null ? null : errorMessage(err))}
-                    />
-                    <ConfirmButton
-                      label="Elimina"
-                      confirmLabel="Conferma eliminazione"
-                      busy={deleting === a.id}
-                      ariaLabel={`Elimina ${assetLabel(a)}`}
-                      onConfirm={() => void remove(a.id)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
         )}
         {error && <ErrorBox>{error}</ErrorBox>}
       </div>

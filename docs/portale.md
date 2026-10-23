@@ -867,6 +867,12 @@ ciclo e mostra l'avviso.
   segue la nostra metà), colore delle traiettorie; più lo spessore delle linee e delle traiettorie (da 0,5× a 3×).
   Un colore non scelto è «Automatico» e segue il tema chiaro/scuro (e il modello per le traiettorie); senza opzioni la
   mappa è identica a prima. Un colore scelto per le traiettorie vale per ogni valutazione (stile a linea sottile).
+  «Colore del campo»: «Automatico» (le due metà come sopra), «Colore singolo» (`fieldMode: single`, `fieldColor` per
+  entrambe le metà) o «Tricolore» (`fieldMode: tricolor`, `tricolor` con tre colori; predefiniti `COURT_TRICOLOR_DEFAULT`
+  verde #009246, bianco #ffffff, rosso #ce2b37): il campo intero in tre fasce di due colonne di zone (30 unità ciascuna), la
+  centrale a cavallo della rete. In questi due modi le linee, la griglia e i numeri delle zone ancora «Automatici» usano un
+  inchiostro scuro (#1f2937) o chiaro (#f9fafb) scelto in base alla luminosità del fondo, così restano leggibili anche sul
+  bianco; heatmap, linee e frecce restano sopra il fondo. I layout salvati senza `fieldMode` non cambiano.
   Schema `CourtOptionsSchema` in `packages/shared/src/layout.ts`; «nostra» è `currentOurSide()` (casa se non nota).
 - **Pagina predefinita**: ogni modello ha la sua (`docs/architettura.md`, «Pagina pubblica a blocchi»): SIR VOLLEY segue il
   mockup di una schermata a 1920×1080 (tabellone, poi andamento, confronto e mappe di campo in tre colonne, poi giocatori e
@@ -913,6 +919,17 @@ controlli in `docs/server.md`, «Grafica per cliente»).
   cliente attivo; un'immagine SVG non ammessa è rifiutata con un messaggio, non convertita.
 
 ### Pagina pubblica a blocchi (sezione «Pagina live» dello Studio)
+
+- **Touch** (`touch.tv`, `touch.tablet`, `touch.phone` in `TenantLayoutSchema`, predefinito `true`; i documenti salvati senza
+  il campo restano validi; si salva con lo stesso `PUT /api/admin/layout`). Nello Studio, in «Pagina live», ogni scheda
+  dispositivo ha l'interruttore «Touch: Sì/No» (`PageSection.tsx`). Con «No», `TouchContext`/`useTouch()`
+  (`lib/useLayout.ts`), fornito da `LivePage` e da `MatchView` (anche per l'anteprima dello Studio), nasconde tutto ciò che si
+  tocca: i selettori `Segmented` (squadra, set, fondamentale, valutazione), «Giocatore» e «Altri filtri» della mappa di campo,
+  «Tutte le colonne», le intestazioni ordinabili e la selezione delle righe della tabella giocatori, i titoli comprimibili
+  delle card sul telefono (restano tutte aperte), i pulsanti ferma/riprendi rotazione, installazione, schermo intero e tema,
+  i pulsanti delle pause (pausa/riprendi, chiudi), il link dello sponsor e quello dello short URL del calendario (restano
+  contenuto senza `<a>`). I grafici restano sulla vista predefinita; la rotazione automatica della TV continua. Test:
+  `components/touch.test.tsx`.
 Ogni cliente sceglie quali blocchi mostra la pagina della partita, in che ordine e con che larghezza, separatamente per
 TV, tablet e telefono. Il contratto (`TenantLayoutSchema`, `docs/architettura.md`) e le rotte (`GET`/`PUT
 /api/admin/layout`, `docs/server.md`) sono altrove; il layout arriva al portale in `GET /api/public/tenant` (`layout`,

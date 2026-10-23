@@ -14,7 +14,7 @@ import type { ProbeResult } from '../lib/liveConnection.ts';
 import { registerServiceWorker, useFullscreenOnFirstTouch, useInstallApp } from '../lib/pwa.ts';
 import { useIdle, useTvRootClass, useWakeLock } from '../lib/tvScreen.ts';
 import { tvModeOf } from '../lib/layout.ts';
-import { useDevice } from '../lib/useLayout.ts';
+import { TouchContext, useDevice } from '../lib/useLayout.ts';
 import { socketUrl, useLiveSocket } from '../lib/useLiveSocket.ts';
 import { usePointSequence } from '../lib/pointSequence.ts';
 import { makeHello, newVisitId } from '../lib/visit.ts';
@@ -167,7 +167,9 @@ export function LivePage() {
     );
   }
 
-  const controls = (
+  // «Touch» of the device chosen by the client: without it nothing on the page can be tapped or clicked.
+  const touch = look?.layout.touch[device] ?? true;
+  const controls = !touch ? null : (
     <div
       className={`flex items-center gap-2 transition-opacity focus-within:opacity-100 motion-reduce:transition-none ${idle ? 'opacity-0' : ''}`}
     >
@@ -231,58 +233,60 @@ export function LivePage() {
   const showBrand = !hasSystemLogo(systemLogos.left) && !hasSystemLogo(systemLogos.right);
 
   return (
-    <div
-      className={`${template.id === 'standard' ? 'border-t-4 border-accent' : ''} ${
-        tv ? 'flex h-dvh flex-col overflow-hidden p-3 lg:p-5' : 'flex min-h-dvh flex-col'
-      } ${idle ? 'cursor-none' : ''}`}
-      data-device={device}
-    >
-      {/* Logos of the platform (superadmin), above everything, also on the big screen; nothing without them. */}
-      <SystemLogosBar className={tv ? 'shrink-0 pb-3' : 'sir-page mx-auto w-full max-w-7xl px-3 pt-3 sm:px-5'} />
-      {!inScoreboard && (
-        <header
-          className={`sir-navbar flex items-center justify-between gap-3 ${tv ? 'pb-3' : 'sir-page mx-auto w-full max-w-7xl px-3 pt-3 sm:px-5'}`}
-        >
-          {showBrand ? <BrandMark /> : <span />}
-          {controls}
-        </header>
-      )}
-      <main className={tv ? 'min-h-0 flex-1' : 'sir-page mx-auto w-full max-w-7xl flex-1 px-3 py-3 sm:px-5'}>
-        <LiveMatch
-          snapshot={snapshot}
-          device={device}
-          brand={inScoreboard && showBrand}
-          rotationPaused={rotationPaused}
-          layout={look?.layout ?? null}
-          look={blockBrand}
-          {...(inScoreboard ? { controls } : {})}
-        />
-      </main>
-      <FullscreenHint visible={fullscreenHint} />
-      {data?.kind === 'state' && (
-        <Overlay
-          key={`avvisi-${data.matchId}`}
-          state={data.state}
-          live={data.live === true}
-          config={overlays}
-          device={device}
-          blocked={pauseFullscreen}
-        />
-      )}
-      {data?.kind === 'state' && (
-        <Intermission
-          key={data.matchId}
-          onFullscreenChange={setPauseFullscreen}
-          state={data.state}
-          live={data.live === true}
-          config={intermissions}
-          device={device}
-          paused={rotationPaused}
-          onTogglePaused={() => setRotationPaused((p) => !p)}
-          look={blockBrand}
-          sponsorLogo={look?.images.sponsorLogo ?? null}
-        />
-      )}
-    </div>
+    <TouchContext.Provider value={touch}>
+      <div
+        className={`${template.id === 'standard' ? 'border-t-4 border-accent' : ''} ${
+          tv ? 'flex h-dvh flex-col overflow-hidden p-3 lg:p-5' : 'flex min-h-dvh flex-col'
+        } ${idle ? 'cursor-none' : ''}`}
+        data-device={device}
+      >
+        {/* Logos of the platform (superadmin), above everything, also on the big screen; nothing without them. */}
+        <SystemLogosBar className={tv ? 'shrink-0 pb-3' : 'sir-page mx-auto w-full max-w-7xl px-3 pt-3 sm:px-5'} />
+        {!inScoreboard && (
+          <header
+            className={`sir-navbar flex items-center justify-between gap-3 ${tv ? 'pb-3' : 'sir-page mx-auto w-full max-w-7xl px-3 pt-3 sm:px-5'}`}
+          >
+            {showBrand ? <BrandMark /> : <span />}
+            {controls}
+          </header>
+        )}
+        <main className={tv ? 'min-h-0 flex-1' : 'sir-page mx-auto w-full max-w-7xl flex-1 px-3 py-3 sm:px-5'}>
+          <LiveMatch
+            snapshot={snapshot}
+            device={device}
+            brand={inScoreboard && showBrand}
+            rotationPaused={rotationPaused}
+            layout={look?.layout ?? null}
+            look={blockBrand}
+            {...(inScoreboard ? { controls } : {})}
+          />
+        </main>
+        <FullscreenHint visible={fullscreenHint} />
+        {data?.kind === 'state' && (
+          <Overlay
+            key={`avvisi-${data.matchId}`}
+            state={data.state}
+            live={data.live === true}
+            config={overlays}
+            device={device}
+            blocked={pauseFullscreen}
+          />
+        )}
+        {data?.kind === 'state' && (
+          <Intermission
+            key={data.matchId}
+            onFullscreenChange={setPauseFullscreen}
+            state={data.state}
+            live={data.live === true}
+            config={intermissions}
+            device={device}
+            paused={rotationPaused}
+            onTogglePaused={() => setRotationPaused((p) => !p)}
+            look={blockBrand}
+            sponsorLogo={look?.images.sponsorLogo ?? null}
+          />
+        )}
+      </div>
+    </TouchContext.Provider>
   );
 }

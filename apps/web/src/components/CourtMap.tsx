@@ -1,12 +1,12 @@
 import type { CourtOptions } from '@arenalive/shared';
-import { CourtOptionsSchema } from '@arenalive/shared';
+import { COURT_TRICOLOR_DEFAULT, CourtOptionsSchema } from '@arenalive/shared';
 import type { MatchState, Side } from '@arenalive/volley-stats';
 import { useId, useMemo, useState } from 'react';
 import type { ZoneArrow, ZoneSkill } from '../charts/zones.ts';
 import { COURT, EVALUATION_NAMES, ZONES, zoneCenter, zonePlayers, zoneRect, zoneView } from '../charts/zones.ts';
 import { useOurSide, useTemplate } from '../lib/branding.ts';
 import { formatPct, playerName, teamName, teamShort } from '../lib/format.ts';
-import { useDeviceContext } from '../lib/useLayout.ts';
+import { useDeviceContext, useTouch } from '../lib/useLayout.ts';
 import { Card, Segmented } from './ui.tsx';
 
 const MAX_ARROWS = 14;
@@ -25,6 +25,21 @@ const SIDE_STROKE: Record<Side, string> = { home: 'stroke-home', away: 'stroke-a
 /** Arrows of the template «SIR VOLLEY» (`courtArrows: 'team'`): 1.5 px whatever the size of the map, 85% opaque. */
 const TEAM_ARROW_PX = 1.5;
 const TEAM_ARROW_OPACITY = 0.85;
+
+/** Line ink on the colours chosen in the Studio. */
+const INK_DARK = '#1f2937';
+const INK_LIGHT = '#f9fafb';
+
+/** Dark or light ink, whichever reads better on a `#rrggbb` background. */
+function inkOn(hex: string): string {
+  const n = Number.parseInt(hex.slice(1), 16);
+  const lin = (v: number): number => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return lum > 0.4 ? INK_DARK : INK_LIGHT;
+}
 
 /** Options of a map outside a block of the page: nothing chosen. */
 const DEFAULT_COURT_OPTIONS = CourtOptionsSchema.parse({});
@@ -49,6 +64,7 @@ export function CourtMap({
 }) {
   const templateTeamArrows = useTemplate().courtArrows === 'team';
   const compact = useDeviceContext() === 'phone';
+  const touch = useTouch();
   const [side, setSide] = useState<Side>('home');
   const [skill, setSkill] = useState<ZoneSkill>('attack');
   const [player, setPlayer] = useState<number | null>(null);
@@ -75,7 +91,22 @@ export function CourtMap({
   const right = leftIsOurs
     ? { field: options.fieldOpponent, lines: options.linesOpponent }
     : { field: options.fieldOurs, lines: options.linesOurs };
-  const netColor = options.linesOurs ?? options.linesOpponent;
+  // Single colour or tricolour: the lines and the numbers left to the theme get a colour that reads on the field
+  // (the theme ones can be light on a white band).
+  const fieldOf = (own: string | undefined): string | undefined =>
+    options.fieldMode === 'single' ? options.fieldColor : options.fieldMode === undefined ? own : undefined;
+  const bands = options.fieldMode === 'tricolor' ? (options.tricolor ?? COURT_TRICOLOR_DEFAULT) : null;
+  const ink =
+    options.fieldMode === 'tricolor'
+      ? INK_DARK
+      : options.fieldMode === 'single' && options.fieldColor !== undefined
+        ? inkOn(options.fieldColor)
+        : undefined;
+  if (ink !== undefined) {
+    left.lines ??= ink;
+    right.lines ??= ink;
+  }
+  const netColor = options.linesOurs ?? options.linesOpponent ?? ink;
   const arrowColor = leftIsOurs ? options.arrowsOurs : options.arrowsOpponent;
   // One colour chosen for these arrows: thin-arrow style (one colour), also with the standard template.
   const teamArrows = templateTeamArrows || arrowColor !== undefined;
@@ -121,40 +152,44 @@ export function CourtMap({
       className={className}
       subtitle={`${view.total} ${skillLabel} con zone · ${teamName(state.teams, side)} → ${teamName(state.teams, opponent)}`}
     >
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Segmented
-          label="Squadra"
-          size="xs"
-          value={side}
-          onChange={(v) => {
-            setSide(v);
-            setPlayer(null);
-          }}
-          options={[
-            { value: 'home', label: teamShort(state.teams, 'home') },
-            { value: 'away', label: teamShort(state.teams, 'away') },
-          ]}
-        />
-        <Segmented
-          label="Fondamentale"
-          size="xs"
-          value={skill}
-          onChange={setSkill}
-          options={[
-            { value: 'attack', label: 'Attacco' },
-            { value: 'serve', label: 'Battuta' },
-          ]}
-        />
-      </div>
-      {compact ? (
-        <details className="mb-3 rounded-card border border-border bg-surface-2 px-3 py-1">
-          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-text">
-            Altri filtri
-          </summary>
-          <div className="flex flex-col items-start gap-2 pb-2">{extraFilters}</div>
-        </details>
-      ) : (
-        <div className="mb-3 flex flex-wrap items-center gap-2">{extraFilters}</div>
+      {touch && (
+        <>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Segmented
+              label="Squadra"
+              size="xs"
+              value={side}
+              onChange={(v) => {
+                setSide(v);
+                setPlayer(null);
+              }}
+              options={[
+                { value: 'home', label: teamShort(state.teams, 'home') },
+                { value: 'away', label: teamShort(state.teams, 'away') },
+              ]}
+            />
+            <Segmented
+              label="Fondamentale"
+              size="xs"
+              value={skill}
+              onChange={setSkill}
+              options={[
+                { value: 'attack', label: 'Attacco' },
+                { value: 'serve', label: 'Battuta' },
+              ]}
+            />
+          </div>
+          {compact ? (
+            <details className="mb-3 rounded-card border border-border bg-surface-2 px-3 py-1">
+              <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-text">
+                Altri filtri
+              </summary>
+              <div className="flex flex-col items-start gap-2 pb-2">{extraFilters}</div>
+            </details>
+          ) : (
+            <div className="mb-3 flex flex-wrap items-center gap-2">{extraFilters}</div>
+          )}
+        </>
       )}
 
       <svg
@@ -199,20 +234,36 @@ export function CourtMap({
           </marker>
         </defs>
         <rect x="0" y="0" width="200" height="110" rx="4" className="fill-court-free" />
-        <rect
-          x={COURT.x0}
-          y={COURT.y0}
-          width={COURT.net - COURT.x0}
-          height={COURT.y1 - COURT.y0}
-          {...(left.field === undefined ? { className: 'fill-court' } : { fill: left.field })}
-        />
-        <rect
-          x={COURT.net}
-          y={COURT.y0}
-          width={COURT.x1 - COURT.net}
-          height={COURT.y1 - COURT.y0}
-          {...(right.field === undefined ? { className: 'fill-court' } : { fill: right.field })}
-        />
+        {bands ? (
+          bands.map((fill, i) => (
+            <rect
+              key={`band${i}`}
+              data-court-band={i}
+              x={COURT.x0 + i * 2 * COURT.cell}
+              y={COURT.y0}
+              width={2 * COURT.cell}
+              height={COURT.y1 - COURT.y0}
+              fill={fill}
+            />
+          ))
+        ) : (
+          <>
+            <rect
+              x={COURT.x0}
+              y={COURT.y0}
+              width={COURT.net - COURT.x0}
+              height={COURT.y1 - COURT.y0}
+              {...(fieldOf(left.field) === undefined ? { className: 'fill-court' } : { fill: fieldOf(left.field) })}
+            />
+            <rect
+              x={COURT.net}
+              y={COURT.y0}
+              width={COURT.x1 - COURT.net}
+              height={COURT.y1 - COURT.y0}
+              {...(fieldOf(right.field) === undefined ? { className: 'fill-court' } : { fill: fieldOf(right.field) })}
+            />
+          </>
+        )}
         {ZONES.map((z) => {
           const r = zoneRect(z, 'opponent');
           const n = view.byTarget[z] ?? 0;
@@ -241,7 +292,7 @@ export function CourtMap({
                   width={r.w}
                   height={r.h}
                   fill="none"
-                  className="stroke-court-line"
+                  {...(ink === undefined ? { className: 'stroke-court-line' } : { stroke: ink })}
                   strokeOpacity="0.35"
                   strokeWidth="0.4"
                   strokeDasharray="1.5 1.5"
@@ -249,7 +300,7 @@ export function CourtMap({
                 <text
                   x={r.x + 2.5}
                   y={r.y + 5.5}
-                  className="fill-court-text"
+                  {...(ink === undefined ? { className: 'fill-court-text' } : { fill: ink })}
                   fontSize="4.2"
                   fontWeight="600"
                   opacity="0.7"

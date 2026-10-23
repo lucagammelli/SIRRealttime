@@ -1,6 +1,7 @@
 import type { BlockOptions } from '@arenalive/shared';
 import { SHORT_CODE_PATTERN } from '@arenalive/shared';
 import { useEffect, useState } from 'react';
+import { useTouch } from '../lib/useLayout.ts';
 import { Card } from '../components/ui.tsx';
 import type { SponsorItem } from '../lib/sponsors.ts';
 import { sponsorItems } from '../lib/sponsors.ts';
@@ -41,8 +42,9 @@ export function useImageRotation(count: number, seconds: number, paused: boolean
  * in its place, never `window.opener`).
  */
 export function SponsorImage({ item, alt, className }: { item: SponsorItem; alt: string; className: string }) {
+  const touch = useTouch();
   const img = <img key={item.src} src={item.src} alt={alt} className={`sir-fade ${className}`} />;
-  if (!item.website) return img;
+  if (!item.website || !touch) return img;
   return (
     <a href={item.website} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-full justify-center">
       {img}

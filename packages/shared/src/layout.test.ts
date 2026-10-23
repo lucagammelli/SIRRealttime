@@ -68,6 +68,23 @@ describe('layout of the public page', () => {
     expect(TenantLayoutSchema.safeParse({ desktop: [] }).success).toBe(false);
   });
 
+  it('touch: every device, true when missing in the saved documents', () => {
+    expect(TenantLayoutSchema.parse({}).touch).toEqual({ tv: true, tablet: true, phone: true });
+    expect(TenantLayoutSchema.parse({ touch: { tv: false } }).touch).toEqual({ tv: false, tablet: true, phone: true });
+    expect(TenantLayoutSchema.safeParse({ touch: { tv: 'no' } }).success).toBe(false);
+    expect(TenantLayoutSchema.safeParse({ touch: { watch: true } }).success).toBe(false);
+    expect(resolveLayout({ touch: { phone: false } }).touch.phone).toBe(false);
+  });
+
+  it('court field modes are optional and validated', () => {
+    expect(parseBlock({ type: 'court' }).data?.options).not.toHaveProperty('fieldMode');
+    const tri = { fieldMode: 'tricolor', tricolor: ['#009246', '#ffffff', '#ce2b37'] };
+    expect(parseBlock({ type: 'court', options: tri }).success).toBe(true);
+    expect(parseBlock({ type: 'court', options: { fieldMode: 'single', fieldColor: '#112233' } }).success).toBe(true);
+    expect(parseBlock({ type: 'court', options: { fieldMode: 'stripes' } }).success).toBe(false);
+    expect(parseBlock({ type: 'court', options: { tricolor: ['#009246', '#ffffff'] } }).success).toBe(false);
+  });
+
   it('fills the options of every type with their defaults', () => {
     for (const type of BLOCK_TYPES) expect(parseBlock({ type }).success).toBe(true);
     expect(parseBlock({ type: 'sponsor' }).data?.options).toEqual({ sponsors: [], images: [], seconds: 8 });

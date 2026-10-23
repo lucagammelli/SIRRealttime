@@ -19,7 +19,7 @@ import {
 import type { Device } from '../lib/layout.ts';
 import { intermissionsUseSchedule, isScheduleType, useSchedule } from '../lib/schedule.ts';
 import { useReducedMotion } from '../lib/theme.ts';
-import { useElementHeight } from '../lib/useLayout.ts';
+import { useElementHeight, useTouch } from '../lib/useLayout.ts';
 
 const BUTTON =
   'inline-flex min-h-9 items-center justify-center gap-2 rounded-card px-3 py-1.5 text-sm font-medium transition-opacity';
@@ -195,6 +195,7 @@ function PauseView({
   onClose: () => void;
 }) {
   const reduced = useReducedMotion();
+  const touch = useTouch();
   const titleId = useId();
   const mode = active.pause.modes[device];
   const slides = visibleSlides(state, active, { sponsorLogo, schedule, sponsors: look?.sponsors ?? [] });
@@ -247,7 +248,7 @@ function PauseView({
     ...(pageUrl === undefined ? {} : { pageUrl }),
   };
   const toggle =
-    slides.length > 1 && !reduced && onTogglePaused ? (
+    touch && slides.length > 1 && !reduced && onTogglePaused ? (
       <button
         type="button"
         onClick={onTogglePaused}
@@ -311,7 +312,7 @@ function PauseView({
             <div className="flex items-center gap-2">
               {dots}
               {toggle}
-              {!preview && (
+              {!preview && touch && (
                 <button
                   type="button"
                   onClick={onClose}
@@ -361,7 +362,7 @@ function PauseView({
         </h2>
         <div className="flex items-center gap-2">
           {toggle}
-          {!preview && (
+          {!preview && touch && (
             <button
               ref={back}
               type="button"

@@ -145,7 +145,11 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'In «Pagina live» e in «Pause» ogni blocco e ogni diapositiva ha nella sua riga il pulsante «−» (Rimuovi). Se hai scelto delle opzioni (un testo, gli sponsor) chiede prima «Conferma rimozione». Nelle «Pause» l’interruttore «Attiva» spegne una diapositiva senza perdere le sue opzioni: resta nell’elenco ma i tifosi non la vedono. Nel blocco «Rotazioni» la «Disposizione» sceglie se i grafici delle due squadre stanno «Affiancati» o «Uno sopra l’altro».',
+        text: 'In «Pagina live» e in «Pause» ogni blocco e ogni diapositiva ha nella sua riga il pulsante «−» (Rimuovi). Se hai scelto delle opzioni (un testo, gli sponsor) chiede prima «Conferma rimozione». Nelle «Pause» l’interruttore «Attiva» spegne una diapositiva senza perdere le sue opzioni: resta nell’elenco ma i tifosi non la vedono. Nel blocco «Rotazioni» la «Disposizione» sceglie se i grafici delle due squadre stanno «Affiancati» o «Uno sopra l’altro». Nel blocco «Mappe di campo», «Colore del campo» può essere «Automatico» (due metà con i loro colori), «Colore singolo» (le due metà uguali) o «Tricolore» (tre fasce verticali, per impostazione verde, bianco e rosso; la fascia bianca sta sulla rete).',
+      },
+      {
+        kind: 'text',
+        text: 'In «Pagina live», per ogni dispositivo (TV, Tablet, Telefono), l’interruttore «Touch: Sì/No» decide se la pagina pubblica ha qualcosa da toccare. Con «No» spariscono pulsanti, selettori, ordinamento delle colonne, link degli sponsor e pulsanti di schermo intero, tema e pause, e i grafici restano sulla vista predefinita. Su una TV senza touch la rotazione dei blocchi continua da sola.',
       },
       {
         kind: 'text',

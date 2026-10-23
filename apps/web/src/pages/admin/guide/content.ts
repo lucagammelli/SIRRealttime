@@ -107,6 +107,10 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
+        text: 'Per le altre competizioni della serie (Coppa Italia, Supercoppa, Play Off…) premi «Aggiungi competizione» in «Campionati»: compare l’elenco delle competizioni della stagione sul sito della Lega. Scegline una e premi «Aggiungi»: si scarica da sola e la squadra del club si sceglie da sola (la stessa della serie). Se non la riconosciamo, sceglila tu: senza squadra non arriva nessuna partita. A inizio stagione la competizione passa da sola a quella nuova appena la Lega la pubblica.',
+      },
+      {
+        kind: 'text',
         text: 'Sempre in «Club», nel campo «Partite trasmesse» scegli «Casa e trasferta» oppure «Solo partite in casa». Con «Solo partite in casa» le trasferte non hanno il link attivo. Nel «Calendario» ogni partita può fare eccezione.',
       },
       { kind: 'text', text: 'Nel «Calendario»:' },
@@ -152,6 +156,10 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       {
         kind: 'text',
         text: 'In «Pagina live», per ogni dispositivo (TV, Tablet, Telefono), l’interruttore «Touch: Sì/No» decide se la pagina pubblica ha qualcosa da toccare. Con «No» spariscono pulsanti, selettori, ordinamento delle colonne, link degli sponsor e pulsanti di schermo intero, tema e pause, e i grafici restano sulla vista predefinita. Su una TV senza touch la rotazione dei blocchi continua da sola.',
+      },
+      {
+        kind: 'text',
+        text: 'Nelle opzioni del blocco «Mappe di campo», alla voce «Cosa mostra senza tocco (TV)», scegli che cosa vede chi non può toccare la pagina. «Squadra»: «A turno» (la scelta iniziale: casa e ospite si alternano), «Solo la nostra squadra», «Casa» o «Ospite». «Fondamentale»: «Attacco», «Battuta» o «A turno». Con «A turno» scegli anche «Secondi per ogni vista» (da 5 a 60). Con tutti e due a turno la mappa mostra casa attacco, ospite attacco, casa battuta, ospite battuta. Il sottotitolo della mappa dice sempre di quale squadra sono le traiettorie. Su tablet e telefono con il tocco i filtri restano e partono dalla tua scelta.',
       },
       {
         kind: 'text',

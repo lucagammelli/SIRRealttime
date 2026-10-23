@@ -1,5 +1,12 @@
 import type { ClubProfile, LeagueSeries } from '@arenalive/shared';
-import { CLUB_MAX_LEAGUES, resolveClubProfile, seriesById } from '@arenalive/shared';
+import {
+  CLUB_MAX_LEAGUES,
+  competitionKind,
+  resolveBranding,
+  resolveClubProfile,
+  seriesById,
+  seriesCompetitions,
+} from '@arenalive/shared';
 import { eq, inArray, isNotNull, notInArray } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import type { AppContext } from '../context.js';
@@ -8,15 +15,12 @@ import { badRequest } from '../lib/errors.js';
 import { refreshClub } from '../state.js';
 import { forgetTenants, tenantScope } from '../tenancy.js';
 import type { CatalogChampionship } from './catalog.js';
+import { findClubTeam, seriesLeagueIds, seriesTeamOf } from './competitions.js';
 import { teamNameKey } from './sync.js';
 
 type LeagueRow = typeof leagues.$inferSelect;
 
-/** Pure: the championships of the series of a club (A3 has two groups). */
-export function seriesLeagueIds(profile: Pick<ClubProfile, 'leagueId' | 'leagueIds'>): string[] {
-  if (profile.leagueIds.length > 0) return profile.leagueIds;
-  return profile.leagueId ? [profile.leagueId] : [];
-}
+export { seriesLeagueIds };
 
 /**
  * Adds the championships of a series (known ones are reused) and links them to the club: the ones of the series chosen
@@ -95,6 +99,13 @@ export async function advanceSeasons(ctx: AppContext, log: FastifyBaseLogger): P
       await advanceClub(ctx, t.id, profile, series);
     } catch (err) {
       log.warn({ err, tenantId: t.id }, 'cambio di stagione del club non riuscito');
+    }
+    // The other competitions follow the series, apart: a failure of one never stops the series.
+    try {
+      const moved = await advanceCompetitions(ctx, t.id, series);
+      if (moved > 0) log.info({ tenantId: t.id, moved }, 'competizioni del club passate alla nuova stagione');
+    } catch (err) {
+      log.warn({ err, tenantId: t.id }, 'cambio di stagione delle competizioni del club non riuscito');
     }
   }
 }
@@ -197,4 +208,82 @@ async function advanceClub(
   });
   forgetTenants(ctx);
   await refreshClub(ctx, tenantId);
+}
+
+/**
+ * New season of the other competitions of a club (cups, Supercoppa, play off…): once its series is in a newer season,
+ * each competition of an older season moves to the one of the same kind (`competitionKind`) in the menu of the page of
+ * the series on the official site, with the same team (`findClubTeam`). A competition not published yet, not
+ * downloaded yet or without the team of the club stays as it is: tried again at the next nightly update. The series
+ * is never touched. Returns how many moved.
+ */
+export async function advanceCompetitions(ctx: AppContext, tenantId: string, series: LeagueSeries): Promise<number> {
+  const [tenant] = await ctx.db
+    .select({ clubProfile: tenants.clubProfile, branding: tenants.branding })
+    .from(tenants)
+    .where(eq(tenants.id, tenantId));
+  const seriesIds = seriesLeagueIds(resolveClubProfile(tenant?.clubProfile));
+  if (seriesIds.length === 0) return 0;
+  const seriesRows = await ctx.db.select().from(leagues).where(inArray(leagues.id, seriesIds));
+  const seriesLeague = seriesRows[0];
+  if (!seriesLeague) return 0;
+  const season = Math.max(...seriesRows.map((r) => r.season));
+  const old = await ctx.db
+    .select({ league: leagues, teamId: tenantLeagues.leagueTeamId })
+    .from(tenantLeagues)
+    .innerJoin(leagues, eq(leagues.id, tenantLeagues.leagueId))
+    .where(tenantScope(tenantLeagues, tenantId, notInArray(tenantLeagues.leagueId, seriesIds)));
+  const toMove = old.filter((o) => o.league.season < season && o.league.name && competitionKind(o.league.name));
+  if (toMove.length === 0) return 0;
+  const menu = await ctx.catalog.competitionsOf(seriesLeague.externalId);
+  if (menu.season !== season) return 0;
+  const offered = seriesCompetitions(series, menu.championships);
+  const linked = new Set(old.map((o) => o.league.externalId));
+  const ref = await seriesTeamOf(ctx.db, tenantId, seriesIds);
+  const ourTeam = resolveBranding(tenant?.branding).ourTeam;
+  let moved = 0;
+  for (const o of toMove) {
+    const kind = competitionKind(o.league.name ?? '');
+    const same = offered.filter((c) => competitionKind(c.name) === kind && !linked.has(c.externalId));
+    const target = same.length === 1 ? same[0] : undefined;
+    if (!target) continue;
+    await ctx.db
+      .insert(leagues)
+      .values({ provider: 'legavolley', externalId: target.externalId, season: menu.season })
+      .onConflictDoNothing({ target: [leagues.provider, leagues.externalId] });
+    let [next] = await ctx.db.select().from(leagues).where(eq(leagues.externalId, target.externalId)).limit(1);
+    if (!next) continue;
+    if (next.lastSuccessAt === null) {
+      await ctx.leagues.syncLeague(next.id, { standings: 'always' });
+      [next] = await ctx.db.select().from(leagues).where(eq(leagues.id, next.id)).limit(1);
+      if (!next || next.lastSuccessAt === null) continue;
+    }
+    const candidates = await ctx.db.select().from(leagueTeams).where(eq(leagueTeams.leagueId, next.id));
+    const [oldTeam] = o.teamId
+      ? await ctx.db.select().from(leagueTeams).where(eq(leagueTeams.id, o.teamId)).limit(1)
+      : [];
+    const team =
+      findClubTeam(candidates, oldTeam ?? ref, ourTeam) ?? (oldTeam ? findClubTeam(candidates, ref, ourTeam) : null);
+    if (!team) continue;
+    const nextId = next.id;
+    await ctx.db.transaction(async (tx) => {
+      await tx
+        .delete(tenantLeagues)
+        .where(tenantScope(tenantLeagues, tenantId, eq(tenantLeagues.leagueId, o.league.id)));
+      await tx
+        .insert(tenantLeagues)
+        .values({ tenantId, leagueId: nextId, leagueTeamId: team.id })
+        .onConflictDoUpdate({
+          target: [tenantLeagues.tenantId, tenantLeagues.leagueId],
+          set: { leagueTeamId: team.id },
+        });
+    });
+    linked.add(target.externalId);
+    moved++;
+  }
+  if (moved > 0) {
+    forgetTenants(ctx);
+    await refreshClub(ctx, tenantId);
+  }
+  return moved;
 }

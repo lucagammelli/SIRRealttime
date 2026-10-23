@@ -232,11 +232,29 @@ export const COURT_TRICOLOR_DEFAULT = ['#009246', '#ffffff', '#ce2b37'] as const
 export const COURT_FIELD_MODES = ['single', 'tricolor'] as const;
 
 /**
+ * Team shown by the map without the touch filters (TV): `cycle` home and away in turn, `ours` the team of the client
+ * (home when not recognized), or always `home` / `away`.
+ */
+export const COURT_SIDE_MODES = ['cycle', 'ours', 'home', 'away'] as const;
+export type CourtSideMode = (typeof COURT_SIDE_MODES)[number];
+/** Skill shown without the touch filters: attacks, serves, or both in turn. */
+export const COURT_SKILL_MODES = ['attack', 'serve', 'cycle'] as const;
+export type CourtSkillMode = (typeof COURT_SKILL_MODES)[number];
+/** Seconds of each view of the map when it goes in turn. */
+export const COURT_CYCLE_SECONDS_MIN = 5;
+export const COURT_CYCLE_SECONDS_MAX = 60;
+export const COURT_CYCLE_SECONDS_DEFAULT = 10;
+
+/**
  * «Mappe di campo»: colours of the field, of the lines and of the arrows for our team and for the opponent, and
  * thickness of lines and arrows. A colour that is missing follows the theme (light or dark) and, for the arrows, the
  * template: with no options the map looks as it always did.
  */
 export const CourtOptionsSchema = z.strictObject({
+  /** Team and skill shown without the touch filters (with them: the filters start from these). */
+  side: z.enum(COURT_SIDE_MODES).default('cycle'),
+  skill: z.enum(COURT_SKILL_MODES).default('attack'),
+  cycleSeconds: z.int().min(COURT_CYCLE_SECONDS_MIN).max(COURT_CYCLE_SECONDS_MAX).default(COURT_CYCLE_SECONDS_DEFAULT),
   /**
    * `single`: both halves in `fieldColor`; `tricolor`: the whole court in three bands of two columns of zones, with
    * the colours of `tricolor` (default: green, white, red; the white band straddles the net). Missing: the halves

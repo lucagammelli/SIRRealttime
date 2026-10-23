@@ -98,6 +98,49 @@ export function clubPublicRoutes(app: FastifyInstance, ctx: AppContext): void {
   );
 }
 
+const optionOf = (ctx: AppContext, l: LeagueRow, teamCount: number): ClubLeagueOption => ({
+  id: l.id,
+  externalId: l.externalId,
+  season: l.season,
+  name: l.name,
+  teamCount,
+  sync: leagueSyncState(ctx, l),
+});
+
+/** The club of a client as shown by «Club»: its championships with its teams, and every known championship. */
+export async function clubResponse(ctx: AppContext, tenantId: string): Promise<ClubResponse> {
+  const tenant = await findTenant(ctx, { id: tenantId });
+  if (!tenant) throw notFound();
+  const branding = resolveBranding(tenant.branding);
+  const [all, counts, choices] = await Promise.all([
+    ctx.db.select().from(leagues).orderBy(desc(leagues.season), asc(leagues.externalId)),
+    ctx.db.select({ id: leagueTeams.leagueId, n: count() }).from(leagueTeams).groupBy(leagueTeams.leagueId),
+    ctx.db
+      .select({ choice: tenantLeagues, team: leagueTeams })
+      .from(tenantLeagues)
+      .leftJoin(leagueTeams, eq(leagueTeams.id, tenantLeagues.leagueTeamId))
+      .where(tenantScope(tenantLeagues, tenantId))
+      .orderBy(asc(tenantLeagues.createdAt)),
+  ]);
+  const teamCount = new Map(counts.map((c) => [c.id, c.n]));
+  const options = all.map((l) => optionOf(ctx, l, teamCount.get(l.id) ?? 0));
+  const byId = new Map(options.map((o) => [o.id, o]));
+  const logo = branding.logoMark ?? branding.logoMain;
+  return {
+    name: tenantDisplayName(tenant, branding),
+    logoUrl: logo ? adminAssetPath(logo) : null,
+    displayName: branding.displayName,
+    logoMark: branding.logoMark,
+    ourTeam: branding.ourTeam,
+    profile: resolveClubProfile(tenant.clubProfile),
+    leagues: choices.flatMap(({ choice, team }) => {
+      const league = byId.get(choice.leagueId);
+      return league ? [{ league, team: team ? teamOf(team) : null }] : [];
+    }),
+    available: options,
+  };
+}
+
 /**
  * The club of the client (admin): its championships and teams («Club»), its matches of the calendar with their links
  * and the `.dvw` to confirm («Calendario»). The championships are common to every client and added by the superadmin
@@ -109,47 +152,7 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
   // Reading for every user of the client (`viewer` included), changes only for `admin`.
   const viewer = { config: admin.config, preHandler: requireRole(ctx, 'viewer') };
 
-  const optionOf = (l: LeagueRow, teamCount: number): ClubLeagueOption => ({
-    id: l.id,
-    externalId: l.externalId,
-    season: l.season,
-    name: l.name,
-    teamCount,
-    sync: leagueSyncState(ctx, l),
-  });
-
-  const clubOf = async (tenantId: string): Promise<ClubResponse> => {
-    const tenant = await findTenant(ctx, { id: tenantId });
-    if (!tenant) throw notFound();
-    const branding = resolveBranding(tenant.branding);
-    const [all, counts, choices] = await Promise.all([
-      ctx.db.select().from(leagues).orderBy(desc(leagues.season), asc(leagues.externalId)),
-      ctx.db.select({ id: leagueTeams.leagueId, n: count() }).from(leagueTeams).groupBy(leagueTeams.leagueId),
-      ctx.db
-        .select({ choice: tenantLeagues, team: leagueTeams })
-        .from(tenantLeagues)
-        .leftJoin(leagueTeams, eq(leagueTeams.id, tenantLeagues.leagueTeamId))
-        .where(tenantScope(tenantLeagues, tenantId))
-        .orderBy(asc(tenantLeagues.createdAt)),
-    ]);
-    const teamCount = new Map(counts.map((c) => [c.id, c.n]));
-    const options = all.map((l) => optionOf(l, teamCount.get(l.id) ?? 0));
-    const byId = new Map(options.map((o) => [o.id, o]));
-    const logo = branding.logoMark ?? branding.logoMain;
-    return {
-      name: tenantDisplayName(tenant, branding),
-      logoUrl: logo ? adminAssetPath(logo) : null,
-      displayName: branding.displayName,
-      logoMark: branding.logoMark,
-      ourTeam: branding.ourTeam,
-      profile: resolveClubProfile(tenant.clubProfile),
-      leagues: choices.flatMap(({ choice, team }) => {
-        const league = byId.get(choice.leagueId);
-        return league ? [{ league, team: team ? teamOf(team) : null }] : [];
-      }),
-      available: options,
-    };
-  };
+  const clubOf = (tenantId: string): Promise<ClubResponse> => clubResponse(ctx, tenantId);
 
   app.get('/api/admin/club', viewer, async (request): Promise<ClubResponse> => clubOf(adminTenantId(request)));
 

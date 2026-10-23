@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { AddClubCompetitionRequestSchema } from './club.js';
 import {
+  competitionKind,
   CreateLeagueRequestSchema,
   LEAGUE_GENDERS,
   LeagueSyncStateSchema,
@@ -9,6 +11,7 @@ import {
   seasonLabel,
   SelectClubLeagueRequestSchema,
   seriesById,
+  seriesCompetitions,
   seriesOfGender,
 } from './leagues.js';
 
@@ -106,5 +109,43 @@ describe('catalog of the series', () => {
       ])?.externalId,
     ).toBe(2);
     expect(pickSeriesChampionship(a2, [{ externalId: 1, name: 'Torneo A2 speciale' }])?.externalId).toBe(1);
+  });
+});
+
+describe('other competitions of a series', () => {
+  it('the kind of a competition stays when the sponsors in the name change', () => {
+    expect(competitionKind('Del Monte Supercoppa')).toBe('supercoppa');
+    expect(competitionKind('Supercoppa A1')).toBe('supercoppa');
+    expect(competitionKind('Del Monte Coppa Italia SuperLega')).toBe('coppa italia');
+    expect(competitionKind('Play Off 5° Posto SuperLega Credem Banca')).toBe('play off 5');
+    expect(competitionKind('Play Off SuperLega Credem Banca')).toBe('play off');
+    expect(competitionKind('Playout A2')).toBe('play out');
+    expect(competitionKind('Regular Season SuperLega')).toBeNull();
+  });
+
+  it('lists the menu of the page of the series without the championships of the series (A3: both groups)', () => {
+    const superlega = seriesById('superlega');
+    const a3 = seriesById('a3');
+    if (!superlega || !a3) throw new Error('series missing');
+    const menu2025 = [
+      { externalId: 974, name: 'Regular Season SuperLega Credem Banca' },
+      { externalId: 991, name: 'Play Off SuperLega Credem Banca' },
+      { externalId: 995, name: 'Play Off 5° Posto SuperLega Credem Banca' },
+      { externalId: 988, name: 'Del Monte Coppa Italia SuperLega' },
+      { externalId: 978, name: 'Del Monte Supercoppa' },
+    ];
+    expect(seriesCompetitions(superlega, menu2025).map((c) => c.externalId)).toEqual([991, 995, 988, 978]);
+    expect(
+      seriesCompetitions(a3, [
+        { externalId: 1001, name: 'Regular Season Serie A3 Credem Banca G.Bianco' },
+        { externalId: 1002, name: 'Regular Season Serie A3 Credem Banca G.Blu' },
+      ]),
+    ).toEqual([]);
+  });
+
+  it('adds a competition by its IdCampionato only', () => {
+    expect(AddClubCompetitionRequestSchema.parse({ externalId: 1004 })).toEqual({ externalId: 1004 });
+    for (const bad of [{}, { externalId: 0 }, { externalId: '1004' }, { externalId: 1004, leagueId: 'x' }])
+      expect(AddClubCompetitionRequestSchema.safeParse(bad).success).toBe(false);
   });
 });

@@ -262,7 +262,11 @@ stesse delle diapositive omonime): `period` (`STAT_PERIODS`: `set` predefinito, 
 `opposite`/`outside`/`middle`/`setter`/`libero`); `rows` in `teamDuel` (`TEAM_DUEL_KEYS` di volley-stats, chiavi delle righe di `teamDuel`
 di `@arenalive/volley-stats`; vuoto = tutte); `qr` in `nextMatch` (booleano, predefinito `true`); `scope` in `standings`
 (`STANDINGS_SCOPES`: `top` le prime `count` righe, `all` tutta, `around` la nostra squadra ±`STANDINGS_AROUND` = 2;
-predefinito `around`) e `count` (`STANDINGS_MIN_ROWS` 3 - `STANDINGS_MAX_ROWS` 16, predefinito 5, usato solo da `top`). Regole sull'elenco
+predefinito `around`) e `count` (`STANDINGS_MIN_ROWS` 3 - `STANDINGS_MAX_ROWS` 16, predefinito 5, usato solo da `top`); `court`
+(`CourtOptionsSchema`), oltre a colori e spessori, la vista senza tocco: `side` (`COURT_SIDE_MODES`: `cycle` predefinito,
+casa e ospite a turno; `ours` la nostra squadra, casa se non riconosciuta; `home`; `away`), `skill` (`COURT_SKILL_MODES`:
+`attack` predefinito, `serve`, `cycle`) e `cycleSeconds` (`COURT_CYCLE_SECONDS_MIN` 5 - `COURT_CYCLE_SECONDS_MAX` 60,
+predefinito 10); i layout salvati senza questi campi li ricevono predefiniti. Regole sull'elenco
 (`DeviceBlocksSchema`): id unici, un solo `scoreboard`, larghezze ammesse. `{}` vale il predefinito
 (`defaultLayout(template)`, `defaultDeviceBlocks(dispositivo, template)`: per `standard` i sei blocchi di prima con
 larghezze 12/8/6/4; per `sir-volley` la pagina del mockup: tabellone, poi andamento, confronto e mappe di campo a un terzo
@@ -362,7 +366,9 @@ maschile è `available`, il femminile è «Presto disponibile»), `LEAGUE_SERIES
 contenere), `seriesOfGender`, `seriesById`, `SelectClubLeagueRequestSchema` (strict: `gender` `M` e `series`, corpo di
 `POST /api/admin/club/league`), `normalizeLeagueText` e le pure `pickSeriesChampionships` (i campionati di una serie fra
 le voci del menu «Campionato»: parole richieste, esclusi coppe, play off e femminili, preferiti i «Regular Season»; A3 ne
-restituisce due, i due gironi) e `pickSeriesChampionship` (il primo). Rotte e scoperta in `docs/server.md` («Serie del
+restituisce due, i due gironi) e `pickSeriesChampionship` (il primo); `COMPETITION_KINDS` e la pura `competitionKind(nome)` (il tipo di una competizione, o
+`null`: nessun cambio di stagione automatico) e `seriesCompetitions(serie, voci)` (le altre competizioni della serie fra le
+voci del menu: tutte tranne i campionati della serie). Rotte e scoperta in `docs/server.md` («Serie del
 club e catalogo»).
 
 Primo accesso (`onboarding.ts`): `OnboardingStatusSchema` (`completed`, `completedAt`), risposta di
@@ -370,7 +376,9 @@ Primo accesso (`onboarding.ts`): `OnboardingStatusSchema` (`completed`, `complet
 procedura è in `docs/portale.md` («Procedura guidata del primo accesso»).
 
 Club e calendario (`club.ts`): il club di un cliente (campionati e squadra in ognuno), le sue partite del calendario con un
-link ciascuna e l'abbinamento fra `.dvw` e partita. `CLUB_MAX_LEAGUES` (8), `ClubLeagueChoiceSchema`,
+link ciascuna e l'abbinamento fra `.dvw` e partita. `CLUB_COMPETITIONS_PATH`, `ClubCompetitionSchema` (`externalId`, `name`,
+`season`), `ClubCompetitionsResponseSchema` (`GET`) e `AddClubCompetitionRequestSchema` (strict, `{ externalId }`, `POST`)
+per `/api/admin/club/competitions`. `CLUB_MAX_LEAGUES` (8), `ClubLeagueChoiceSchema`,
 `UpdateClubRequestSchema` (strict, campionati senza ripetizioni), `ClubResponseSchema` (nome, logo, `ourTeam`, campionati
 scelti, `available`), `ClubLeagueOptionSchema`, `ClubTeamSchema`, `ClubTeamsResponseSchema`, `ClubSyncResponseSchema`;
 `suggestedOurTeamName` (pura: dalla squadra scelta ricava il testo «nostra squadra», città senza provincia o ultima parola

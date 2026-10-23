@@ -20,7 +20,7 @@ connessioni. Con un valore valido la pagina si collega a `/ws/public/<token o co
 | Andamento del set | vantaggio punto per punto, selettore «Set» |
 | Confronto squadre | statistiche delle due squadre, selettore «Periodo» |
 | Statistiche giocatori | tabella per squadra («Squadra») e per set («Set») |
-| Mappe di campo | frecce partenza → arrivo di attacchi e battute; filtri «Squadra», «Fondamentale» (Attacco, Battuta), «Giocatore», «Valutazione» |
+| Mappe di campo | frecce partenza → arrivo di attacchi e battute; filtri «Squadra», «Fondamentale» (Attacco, Battuta), «Giocatore», «Valutazione»; senza tocco la vista scelta nello Studio, anche a turno |
 | Rotazioni | «Punti vinti e persi per posizione del palleggiatore» |
 
 Questi sei sono i blocchi predefiniti; il cliente può nasconderli, riordinarli e aggiungerne altri (Logo, Sponsor,
@@ -540,8 +540,14 @@ con la copertura predefinita «Casa e trasferta») e «Loghi delle squadre» («
 «Campionati»: per ogni campionato un menu «Campionato» (nome e stagione, con lo stato dell'ultimo aggiornamento: «Mai
 scaricato», «Aggiornamento in corso…», «aggiornato …») e un menu «Squadra del club»; «Togli», «Aggiungi campionato» (al
 massimo 8), «Salva» (attivo solo se c'è una modifica) e «Aggiorna calendario». Un admin sceglie solo tra i campionati già
-noti («Nessun campionato disponibile. Chiedi al superadmin di aggiungere il campionato del club.»); aggiungerli spetta al
-superadmin nella pagina «Campionati». Sotto «Nostra squadra nei file .dvw» ci sono i pulsanti «Apri «Colori e loghi»»
+noti («Nessun campionato disponibile. Chiedi al superadmin di aggiungere il campionato del club.»); aggiungere nuovi campionati alla
+Lega spetta al superadmin nella pagina «Campionati». Le altre competizioni della serie le aggiunge l'admin del cliente con
+«Aggiungi competizione» (`CompetitionAdder`, con la serie scelta): «Lettura dal sito…», poi «Competizioni della serie sul sito
+della Lega» con il menu «Competizione da aggiungere», «Aggiungi» e «Annulla» (`POST /api/admin/club/competitions`); la
+competizione si scarica da sola e la squadra del club si sceglie da sola (la stessa della serie): se non la riconosciamo
+compare l'avviso «Senza squadra non arriva nessuna partita» e la si sceglie a mano. Il pulsante è fermo con «Salva prima le
+modifiche ai campionati.» (modifiche non salvate) o «Al massimo 8 campionati: togline uno.». A inizio stagione la competizione
+passa da sola a quella nuova (`docs/server.md`, «Altre competizioni della serie»). Sotto «Nostra squadra nei file .dvw» ci sono i pulsanti «Apri «Colori e loghi»»
 (verso `/admin/studio/colori`, solo per chi può modificare) e, per il superadmin, «Apri «Campionati»». Un viewer vede la
 pagina in sola lettura.
 
@@ -903,6 +909,15 @@ ciclo e mostra l'avviso.
   inchiostro scuro (#1f2937) o chiaro (#f9fafb) scelto in base alla luminosità del fondo, così restano leggibili anche sul
   bianco; heatmap, linee e frecce restano sopra il fondo. I layout salvati senza `fieldMode` non cambiano.
   Schema `CourtOptionsSchema` in `packages/shared/src/layout.ts`; «nostra» è `currentOurSide()` (casa se non nota).
+  **Vista senza tocco** (dispositivi con «Touch: No», di solito la TV): i filtri non si vedono e la mappa mostra la scelta
+  del gruppo «Cosa mostra senza tocco (TV)» delle opzioni del blocco: «Squadra» «A turno» (predefinita: casa e ospite si
+  alternano), «Solo la nostra squadra» (`useOurSide`, casa se non riconosciuta), «Casa», «Ospite»; «Fondamentale»
+  «Attacco» (predefinito), «Battuta», «A turno»; con almeno un «A turno», «Secondi per ogni vista» (5-60, predefinito 10).
+  Con entrambi a turno il ciclo è casa attacco → ospite attacco → casa battuta → ospite battuta (`courtSteps` e
+  `useCourtStep` in `apps/web/src/lib/courtCycle.ts`). Il sottotitolo dice sempre di chi è la mappa («… · Casa → Ospite»)
+  e aggiunge «a turno» quando la vista cambia da sola; cambiano solo i dati, senza animazioni (va bene anche con
+  `prefers-reduced-motion`). L'anteprima dello Studio mostra l'alternanza quando il dispositivo ha «Touch: No». Con il
+  tocco (tablet, telefono) i filtri restano e partono dalla squadra e dal fondamentale scelti (la prima vista del ciclo).
 - **Pagina predefinita**: ogni modello ha la sua (`docs/architettura.md`, «Pagina pubblica a blocchi»): SIR VOLLEY segue il
   mockup di una schermata a 1920×1080 (tabellone, poi andamento, confronto e mappe di campo in tre colonne, poi giocatori e
   rotazioni); `MomentumChart` è ammesso anche a larghezza 4.

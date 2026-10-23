@@ -1,11 +1,11 @@
 import type { TenantOverlaysInput } from '@arenalive/shared';
 import { publicAssetPath, TenantOverlaysSchema } from '@arenalive/shared';
 import type { MatchEvent, MatchState } from '@arenalive/volley-stats';
-import { act, cleanup, render, renderHook } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MediaLoader } from '../lib/overlayMedia.ts';
 import { claimOurSide } from '../lib/branding.ts';
-import { sampleEvent } from '../lib/overlay.ts';
+import { sampleEvent, videoHoldSeconds } from '../lib/overlay.ts';
 import { useOverlayMedia, wantedBackgrounds } from '../lib/overlayMedia.ts';
 import { midMatchState } from '../test/fixtures.ts';
 import { Overlay, OverlayBanner } from './Overlay.tsx';
@@ -286,6 +286,137 @@ describe('options of a video background', () => {
     // Our team not recognized in the match: as for both teams.
     expect(await run('ours', null, 'away')).toEqual(withVideo);
     expect(await run('both', 'home', 'away')).toEqual(withVideo);
+  });
+
+  it('«Quanto il video»: the video plays once and reports its length and its end; otherwise it loops', () => {
+    const onLength = vi.fn();
+    const onEnd = vi.fn();
+    const view = render(
+      <OverlayBanner
+        text="ACE"
+        team="home"
+        device="tv"
+        media={{ kind: 'video', url: 'blob:v', duration: 'video' }}
+        onVideoLength={onLength}
+        onVideoEnd={onEnd}
+      />,
+    );
+    const video = document.querySelector('video') as HTMLVideoElement;
+    expect(video.loop).toBe(false);
+    Object.defineProperty(video, 'duration', { value: 7.5, configurable: true });
+    fireEvent.loadedMetadata(video);
+    expect(onLength).toHaveBeenLastCalledWith(7.5);
+    fireEvent.error(video);
+    expect(onLength).toHaveBeenLastCalledWith(null);
+    fireEvent.ended(video);
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    view.unmount();
+    render(
+      <OverlayBanner
+        text="ACE"
+        team="home"
+        device="tv"
+        media={{ kind: 'video', url: 'blob:v', duration: 'seconds' }}
+        onVideoLength={onLength}
+        onVideoEnd={onEnd}
+      />,
+    );
+    const looping = document.querySelector('video') as HTMLVideoElement;
+    expect(looping.loop).toBe(true);
+    fireEvent.ended(looping);
+    expect(onEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('the length of an overlay that follows its video: the video, at most 30 s, the seconds when it cannot be read', () => {
+    expect(videoHoldSeconds(12, 6)).toBe(12);
+    expect(videoHoldSeconds(120, 6)).toBe(30);
+    for (const bad of [null, undefined, 0, -3, Number.NaN, Number.POSITIVE_INFINITY])
+      expect(videoHoldSeconds(bad, 6)).toBe(6);
+  });
+
+  describe('overlay that lasts as long as its video', () => {
+    const SECONDS = 4;
+    async function show(background: { duration: 'seconds' | 'video' }, device: 'tv' | 'phone' = 'tv') {
+      vi.stubGlobal('fetch', () => Promise.resolve(new Response(new Blob(['v'], { type: 'video/mp4' }))));
+      vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:video' }));
+      vi.useFakeTimers();
+      const release = claimOurSide(null);
+      const c = config({ ace: { seconds: SECONDS, background: { kind: 'video', assetId: VIDEO, ...background } } });
+      const view = render(<Overlay state={withEvents([])} live={false} config={c} device={device} />);
+      await act(() => Promise.resolve());
+      await act(() => Promise.resolve());
+      view.rerender(<Overlay state={withEvents([event('ace')])} live config={c} device={device} />);
+      return { view, release };
+    }
+    const on = () => document.querySelector('[data-overlay]') !== null;
+    const tick = (ms: number) =>
+      act(() => {
+        vi.advanceTimersByTime(ms);
+      });
+    const metadata = (seconds: number) => {
+      const video = document.querySelector('video') as HTMLVideoElement;
+      Object.defineProperty(video, 'duration', { value: seconds, configurable: true });
+      fireEvent.loadedMetadata(video);
+    };
+
+    it('stays for the length of the video, then goes', async () => {
+      const { release } = await show({ duration: 'video' });
+      metadata(10);
+      tick(9_900);
+      expect(on()).toBe(true);
+      tick(1_000);
+      expect(on()).toBe(false);
+      release();
+    });
+
+    it('goes at once when the video ends', async () => {
+      const { release } = await show({ duration: 'video' });
+      metadata(10);
+      tick(3_000);
+      fireEvent.ended(document.querySelector('video') as HTMLVideoElement);
+      expect(on()).toBe(false);
+      release();
+    });
+
+    it('never longer than 30 s, even if the video is longer', async () => {
+      const { release } = await show({ duration: 'video' });
+      metadata(120);
+      tick(30_000);
+      expect(on()).toBe(true);
+      tick(1_000);
+      expect(on()).toBe(false);
+      release();
+    });
+
+    it('with a length that cannot be read, or a video that does not start: the seconds of the overlay', async () => {
+      const { release } = await show({ duration: 'video' });
+      metadata(Number.NaN);
+      tick(3_900);
+      expect(on()).toBe(true);
+      tick(200);
+      expect(on()).toBe(false);
+      release();
+    });
+
+    it('«Secondi impostati» (default): the seconds of the overlay, the video loops', async () => {
+      const { release } = await show({ duration: 'seconds' });
+      expect((document.querySelector('video') as HTMLVideoElement).loop).toBe(true);
+      tick(3_900);
+      expect(on()).toBe(true);
+      tick(200);
+      expect(on()).toBe(false);
+      release();
+    });
+
+    it('on the phone (no video shown): the seconds of the overlay', async () => {
+      const { release } = await show({ duration: 'video' }, 'phone');
+      expect(document.querySelector('video')).toBeNull();
+      tick(3_900);
+      expect(on()).toBe(true);
+      tick(200);
+      expect(on()).toBe(false);
+      release();
+    });
   });
 
   it('the example event of the Studio is of the side asked (our team), with one of its players', () => {

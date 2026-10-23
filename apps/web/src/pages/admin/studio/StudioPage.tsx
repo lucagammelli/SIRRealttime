@@ -18,6 +18,7 @@ import {
   LAYOUT_DEVICES,
   LayoutResponseSchema,
   OVERLAY_KINDS,
+  OVERLAY_VIDEO_MAX_SECONDS,
   OverlaysResponseSchema,
   adminAssetPath,
   defaultLayout,
@@ -32,6 +33,7 @@ import { loadSampleMatch } from '../../../blocks/sampleMatch.ts';
 import { Button, buttonClass, ErrorBox, Spinner } from '../../../components/ui.tsx';
 import { apiRequest } from '../../../lib/api.ts';
 import { initBranding } from '../../../lib/branding.ts';
+import { videoHoldSeconds } from '../../../lib/overlay.ts';
 import { useAsync } from '../../../lib/useAsync.ts';
 import { useViewportWidth } from '../../../lib/useLayout.ts';
 import { socketUrl, useLiveSocket } from '../../../lib/useLiveSocket.ts';
@@ -115,7 +117,6 @@ function Studio({
   tenantName,
   saved,
   assets,
-  onAssetsChanged,
   sponsors,
   hasSection,
   onImported,
@@ -124,7 +125,6 @@ function Studio({
   tenantName: string;
   saved: StudioDocs;
   assets: AssetListResponse;
-  onAssetsChanged: () => void;
   /** Sponsors of the client (the sponsor blocks and slides choose among them; changed on the page «Sponsor»). */
   sponsors: readonly Sponsor[];
   /** The address names a section (the phone opens it at once instead of the list of sections). */
@@ -296,12 +296,21 @@ function Studio({
     return () => clearTimeout(id);
   }, [flash, section, step, colorsTab, pauseKind, setTab, overlayKind, overlaysTab, device]);
 
-  // A «Prova» stays for the seconds of its overlay.
+  // A «Prova» stays for the seconds of its overlay; with a video that sets its length (`duration` `video`) for the
+  // length of the video (at most OVERLAY_VIDEO_MAX_SECONDS, the seconds when it cannot be read), as on the public page.
+  const [trialLength, setTrialLength] = useState<{ key: number; seconds: number | null } | null>(null);
   useEffect(() => {
     if (!trial) return;
-    const id = setTimeout(() => setTrial(null), overlays.draft[trial.kind].seconds * 1000);
+    const overlay = overlays.draft[trial.kind];
+    let seconds = overlay.seconds;
+    if (overlay.background?.kind === 'video' && overlay.background.duration === 'video') {
+      const known = trialLength?.key === trial.key ? trialLength.seconds : undefined;
+      seconds = known === undefined ? OVERLAY_VIDEO_MAX_SECONDS : videoHoldSeconds(known, overlay.seconds);
+      if (typeof known === 'number' && Number.isFinite(known) && known > 0) seconds += 0.5;
+    }
+    const id = setTimeout(() => setTrial(null), seconds * 1000);
     return () => clearTimeout(id);
-  }, [trial, overlays.draft]);
+  }, [trial, trialLength, overlays.draft]);
 
   const goSection = (to: StudioSection, force = false): void => {
     if (to === section) {
@@ -473,6 +482,8 @@ function Studio({
       trial={trial}
       highlight={toolbar ? highlight : null}
       onPick={toolbar ? pick : () => undefined}
+      onTrialLength={(seconds) => setTrialLength({ key: trial?.key ?? 0, seconds })}
+      onTrialEnd={() => setTrial(null)}
       toolbar={toolbar}
       {...(toolbar && !phone ? { wide, onWide: toggleWide } : {})}
     />
@@ -487,8 +498,6 @@ function Studio({
         base={branding.base}
         onChange={(c) => setBranding((p) => ({ ...p, draft: c(p.draft) }))}
         assets={assets}
-        onAssetsChanged={onAssetsChanged}
-        sponsors={sponsors}
         tab={colorsTab}
         onTab={setColorsTab}
         onTemplate={chooseTemplate}
@@ -551,7 +560,6 @@ function Studio({
         onTab={setOverlaysTab}
         state={previewMatch}
         assets={assets}
-        onAssetsChanged={onAssetsChanged}
         onTry={(k) => {
           setOverlayKind(k);
           setScene('overlay');
@@ -802,7 +810,6 @@ function Studio({
           onLayout={(c) => setLayout((p) => ({ ...p, draft: c(p.draft) }))}
           onIntermissions={(c) => setIntermissions((p) => ({ ...p, draft: c(p.draft) }))}
           assets={assets}
-          onAssetsChanged={onAssetsChanged}
           preview={(s) => preview(false, s)}
           busy={saving !== null}
           error={errors.guidata ?? null}
@@ -1006,7 +1013,6 @@ export function StudioPage() {
         overlays: overlays.data.overlays,
       }}
       assets={assets.data}
-      onAssetsChanged={assets.reload}
       sponsors={sponsors.data.sponsors}
       hasSection={isStudioSection(params.section)}
       onImported={() => {

@@ -156,6 +156,7 @@ Le voci:
 | Utenti | `/admin/utenti` | solo admin | «Nuovo utente» (sottotitolo «Cliente: …»; email, «Password (facoltativa)» di almeno 12 caratteri, «Ruolo»: «Lettura e scrittura» o «Sola lettura»; «Crea e invita» se la password è vuota, altrimenti «Crea utente»), scheda «Ruoli» (cosa può fare ciascun ruolo), «Utenti» (per ognuno stato «Attivo»/«Disattivato», ruolo, data di creazione e i comandi descritti sotto), vedi «Utenti del cliente» |
 | Studio grafico | `/admin/studio`, `/admin/studio/:sezione` (`colori`, `pagina`, `pause`, `avvisi`, `esporta`) | solo admin (il superadmin dentro un cliente) | colori e loghi, pagina live, pause e avvisi in un'unica pagina con anteprima grande, vedi «Studio grafico». Le vecchie rotte `/admin/grafica`, `/admin/pagina`, `/admin/pause`, `/admin/avvisi` rimandano alla sezione corrispondente |
 | Sponsor | `/admin/sponsor` | solo admin (il superadmin dentro un cliente) | anagrafica degli sponsor, vedi «Sponsor» |
+| Immagini e video | `/admin/media` | solo admin (il superadmin dentro un cliente) | libreria dei file caricati e **unico posto dove si caricano**, vedi «Immagini e video» |
 | Clienti | `/admin/clienti` | solo superadmin | «Nuovo cliente» (Nome, Identificativo, Hostname, «Agenti» = limite di agenti, predefinito 1; «Crea cliente»), «Clienti» con «Entra nel cliente» (il superadmin entra in quel cliente e apre `/admin/live`, vedi «Più clienti») e «Modifica» (nome, hostname e limite di agenti, «Salva»; il limite è mostrato come «un agente» / «fino a N agenti»); riquadro «Primo utente (facoltativo)» nel modulo («Email del primo utente» e «Password del primo utente (facoltativa)»; creato con il ruolo «Lettura e scrittura»; senza password il primo utente è invitato e sotto il modulo compare l'esito dell'invito, vedi «Utenti del cliente»); ogni cliente mostra «nessun utente», «1 utente» o «N utenti» |
 | Esci | - | tutti | chiude la sessione |
 
@@ -255,7 +256,7 @@ compare.», «Avviso spento: gli spettatori non lo vedono.», «Su <dispositivo>
   proprie dei set; quelli degli avvisi tengono testi, dispositivi, priorità, posizione e dimensione di ogni avviso.
 
 #### Sezione «Colori e loghi»
-Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome», «Squadra», «Immagini» (l'esportazione è la sezione «Esporta / Importa»).
+Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome», «Squadra» (la libreria dei file è la pagina «Immagini e video» del menu, l'esportazione è la sezione «Esporta / Importa»).
 - «Colori»: i cinque colori («Colore principale», «Colore di risalto», «Squadra di casa», «Squadra ospite», «Sfondo
   della pagina»), ciascuno con selettore e campo esadecimale `#rrggbb` e «Predefinito»; i colori vanno sopra quelli del
   modello. Avvisi di contrasto (`brandContrastIssues`, sotto 4,5:1), per esempio «Lo sfondo è troppo scuro per il testo
@@ -263,16 +264,12 @@ Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome»
   leggono male.». In «Avanzate»: «Modello grafico» (vedi «Modelli grafici») e «Ripristina predefiniti» (colori, modello,
   nome, nostra squadra e loghi tornano quelli del portale; le immagini restano caricate).
 - «Loghi e nome»: «Nome visualizzato» (facoltativo) e le tre immagini («Logo orizzontale», «Logo quadrato», «Logo dello
-  sponsor») con «Carica immagine» (PNG, JPEG, WebP o SVG, al massimo 2 MB) e «Togli».
+  sponsor») scelte da un menu «Scegli dalla libreria…» con i file di tipo logo (per nome) e «Togli», più il collegamento «Carica nella libreria» (`/admin/media`): qui non si caricano file (`ImageField`, `LibraryLink`).
 - «Squadra»: «Nostra squadra» («Codice squadra», es. PER, e «Testo nel nome della squadra», es. Perugia, entrambi
   facoltativi).
-- «Immagini»: scheda «Immagini e video caricati» (sottotitolo «Spazio usato: … MB di … MB») con l'elenco: per ogni file nome
-  (quello del file al caricamento; per i file senza nome il ripiego «Video del gg/mm/aaaa · L×A»), uso, misure, peso,
-  «Rinomina» con «Salva nome» (`PATCH /api/admin/assets/:id`, `{ name }`; vuoto toglie il nome), «in uso» e «Elimina» /
-  «Conferma eliminazione»; vuota: «Nessuna immagine caricata.». Il caricamento invia il file in base64 (`fileToBase64`,
-  `src/lib/base64.ts`) a `POST /api/admin/assets`; il salvataggio è `PUT /api/admin/branding`. Per le immagini sponsor
-  l'elenco dice di quale sponsor sono («Sponsor: <nome>») o «Sponsor (senza sponsor)»; si caricano e si assegnano dalla
-  pagina «Sponsor» (`ColorsSection.tsx`).
+- **Libreria dei file**: non è più nello Studio ma la pagina «Immagini e video» del menu, vedi «Immagini e video»
+  (`/admin/media`). Le scelte dei file (loghi, sfondi degli avvisi, foto «Dopo la partita», procedura guidata) sono
+  menu «Scegli dalla libreria…» con i file del tipo giusto, per nome, e il collegamento «Carica nella libreria».
 - **Miniature e anteprime dell'area riservata**: ogni immagine del cliente (miniature di «Immagini», dei loghi, della
   pagina «Sponsor», dei loghi delle partite in «Calendario», anteprime dello Studio e della prima configurazione) si
   carica da `GET /api/admin/assets/:id/file` (`adminAssetPath` di `packages/shared/src/tenant.ts`; `url` di
@@ -330,7 +327,7 @@ disattivate: la pausa non compare.»). Sotto «Opzioni» «Secondi sullo schermo
 lo sponsor sceglie gli sponsor e «Come mostrarli» come il blocco); in fondo «Tipo di diapositiva» con «Aggiungi diapositiva» (al massimo 12). In «Avanzate»: «Ritardo prima della
 pausa (secondi)» e «Ripristina predefinito» (solo della pausa aperta). «Salva» è disattivato se una pausa attiva non ha
 diapositive o un testo è vuoto. Nella scheda «Fine partita» c'è anche la card «Dopo la partita» (`AfterMatchEditor`):
-«Mostra la foto dopo la partita» (interruttore), «Foto a tutto schermo» con «Carica immagine» e «Togli foto», «Oppure
+«Mostra la foto dopo la partita» (interruttore), «Foto a tutto schermo» scelta da «Scegli dalla libreria…» (immagini di tipo sponsor; «Carica nella libreria» apre `/admin/media`) e «Togli foto», «Oppure
 scegli un’immagine già caricata», «Minuti dopo la fine della partita» (0-240) e l'anteprima TV con la prossima partita
 d'esempio. I «Modelli pronti» non la toccano. Logica pura in `intermissionEditor.ts` (`moveSlide`, `addSlide`, `removeSlide`,
 `updateSlide`, `setOwnPause`, `resetPause`, `pauseProblems`); le opzioni delle statistiche in `StatOptionsFields.tsx`.
@@ -342,11 +339,9 @@ avvisi» e «Posizione e dimensione». «Quali avvisi» (scheda «Eventi») elen
 set, Set point, Ace, Muro punto, Sorpasso, Pareggio, Break, Time-out, Scambio lungo, Cambio), ognuno con interruttore e
 pulsante «Modifica» («In modifica» sull'avviso aperto). L'avviso aperto mostra: «Testo» (il risultato con i dati
 d'esempio compare sotto, «Risultato: …», oppure il problema: vuoto, oltre 80 caratteri, segnaposto sconosciuto, `<` o
-`>`), «Sfondo» (`BackgroundSetting`: «Nessuno» / «Immagine» / «Video»; un menu con i file già caricati per gli avvisi e i pulsanti
-«Carica immagine» (PNG, JPEG, WebP o SVG, 2 MB) e «Carica video» (MP4 o WebM, 15 MB, controllati prima dell'invio con
-`videoProblem`; `uploadVideo` in `pages/admin/imageUpload.ts` manda il file come corpo binario), con l'anteprima del file
-scelto; cambiando tipo lo sfondo scelto si toglie; per il video anche «Audio», «Posizione del video» («Al centro» / «A tutto
-schermo») e «Video per» («Solo la nostra squadra» / «Entrambe le squadre»); nell'anteprima l'audio suona solo durante «Prova» e l'evento di prova è della nostra squadra), i «Segnaposto» ammessi (`{giocatore}`, `{numero}`, `{squadra}`, `{punteggio}`, `{set}`, `{serie}`, `{attacchi}`),
+`>`), «Sfondo» (`BackgroundSetting`: «Nessuno» / «Immagine» / «Video»; un menu con i file della libreria per gli avvisi e il collegamento «Carica nella libreria» (`/admin/media`: qui non si
+carica), con l'anteprima del file scelto; cambiando tipo lo sfondo scelto si toglie; per il video anche «Audio», «Posizione del video» («Al centro» / «A tutto
+schermo») «Video per» («Solo la nostra squadra» / «Entrambe le squadre») e «Durata» («Secondi impostati» / «Quanto il video»: `OverlayBackground.duration`, predefinito `seconds`; con `video` il video parte una sola volta, senza ciclo, e l'avviso resta finché finisce, al massimo `OVERLAY_VIDEO_MAX_SECONDS` = 30 s; se la durata non si legge, il video non parte o non si vede (telefono, movimento ridotto) valgono i «Secondi»; `videoHoldSeconds` in `lib/overlay.ts`, tempo in `Overlay.tsx`; con la nota «L’avviso resta finché il video finisce…»; in «Prova» l'anteprima segue la stessa regola, altrimenti il video gira in ciclo); nell'anteprima l'audio suona solo durante «Prova» e l'evento di prova è della nostra squadra), i «Segnaposto» ammessi (`{giocatore}`, `{numero}`, `{squadra}`, `{punteggio}`, `{set}`, `{serie}`, `{attacchi}`),
 «Secondi» (2-8), i dispositivi (TV, tablet, telefono), «Posizione» e «Dimensione» (In alto / Al centro / In basso;
 Piccolo / Medio / Grande; oppure «Come tutti gli avvisi»), «Prova» (lo mostra nell'anteprima con le modifiche non salvate,
 per i suoi secondi, con l'animazione; la scena passa ad «Avviso»), e in «Avanzate» «Priorità» (1-10) e «Ripristina
@@ -374,7 +369,8 @@ segno «fatto» è nel DB (`tenants.onboarded_at`), non nel browser.
 - **I 5 passi** (`ONBOARDING_STEPS`; «Indietro», «Avanti», «Salta per ora»; l'ultimo ha «Fine»; ogni «Avanti» salva ciò che
   il passo ha cambiato, e a destra c'è l'anteprima del cliente):
   1. «Il logo»: «Il logo della società compare nelle pagine pubbliche, nell’app e nei QR.» «Logo quadrato della società» e
-     «Logo orizzontale (facoltativo)», salvati appena caricati.
+     «Logo orizzontale (facoltativo)», scelti dalla libreria e salvati appena scelti; «Carica nella libreria» chiude la
+     procedura (come «Salta per ora») e apre «Immagini e video», poi «Riprendi» torna a questo passo.
   2. «La squadra»: «In che serie gioca il club: il calendario arriva dal sito della Lega.» «Maschile o femminile» («Femminile»
      disattivato, «Presto disponibile»), «In che serie gioca» (tendina «Scegli la serie»), «Sto scaricando il calendario…»,
      «La tua squadra in «…»» con l'elenco (A3: le squadre dei due gironi, resta il girone della squadra scelta), «La mia
@@ -1059,6 +1055,29 @@ Sono blocchi della pagina (larghezze 4/6/8/12) e diapositive delle pause (stesse
 - **Limiti noti**: un'immagine singola di un blocco sponsor non si può eliminare finché non viene tolta dal blocco. Un layout salvato e poi non più valido (per esempio di versione futura) si legge come
   predefinito.
 
+### Immagini e video (`pages/admin/MediaPage.tsx`, rotta `/admin/media`, solo admin; il superadmin dentro un cliente)
+Voce del menu «Immagini e video» (gruppo «Pagina pubblica», dopo «Sponsor»; icona `media`). Prima era la scheda «Immagini» di
+«Colori e loghi» e poi una sezione dello Studio: `/admin/studio/libreria` rimanda qui. Titolo scheda «Immagini e video · Area
+riservata»; mentre carica mostra «Caricamento delle immagini e dei video…», un errore del server compare in italiano con «Riprova».
+Carica con le API esistenti: `GET /api/admin/assets`, `/sponsors` e i quattro documenti salvati (`/branding`, `/layout`,
+`/intermissions`, `/overlays`).
+- **«Carica nella libreria»** è l'**unico posto dove si caricano** immagini e video; le altre pagine (Studio, «Sponsor»,
+  «Calendario», «Club», procedura guidata) scelgono da un menu «Scegli dalla libreria…» con i file del tipo giusto, per nome
+  (`assetOptionText`), e rimandano qui con il collegamento «Carica nella libreria». «Uso dell'immagine»: «Logo» (`kind` `logo`),
+  «Sponsor o foto delle pause» (`kind` `sponsor`, con «Sponsor» facoltativo: «Nessuno sponsor» lascia l'immagine in «Immagini
+  senza sponsor» di «Sponsor»; `sponsorId`) e «Sfondo degli avvisi» (`kind` `overlay`). «Carica immagine»
+  (`POST /api/admin/assets`, base64, PNG/JPEG/WebP/SVG, 2 MB, `X`-nome del file) e «Carica video» (sempre sfondo degli avvisi;
+  `uploadVideo`, MP4 o WebM, 15 MB, controllati prima con `videoProblem`: «Formato non ammesso: scegli un video MP4 o WebM.»,
+  «Immagine troppo grande: al massimo 2 MB.»). Stato «Caricamento…» e «Caricato: <nome>.»; gli errori del server sono in italiano.
+- **«Immagini e video caricati»** (sottotitolo «Spazio usato: … MB di … MB»): per ogni file nome (quello del file al
+  caricamento; senza nome il ripiego «Immagine/Video del gg/mm/aaaa · L×A»), uso (`assetUseText`: «Logo», «Sponsor: <nome>»,
+  «Sfondo di un avviso»…), misure, peso, «in uso», «Rinomina» con «Salva nome» (`PATCH /api/admin/assets/:id`; vuoto toglie
+  il nome) ed «Elimina» / «Conferma eliminazione» (il server rifiuta un file in uso). «in uso» (`assetsInUse`) considera i
+  documenti **salvati**: logo e immagini della grafica, immagini dei blocchi «Sponsor» e delle pause (diapositive «Sponsor»,
+  «Dopo la partita»), sfondi degli avvisi, immagini degli sponsor scelti da un blocco o da una diapositiva. Vuota: «Nessun file
+  caricato.».
+- Test: `MediaPage.test.tsx`, `AdminApp.test.tsx` (voce di menu e rimando).
+
 ### Sponsor (`pages/admin/SponsorsPage.tsx`, rotta `/admin/sponsor`, solo admin)
 Anagrafica degli sponsor del cliente, nel gruppo di menu «Pagina pubblica». Server, tabelle e limiti in `docs/server.md`
 («Sponsor»), contratti in `docs/architettura.md` (`sponsors.ts`).
@@ -1067,8 +1086,8 @@ Anagrafica degli sponsor del cliente, nel gruppo di menu «Pagina pubblica». Se
   l'elenco nell'ordine della rotazione, riordinabile con «Sposta su» / «Sposta giù» (`PUT /api/admin/sponsors/order`;
   `movedIds`), per ogni sponsor nome, sito e numero di immagini, «Modifica» (nome e sito), «Elimina» con conferma (anche
   le sue immagini non usate altrove), le immagini con «Togli» (l'immagine passa a «senza sponsor») ed «Elimina», e il
-  caricamento «Carica un'immagine per <sponsor>» (PNG,
-  JPEG, WebP o SVG, al massimo 2 MB, 12 per sponsor). Scheda «Immagini senza sponsor» (visibile solo se ce ne sono: quelle
+  collegamento «Carica nella libreria» (`/admin/media`, dove si sceglie lo sponsor al caricamento: PNG, JPEG, WebP o SVG, al
+  massimo 2 MB, 12 per sponsor). Scheda «Immagini senza sponsor» (visibile solo se ce ne sono: quelle
   caricate prima dell'anagrafica o tolte a uno sponsor) con «Assegna a» e la scelta dello sponsor. Gli errori del server
   (nome già usato, sponsor in uso in pagina o pause, immagine già di un altro sponsor) sono mostrati in italiano.
 - **Studio grafico**: il blocco sponsor e la diapositiva sponsor delle pause hanno una casella per ogni sponsor («Sponsor
@@ -1083,8 +1102,8 @@ Anagrafica degli sponsor del cliente, nel gruppo di menu «Pagina pubblica». Se
   mostra tutte le immagini insieme in una griglia quasi quadrata (`SponsorGrid` in `blocks/BrandBlocks.tsx`,
   `sponsorGridColumns` in `lib/sponsors.ts`: 4 colonne con 10-12 loghi); nella banda delle pause sono piccoli, in fila;
   con una sola immagine resta come prima. Non c'è rotazione: nella diapositiva la pagina dura i secondi della diapositiva.
-- **Caricamento**: gli helper sono in `pages/admin/imageUpload.ts` (`uploadImage`, `uploadSponsorImage`, `ACCEPT`,
-  `IMAGE_TOO_LARGE`, `imageCountText`), condivisi da questa pagina e dallo Studio. Test: `SponsorsPage.test.tsx`, `SponsorBlock.test.tsx`.
+- **Caricamento**: non si carica qui: gli helper di `pages/admin/imageUpload.ts` (`uploadImage`, `uploadVideo`, `ACCEPT`,
+  `IMAGE_TOO_LARGE`, `imageCountText`) li usa solo la pagina «Immagini e video». Test: `SponsorsPage.test.tsx`, `SponsorBlock.test.tsx`.
 
 ### Pause della partita (schermate di time-out, fine set e fine partita)
 Quando la partita ha una pausa il portale mostra una schermata con riepilogo e sponsor. Il portale non decide nulla: la

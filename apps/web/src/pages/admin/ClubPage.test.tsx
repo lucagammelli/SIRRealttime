@@ -201,7 +201,9 @@ describe('page «Club»', () => {
     await within(team).findByRole('option', { name: 'Sir Susa Scai Perugia (Perugia (PG))' });
     fireEvent.change(team, { target: { value: '' } });
     expect(screen.getByText('Senza squadra non arriva nessuna partita: scegli la squadra del club.')).toBeTruthy();
-    expect(screen.getByRole('alert').textContent).toContain('Un campionato è senza squadra');
+    expect(screen.getAllByRole('alert').some((a) => a.textContent?.includes('Un campionato è senza squadra'))).toBe(
+      true,
+    );
     expect(screen.getByRole('button', { name: 'Aggiungi competizione' })).toHaveProperty('disabled', true);
     expect(screen.getByText('Salva prima le modifiche ai campionati.')).toBeTruthy();
   });

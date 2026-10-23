@@ -98,6 +98,14 @@ describe('admin navigation', () => {
     }
   });
 
+  it('«Immagini e video» is a page of the menu (/admin/media); the old section of the Studio leads to it', async () => {
+    mockServer('admin');
+    renderAt('/admin/studio/libreria');
+    const nav = await screen.findByRole('navigation', { name: 'Area riservata' });
+    await waitFor(() => expect(where()).toBe('/admin/media'));
+    expect(within(nav).getByRole('link', { name: 'Immagini e video' }).getAttribute('aria-current')).toBe('page');
+  });
+
   it('keeps «Partite» active on the detail of a match', async () => {
     mockServer('admin');
     renderAt(`/admin/partite/${USER_ID}`);
@@ -159,7 +167,13 @@ describe('admin navigation', () => {
         .map((l) => l.textContent ?? '');
     expect(names('Partite')).toEqual(['Partita live', 'Partite', 'Calendario']);
     expect(names('Club')).toEqual(['Club']);
-    expect(names('Pagina pubblica')).toEqual(['Studio grafico', 'Sponsor', 'Link pubblici', 'Simulazione']);
+    expect(names('Pagina pubblica')).toEqual([
+      'Studio grafico',
+      'Sponsor',
+      'Immagini e video',
+      'Link pubblici',
+      'Simulazione',
+    ]);
     expect(names('Dispositivi')).toEqual(['Agenti']);
     expect(names('Amministrazione')).toEqual(['Utenti']);
     expect(names('Account e aiuto')).toEqual(['Il mio account', 'Guida']);

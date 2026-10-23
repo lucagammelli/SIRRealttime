@@ -330,10 +330,10 @@ Time-out spento (la pausa lo mostra già); cambio e scambio lungo non sul telefo
 `position` (`OVERLAY_POSITIONS`: `top`, `center`, `bottom`; predefinito `OVERLAY_DEFAULT_POSITION` `top`) e `size`
 (`OVERLAY_SIZES`: `small`, `medium`, `large`; predefinita `medium`) generali; ogni avviso può avere `position` e `size`
 propri (facoltativi) e `overlayPlacement(config, overlay)` dà i valori in uso. Sfondo: ogni avviso può avere `background`
-(`OverlayBackgroundSchema`: `{ kind: 'image' | 'video', assetId, audio, fit, teams }`, `OVERLAY_BACKGROUND_KINDS`; l'asset è di `kind` `overlay`,
+(`OverlayBackgroundSchema`: `{ kind: 'image' | 'video', assetId, audio, fit, teams, duration }`, `OVERLAY_BACKGROUND_KINDS`; l'asset è di `kind` `overlay`,
 il server verifica proprietà e tipo). Opzioni del video (un'immagine le ignora; mancanti in un documento salvato prima valgono i
 predefiniti): `audio` (predefinito `false`), `fit` (`center` | `fullscreen`, `OVERLAY_VIDEO_FITS`, predefinito `center`),
-`teams` (`ours` | `both`, `OVERLAY_VIDEO_TEAMS`, predefinito `ours`: «la nostra squadra» è quella del cliente, in casa o in
+`duration` (`seconds` | `video`, `OVERLAY_VIDEO_DURATIONS`, predefinito `seconds`: l'avviso dura i suoi `seconds` e il video gira in ciclo; con `video` il video parte una volta e l'avviso resta finché finisce, al massimo `OVERLAY_VIDEO_MAX_SECONDS` = 30 s, con ripiego sui `seconds`; un documento salvato prima resta valido), `teams` (`ours` | `both`, `OVERLAY_VIDEO_TEAMS`, predefinito `ours`: «la nostra squadra» è quella del cliente, in casa o in
 trasferta). `backgroundForTeam(sfondo, squadra, latoNostro)` (pura): per un evento della squadra avversaria con `teams: 'ours'`
 il video è tolto (resta il testo); immagini, eventi senza squadra e lato del cliente ignoto (video per entrambe) invariati.
 Funzioni pure `overlayBackgrounds(config)` (gli sfondi in uso) e

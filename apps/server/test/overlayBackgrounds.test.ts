@@ -222,6 +222,7 @@ describe('backgrounds of the overlays', () => {
       audio: false,
       fit: 'center',
       teams: 'ours',
+      duration: 'seconds',
     });
     const withOptions = await putOverlays(HOST_A, cookieA, {
       ...doc({ kind: 'video', assetId: video.id, audio: true, fit: 'fullscreen', teams: 'both' }),

@@ -1,28 +1,19 @@
-import type { AssetKind, AssetSummary } from '@arenalive/shared';
-import { ASSET_MAX_BYTES, AssetSummarySchema } from '@arenalive/shared';
-import { useId, useState } from 'react';
+import type { AssetKind } from '@arenalive/shared';
+import { AssetListResponseSchema, isVideoMime } from '@arenalive/shared';
+import { useCallback, useState } from 'react';
+import { Link } from 'react-router';
 import { Button } from '../../components/ui.tsx';
 import { apiRequest } from '../../lib/api.ts';
-import { fileToBase64 } from '../../lib/base64.ts';
+import { useAsync } from '../../lib/useAsync.ts';
 import { useApiError } from './auth.tsx';
-
-/** Image types accepted by the server (it checks them again from the bytes). */
-export const LOGO_ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml';
-
-/**
- * Uploads an image of the client (`POST /api/admin/assets`), of kind `logo` unless told otherwise: the same checks of
- * the server for every image.
- */
-export async function uploadLogo(file: File, kind: AssetKind = 'logo'): Promise<AssetSummary> {
-  return apiRequest('/api/admin/assets', AssetSummarySchema, {
-    method: 'POST',
-    body: { kind, data: await fileToBase64(file) },
-  });
-}
+import { inputClass } from './forms.tsx';
+import { assetOptionText } from './imageUpload.ts';
 
 /**
- * A logo with «Carica» and «Predefinito»: `url` the logo shown now (null: none, the initials or nothing), `custom`
- * whether it is a logo chosen here (then «Predefinito» goes back to the default one). Disabled for a viewer.
+ * A logo chosen from the library of the client with «Predefinito»: `url` the logo shown now (null: none, the initials or
+ * nothing), `custom` whether it is a logo chosen here (then «Predefinito» goes back to the default one). The files are
+ * not uploaded here: the list offers the images of the library of the kind asked, and «Carica nella libreria» opens
+ * «Immagini e video». Disabled for a viewer.
  */
 export function LogoPicker({
   label,
@@ -32,6 +23,7 @@ export function LogoPicker({
   onChange,
   defaultLabel = 'Predefinito',
   kind = 'logo',
+  onLibrary,
 }: {
   label: string;
   url: string | null;
@@ -40,11 +32,20 @@ export function LogoPicker({
   /** The id of the new image, null for the default one; a rejection is shown under the logo. */
   onChange: (assetId: string | null) => Promise<void>;
   defaultLabel?: string;
-  /** Kind of the uploaded image (default `logo`; `sponsor` for the photos of the pauses). */
+  /** Kind of the images offered (default `logo`; `sponsor` for the photos of the pauses). */
   kind?: AssetKind;
+  /**
+   * «Carica nella libreria» goes to the library by this action instead of a plain link (a modal procedure closes itself
+   * first, otherwise it would stay over the library).
+   */
+  onLibrary?: () => void;
 }) {
   const errorMessage = useApiError();
-  const inputId = useId();
+  const load = useCallback(
+    (signal: AbortSignal) => apiRequest('/api/admin/assets', AssetListResponseSchema, { signal }),
+    [],
+  );
+  const library = useAsync(load);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,14 +61,12 @@ export function LogoPicker({
     }
   };
 
-  const pick = (file: File | undefined): void => {
-    if (!file) return;
-    if (file.size > ASSET_MAX_BYTES) {
-      setError('Immagine troppo grande (massimo 2 MB).');
-      return;
-    }
-    void run(async () => onChange((await uploadLogo(file, kind)).id));
-  };
+  const files = (library.data?.assets ?? []).filter((a) => a.kind === kind && !isVideoMime(a.mime));
+  const placeholder = library.loading
+    ? 'Caricamento…'
+    : files.length === 0
+      ? 'Nessun file nella libreria'
+      : 'Scegli dalla libreria…';
 
   return (
     <div className="flex min-w-0 items-center gap-3">
@@ -83,33 +82,45 @@ export function LogoPicker({
       )}
       <div className="min-w-0 space-y-1">
         <p className="text-sm font-medium text-text">{label}</p>
-        <div className="flex flex-wrap gap-2">
-          <label
-            htmlFor={inputId}
-            aria-disabled={disabled || busy}
-            className={`inline-flex min-h-9 cursor-pointer items-center rounded-button border border-border bg-surface px-3 text-sm font-medium text-text hover:bg-surface-2 pointer-coarse:min-h-11 ${
-              disabled || busy ? 'pointer-events-none opacity-50' : ''
-            }`}
-          >
-            {busy ? 'Caricamento…' : 'Carica immagine'}
-          </label>
-          <input
-            id={inputId}
-            type="file"
-            accept={LOGO_ACCEPT}
-            className="sr-only"
-            disabled={disabled || busy}
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            className={`${inputClass} w-auto max-w-full`}
+            aria-label={`Scegli dalla libreria: ${label}`}
+            value=""
+            disabled={disabled || busy || library.loading}
             onChange={(e) => {
-              pick(e.target.files?.[0]);
-              e.target.value = '';
+              const id = e.target.value;
+              if (id) void run(() => onChange(id));
             }}
-          />
+          >
+            <option value="">{placeholder}</option>
+            {files.map((a) => (
+              <option key={a.id} value={a.id}>
+                {assetOptionText(a)}
+              </option>
+            ))}
+          </select>
           {custom && (
             <Button variant="ghost" disabled={disabled || busy} onClick={() => void run(() => onChange(null))}>
               {defaultLabel}
             </Button>
           )}
+          {!disabled &&
+            (onLibrary ? (
+              <Button variant="ghost" onClick={onLibrary}>
+                Carica nella libreria
+              </Button>
+            ) : (
+              <Link to="/admin/media" className="text-sm font-medium text-primary underline">
+                Carica nella libreria
+              </Link>
+            ))}
         </div>
+        {library.error !== null && (
+          <p role="alert" className="text-xs text-danger">
+            {errorMessage(library.error)}
+          </p>
+        )}
         {error && (
           <p role="alert" className="text-xs text-danger">
             {error}

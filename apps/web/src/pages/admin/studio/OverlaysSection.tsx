@@ -5,6 +5,7 @@ import type {
   OverlayBackground,
   OverlayBackgroundKind,
   OverlayVideoFit,
+  OverlayVideoDuration,
   OverlayVideoTeams,
   OverlayKind,
   OverlayPosition,
@@ -13,7 +14,6 @@ import type {
 } from '@arenalive/shared';
 import {
   adminAssetPath,
-  ASSET_MAX_BYTES,
   defaultOverlay,
   isVideoMime,
   LAYOUT_DEVICES,
@@ -29,23 +29,17 @@ import {
   OverlayBackgroundSchema,
   OverlayTextSchema,
   OVERLAY_VIDEO_FITS,
+  OVERLAY_VIDEO_DURATIONS,
+  OVERLAY_VIDEO_MAX_SECONDS,
   OVERLAY_VIDEO_TEAMS,
 } from '@arenalive/shared';
 import type { MatchState } from '@arenalive/volley-stats';
 import { useId, useState } from 'react';
 import { Button } from '../../../components/ui.tsx';
 import { overlayText, sampleEvent } from '../../../lib/overlay.ts';
-import { useApiError } from '../auth.tsx';
 import { inputClass } from '../forms.tsx';
-import {
-  ACCEPT,
-  ACCEPT_VIDEO,
-  assetOptionText,
-  IMAGE_TOO_LARGE,
-  uploadImage,
-  uploadVideo,
-  videoProblem,
-} from '../imageUpload.ts';
+import { assetOptionText } from '../imageUpload.ts';
+import { LibraryLink } from './ColorsSection.tsx';
 import { selectClass } from './blockEditors.tsx';
 import type { StudioModel } from './model.ts';
 import {
@@ -114,6 +108,10 @@ export const VIDEO_FIT_LABELS: Record<OverlayVideoFit, string> = {
   center: 'Al centro',
   fullscreen: 'A tutto schermo',
 };
+export const VIDEO_DURATION_LABELS: Record<OverlayVideoDuration, string> = {
+  seconds: 'Secondi impostati',
+  video: 'Quanto il video',
+};
 export const VIDEO_TEAMS_LABELS: Record<OverlayVideoTeams, string> = {
   ours: 'Solo la nostra squadra',
   both: 'Entrambe le squadre',
@@ -125,19 +123,20 @@ export function withBackgroundFile(overlay: Overlay, kind: OverlayBackgroundKind
   const old = overlay.background;
   return {
     ...overlay,
-    background: old ? { ...fresh, audio: old.audio, fit: old.fit, teams: old.teams } : fresh,
+    background: old ? { ...fresh, audio: old.audio, fit: old.fit, teams: old.teams, duration: old.duration } : fresh,
   };
 }
 
 /** Pure: the overlay with some options of its background changed (no background: unchanged). */
 export function withBackgroundOptions(
   overlay: Overlay,
-  options: Partial<Pick<OverlayBackground, 'audio' | 'fit' | 'teams'>>,
+  options: Partial<Pick<OverlayBackground, 'audio' | 'fit' | 'teams' | 'duration'>>,
 ): Overlay {
   return overlay.background ? { ...overlay, background: { ...overlay.background, ...options } } : overlay;
 }
 
 const isFit = (v: string): v is OverlayVideoFit => (OVERLAY_VIDEO_FITS as readonly string[]).includes(v);
+const isDuration = (v: string): v is OverlayVideoDuration => (OVERLAY_VIDEO_DURATIONS as readonly string[]).includes(v);
 const isTeams = (v: string): v is OverlayVideoTeams => (OVERLAY_VIDEO_TEAMS as readonly string[]).includes(v);
 
 /** Pure: the files of the client for the backgrounds of `mode` (images or videos uploaded for the overlays). */
@@ -154,41 +153,19 @@ function BackgroundSetting({
   overlay,
   assets,
   onChange,
-  onAssetsChanged,
 }: {
   label: string;
   overlay: Overlay;
   assets: AssetListResponse;
   onChange: (overlay: Overlay) => void;
-  onAssetsChanged: () => void;
 }) {
-  const errorMessage = useApiError();
   const [mode, setMode] = useState<BackgroundMode>(overlay.background?.kind ?? 'none');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const name = useId();
   const files = mode === 'none' ? [] : backgroundFiles(assets.assets, mode);
   const chosen = overlay.background && overlay.background.kind === mode ? overlay.background.assetId : '';
   const choose = (next: BackgroundMode): void => {
     setMode(next);
-    setError(null);
     if (overlay.background && overlay.background.kind !== next) onChange(withoutBackground(overlay));
-  };
-  const upload = async (file: File): Promise<void> => {
-    if (mode === 'none') return;
-    const problem = mode === 'video' ? videoProblem(file) : file.size > ASSET_MAX_BYTES ? IMAGE_TOO_LARGE : null;
-    setError(problem);
-    if (problem) return;
-    setBusy(true);
-    try {
-      const asset = mode === 'video' ? await uploadVideo(file) : await uploadImage(file, 'overlay');
-      if (asset) onChange(withBackgroundFile(overlay, mode, asset.id));
-      onAssetsChanged();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
   };
   return (
     <div className="space-y-2 text-sm text-text">
@@ -221,32 +198,8 @@ function BackgroundSetting({
                 </option>
               ))}
             </select>
-            <label className="inline-flex min-h-9 cursor-pointer items-center rounded-card border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text hover:bg-surface-2">
-              {busy ? 'Caricamento…' : mode === 'video' ? 'Carica video' : 'Carica immagine'}
-              <input
-                type="file"
-                accept={mode === 'video' ? ACCEPT_VIDEO : ACCEPT}
-                className="sr-only"
-                disabled={busy}
-                aria-label={`${mode === 'video' ? 'Carica video' : 'Carica immagine'} per lo sfondo: ${label}`}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = '';
-                  if (file) void upload(file);
-                }}
-              />
-            </label>
+            <LibraryLink />
           </div>
-          {busy && (
-            <p role="status" className="text-xs text-muted">
-              Caricamento del file in corso…
-            </p>
-          )}
-          {error && (
-            <p role="alert" className="text-xs text-danger">
-              {error}
-            </p>
-          )}
           {chosen &&
             (mode === 'video' ? (
               <video
@@ -273,8 +226,8 @@ function BackgroundSetting({
           )}
           <p className="text-xs text-muted">
             {mode === 'video'
-              ? 'Video MP4 o WebM, al massimo 15 MB: parte subito e gira per i secondi dell’avviso su TV e tablet. Con «Audio» acceso si sente anche il sonoro, se il browser lo permette (altrimenti parte senza audio). Con «Solo la nostra squadra» gli avvisi della squadra avversaria escono senza video, in casa e in trasferta (la nostra squadra è quella scelta in «Colori e loghi» › «Squadra»: se non la si riconosce nella partita, il video compare per tutte e due). Sul telefono il video non si mostra, e nemmeno a chi ha chiesto meno animazioni: lì l’avviso esce con il solo testo.'
-              : 'PNG, JPEG, WebP o SVG, al massimo 2 MB: sta dietro al testo, con una velatura del colore della squadra.'}{' '}
+              ? 'Video della libreria: parte subito e gira per i secondi dell’avviso su TV e tablet. Con «Audio» acceso si sente anche il sonoro, se il browser lo permette (altrimenti parte senza audio). Con «Solo la nostra squadra» gli avvisi della squadra avversaria escono senza video, in casa e in trasferta (la nostra squadra è quella scelta in «Colori e loghi» › «Squadra»: se non la si riconosce nella partita, il video compare per tutte e due). Sul telefono il video non si mostra, e nemmeno a chi ha chiesto meno animazioni: lì l’avviso esce con il solo testo.'
+              : 'Immagine della libreria: sta dietro al testo, con una velatura del colore della squadra.'}{' '}
             Il file si scarica all’apertura della pagina (sul telefono solo le immagini, mai il video): se non è ancora
             pronto l’avviso esce con il solo testo.
           </p>
@@ -341,6 +294,29 @@ function VideoOptions({
           ))}
         </select>
       </label>
+      <label className="flex items-center gap-1.5">
+        Durata
+        <select
+          className={selectClass}
+          aria-label={`Durata: ${label}`}
+          value={background.duration}
+          onChange={(e) => {
+            if (isDuration(e.target.value)) onChange(withBackgroundOptions(overlay, { duration: e.target.value }));
+          }}
+        >
+          {OVERLAY_VIDEO_DURATIONS.map((d) => (
+            <option key={d} value={d}>
+              {VIDEO_DURATION_LABELS[d]}
+            </option>
+          ))}
+        </select>
+      </label>
+      {background.duration === 'video' && (
+        <p className="w-full text-xs text-muted">
+          L’avviso resta finché il video finisce (al massimo {OVERLAY_VIDEO_MAX_SECONDS} secondi). Se la durata non si
+          legge, o il video non si vede (telefono, movimento ridotto), dura i secondi impostati ({overlay.seconds}).
+        </p>
+      )}
     </div>
   );
 }
@@ -355,7 +331,6 @@ function OverlayDetail({
   overlay,
   state,
   assets,
-  onAssetsChanged,
   onChange,
   onTry,
   onReset,
@@ -365,7 +340,6 @@ function OverlayDetail({
   overlay: Overlay;
   state: MatchState | null;
   assets: AssetListResponse;
-  onAssetsChanged: () => void;
   onChange: (overlay: Overlay) => void;
   onTry: () => void;
   onReset: () => void;
@@ -474,13 +448,7 @@ function OverlayDetail({
         </div>
       </Setting>
       <Setting id={`${overlaySettingId(kind)}-background`} where={where} scene="overlay" targets={['overlay']}>
-        <BackgroundSetting
-          label={label}
-          overlay={overlay}
-          assets={assets}
-          onChange={onChange}
-          onAssetsChanged={onAssetsChanged}
-        />
+        <BackgroundSetting label={label} overlay={overlay} assets={assets} onChange={onChange} />
       </Setting>
       <div className="flex flex-wrap items-center gap-2 py-1">
         <Button variant="primary" disabled={problem !== null || !state} onClick={onTry} aria-label={`Prova ${label}`}>
@@ -529,7 +497,6 @@ export function OverlaysSection({
   state,
   onTry,
   assets,
-  onAssetsChanged,
 }: {
   draft: TenantOverlays;
   onChange: (change: (config: TenantOverlays) => TenantOverlays) => void;
@@ -542,7 +509,6 @@ export function OverlaysSection({
   onTry: (kind: OverlayKind) => void;
   /** Files of the client: the backgrounds are chosen among the ones uploaded for the overlays. */
   assets: AssetListResponse;
-  onAssetsChanged: () => void;
 }) {
   const [announce, setAnnounce] = useState('');
   const set = (k: OverlayKind, overlay: Overlay): void => onChange((d) => ({ ...d, [k]: overlay }));
@@ -620,7 +586,6 @@ export function OverlaysSection({
                         overlay={overlay}
                         state={state}
                         assets={assets}
-                        onAssetsChanged={onAssetsChanged}
                         onChange={(o) => set(k, o)}
                         onTry={() => onTry(k)}
                         onReset={() => {

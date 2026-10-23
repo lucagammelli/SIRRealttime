@@ -323,7 +323,7 @@ export const shareTokens = pgTable(
   ],
 );
 
-export const assetKind = pgEnum('asset_kind', ['logo', 'sponsor']);
+export const assetKind = pgEnum('asset_kind', ['logo', 'sponsor', 'overlay']);
 
 /**
  * Images uploaded by a client. The file is `<ASSETS_DIR>/<tenant_id>/<sha256>` (no name chosen by the user); the

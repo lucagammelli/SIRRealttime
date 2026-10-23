@@ -170,7 +170,7 @@ describe('uploads', () => {
       expect((await upload('q.sir.test', cookie, png(10, 10, 600_000), {}, small)).statusCode).toBe(201);
       const over = await upload('q.sir.test', cookie, png(11, 10, 600_000), {}, small);
       expect(over.statusCode).toBe(409);
-      expect(over.json<{ error: string }>().error).toContain('Spazio per le immagini esaurito');
+      expect(over.json<{ error: string }>().error).toContain('Spazio per i file esaurito');
       const list = await call(small, 'q.sir.test', cookie, { url: '/api/admin/assets' });
       expect(list.json<AssetListResponse>()).toMatchObject({ quotaBytes: 1024 * 1024 });
       expect(list.json<AssetListResponse>().assets).toHaveLength(1);

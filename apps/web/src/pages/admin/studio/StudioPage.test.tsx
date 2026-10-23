@@ -41,6 +41,7 @@ const TENANT = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
 const LOGO = '8a2d4e6f-1b3c-4d5e-8f7a-9b0c1d2e3f4a';
 const SPONSOR = '1b2c3d4e-5f60-4a1b-8c2d-3e4f5a6b7c8d';
 const UPLOADED = '5d4c3b2a-1f0e-4d9c-8b7a-6f5e4d3c2b1a';
+const VIDEO_ID = '7c6b5a49-3827-4615-8a4b-3c2d1e0f9a8b';
 
 interface Call {
   url: string;
@@ -135,6 +136,16 @@ function mockServer(
         return json({ assets, usedBytes: 2468, quotaBytes: 50 * 1024 * 1024 } satisfies AssetListResponse);
       if (url === '/api/admin/assets' && method === 'POST') {
         const created = asset(UPLOADED, 'logo', 64, 64);
+        assets = [created, ...assets];
+        return json(created, 201);
+      }
+      if (url === '/api/admin/assets/video' && method === 'POST') {
+        const created: AssetSummary = {
+          ...asset(VIDEO_ID, 'sponsor', 1280, 720),
+          kind: 'overlay',
+          mime: 'video/mp4',
+          url: `/api/admin/assets/${VIDEO_ID}/file`,
+        };
         assets = [created, ...assets];
         return json(created, 201);
       }
@@ -895,6 +906,49 @@ describe('Avvisi', () => {
     expect(within(await overlayRow('ace')).getByRole('textbox', { name: 'Testo' })).toHaveProperty(
       'value',
       'ACE! {giocatore}',
+    );
+  });
+
+  it('background: none, image or video; a video is checked before sending, uploaded as bytes, previewed and saved', async () => {
+    const { puts, calls } = mockServer();
+    renderAt('/admin/studio/avvisi');
+    const ace = await overlayRow('ace');
+    expect(within(ace).getByRole('radio', { name: 'Nessuno' })).toHaveProperty('checked', true);
+    fireEvent.click(within(ace).getByRole('radio', { name: 'Video' }));
+    const input = within(ace).getByLabelText('Carica video per lo sfondo: Ace');
+    expect(input.getAttribute('accept')).toBe('video/mp4,video/webm');
+    const pick = (file: File) => fireEvent.change(input, { target: { files: [file] } });
+    pick(new File(['x'], 'film.mov', { type: 'video/quicktime' }));
+    expect(within(ace).getByRole('alert').textContent).toContain('MP4 o WebM');
+    const big = new File(['x'], 'grande.mp4', { type: 'video/mp4' });
+    Object.defineProperty(big, 'size', { value: 16 * 1024 * 1024 });
+    pick(big);
+    expect(within(ace).getByRole('alert').textContent).toContain('15 MB');
+    expect(calls.some((c) => c.url === '/api/admin/assets/video')).toBe(false);
+    pick(new File([new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112])], 'ace.mp4', { type: 'video/mp4' }));
+    await waitFor(() =>
+      expect(within(ace).getByRole('combobox', { name: 'Video dello sfondo: Ace' })).toHaveProperty('value', VIDEO_ID),
+    );
+    const sent = vi.mocked(fetch).mock.calls.find((c) => c[0] === '/api/admin/assets/video')?.[1];
+    expect((sent?.headers as Record<string, string>)['content-type']).toBe('application/octet-stream');
+    expect(sent?.body).toBeInstanceOf(File);
+    expect(within(ace).getByLabelText('Anteprima del video dello sfondo: Ace').tagName).toBe('VIDEO');
+    // The preview of the overlay has the video behind its text.
+    const region = screen.getByTestId('prova-avviso');
+    expect(region.querySelector('[data-background="video"] video')?.getAttribute('src')).toBe(
+      `/api/admin/assets/${VIDEO_ID}/file`,
+    );
+    save();
+    expect(await screen.findByText(/Avvisi salvati/)).toBeTruthy();
+    expect((puts('/api/admin/overlays').at(-1)?.body as TenantOverlays).ace.background).toEqual({
+      kind: 'video',
+      assetId: VIDEO_ID,
+    });
+    // Back to none: the background goes.
+    fireEvent.click(within(await overlayRow('ace')).getByRole('radio', { name: 'Nessuno' }));
+    save();
+    await waitFor(() =>
+      expect((puts('/api/admin/overlays').at(-1)?.body as TenantOverlays).ace.background).toBeUndefined(),
     );
   });
 

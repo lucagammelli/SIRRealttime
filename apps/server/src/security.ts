@@ -57,7 +57,16 @@ const ROLE_RANK: Record<UserRole, number> = { viewer: 0, admin: 1, superadmin: 2
 
 /** preHandler: session required (401) with at least the given role (403). */
 export function requireRole(ctx: AppContext, role: UserRole): preHandlerAsyncHookHandler {
-  return async (request: FastifyRequest, _reply: FastifyReply) => {
+  const check = checkRole(ctx, role);
+  return async (request: FastifyRequest, _reply: FastifyReply) => check(request);
+}
+
+/**
+ * The check of `requireRole` as a plain function, for a hook that must run before the body is read (the upload of a
+ * video: no anonymous request is read for 15 MB).
+ */
+export function checkRole(ctx: AppContext, role: UserRole): (request: FastifyRequest) => Promise<void> {
+  return async (request: FastifyRequest) => {
     const session = await sessionUser(ctx, request);
     if (!session) throw unauthorized();
     if (ROLE_RANK[session.user.role] < ROLE_RANK[role]) throw forbidden();
@@ -68,8 +77,16 @@ export function requireRole(ctx: AppContext, role: UserRole): preHandlerAsyncHoo
 }
 
 /**
- * Browser routes that change data (`/api/auth/*`, `/api/admin/*`): JSON body only and, when the browser sends it,
- * an allowed Origin (see `originAllowed`; with the SameSite=Lax cookie, protection against CSRF).
+ * Route config of the one browser route whose body is a file (`application/octet-stream`, the upload of a video):
+ * `{ config: { ...BINARY_BODY } }`; that route checks the type itself with `requireBinaryBody`, after the role. Every
+ * other route keeps JSON only.
+ */
+export const BINARY_BODY = { binaryBody: true } as const;
+
+/**
+ * Browser routes that change data (`/api/auth/*`, `/api/admin/*`): JSON body only (a route with BINARY_BODY:
+ * `application/octet-stream` only; not a «simple» type, so a cross-site form cannot send it) and, when the browser
+ * sends it, an allowed Origin (see `originAllowed`; with the SameSite=Lax cookie, protection against CSRF).
  * preParsing hook: it runs after the rate limit (an onRequest of the route), so rejected requests are counted too.
  */
 export function browserWriteGuard(ctx: AppContext): preParsingAsyncHookHandler {
@@ -78,10 +95,18 @@ export function browserWriteGuard(ctx: AppContext): preParsingAsyncHookHandler {
     if (!(await originAllowed(ctx, request))) throw forbidden();
     if (BODY_METHODS.has(request.method)) {
       const type = (request.headers['content-type'] ?? '').split(';')[0]?.trim().toLowerCase();
-      if (type !== 'application/json') throw unsupportedMediaType();
+      // A route with BINARY_BODY checks session, role and type itself, in this order (403 before 415).
+      const binary = (request.routeOptions.config as { binaryBody?: boolean }).binaryBody === true;
+      if (!binary && type !== 'application/json') throw unsupportedMediaType();
     }
     return payload;
   };
+}
+
+/** The body of a route with BINARY_BODY must be `application/octet-stream` (415 otherwise). */
+export function requireBinaryBody(request: FastifyRequest): void {
+  const type = (request.headers['content-type'] ?? '').split(';')[0]?.trim().toLowerCase();
+  if (type !== 'application/octet-stream') throw unsupportedMediaType();
 }
 
 /** preHandler of the browser WebSocket routes, where CORS does not apply: Origin, if present, must be allowed. */

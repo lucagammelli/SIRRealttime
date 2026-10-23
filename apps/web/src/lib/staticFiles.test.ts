@@ -83,7 +83,9 @@ describe('CSP of the portal (docker/web.security-headers.conf)', () => {
       "default-src 'self'",
       "script-src 'self'",
       "style-src 'self'",
-      "img-src 'self' data:",
+      // blob: the backgrounds of the overlays read into memory (images and videos), nothing from other origins.
+      "img-src 'self' data: blob:",
+      "media-src 'self' blob:",
       "font-src 'self'",
       "connect-src 'self'",
       "manifest-src 'self'",

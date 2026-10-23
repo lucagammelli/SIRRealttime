@@ -6,6 +6,7 @@
 import type {
   LayoutDevice,
   Overlay,
+  OverlayBackground,
   OverlayPlaceholder,
   OverlayPosition,
   OverlaySize,
@@ -31,6 +32,8 @@ export interface QueuedOverlay {
   receivedAt: number;
   /** Line of the event: same priority, the earlier one first. */
   index: number;
+  /** Image or video behind the text (missing: text only). */
+  background?: OverlayBackground;
 }
 
 /** An overlay waiting longer than this is dropped: it is no longer news. */
@@ -92,6 +95,7 @@ export function overlayFor(
     priority: overlay.priority,
     receivedAt: now,
     index: event.index,
+    ...(overlay.background ? { background: overlay.background } : {}),
   };
 }
 

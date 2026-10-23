@@ -20,6 +20,7 @@ import {
   resolveIntermissions,
   resolveLayout,
   resolveOverlays,
+  withoutOverlayBackgrounds,
 } from '@arenalive/shared';
 import { and, count, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
@@ -183,7 +184,8 @@ export function graphicsTransferRoutes(app: FastifyInstance, ctx: AppContext): v
       exportedAt: now.toISOString(),
       sourceName: tenant.name,
       ...docs,
-      overlays: resolveOverlays(tenant.overlays),
+      // The backgrounds of the overlays (videos up to 15 MB) do not travel in the package: the overlays stay text only.
+      overlays: withoutOverlayBackgrounds(resolveOverlays(tenant.overlays)),
       images,
       sponsors: sponsorList.map((s) => ({ id: s.id, name: s.name, website: s.website, imageIds: s.imageIds })),
     });
@@ -238,7 +240,8 @@ export function graphicsTransferRoutes(app: FastifyInstance, ctx: AppContext): v
         );
         const updated = await tx
           .update(tenants)
-          .set({ ...docs, overlays: pkg.overlays })
+          // A package never brings backgrounds of the overlays (they would be files of another client).
+          .set({ ...docs, overlays: withoutOverlayBackgrounds(pkg.overlays) })
           .where(eq(tenants.id, tenantId))
           .returning({ id: tenants.id });
         if (updated.length === 0) throw notFound();

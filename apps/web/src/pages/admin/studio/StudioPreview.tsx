@@ -1,5 +1,6 @@
 import type { IntermissionKind, LayoutDevice, OverlayKind } from '@arenalive/shared';
 import {
+  adminAssetPath,
   brandPalette,
   LAYOUT_DEVICES,
   overlayPlacement,
@@ -230,6 +231,11 @@ function Stage({
               team="home"
               device={device}
               size={placement.size}
+              media={
+                overlay.background
+                  ? { kind: overlay.background.kind, url: adminAssetPath(overlay.background.assetId) }
+                  : null
+              }
             />
           )}
         </div>

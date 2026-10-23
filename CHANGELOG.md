@@ -4,6 +4,11 @@ Le versioni seguono il versionamento semantico (`vX.Y.Z`); la fonte della versio
 `package.json` alla radice. Le sezioni nuove le aggiunge `scripts/rilascia.sh` con i titoli dei commit dal tag
 precedente; le note della release su GitHub sono la sezione della versione (`docs/regole/test-job-rilasci.md`).
 
+## [2.4.0] - 2026-10-23
+
+- TV: schermate rimpicciolite fino al 15% invece di una schermata in più; misure azzerate a ogni set
+- Avvisi: video con audio, posizione e solo per la nostra squadra; nome dei file caricati e libreria media
+
 ## [2.3.0] - 2026-10-23
 
 - Calendario: competizione delle partite a mano (es. Champions League) e filtro per competizione

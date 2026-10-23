@@ -540,7 +540,10 @@ automatici spenti sul server (LEAGUE_SYNC=off).») e «Aggiorna ora». Durante u
 **«Calendario»** (`/admin/calendario`): la scheda «Calendario» elenca le partite del club per data: giornata, data e ora
 italiane (`formatFixtureDate`), squadre con logo (in grassetto la nostra), risultato in set, palazzetto, un'etichetta di stato
 («Programmata», «In diretta», «Finita», «Rinviata», «Da confermare», «Non più in calendario»), il file `.dvw` abbinato
-(«abbinata da sola» o «abbinata a mano») e il link breve con codice, «Copia link» e «Scarica QR» (stesso QR dei link
+(«abbinata da sola» o «abbinata a mano») con il pulsante «Scollega» (solo per chi può modificare; chiede conferma con
+«Conferma: scollega il file»: chiama `PUT /api/admin/matches/:id/fixture` con `clientFixtureId: null`, il file passa a
+«nessuna» e la partita torna «Programmata»; il server non lo riabbina più da solo, solo a mano da «Da confermare» o dal
+dettaglio partita) e il link breve con codice, «Copia link» e «Scarica QR» (stesso QR dei link
 pubblici); un link revocato mostra «Link revocato.». Sopra, la scheda «Da confermare» compare solo se ci sono `.dvw` di
 cui il server non è sicuro: per ognuno un menu con i candidati («somiglianza N%»), «Nessuna (amichevole)» e «Altre partite
 del calendario», e il pulsante «Conferma». Finché non è confermata, la partita ha comunque i suoi link. «Aggiorna

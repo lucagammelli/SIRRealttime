@@ -265,3 +265,35 @@ export const pickSeriesChampionship = <T extends ChampionshipOption>(
   series: LeagueSeries,
   options: readonly T[],
 ): T | null => pickSeriesChampionships(series, options)[0] ?? null;
+
+/**
+ * Kinds of the other competitions of a series (cups, play off…), from the most specific: a competition of a new
+ * season takes the place of the one of the same kind of the season before («Del Monte Supercoppa» 2025 → «Supercoppa
+ * A1» 2026). The sponsors in the names change every year, the kind stays.
+ */
+const COMPETITION_KINDS: readonly { kind: string; words: readonly string[] }[] = [
+  { kind: 'supercoppa', words: ['supercoppa'] },
+  { kind: 'coppa italia', words: ['coppa italia'] },
+  { kind: 'play off 5', words: ['play off 5', 'playoff 5'] },
+  { kind: 'play off', words: ['play off', 'playoff'] },
+  { kind: 'play out', words: ['play out', 'playout'] },
+  { kind: 'challenge', words: ['challenge'] },
+  { kind: 'promozione', words: ['promozione'] },
+  { kind: 'coppa', words: ['coppa'] },
+];
+
+/** Pure: the kind of a competition from its name (`COMPETITION_KINDS`), null when none (no automatic change of season). */
+export function competitionKind(name: string): string | null {
+  const text = ` ${normalizeLeagueText(name)} `;
+  return COMPETITION_KINDS.find((k) => k.words.some((w) => text.includes(` ${w} `)))?.kind ?? null;
+}
+
+/**
+ * Pure: the other competitions of a series among the options of the menu «Campionato» of the page of its championship
+ * (the site lists there the competitions of the same category: cups, Supercoppa, play off…): every option except the
+ * championships of the series (`pickSeriesChampionships`, A3: both groups).
+ */
+export function seriesCompetitions<T extends ChampionshipOption>(series: LeagueSeries, options: readonly T[]): T[] {
+  const own = new Set(pickSeriesChampionships(series, options).map((o) => o.externalId));
+  return options.filter((o) => !own.has(o.externalId));
+}

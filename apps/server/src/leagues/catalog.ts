@@ -24,6 +24,9 @@ export const CATALOG_NIGHTLY_AGE_MS = 20 * 3_600_000;
 /** Most pages read to find every series of the catalog (the first one included). */
 export const CATALOG_MAX_PAGES = 10;
 
+/** Most menus of single championships kept in memory (see `competitionsOf`). */
+const CATALOG_PAGES_KEPT = 50;
+
 /** A page read: its menu «Campionato» and the `IdCampionato` of its links. */
 export interface CatalogPage {
   menu: ParsedChampionshipMenu;
@@ -71,6 +74,8 @@ export async function discoverChampionships(
 export class LeagueCatalog {
   private menu: { at: Date; data: ParsedChampionshipMenu } | null = null;
   private loading: Promise<ParsedChampionshipMenu> | null = null;
+  /** Menus of the pages of single championships (the competitions of their series), by `IdCampionato`. */
+  private pages = new Map<number, { at: Date; data: ParsedChampionshipMenu }>();
 
   constructor(private readonly o: { fetcher: LeagueFetcher; now: () => Date; log: FastifyBaseLogger }) {}
 
@@ -117,6 +122,21 @@ export class LeagueCatalog {
         `Il sito della Lega non ha ancora il campionato «${series.label}» nella stagione ${menu.season}/${menu.season + 1}`,
       );
     return found.map((c) => ({ ...c, season: menu.season }));
+  }
+
+  /**
+   * The menu «Campionato» of the page of a championship: the site lists there the competitions of its series (cups,
+   * Supercoppa, play off…) of the same season. Kept for CATALOG_MAX_AGE_MS; throws LeagueFormatError when the page
+   * changed.
+   */
+  async competitionsOf(externalId: number, maxAgeMs = CATALOG_MAX_AGE_MS): Promise<ParsedChampionshipMenu> {
+    const hit = this.pages.get(externalId);
+    if (hit && this.o.now().getTime() - hit.at.getTime() < maxAgeMs) return hit.data;
+    const { menu } = await this.page(externalId);
+    // A few series only: the map never grows much, but a limit keeps it so.
+    if (this.pages.size >= CATALOG_PAGES_KEPT) this.pages.clear();
+    this.pages.set(externalId, { at: this.o.now(), data: menu });
+    return menu;
   }
 
   /** True when the catalog was never read or its reading is old: the nightly update reads it again. */

@@ -107,6 +107,10 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
+        text: 'Per le altre competizioni della serie (Coppa Italia, Supercoppa, Play Off…) premi «Aggiungi competizione» in «Campionati»: compare l’elenco delle competizioni della stagione sul sito della Lega. Scegline una e premi «Aggiungi»: si scarica da sola e la squadra del club si sceglie da sola (la stessa della serie). Se non la riconosciamo, sceglila tu: senza squadra non arriva nessuna partita. A inizio stagione la competizione passa da sola a quella nuova appena la Lega la pubblica.',
+      },
+      {
+        kind: 'text',
         text: 'Sempre in «Club», nel campo «Partite trasmesse» scegli «Casa e trasferta» oppure «Solo partite in casa». Con «Solo partite in casa» le trasferte non hanno il link attivo. Nel «Calendario» ogni partita può fare eccezione.',
       },
       { kind: 'text', text: 'Nel «Calendario»:' },

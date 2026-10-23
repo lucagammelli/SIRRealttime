@@ -606,3 +606,25 @@ export const ClubLeagueStatusSchema = z.object({
   teamId: z.uuid().nullable(),
 });
 export type ClubLeagueStatus = z.infer<typeof ClubLeagueStatusSchema>;
+
+/** `GET` / `POST /api/admin/club/competitions`: the other competitions of the series of the club on the official site. */
+export const CLUB_COMPETITIONS_PATH = '/api/admin/club/competitions';
+
+/** A competition of the series of the club on the official site (cup, Supercoppa, play off…), not chosen yet. */
+export const ClubCompetitionSchema = z.object({
+  externalId: LeagueExternalIdSchema,
+  name: z.string(),
+  season: LeagueSeasonSchema,
+});
+export type ClubCompetition = z.infer<typeof ClubCompetitionSchema>;
+
+/** `GET CLUB_COMPETITIONS_PATH`: the competitions of the season in course the club can add (empty: none). */
+export const ClubCompetitionsResponseSchema = z.object({ competitions: z.array(ClubCompetitionSchema) });
+export type ClubCompetitionsResponse = z.infer<typeof ClubCompetitionsResponseSchema>;
+
+/**
+ * `POST CLUB_COMPETITIONS_PATH`: adds one of the competitions of `GET` (by its `IdCampionato`, checked again on the
+ * site): the server adds it, downloads it and chooses the team of the club in it when it recognizes it.
+ */
+export const AddClubCompetitionRequestSchema = z.strictObject({ externalId: LeagueExternalIdSchema });
+export type AddClubCompetitionRequest = z.infer<typeof AddClubCompetitionRequestSchema>;

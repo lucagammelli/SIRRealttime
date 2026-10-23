@@ -544,8 +544,14 @@ con la copertura predefinita «Casa e trasferta») e «Loghi delle squadre» («
 «Campionati»: per ogni campionato un menu «Campionato» (nome e stagione, con lo stato dell'ultimo aggiornamento: «Mai
 scaricato», «Aggiornamento in corso…», «aggiornato …») e un menu «Squadra del club»; «Togli», «Aggiungi campionato» (al
 massimo 8), «Salva» (attivo solo se c'è una modifica) e «Aggiorna calendario». Un admin sceglie solo tra i campionati già
-noti («Nessun campionato disponibile. Chiedi al superadmin di aggiungere il campionato del club.»); aggiungerli spetta al
-superadmin nella pagina «Campionati». Sotto «Nostra squadra nei file .dvw» ci sono i pulsanti «Apri «Colori e loghi»»
+noti («Nessun campionato disponibile. Chiedi al superadmin di aggiungere il campionato del club.»); aggiungere nuovi campionati alla
+Lega spetta al superadmin nella pagina «Campionati». Le altre competizioni della serie le aggiunge l'admin del cliente con
+«Aggiungi competizione» (`CompetitionAdder`, con la serie scelta): «Lettura dal sito…», poi «Competizioni della serie sul sito
+della Lega» con il menu «Competizione da aggiungere», «Aggiungi» e «Annulla» (`POST /api/admin/club/competitions`); la
+competizione si scarica da sola e la squadra del club si sceglie da sola (la stessa della serie): se non la riconosciamo
+compare l'avviso «Senza squadra non arriva nessuna partita» e la si sceglie a mano. Il pulsante è fermo con «Salva prima le
+modifiche ai campionati.» (modifiche non salvate) o «Al massimo 8 campionati: togline uno.». A inizio stagione la competizione
+passa da sola a quella nuova (`docs/server.md`, «Altre competizioni della serie»). Sotto «Nostra squadra nei file .dvw» ci sono i pulsanti «Apri «Colori e loghi»»
 (verso `/admin/studio/colori`, solo per chi può modificare) e, per il superadmin, «Apri «Campionati»». Un viewer vede la
 pagina in sola lettura.
 

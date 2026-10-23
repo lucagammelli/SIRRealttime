@@ -85,6 +85,11 @@ export interface LiveConnectionOptions {
    * `lib/visit.ts`); missing or null: nothing is sent.
    */
   hello?: () => string | null;
+  /**
+   * The graphics of the client may have changed: `changed` the server sent `config` (a save in the reserved area),
+   * `reconnected` the socket opened again after a drop (a `config` may have been lost meanwhile).
+   */
+  onConfig?: (reason: 'changed' | 'reconnected') => void;
 }
 
 /** Close codes of a server that stopped, restarted or crashed: every client reconnects, so they spread out. */
@@ -97,7 +102,7 @@ const RESTART_CODES = new Set([1001, 1006, 1012, 1013]);
 export function applyMessage(current: LiveData | null, message: ServerMessage): LiveData | null {
   if (message.type === 'noMatch') return { kind: 'noMatch' };
   if (message.type === 'scheduled') return { kind: 'scheduled', fixture: message.fixture };
-  if (message.type === 'error' || message.type === 'patch') return null;
+  if (message.type === 'error' || message.type === 'patch' || message.type === 'config') return null;
   if (!looksLikeMatchState(message.state)) return null;
   if (current?.kind === 'state' && current.matchId === message.matchId && message.version <= current.version)
     return null;
@@ -158,6 +163,8 @@ export class LiveConnection {
   private stopped = false;
   /** HTTP probe in flight: its answer decides the next step, nothing else may reconnect meanwhile. */
   private probing = false;
+  /** A socket of this connection opened at least once: the next open is a reconnection. */
+  private everOpened = false;
   private snapshot: LiveSnapshot = { status: 'connecting', data: null, error: null, attempts: 0 };
   private readonly createSocket: SocketFactory;
   private readonly base: number;
@@ -271,6 +278,10 @@ export class LiveConnection {
         this.update({ error: message.message });
         return;
       }
+      if (message.type === 'config') {
+        this.options.onConfig?.('changed');
+        return;
+      }
       if (message.type === 'patch') {
         if (resyncing) return;
         const next = applyPatchMessage(this.snapshot.data, message);
@@ -291,6 +302,8 @@ export class LiveConnection {
     };
     socket.onopen = () => {
       opened = true;
+      if (this.everOpened) this.options.onConfig?.('reconnected');
+      this.everOpened = true;
       const hello = this.options.hello?.();
       if (hello) socket.send(hello);
       this.update({ status: 'live', attempts: 0, serverFull: false });

@@ -151,6 +151,7 @@ function Stage({
   trial,
   fit,
   top,
+  live,
   onNotice,
 }: {
   device: LayoutDevice;
@@ -164,6 +165,8 @@ function Stage({
   trial: OverlayTrial | null;
   fit: boolean;
   top: boolean;
+  /** The match is the live one (not the example): the caption says so. */
+  live: boolean;
   onNotice?: (text: string | null) => void;
 }) {
   const kind: IntermissionKind | null = pauseKindOf(scene);
@@ -202,7 +205,7 @@ function Stage({
       look={look}
       fit={fit}
       top={top}
-      source="Partita d’esempio"
+      source={live ? 'Partita live' : 'Partita d’esempio'}
     >
       {pause && (
         <Intermission
@@ -356,6 +359,7 @@ export function StudioPreview({
           trial={trial}
           fit
           top={!full}
+          live={live}
           {...(full ? {} : { onNotice: setNotice })}
         />
       </BrandScope>

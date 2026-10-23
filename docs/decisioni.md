@@ -464,5 +464,11 @@ Una riga per decisione: data, scelta, motivo.
   richiederebbe la sfida DNS-01 e un plugin del provider DNS); la rotta è difesa rifiutando (404) le richieste con
   intestazioni di inoltro invece di un listener separato, e il limite è fisso a 600 richieste al minuto, perché Caddy
   chiede solo per hostname senza certificato (`docs/infrastruttura.md`, `docs/server.md`).
+- 2026-10-23: la pagina live recepisce le modifiche dello Studio con un messaggio WebSocket `config` senza dati (il
+  client rilegge la grafica con la solita GET, nessun contenuto sul socket) e con una lettura dopo un ritardo casuale di
+  0–3 s, perché migliaia di spettatori non devono chiedere la grafica nello stesso istante; riconnessione e ritorno in
+  primo piano rileggono al più una volta al minuto come rete di sicurezza. Al cambio di modello lo Studio chiede se
+  applicare anche i blocchi, perché sostituirli di nascosto cancellerebbe la disposizione scelta
+  (`docs/server.md`, `docs/portale.md`, `docs/architettura.md`).
 - 2026-10-23: a video la scritta «MVP» diventa «Miglior Realizzatore» (diapositiva delle pause, riga compatta, titolo); il criterio resta quello del 2026-10-15 e l'id `mvp` e `matchMvp` non cambiano. I giocatori si mostrano ovunque con il solo cognome (`playerName`); il blocco Rotazioni ha l'opzione «Disposizione» (affiancati / uno sopra l'altro).
 - 2026-10-23: la mappa del campo ha «Colore del campo»: automatico, colore singolo o tricolore (verde, bianco, rosso in tre fasce da due colonne, bianca sulla rete); campi facoltativi nello schema, perché i layout salvati restino validi e senza opzioni la mappa sia identica. Con fondo scelto, le linee automatiche passano a inchiostro scuro/chiaro in base alla luminosità, per leggersi sul bianco.

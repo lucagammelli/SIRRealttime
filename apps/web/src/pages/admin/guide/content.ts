@@ -145,7 +145,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'In «Pagina live» e in «Pause» ogni blocco e ogni diapositiva ha nella sua riga il pulsante «−» (Rimuovi). Se hai scelto delle opzioni (un testo, gli sponsor) chiede prima «Conferma rimozione». Nelle «Pause» l’interruttore «Attiva» spegne una diapositiva senza perdere le sue opzioni: resta nell’elenco ma i tifosi non la vedono.',
+        text: 'In «Pagina live» e in «Pause» ogni blocco e ogni diapositiva ha nella sua riga il pulsante «−» (Rimuovi). Se hai scelto delle opzioni (un testo, gli sponsor) chiede prima «Conferma rimozione». Nelle «Pause» l’interruttore «Attiva» spegne una diapositiva senza perdere le sue opzioni: resta nell’elenco ma i tifosi non la vedono. Nel blocco «Rotazioni» la «Disposizione» sceglie se i grafici delle due squadre stanno «Affiancati» o «Uno sopra l’altro».',
       },
       {
         kind: 'text',

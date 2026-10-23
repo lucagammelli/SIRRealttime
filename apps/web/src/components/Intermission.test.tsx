@@ -214,7 +214,7 @@ describe('Intermission: slides', () => {
     act(() => {
       vi.advanceTimersByTime(10_000);
     });
-    expect(screen.getByText('MVP della partita')).toBeTruthy();
+    expect(screen.getByText('Miglior Realizzatore della partita')).toBeTruthy();
     act(() => {
       vi.advanceTimersByTime(10_000);
     });
@@ -259,7 +259,7 @@ describe('Intermission: slides', () => {
     act(() => {
       vi.advanceTimersByTime(10_000);
     });
-    expect(screen.getByText('MVP della partita')).toBeTruthy();
+    expect(screen.getByText('Miglior Realizzatore della partita')).toBeTruthy();
   });
 
   it('reduced motion: the first slide stays, no rotation button', () => {

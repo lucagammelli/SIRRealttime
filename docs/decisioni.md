@@ -470,3 +470,4 @@ Una riga per decisione: data, scelta, motivo.
   primo piano rileggono al più una volta al minuto come rete di sicurezza. Al cambio di modello lo Studio chiede se
   applicare anche i blocchi, perché sostituirli di nascosto cancellerebbe la disposizione scelta
   (`docs/server.md`, `docs/portale.md`, `docs/architettura.md`).
+- 2026-10-23: a video la scritta «MVP» diventa «Miglior Realizzatore» (diapositiva delle pause, riga compatta, titolo); il criterio resta quello del 2026-10-15 e l'id `mvp` e `matchMvp` non cambiano. I giocatori si mostrano ovunque con il solo cognome (`playerName`); il blocco Rotazioni ha l'opzione «Disposizione» (affiancati / uno sopra l'altro).

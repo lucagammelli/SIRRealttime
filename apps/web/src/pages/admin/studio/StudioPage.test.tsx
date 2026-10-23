@@ -757,6 +757,46 @@ describe('Pause', () => {
     });
   });
 
+  it('«Dopo la partita» in «Fine partita»: switch, photo chosen or uploaded as a sponsor image, minutes, PUT', async () => {
+    const { calls, puts } = mockServer();
+    renderAt('/admin/studio/pause');
+    await studio();
+    fireEvent.click(screen.getByRole('tab', { name: 'Fine partita' }));
+    const card = screen.getByRole('region', { name: 'Dopo la partita' });
+    fireEvent.click(within(card).getByRole('switch', { name: 'Mostra la foto dopo la partita' }));
+    expect(within(card).getByText(/senza foto la schermata non compare/)).toBeTruthy();
+    expect(within(card).queryByTestId('anteprima-dopo-partita')).toBeNull();
+    // Only the sponsor images are offered (not the logos).
+    expect(within(card).getAllByRole('radio')).toHaveLength(1);
+    fireEvent.click(within(card).getByRole('radio', { name: /Immagine 1/ }));
+    fireEvent.change(within(card).getByRole('spinbutton', { name: /Minuti dopo la fine della partita/ }), {
+      target: { value: '500' },
+    });
+    expect(within(card).getByRole<HTMLInputElement>('spinbutton').value).toBe('240');
+    fireEvent.change(within(card).getByRole('spinbutton'), { target: { value: '45' } });
+    const preview = within(card).getByTestId('anteprima-dopo-partita');
+    expect(preview.querySelector('img')?.getAttribute('src')).toBe(`/api/admin/assets/${SPONSOR}/file`);
+    expect(within(preview).getByRole('heading', { name: 'Prossima partita' })).toBeTruthy();
+    save();
+    expect(await screen.findByText(/Pause salvate/)).toBeTruthy();
+    const body = puts('/api/admin/intermissions').at(-1)?.body as TenantIntermissions;
+    expect(body.afterMatch).toEqual({ enabled: true, image: SPONSOR, delayMinutes: 45 });
+
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 4, 5, 6]);
+    fireEvent.change(within(card).getByLabelText('Carica immagine'), {
+      target: { files: [new File([bytes], 'foto.png', { type: 'image/png' })] },
+    });
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/admin/assets' && c.method === 'POST')).toBe(true));
+    expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({ kind: 'sponsor' });
+    await waitFor(() =>
+      expect(within(card).getByTestId('anteprima-dopo-partita').querySelector('img')?.getAttribute('src')).toBe(
+        `/api/admin/assets/${UPLOADED}/file`,
+      ),
+    );
+    fireEvent.click(within(card).getByRole('button', { name: 'Togli foto' }));
+    await waitFor(() => expect(within(card).queryByTestId('anteprima-dopo-partita')).toBeNull());
+  });
+
   it('own end of set of the 3rd set, a pause turned off, the rule of the «ogni N punti»', async () => {
     const { puts } = mockServer();
     renderAt('/admin/studio/pause');

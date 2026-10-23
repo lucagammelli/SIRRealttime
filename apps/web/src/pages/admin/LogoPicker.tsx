@@ -1,4 +1,4 @@
-import type { AssetSummary } from '@arenalive/shared';
+import type { AssetKind, AssetSummary } from '@arenalive/shared';
 import { ASSET_MAX_BYTES, AssetSummarySchema } from '@arenalive/shared';
 import { useId, useState } from 'react';
 import { Button } from '../../components/ui.tsx';
@@ -9,11 +9,14 @@ import { useApiError } from './auth.tsx';
 /** Image types accepted by the server (it checks them again from the bytes). */
 export const LOGO_ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml';
 
-/** Uploads an image `logo` of the client (`POST /api/admin/assets`): the same checks of the server for every logo. */
-export async function uploadLogo(file: File): Promise<AssetSummary> {
+/**
+ * Uploads an image of the client (`POST /api/admin/assets`), of kind `logo` unless told otherwise: the same checks of
+ * the server for every image.
+ */
+export async function uploadLogo(file: File, kind: AssetKind = 'logo'): Promise<AssetSummary> {
   return apiRequest('/api/admin/assets', AssetSummarySchema, {
     method: 'POST',
-    body: { kind: 'logo', data: await fileToBase64(file) },
+    body: { kind, data: await fileToBase64(file) },
   });
 }
 
@@ -28,6 +31,7 @@ export function LogoPicker({
   disabled = false,
   onChange,
   defaultLabel = 'Predefinito',
+  kind = 'logo',
 }: {
   label: string;
   url: string | null;
@@ -36,6 +40,8 @@ export function LogoPicker({
   /** The id of the new image, null for the default one; a rejection is shown under the logo. */
   onChange: (assetId: string | null) => Promise<void>;
   defaultLabel?: string;
+  /** Kind of the uploaded image (default `logo`; `sponsor` for the photos of the pauses). */
+  kind?: AssetKind;
 }) {
   const errorMessage = useApiError();
   const inputId = useId();
@@ -60,7 +66,7 @@ export function LogoPicker({
       setError('Immagine troppo grande (massimo 2 MB).');
       return;
     }
-    void run(async () => onChange((await uploadLogo(file)).id));
+    void run(async () => onChange((await uploadLogo(file, kind)).id));
   };
 
   return (

@@ -130,6 +130,8 @@ export function remapGraphicsImageIds<
       if (block.type === 'sponsor') block.options.images = block.options.images.map(to);
   for (const pause of allIntermissions(out.intermissions))
     for (const slide of pause.slides) if (slide.type === 'sponsor') slide.options.images = slide.options.images.map(to);
+  const afterMatch = out.intermissions.afterMatch.image;
+  if (afterMatch !== null) out.intermissions.afterMatch.image = to(afterMatch);
   return out;
 }
 

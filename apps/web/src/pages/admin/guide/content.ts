@@ -153,6 +153,10 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
+        text: 'In «Pause», nella scheda «Fine partita», la parte «Dopo la partita» mostra una foto a tutto schermo quando la partita è finita da un po’. Accendi «Mostra la foto dopo la partita», carica la foto con «Carica immagine» oppure scegline una già caricata, e scrivi i «Minuti dopo la fine della partita» (da 0 a 240, di solito 30). Passati quei minuti il link della diretta mostra la foto e, sopra, il conto alla rovescia della prossima partita del calendario, con le squadre, il giorno e l’ora; se non c’è una prossima partita resta solo la foto. Prende il posto della pausa di fine partita, non ha niente da toccare e funziona anche con «Touch: No». Con «Togli foto» la togli; una foto in uso qui non si può eliminare.',
+      },
+      {
+        kind: 'text',
         text: 'A lato c’è sempre l’anteprima. Puoi sceglierla per TV, tablet o telefono, e aprirla a tutto schermo con «Anteprima a tutto schermo». Quello che vedi lì è quello che vedranno i tifosi.',
       },
       {

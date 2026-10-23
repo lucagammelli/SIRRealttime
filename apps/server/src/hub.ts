@@ -319,7 +319,9 @@ export class LiveHub implements StatePublisher {
       this.scheduled.delete(route.clientFixtureId);
     }
     let patch: { baseVersion: number; frame: Frame } | null = null;
-    if (previous && previous.tenantId === tenantId) {
+    // A patch carries only the state: when `finishedAt` changes (the match ends or a correction reopens it), the full
+    // message goes to every client.
+    if (previous && previous.tenantId === tenantId && previous.message.finishedAt === message.finishedAt) {
       const ops = diffJson(previous.state, snap.state);
       const body: PatchMessage = {
         type: 'patch',

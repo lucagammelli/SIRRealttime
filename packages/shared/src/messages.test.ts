@@ -23,6 +23,14 @@ describe('ServerMessageSchema', () => {
     // Extra fields are dropped: the signal never carries data of the client.
     expect(ServerMessageSchema.parse({ type: 'config', branding: { x: 1 } })).toEqual({ type: 'config' });
   });
+  it('accepts finishedAt as an ISO UTC time, optional', () => {
+    const at = '2026-10-23T18:30:00.000Z';
+    const parsed = ServerMessageSchema.parse({ type: 'state', matchId: ID, version: 2, state: {}, finishedAt: at });
+    expect(parsed.type === 'state' && parsed.finishedAt).toBe(at);
+    expect(
+      ServerMessageSchema.safeParse({ type: 'state', matchId: ID, version: 2, state: {}, finishedAt: 'ieri' }).success,
+    ).toBe(false);
+  });
   it('rejects unknown types and missing state', () => {
     expect(ServerMessageSchema.safeParse({ type: 'hello' }).success).toBe(false);
     expect(ServerMessageSchema.safeParse({ type: 'state', matchId: ID, version: 1, state: null }).success).toBe(false);

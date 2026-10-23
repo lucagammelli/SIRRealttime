@@ -1,6 +1,9 @@
 import { DUEL_ROLES, TEAM_DUEL_KEYS } from '@arenalive/volley-stats';
 import { describe, expect, it } from 'vitest';
 import {
+  AFTER_MATCH_DEFAULT_DELAY_MINUTES,
+  AFTER_MATCH_MAX_DELAY_MINUTES,
+  afterMatchImage,
   DUEL_ROLE_CHOICES,
   MILESTONE_DEFAULT_EVERY,
   MILESTONE_DEFAULT_STOP_BEFORE_END,
@@ -332,5 +335,30 @@ describe('pauses of the public page: inheritance and images', () => {
       images: { logoMain: null, logoMark: null, sponsorLogo: null },
     });
     expect(res.intermissions).toEqual(defaultIntermissions());
+  });
+});
+
+describe('afterMatch («Dopo la partita»)', () => {
+  it('is off without an image by default, also for documents saved before it existed', () => {
+    const expected = { enabled: false, image: null, delayMinutes: AFTER_MATCH_DEFAULT_DELAY_MINUTES };
+    expect(defaultIntermissions().afterMatch).toEqual(expected);
+    expect(resolveIntermissions({ timeout: { enabled: false } }).afterMatch).toEqual(expected);
+    expect(afterMatchImage(defaultIntermissions().afterMatch)).toBeNull();
+  });
+
+  it('keeps image and minutes, and checks their limits', () => {
+    const on = TenantIntermissionsSchema.parse({ afterMatch: { enabled: true, image: IMG_A, delayMinutes: 0 } });
+    expect(on.afterMatch).toEqual({ enabled: true, image: IMG_A, delayMinutes: 0 });
+    expect(afterMatchImage(on.afterMatch)).toBe(IMG_A);
+    expect(afterMatchImage({ ...on.afterMatch, enabled: false })).toBeNull();
+    for (const delayMinutes of [-1, AFTER_MATCH_MAX_DELAY_MINUTES + 1, 1.5])
+      expect(TenantIntermissionsSchema.safeParse({ afterMatch: { delayMinutes } }).success).toBe(false);
+    expect(TenantIntermissionsSchema.safeParse({ afterMatch: { image: 'logo.png' } }).success).toBe(false);
+    expect(TenantIntermissionsSchema.safeParse({ afterMatch: { extra: 1 } }).success).toBe(false);
+  });
+
+  it('lists its image with the images of the pauses, even when off', () => {
+    const config = TenantIntermissionsSchema.parse({ afterMatch: { image: IMG_B } });
+    expect(intermissionImageIds(config)).toEqual([IMG_B]);
   });
 });

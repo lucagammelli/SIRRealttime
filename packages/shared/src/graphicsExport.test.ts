@@ -71,6 +71,7 @@ describe('remapGraphicsImageIds', () => {
     else layout.tv.push({ id: 'sp', type: 'sponsor', options: { images: [B], seconds: 5 } } as never);
     const docs = { branding: { ...defaultBranding(), logoMain: A }, layout, intermissions: defaultIntermissions() };
     docs.intermissions.timeout.slides.push({ type: 'sponsor', options: { images: [A], seconds: 5 } } as never);
+    docs.intermissions.afterMatch.image = B;
     const out = remapGraphicsImageIds(
       docs,
       new Map([
@@ -79,6 +80,7 @@ describe('remapGraphicsImageIds', () => {
       ]),
     );
     expect(out.branding.logoMain).toBe(A2);
+    expect(out.intermissions.afterMatch.image).toBe(B2);
     expect(graphicsImageIds(out).sort()).toEqual([A2, B2].sort());
     expect(graphicsImageIds(docs).sort()).toEqual([A, B].sort());
   });

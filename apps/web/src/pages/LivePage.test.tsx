@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SystemLogo } from '@arenalive/shared';
@@ -15,7 +15,8 @@ import type { LiveSnapshot } from '../lib/liveConnection.ts';
 import { TV_ROOT_CLASS } from '../lib/tvScreen.ts';
 import { previewState } from '../lib/intermission.ts';
 import { matchPoints, matchStateUntilPoint } from '@arenalive/volley-stats';
-import { midMatchState } from '../test/fixtures.ts';
+import { midMatchState, stateAfter } from '../test/fixtures.ts';
+import { resetSchedule } from '../lib/schedule.ts';
 import { LivePage } from './LivePage.tsx';
 
 // jsdom has no canvas: the chart wrapper is replaced by its accessible label.
@@ -527,5 +528,132 @@ describe('LivePage: loghi di sistema', () => {
     const right = screen.getByTestId('loghi-di-sistema').querySelector('[data-system-logo="destra"]');
     expect(right?.getAttribute('src')).toBe(RIGHT.url);
     expect(right?.getAttribute('data-system-logo-variant')).toBe('positive');
+  });
+});
+
+describe('LivePage «Dopo la partita»', () => {
+  const IMAGE = '1b2c3d4e-5f60-4a1b-8c2d-3e4f5a6b7c8d';
+  const END = '2026-10-23T19:00:00.000Z';
+  const NEXT = {
+    startsAt: '2026-10-25T17:00:00.000Z',
+    home: { name: 'Sir Susa Scai Perugia', logoUrl: null },
+    away: { name: 'Itas Trentino', logoUrl: null },
+    ourSide: 'home',
+    venue: null,
+    venueCity: null,
+    roundLabel: '3ª Giornata Andata',
+    leagueName: null,
+    live: false,
+    shortUrl: null,
+  };
+
+  function lookWith(touch: boolean): void {
+    const layout = TenantLayoutSchema.parse({ touch: { tv: touch, tablet: touch, phone: touch } });
+    act(() =>
+      setTenantLook(
+        tenantLookOf({
+          name: 'Sir Safety',
+          branding: defaultBranding(),
+          images: { logoMain: null, logoMark: null, sponsorLogo: null },
+          layout,
+          intermissions: { ...defaultIntermissions(), afterMatch: { enabled: true, image: IMAGE, delayMinutes: 30 } },
+          overlays: defaultOverlays(),
+          sponsors: [],
+        }),
+      ),
+    );
+  }
+
+  function finishedMatch(): void {
+    socketSnapshot = {
+      ...snapshot,
+      data: {
+        kind: 'state',
+        matchId: '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11',
+        version: 9,
+        state: stateAfter(),
+        finishedAt: END,
+      },
+    };
+  }
+
+  function stubSchedule(fixtures: unknown[]): ReturnType<typeof vi.fn> {
+    const fetchMock = vi.fn((url: string) =>
+      Promise.resolve(
+        url === '/api/public/tenant/schedule'
+          ? new Response(JSON.stringify({ fixtures, standings: null }), { status: 200 })
+          : new Response('{"error":"Non trovato"}', { status: 404 }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  const flush = () =>
+    act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+  afterEach(() => resetSchedule());
+
+  it('the end-of-match pause first; after the minutes the photo full screen with the countdown, no pause nor overlay', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-23T19:10:00.000Z') });
+    stubSchedule([NEXT]);
+    lookWith(true);
+    finishedMatch();
+    setWidth(1024);
+    renderAt();
+    expect(screen.queryByTestId('dopo-partita')).toBeNull();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20 * 60_000);
+    });
+    await flush();
+    const after = screen.getByTestId('dopo-partita');
+    expect(after.querySelector('img')?.getAttribute('src')).toBe(`/api/public/assets/${IMAGE}`);
+    expect(after.querySelector('img')?.className).toContain('object-cover');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(within(after).getByRole('heading', { name: 'Prossima partita' })).toBeTruthy();
+    expect(within(after).getByText('Sir Susa Scai Perugia')).toBeTruthy();
+    expect(within(after).getByText('Itas Trentino')).toBeTruthy();
+    expect(within(after).getByText(/ore 18:00/)).toBeTruthy();
+    expect(within(after).getByRole('timer').getAttribute('aria-label')).toBe('Mancano 1 giorni, 21 ore e 30 minuti');
+    expect(within(after).queryAllByRole('button')).toHaveLength(0);
+    expect(within(after).queryAllByRole('link')).toHaveLength(0);
+  });
+
+  it('without a next match only the photo; the same with «Touch» off', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-23T20:00:00.000Z') });
+    stubSchedule([]);
+    lookWith(false);
+    finishedMatch();
+    setWidth(1920);
+    renderAt();
+    await flush();
+    await flush();
+    const after = screen.getByTestId('dopo-partita');
+    expect(after.querySelector('img')).toBeTruthy();
+    expect(within(after).queryByRole('heading')).toBeNull();
+    expect(within(after).queryByRole('timer')).toBeNull();
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+  });
+
+  it('a match still being played, or without the end time (older server): never', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-24T08:00:00.000Z') });
+    stubSchedule([NEXT]);
+    lookWith(true);
+    socketSnapshot = {
+      ...snapshot,
+      data: { kind: 'state', matchId: '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11', version: 9, state: stateAfter() },
+    };
+    setWidth(1024);
+    renderAt();
+    await flush();
+    expect(screen.queryByTestId('dopo-partita')).toBeNull();
+    cleanup();
+    socketSnapshot = snapshot;
+    renderAt();
+    await flush();
+    expect(screen.queryByTestId('dopo-partita')).toBeNull();
   });
 });

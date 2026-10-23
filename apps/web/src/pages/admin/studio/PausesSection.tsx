@@ -1,4 +1,5 @@
 import type {
+  AfterMatch,
   AssetListResponse,
   Sponsor,
   Intermission as PauseConfig,
@@ -12,6 +13,8 @@ import type {
   TenantIntermissions,
 } from '@arenalive/shared';
 import {
+  adminAssetPath,
+  AFTER_MATCH_MAX_DELAY_MINUTES,
   INTERMISSION_MAX_DELAY_SECONDS,
   INTERMISSION_MAX_SLIDES,
   IntermissionSlideSchema,
@@ -26,8 +29,13 @@ import {
 import { setTarget } from '@arenalive/volley-stats';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { SAMPLE_SCHEDULE } from '../../../blocks/sampleSchedule.ts';
 import { SLIDE_LABELS } from '../../../blocks/IntermissionSlides.tsx';
+import { AfterMatchScreen } from '../../../components/AfterMatchScreen.tsx';
 import { Button } from '../../../components/ui.tsx';
+import { nextFixture } from '../../../lib/schedule.ts';
+import { useElementSize } from '../../../lib/useLayout.ts';
+import { LogoPicker } from '../LogoPicker.tsx';
 import { inputClass } from '../forms.tsx';
 import type { PauseTarget } from '../intermissionEditor.ts';
 import {
@@ -300,6 +308,119 @@ function MilestoneRule({
         ). N da {MILESTONE_MIN_EVERY} a {MILESTONE_MAX_EVERY}.
       </p>
     </div>
+  );
+}
+
+/** Size (CSS px) of the big screen drawn by the preview of «Dopo la partita», scaled into its 16:9 frame. */
+const AFTER_MATCH_PREVIEW = { width: 1920, height: 1080 };
+
+/** Preview of «Dopo la partita» on the big screen, with the next match of the example schedule. */
+function AfterMatchPreview({ image }: { image: string }) {
+  const frame = useRef<HTMLDivElement>(null);
+  const { width } = useElementSize(frame);
+  const scale = width > 0 ? width / AFTER_MATCH_PREVIEW.width : 0.2;
+  return (
+    <figure className="space-y-1">
+      <div
+        ref={frame}
+        data-testid="anteprima-dopo-partita"
+        className="relative w-full overflow-hidden rounded-card border border-border bg-bg"
+        style={{ aspectRatio: `${AFTER_MATCH_PREVIEW.width} / ${AFTER_MATCH_PREVIEW.height}` }}
+      >
+        <div
+          inert
+          className="absolute left-0 top-0"
+          style={{ ...AFTER_MATCH_PREVIEW, transform: `scale(${scale})`, transformOrigin: '0 0' }}
+        >
+          <AfterMatchScreen
+            imageUrl={adminAssetPath(image)}
+            fixture={nextFixture(SAMPLE_SCHEDULE)}
+            device="tv"
+            contained
+          />
+        </div>
+      </div>
+      <figcaption className="text-center text-xs text-muted">Anteprima TV, con la partita d’esempio</figcaption>
+    </figure>
+  );
+}
+
+/**
+ * «Dopo la partita» (in the tab «Fine partita»): on/off, the photo (uploaded here or chosen among the images of the
+ * sponsors already loaded) and the minutes after the end of the match.
+ */
+export function AfterMatchEditor({
+  config,
+  assets,
+  onChange,
+}: {
+  config: AfterMatch;
+  assets: AssetListResponse;
+  onChange: (change: Partial<AfterMatch>) => void;
+}) {
+  const photos = assets.assets.filter((a) => a.kind === 'sponsor');
+  return (
+    <SettingsCard title="Dopo la partita">
+      <p className="text-xs text-muted">
+        Passati i minuti scelti dalla fine della partita, il link mostra la foto a tutto schermo con sopra il conto alla
+        rovescia della prossima partita (solo la foto se non ce n’è una in calendario). Prende il posto della pausa di
+        fine partita.
+      </p>
+      <SwitchRow
+        label="Mostra la foto dopo la partita"
+        checked={config.enabled}
+        onChange={(enabled) => onChange({ enabled })}
+      />
+      <LogoPicker
+        label="Foto a tutto schermo"
+        kind="sponsor"
+        url={config.image ? adminAssetPath(config.image) : null}
+        custom={config.image !== null}
+        defaultLabel="Togli foto"
+        onChange={(image) => {
+          onChange({ image });
+          return Promise.resolve();
+        }}
+      />
+      {photos.length > 0 && (
+        <fieldset className="space-y-1">
+          <legend className="text-sm text-text">Oppure scegli un’immagine già caricata</legend>
+          <ul className="flex flex-wrap gap-2">
+            {photos.map((a, i) => (
+              <li key={a.id}>
+                <label className="flex items-center gap-2 rounded-card border border-border bg-surface px-2 py-1 text-xs text-text">
+                  <input
+                    type="radio"
+                    name="dopo-partita-foto"
+                    checked={config.image === a.id}
+                    onChange={() => onChange({ image: a.id })}
+                  />
+                  <img src={a.url} alt="" className="h-8 w-14 object-cover" />
+                  Immagine {i + 1}
+                </label>
+              </li>
+            ))}
+          </ul>
+        </fieldset>
+      )}
+      <label className="flex flex-wrap items-center gap-2 text-sm text-text">
+        Minuti dopo la fine della partita
+        <input
+          type="number"
+          className={`${inputClass} w-24`}
+          min={0}
+          max={AFTER_MATCH_MAX_DELAY_MINUTES}
+          step={1}
+          value={config.delayMinutes}
+          onChange={(e) => onChange({ delayMinutes: clampInt(e.target.value, 0, AFTER_MATCH_MAX_DELAY_MINUTES) })}
+        />
+        <span className="text-xs text-muted">Da 0 a {AFTER_MATCH_MAX_DELAY_MINUTES}.</span>
+      </label>
+      {config.enabled && config.image === null && (
+        <p className="text-sm text-muted">Carica o scegli una foto: senza foto la schermata non compare.</p>
+      )}
+      {config.image !== null && <AfterMatchPreview image={config.image} />}
+    </SettingsCard>
   );
 }
 
@@ -599,6 +720,13 @@ export function PausesSection({
             </SettingsCard>
           )}
           {editor}
+          {kind === 'matchEnd' && (
+            <AfterMatchEditor
+              config={draft.afterMatch}
+              assets={assets}
+              onChange={(patch) => onChange((d) => ({ ...d, afterMatch: { ...d.afterMatch, ...patch } }))}
+            />
+          )}
           {pause && (
             <Advanced>
               <Setting id="pause-delay" where={pauseWhere(pause, kind)} scene={kind} targets={['pause']}>

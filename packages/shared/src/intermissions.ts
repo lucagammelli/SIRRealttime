@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AssetIdSchema } from './assets.js';
 import { TENANT_CONFIG_VERSION } from './configVersion.js';
 import type { LayoutDevice } from './layout.js';
 import { BLOCK_OPTIONS, BlockIdSchema } from './layout.js';
@@ -274,6 +275,25 @@ export const SetBreakBySetSchema = z.strictObject({
   '4': SetBreakIntermissionSchema.optional(),
 });
 
+/** Minutes between the end of the match and the «Dopo la partita» screen: limits and default. */
+export const AFTER_MATCH_MAX_DELAY_MINUTES = 240;
+export const AFTER_MATCH_DEFAULT_DELAY_MINUTES = 30;
+
+/**
+ * «Dopo la partita»: `delayMinutes` after the end of the match (`finishedAt` of the state message) the public page
+ * shows `image` (an image of kind `sponsor` of the client) full screen, with the countdown to the next match of the
+ * club over it; it replaces the end-of-match pause. Off, or on without an image: nothing changes.
+ */
+export const AfterMatchSchema = z.strictObject({
+  enabled: z.boolean().default(false),
+  image: AssetIdSchema.nullable().default(null),
+  delayMinutes: z.int().min(0).max(AFTER_MATCH_MAX_DELAY_MINUTES).default(AFTER_MATCH_DEFAULT_DELAY_MINUTES),
+});
+export type AfterMatch = z.output<typeof AfterMatchSchema>;
+
+/** Pure: the image of «Dopo la partita» when the screen is on and has one, otherwise null. */
+export const afterMatchImage = (config: AfterMatch): string | null => (config.enabled ? config.image : null);
+
 /** Pauses document of a client: `{}` (the database default) reads as the defaults of every pause. */
 export const TenantIntermissionsSchema = z.strictObject({
   version: z.literal(TENANT_CONFIG_VERSION).default(TENANT_CONFIG_VERSION),
@@ -282,6 +302,7 @@ export const TenantIntermissionsSchema = z.strictObject({
   setBreakBySet: SetBreakBySetSchema.prefault({}),
   matchEnd: MatchEndIntermissionSchema.prefault({}),
   milestone: MilestoneIntermissionSchema.prefault({}),
+  afterMatch: AfterMatchSchema.prefault({}),
 });
 export type TenantIntermissions = z.output<typeof TenantIntermissionsSchema>;
 export type TenantIntermissionsInput = z.input<typeof TenantIntermissionsSchema>;
@@ -327,11 +348,15 @@ export function allIntermissions(config: TenantIntermissions): Intermission[] {
   return [config.timeout, config.setBreak, ...own, config.matchEnd, config.milestone];
 }
 
-/** Pure: ids of the images used by the sponsor slides of every pause (each once, in order of appearance). */
+/**
+ * Pure: ids of the images used by the sponsor slides of every pause and by «Dopo la partita» (even when off: the
+ * choice is kept), each once, in order of appearance.
+ */
 export function intermissionImageIds(config: TenantIntermissions): string[] {
   const ids = new Set<string>();
   for (const pause of allIntermissions(config))
     for (const slide of pause.slides) if (slide.type === 'sponsor') for (const id of slide.options.images) ids.add(id);
+  if (config.afterMatch.image !== null) ids.add(config.afterMatch.image);
   return [...ids];
 }
 

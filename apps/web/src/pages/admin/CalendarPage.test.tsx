@@ -161,6 +161,36 @@ describe('page «Calendario»', () => {
     );
   });
 
+  it('unlinks a .dvw from its match only after the confirmation, then reloads the calendar', async () => {
+    const linked = fixture({
+      state: 'finished',
+      match: {
+        id: MATCH,
+        live: false,
+        status: 'finished',
+        setsWon: { home: 3, away: 1 },
+        homeName: 'Acqua Sant Anna Cuneo',
+        awayName: 'Sir Susa Scai Perugia',
+        link: 'auto',
+      },
+    });
+    const calls = mockServer({ ...data, fixtures: [linked], pending: [] });
+    renderCalendar();
+    const item = await screen.findByTestId('calendar-fixture');
+    expect(within(item).getByText('(abbinata da sola)')).toBeTruthy();
+    fireEvent.click(within(item).getByRole('button', { name: 'Scollega il file .dvw dalla partita' }));
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false);
+    fireEvent.click(within(item).getByRole('button', { name: 'Conferma: scollega il file' }));
+    await waitFor(() =>
+      expect(calls).toContainEqual({
+        url: `/api/admin/matches/${MATCH}/fixture`,
+        method: 'PUT',
+        body: { clientFixtureId: null },
+      }),
+    );
+    await waitFor(() => expect(calls.filter((c) => c.url === '/api/admin/calendar').length).toBeGreaterThan(1));
+  });
+
   it('marks a date changed by hand: label, official date struck through, warning of the league, button', async () => {
     const changed = fixture({
       startsAt: '2026-10-19T17:30:00.000Z',

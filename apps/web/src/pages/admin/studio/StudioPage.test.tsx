@@ -398,6 +398,51 @@ describe('inventory: every option of the old pages is in the Studio', () => {
 });
 
 describe('Colori e loghi', () => {
+  it('draws the TV page in a box with the rem of the big screen (same groups of blocks as the real page)', async () => {
+    mockServer();
+    renderAt('/admin/studio/colori');
+    await studio();
+    const page = (await screen.findByTestId('anteprima-tv')).querySelector<HTMLElement>('[data-studio-page]');
+    // jsdom has no --sir-tv-font-size: default theme at 1920 × 1080 = 23.76 px per rem against the 16 px of the area.
+    const width = Number.parseFloat(page?.style.width ?? '0');
+    expect(width).toBeCloseTo((1920 * 16) / 23.76, 0);
+    expect(Number.parseFloat(page?.style.height ?? '0')).toBeCloseTo((1080 * 16) / 23.76, 0);
+  });
+
+  it('follows the template of the draft: another text size of the big screen redraws the TV page', async () => {
+    // jsdom does not compute the themes: each template gets its --sir-tv-font-size from the scope of the preview.
+    const real = window.getComputedStyle.bind(window);
+    const spy = vi.spyOn(window, 'getComputedStyle').mockImplementation((el, pseudo) => {
+      const style = real(el, pseudo);
+      const template = el.closest('[data-template]')?.getAttribute('data-template');
+      const raw = template === 'sir-volley' ? 'clamp(14px, min(0.9vw, 1.6vh), 36px)' : '';
+      return new Proxy(style, {
+        get: (t, k) =>
+          k === 'getPropertyValue'
+            ? (name: string) => (name === '--sir-tv-font-size' && raw ? raw : t.getPropertyValue(name))
+            : (Reflect.get(t, k) as unknown),
+      });
+    });
+    try {
+      mockServer({}, 'superadmin');
+      renderAt('/admin/studio/colori');
+      await studio();
+      const width = () =>
+        Number.parseFloat(
+          screen.getByTestId('anteprima-tv').querySelector<HTMLElement>('[data-studio-page]')?.style.width ?? '0',
+        );
+      expect(width()).toBeCloseTo((1920 * 16) / 23.76, 0);
+      fireEvent.click(
+        within(screen.getByRole('radiogroup', { name: 'Modello grafico' })).getByRole('radio', { name: /SIR VOLLEY/ }),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'No, tieni i blocchi attuali' }));
+      // SIR VOLLEY at 1920 × 1080: min(17.28, 17.28) px per rem.
+      await waitFor(() => expect(width()).toBeCloseTo((1920 * 16) / 17.28, 0));
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('the preview uses the real page with the colours of the draft', async () => {
     mockServer();
     renderAt('/admin/studio/colori');

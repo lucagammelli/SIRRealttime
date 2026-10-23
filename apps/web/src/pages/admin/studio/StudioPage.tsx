@@ -13,12 +13,12 @@ import type {
 } from '@arenalive/shared';
 import {
   AssetListResponseSchema,
-  BRANDING_IMAGE_SLOTS,
   BrandingResponseSchema,
   IntermissionsResponseSchema,
   LAYOUT_DEVICES,
   LayoutResponseSchema,
   OVERLAY_KINDS,
+  OVERLAY_VIDEO_MAX_SECONDS,
   OverlaysResponseSchema,
   adminAssetPath,
   defaultLayout,
@@ -33,6 +33,7 @@ import { loadSampleMatch } from '../../../blocks/sampleMatch.ts';
 import { Button, buttonClass, ErrorBox, Spinner } from '../../../components/ui.tsx';
 import { apiRequest } from '../../../lib/api.ts';
 import { initBranding } from '../../../lib/branding.ts';
+import { videoHoldSeconds } from '../../../lib/overlay.ts';
 import { useAsync } from '../../../lib/useAsync.ts';
 import { useViewportWidth } from '../../../lib/useLayout.ts';
 import { socketUrl, useLiveSocket } from '../../../lib/useLiveSocket.ts';
@@ -42,7 +43,6 @@ import { layoutProblems } from '../layoutEditor.ts';
 import { blockBrandOf } from './blockEditors.tsx';
 import type { ColorsTab } from './ColorsSection.tsx';
 import { GraphicsTransfer } from './GraphicsTransfer.tsx';
-import { LibrarySection } from './LibrarySection.tsx';
 import { ColorsSection } from './ColorsSection.tsx';
 import type { StudioChange, StudioDocs, StudioScene, StudioSection, StudioTarget } from './model.ts';
 import {
@@ -106,7 +106,6 @@ const SAVED_TEXT: Record<StudioSection, string> = {
   pause: 'Pause salvate: valgono da subito per tutti gli spettatori.',
   avvisi: 'Avvisi salvati: valgono da subito per tutti gli spettatori.',
   esporta: 'Configurazione importata: la pagina pubblica la usa da subito.',
-  libreria: '',
 };
 
 /** Block types whose colours are the team colours: a click on them in «Colori e loghi» opens the colours. */
@@ -118,7 +117,6 @@ function Studio({
   tenantName,
   saved,
   assets,
-  onAssetsChanged,
   sponsors,
   hasSection,
   onImported,
@@ -127,7 +125,6 @@ function Studio({
   tenantName: string;
   saved: StudioDocs;
   assets: AssetListResponse;
-  onAssetsChanged: () => void;
   /** Sponsors of the client (the sponsor blocks and slides choose among them; changed on the page «Sponsor»). */
   sponsors: readonly Sponsor[];
   /** The address names a section (the phone opens it at once instead of the list of sections). */
@@ -202,7 +199,6 @@ function Studio({
       pause: intermissionChanges(intermissions.base, intermissions.draft),
       avvisi: overlayChanges(overlays.base, overlays.draft),
       esporta: [],
-      libreria: [],
     }),
     [branding, layout, intermissions, overlays],
   );
@@ -213,7 +209,6 @@ function Studio({
     avvisi: !sameValue(overlays.base, overlays.draft),
     // «Esporta / Importa» has no draft and no «Salva».
     esporta: false,
-    libreria: false,
   };
   const anyDirty = Object.values(dirty).some(Boolean);
   const layoutIssues = useMemo(() => layoutProblems(layout.draft), [layout.draft]);
@@ -233,7 +228,6 @@ function Studio({
       ? 'Alcuni testi non sono validi (vuoti, troppo lunghi o con segnaposto sconosciuti): correggili prima di salvare.'
       : null,
     esporta: null,
-    libreria: null,
   };
 
   // Example match (or the live one) of the preview, with the team of the client as the home team.
@@ -302,12 +296,21 @@ function Studio({
     return () => clearTimeout(id);
   }, [flash, section, step, colorsTab, pauseKind, setTab, overlayKind, overlaysTab, device]);
 
-  // A «Prova» stays for the seconds of its overlay.
+  // A «Prova» stays for the seconds of its overlay; with a video that sets its length (`duration` `video`) for the
+  // length of the video (at most OVERLAY_VIDEO_MAX_SECONDS, the seconds when it cannot be read), as on the public page.
+  const [trialLength, setTrialLength] = useState<{ key: number; seconds: number | null } | null>(null);
   useEffect(() => {
     if (!trial) return;
-    const id = setTimeout(() => setTrial(null), overlays.draft[trial.kind].seconds * 1000);
+    const overlay = overlays.draft[trial.kind];
+    let seconds = overlay.seconds;
+    if (overlay.background?.kind === 'video' && overlay.background.duration === 'video') {
+      const known = trialLength?.key === trial.key ? trialLength.seconds : undefined;
+      seconds = known === undefined ? OVERLAY_VIDEO_MAX_SECONDS : videoHoldSeconds(known, overlay.seconds);
+      if (typeof known === 'number' && Number.isFinite(known) && known > 0) seconds += 0.5;
+    }
+    const id = setTimeout(() => setTrial(null), seconds * 1000);
     return () => clearTimeout(id);
-  }, [trial, overlays.draft]);
+  }, [trial, trialLength, overlays.draft]);
 
   const goSection = (to: StudioSection, force = false): void => {
     if (to === section) {
@@ -479,6 +482,8 @@ function Studio({
       trial={trial}
       highlight={toolbar ? highlight : null}
       onPick={toolbar ? pick : () => undefined}
+      onTrialLength={(seconds) => setTrialLength({ key: trial?.key ?? 0, seconds })}
+      onTrialEnd={() => setTrial(null)}
       toolbar={toolbar}
       {...(toolbar && !phone ? { wide, onWide: toggleWide } : {})}
     />
@@ -493,7 +498,6 @@ function Studio({
         base={branding.base}
         onChange={(c) => setBranding((p) => ({ ...p, draft: c(p.draft) }))}
         assets={assets}
-        onAssetsChanged={onAssetsChanged}
         tab={colorsTab}
         onTab={setColorsTab}
         onTemplate={chooseTemplate}
@@ -534,28 +538,6 @@ function Studio({
         sponsors={sponsors}
       />
     );
-  else if (section === 'libreria')
-    panel = (
-      <LibrarySection
-        assets={assets}
-        sponsors={sponsors}
-        saved={{
-          branding: branding.base,
-          layout: layout.base,
-          intermissions: intermissions.base,
-          overlays: overlays.base,
-        }}
-        onAssetsChanged={onAssetsChanged}
-        onDeleted={(id) =>
-          setBranding((p) => {
-            const next = { ...p.draft };
-            for (const slot of Object.keys(BRANDING_IMAGE_SLOTS) as (keyof typeof BRANDING_IMAGE_SLOTS)[])
-              if (next[slot] === id) next[slot] = null;
-            return { ...p, draft: next };
-          })
-        }
-      />
-    );
   else if (section === 'esporta')
     panel = (
       <GraphicsTransfer
@@ -578,7 +560,6 @@ function Studio({
         onTab={setOverlaysTab}
         state={previewMatch}
         assets={assets}
-        onAssetsChanged={onAssetsChanged}
         onTry={(k) => {
           setOverlayKind(k);
           setScene('overlay');
@@ -829,7 +810,6 @@ function Studio({
           onLayout={(c) => setLayout((p) => ({ ...p, draft: c(p.draft) }))}
           onIntermissions={(c) => setIntermissions((p) => ({ ...p, draft: c(p.draft) }))}
           assets={assets}
-          onAssetsChanged={onAssetsChanged}
           preview={(s) => preview(false, s)}
           busy={saving !== null}
           error={errors.guidata ?? null}
@@ -1033,7 +1013,6 @@ export function StudioPage() {
         overlays: overlays.data.overlays,
       }}
       assets={assets.data}
-      onAssetsChanged={assets.reload}
       sponsors={sponsors.data.sponsors}
       hasSection={isStudioSection(params.section)}
       onImported={() => {

@@ -1,9 +1,10 @@
 import type { OverlayPosition, OverlaySize, TenantOverlays } from '@arenalive/shared';
+import { OVERLAY_VIDEO_MAX_SECONDS } from '@arenalive/shared';
 import type { MatchState, Side } from '@arenalive/volley-stats';
 import { useEffect, useRef, useState } from 'react';
 import type { Device } from '../lib/layout.ts';
 import type { QueuedOverlay } from '../lib/overlay.ts';
-import { enqueue, eventsOf, nextOverlay, overlayFor, unseenEvents } from '../lib/overlay.ts';
+import { enqueue, eventsOf, nextOverlay, overlayFor, unseenEvents, videoHoldSeconds } from '../lib/overlay.ts';
 import type { OverlayMedia } from '../lib/overlayMedia.ts';
 import { mediaOf, useOverlayMedia } from '../lib/overlayMedia.ts';
 import { useOurSide } from '../lib/branding.ts';
@@ -68,12 +69,21 @@ export function OverlayBanner({
   device,
   size = 'medium',
   media = null,
+  onVideoLength,
+  onVideoEnd,
 }: {
   text: string;
   team: Side | null;
   device: Device;
   size?: OverlaySize;
   media?: OverlayMedia | null;
+  /**
+   * A video that follows its length (`media.duration` `video`): its length in seconds once known, `null` when it cannot
+   * be read or the video does not start.
+   */
+  onVideoLength?: ((seconds: number | null) => void) | undefined;
+  /** A video that follows its length reached its end. */
+  onVideoEnd?: (() => void) | undefined;
 }) {
   const reduced = useReducedMotion();
   const tone = team ?? 'neutral';
@@ -104,7 +114,14 @@ export function OverlayBanner({
     >
       {shown.kind === 'video' ? (
         // A new element for every file: the same <video> with another src may keep showing the first one.
-        <OverlayVideo key={shown.url} url={shown.url} audio={shown.audio === true} />
+        <OverlayVideo
+          key={shown.url}
+          url={shown.url}
+          audio={shown.audio === true}
+          once={shown.duration === 'video'}
+          onLength={onVideoLength}
+          onEnd={onVideoEnd}
+        />
       ) : (
         <img key={shown.url} src={shown.url} alt="" className="absolute inset-0 size-full object-cover" />
       )}
@@ -118,20 +135,41 @@ export function OverlayBanner({
  * Video behind an overlay: inline, in a loop, no controls. Muted unless `audio`; with `audio` a browser that refuses
  * to start it with its sound (no click on the page yet) plays it muted, without any error.
  */
-function OverlayVideo({ url, audio }: { url: string; audio: boolean }) {
+function OverlayVideo({
+  url,
+  audio,
+  once,
+  onLength,
+  onEnd,
+}: {
+  url: string;
+  audio: boolean;
+  /** Played once (the overlay follows its length) instead of in a loop. */
+  once: boolean;
+  onLength: ((seconds: number | null) => void) | undefined;
+  onEnd: (() => void) | undefined;
+}) {
   const ref = useRef<HTMLVideoElement>(null);
+  const callbacks = useRef({ onLength, onEnd });
+  callbacks.current = { onLength, onEnd };
   useEffect(() => {
     const video = ref.current;
     if (!video) return;
     // React does not always write `muted` as an attribute: set on the element, so that autoplay is allowed.
     video.muted = !audio;
     const started = video.play?.();
+    const failed = () => {
+      if (ref.current === video && once) callbacks.current.onLength?.(null);
+    };
     void started?.catch(() => {
-      if (!audio || ref.current !== video) return;
+      if (!audio || ref.current !== video) {
+        failed();
+        return;
+      }
       video.muted = true;
-      void video.play?.()?.catch(() => undefined);
+      void video.play?.()?.catch(failed);
     });
-  }, [url, audio]);
+  }, [url, audio, once]);
   return (
     <video
       ref={ref}
@@ -140,10 +178,19 @@ function OverlayVideo({ url, audio }: { url: string; audio: boolean }) {
       muted={!audio}
       playsInline
       autoPlay
-      loop
+      loop={!once}
       preload="auto"
       disablePictureInPicture
       data-audio={audio ? 'on' : 'off'}
+      onLoadedMetadata={(e) => {
+        if (once) callbacks.current.onLength?.(e.currentTarget.duration);
+      }}
+      onError={() => {
+        if (once) callbacks.current.onLength?.(null);
+      }}
+      onEnded={() => {
+        if (once) callbacks.current.onEnd?.();
+      }}
       className="absolute inset-0 size-full object-cover"
     />
   );
@@ -230,12 +277,27 @@ export function Overlay({
     if (next) setCurrent(next);
   }, [current, arrivals, blocked]);
 
-  // Each overlay stays for its seconds.
+  // The video of the overlay on screen, when the overlay follows its length (not on the phone nor with reduced motion:
+  // there the video is not shown and the seconds apply).
+  const shownMedia = current ? backgroundMedia(current.background, media) : null;
+  const followsVideo = shownMedia?.kind === 'video' && shownMedia.duration === 'video';
+  // Length of that video: its id, the seconds (null: not readable or not started); nothing yet while it loads.
+  const [length, setLength] = useState<{ id: string; seconds: number | null } | null>(null);
+  const known = current && length?.id === current.id ? length.seconds : undefined;
+
+  // Each overlay stays for its seconds; one that follows its video, for the length of the video (never over the limit),
+  // or the seconds when the video cannot tell.
   useEffect(() => {
     if (!current) return;
-    const id = setTimeout(() => setCurrent(null), current.seconds * 1000);
+    let ms = current.seconds * 1000;
+    if (followsVideo) {
+      // Waiting for the length: the limit; known: the length plus a moment for the end of the video to close it first.
+      ms = (known === undefined ? OVERLAY_VIDEO_MAX_SECONDS : videoHoldSeconds(known, current.seconds)) * 1000;
+      if (typeof known === 'number' && Number.isFinite(known) && known > 0) ms += 500;
+    }
+    const id = setTimeout(() => setCurrent(null), ms);
     return () => clearTimeout(id);
-  }, [current]);
+  }, [current, followsVideo, known]);
 
   return (
     <div
@@ -251,7 +313,9 @@ export function Overlay({
           team={current.team}
           device={device}
           size={current.size}
-          media={backgroundMedia(current.background, media)}
+          media={shownMedia}
+          onVideoLength={(seconds) => setLength({ id: current.id, seconds })}
+          onVideoEnd={() => setCurrent(null)}
         />
       )}
     </div>

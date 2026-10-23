@@ -98,6 +98,16 @@ export const OVERLAY_VIDEO_FITS = ['center', 'fullscreen'] as const;
 export type OverlayVideoFit = (typeof OVERLAY_VIDEO_FITS)[number];
 
 /**
+ * How long an overlay with a video lasts: `seconds` (the seconds of the overlay, the video loops: as before the setting
+ * existed) or `video` (until the video ends, played once, at most OVERLAY_VIDEO_MAX_SECONDS; the seconds of the overlay
+ * when the length of the video cannot be read, the video does not start, on the phone and with reduced motion).
+ */
+export const OVERLAY_VIDEO_DURATIONS = ['seconds', 'video'] as const;
+export type OverlayVideoDuration = (typeof OVERLAY_VIDEO_DURATIONS)[number];
+/** Longest an overlay lasts when it follows its video. */
+export const OVERLAY_VIDEO_MAX_SECONDS = 30;
+
+/**
  * Events whose overlay shows the video: only those of our team (the team of the client, at home or away; also the
  * ones of no team, as a tie), or those of both teams. For an event of the opponent with `ours` the overlay comes out
  * without the video (text only).
@@ -107,8 +117,9 @@ export type OverlayVideoTeams = (typeof OVERLAY_VIDEO_TEAMS)[number];
 
 /**
  * Background of an overlay, shown behind its text: an uploaded image or video of the client (the server checks that
- * the asset is of the client and that its type is the one of `kind`). `audio`, `fit` and `teams` are the options of a
- * video (an image ignores them); missing in a document saved before them: muted, in the box, our team only.
+ * the asset is of the client and that its type is the one of `kind`). `audio`, `fit`, `teams` and `duration` are the
+ * options of a video (an image ignores them); missing in a document saved before them: muted, in the box, our team only,
+ * for the seconds of the overlay.
  */
 export const OverlayBackgroundSchema = z.strictObject({
   kind: z.enum(OVERLAY_BACKGROUND_KINDS),
@@ -117,6 +128,7 @@ export const OverlayBackgroundSchema = z.strictObject({
   audio: z.boolean().default(false),
   fit: z.enum(OVERLAY_VIDEO_FITS).default('center'),
   teams: z.enum(OVERLAY_VIDEO_TEAMS).default('ours'),
+  duration: z.enum(OVERLAY_VIDEO_DURATIONS).default('seconds'),
 });
 export type OverlayBackground = z.output<typeof OverlayBackgroundSchema>;
 export type OverlayBackgroundInput = z.input<typeof OverlayBackgroundSchema>;

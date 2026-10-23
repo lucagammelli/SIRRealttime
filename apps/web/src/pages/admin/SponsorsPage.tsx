@@ -10,12 +10,13 @@ import {
 } from '@arenalive/shared';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { Button, Card, Empty, ErrorBox, Spinner } from '../../components/ui.tsx';
 import { apiCommand, apiRequest } from '../../lib/api.ts';
 import { useAsync } from '../../lib/useAsync.ts';
 import { useApiError } from './auth.tsx';
 import { ConfirmButton, Field, inputClass } from './forms.tsx';
-import { ACCEPT, IMAGE_TOO_LARGE, imageCountText, uploadSponsorImage } from './imageUpload.ts';
+import { imageCountText } from './imageUpload.ts';
 
 /** First problem of a sponsor form, in Italian. */
 function formProblem(issues: readonly { path: readonly PropertyKey[] }[]): string {
@@ -69,7 +70,7 @@ function SponsorFields({
 
 /**
  * «Sponsor»: the sponsors of the client in their order (the order of the rotation), each with name, optional website
- * and its images (upload, take away, delete); the sponsor images without sponsor, to give to one. The blocks and the
+ * and its images (take away, delete; uploaded in «Immagini e video»); the sponsor images without sponsor, to give to one. The blocks and the
  * pauses of the «Studio grafico» choose the sponsors.
  */
 export function SponsorsPage() {
@@ -275,14 +276,6 @@ function SponsorRow({
     if (ok) setEditing(false);
   };
 
-  const upload = (file: File): void => {
-    setProblem(null);
-    void run(key, async () => {
-      const asset = await uploadSponsorImage(file, sponsor.id);
-      if (!asset) setProblem(IMAGE_TOO_LARGE);
-    });
-  };
-
   return (
     <li className="space-y-3 py-3" aria-label={sponsor.name}>
       {editing ? (
@@ -373,25 +366,14 @@ function SponsorRow({
           ))}
         </ul>
       )}
-      <label
-        className={`inline-flex min-h-9 items-center rounded-card border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text ${
-          full ? 'opacity-60' : 'cursor-pointer hover:bg-surface-2'
-        }`}
-      >
-        {busy === key ? 'Caricamento…' : full ? `Massimo ${SPONSOR_IMAGES_MAX} immagini` : 'Carica immagine'}
-        <input
-          type="file"
-          accept={ACCEPT}
-          className="sr-only"
-          disabled={full || busy !== null}
-          aria-label={`Carica un’immagine per ${sponsor.name}`}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = '';
-            if (file) upload(file);
-          }}
-        />
-      </label>
+      <p className="text-xs text-muted">
+        {full
+          ? `Massimo ${SPONSOR_IMAGES_MAX} immagini.`
+          : 'Le immagini si caricano nella libreria, scegliendo questo sponsor.'}{' '}
+        <Link to="/admin/media" className="font-medium text-primary underline">
+          Carica nella libreria
+        </Link>
+      </p>
       {problem && <ErrorBox>{problem}</ErrorBox>}
     </li>
   );

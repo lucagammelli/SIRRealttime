@@ -23,7 +23,7 @@ import {
 } from '@arenalive/shared';
 import type { MutableRefObject } from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { z } from 'zod';
 import { Button, buttonClass, ErrorBox, Spinner } from '../../../components/ui.tsx';
 import { apiRequest } from '../../../lib/api.ts';
@@ -98,8 +98,14 @@ function useSaving(): { busy: boolean; error: string | null; run: (task: () => P
 
 // ----------------------------------------------------------------------------------------------- 1. Logo
 
-export function LogoStep({ data, onClub, onBranding, saveRef }: StepProps) {
+export function LogoStep({ data, onClub, onBranding, saveRef, onLeave }: StepProps) {
   const { club, branding } = data;
+  const navigate = useNavigate();
+  // The procedure is a modal over the page: it is put aside (what is saved stays, «Riprendi» comes back) and the library opens.
+  const openLibrary = (): void => {
+    onLeave();
+    void navigate('/admin/media');
+  };
   useEffect(() => {
     saveRef.current = () => Promise.resolve(true);
   });
@@ -110,6 +116,7 @@ export function LogoStep({ data, onClub, onBranding, saveRef }: StepProps) {
         url={club.logoMark ? adminAssetPath(club.logoMark) : null}
         custom={club.logoMark !== null}
         defaultLabel="Togli"
+        onLibrary={openLibrary}
         onChange={async (id) => onClub(await saveProfile(club, { logoMark: id }))}
       />
       <LogoPicker
@@ -117,11 +124,12 @@ export function LogoStep({ data, onClub, onBranding, saveRef }: StepProps) {
         url={branding.logoMain ? adminAssetPath(branding.logoMain) : null}
         custom={branding.logoMain !== null}
         defaultLabel="Togli"
+        onLibrary={openLibrary}
         onChange={async (id) => onBranding(await saveBranding({ ...branding, logoMain: id }))}
       />
       <p className="text-xs text-muted">
         Il logo quadrato serve per l’icona dell’app e gli spazi piccoli; quello orizzontale per la testata. Il logo si
-        salva appena lo carichi.
+        salva appena lo scegli (i file si caricano in «Immagini e video»).
       </p>
     </div>
   );

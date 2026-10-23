@@ -13,7 +13,7 @@ import { apiRequest } from '../../lib/api.ts';
 import { fileToBase64 } from '../../lib/base64.ts';
 import { formatDay, megabytes } from '../../lib/format.ts';
 
-/** Upload of the images of the client (logos of the «Studio grafico», images of the sponsors, backgrounds of the overlays) and of the videos of the backgrounds. */
+/** Upload of the images and the videos of the client: only the page «Immagini e video» (`MediaPage`) uploads, the other pages choose from the library. */
 
 /** Types of image accepted by the file inputs (the server checks the bytes anyway). */
 export const ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml';
@@ -66,10 +66,6 @@ export async function uploadVideo(file: File): Promise<AssetSummary> {
     ...(name ? { headers: { [FILE_NAME_HEADER]: encodeURIComponent(name) } } : {}),
   });
 }
-
-/** Uploads a sponsor image for a sponsor of the client (see `uploadImage`). */
-export const uploadSponsorImage = (file: File, sponsorId: string): Promise<AssetSummary | null> =>
-  uploadImage(file, 'sponsor', sponsorId);
 
 /** Pure: «1 immagine», «3 immagini», «nessuna immagine». */
 export const imageCountText = (n: number): string =>

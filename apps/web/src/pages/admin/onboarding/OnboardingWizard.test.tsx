@@ -149,7 +149,25 @@ function mockServer(
         return json({ tenantName: 'Sir Safety', branding });
       }
       if (url === '/api/admin/assets' && method === 'GET')
-        return json({ assets: [], usedBytes: 0, quotaBytes: 1000000 });
+        return json({
+          assets: [
+            {
+              id: LOGO,
+              kind: 'logo',
+              mime: 'image/png',
+              width: 64,
+              height: 64,
+              bytes: 10,
+              sha256: 'a'.repeat(64),
+              createdAt: '2026-10-17T10:00:00.000Z',
+              url: `/api/public/assets/${LOGO}`,
+              sponsorId: null,
+              name: 'Logo del club',
+            },
+          ],
+          usedBytes: 10,
+          quotaBytes: 1000000,
+        });
       if (url === '/api/admin/sponsors') return json({ sponsors: [] });
       if (url === '/api/public/tenant') return json({ error: 'Non trovato' }, 404);
       if (url === '/api/admin/layout') return json({ tenantName: 'Sir Safety', layout: defaultLayout() });
@@ -284,11 +302,12 @@ describe('guided first setup: steps', () => {
     renderAdmin();
     let dialog = await wizard();
 
-    // 1. Logo: saved as soon as it is uploaded.
-    const file = new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' });
-    fireEvent.change((await within(dialog).findAllByLabelText('Carica immagine'))[0] as HTMLElement, {
-      target: { files: [file] },
-    });
+    // 1. Logo: chosen from the library (uploaded in «Immagini e video»), saved as soon as it is chosen.
+    const choose = (await within(dialog).findAllByLabelText(/Scegli dalla libreria/))[0] as HTMLElement;
+    expect(within(dialog).queryByLabelText('Carica immagine')).toBeNull();
+    expect(within(dialog).getAllByRole('button', { name: 'Carica nella libreria' })).toHaveLength(2);
+    await waitFor(() => expect(within(choose).getByRole('option', { name: /Logo del club/ })).toBeTruthy());
+    fireEvent.change(choose, { target: { value: LOGO } });
     await waitFor(() =>
       expect(posted(calls, '/api/admin/club/profile')[0]?.body).toMatchObject({ logoMark: LOGO, displayName: null }),
     );
@@ -423,6 +442,29 @@ describe('guided first setup: close and resume', () => {
     expect(within(notice).getByRole('link', { name: 'Guida' }).getAttribute('href')).toBe('/admin/guida');
     fireEvent.click(within(notice).getByRole('button', { name: 'Riprendi' }));
     expect(within(await wizard()).getByRole('heading', { name: 'La squadra' })).toBeTruthy();
+  });
+
+  it('with an empty library «Carica nella libreria» puts the procedure aside and opens /admin/media; «Riprendi» comes back', async () => {
+    mockServer('admin', {
+      first: (url, method) =>
+        url === '/api/admin/assets' && method === 'GET'
+          ? new Response(JSON.stringify({ assets: [], usedBytes: 0, quotaBytes: 1000000 }), { status: 200 })
+          : null,
+    });
+    renderAdmin();
+    const dialog = await wizard();
+    expect(await within(dialog).findByRole('heading', { name: 'Il logo' })).toBeTruthy();
+    const choose = (await within(dialog).findAllByLabelText(/Scegli dalla libreria/))[0] as HTMLElement;
+    await waitFor(() =>
+      expect(within(choose).getByRole('option', { name: 'Nessun file nella libreria' })).toBeTruthy(),
+    );
+    fireEvent.click(within(dialog).getAllByRole('button', { name: 'Carica nella libreria' })[0] as HTMLElement);
+    // The modal does not stay over the library: it is closed (as «Salta per ora») and the page of the library opens.
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/admin/media'));
+    expect(window.sessionStorage.getItem(skippedKey(TENANT.id))).toBe('1');
+    fireEvent.click(await screen.findByRole('button', { name: 'Riprendi' }));
+    expect(within(await wizard()).getByRole('heading', { name: 'Il logo' })).toBeTruthy();
   });
 
   it('Esc closes it like «Salta per ora»', async () => {

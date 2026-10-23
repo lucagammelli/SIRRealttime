@@ -155,6 +155,8 @@ function Stage({
   top,
   live,
   onNotice,
+  onTrialLength,
+  onTrialEnd,
 }: {
   device: LayoutDevice;
   scene: StudioScene;
@@ -170,6 +172,10 @@ function Stage({
   /** The match is the live one (not the example): the caption says so. */
   live: boolean;
   onNotice?: (text: string | null) => void;
+  /** «Prova» of an overlay whose video sets its length: the length of the video (null: not readable). */
+  onTrialLength?: ((seconds: number | null) => void) | undefined;
+  /** «Prova»: the video reached its end. */
+  onTrialEnd?: (() => void) | undefined;
 }) {
   const kind: IntermissionKind | null = pauseKindOf(scene);
   const ownTarget = kind !== null && pauseTarget.startsWith(kind) ? pauseTarget : kind;
@@ -241,9 +247,13 @@ function Stage({
                       ...mediaOf(overlay.background, adminAssetPath(overlay.background.assetId)),
                       // The sound only in a «Prova»: the preview always in view stays silent.
                       audio: overlay.background.audio && trial !== null,
+                      // Always in view (no «Prova»): the video loops; in a «Prova» it plays once and ends the test.
+                      duration: trial === null ? 'seconds' : overlay.background.duration,
                     }
                   : null
               }
+              onVideoEnd={onTrialEnd}
+              onVideoLength={onTrialLength}
             />
           )}
         </div>
@@ -276,6 +286,8 @@ export function StudioPreview({
   toolbar = true,
   wide,
   onWide,
+  onTrialLength,
+  onTrialEnd,
 }: {
   device: LayoutDevice;
   onDevice: (device: LayoutDevice) => void;
@@ -298,6 +310,8 @@ export function StudioPreview({
   /** «Allarga anteprima» on (the columns of the Studio make room); missing: no button (phone). */
   wide?: boolean;
   onWide?: () => void;
+  onTrialLength?: ((seconds: number | null) => void) | undefined;
+  onTrialEnd?: (() => void) | undefined;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
@@ -371,6 +385,8 @@ export function StudioPreview({
           pauseTarget={pauseTarget}
           overlayKind={overlayKind}
           trial={trial}
+          onTrialLength={onTrialLength}
+          onTrialEnd={onTrialEnd}
           fit
           top={!full}
           live={live}

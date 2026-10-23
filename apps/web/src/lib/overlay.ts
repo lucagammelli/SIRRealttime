@@ -12,7 +12,7 @@ import type {
   OverlaySize,
   TenantOverlays,
 } from '@arenalive/shared';
-import { backgroundForTeam, fillOverlayText, overlayPlacement } from '@arenalive/shared';
+import { backgroundForTeam, fillOverlayText, OVERLAY_VIDEO_MAX_SECONDS, overlayPlacement } from '@arenalive/shared';
 import type { MatchEvent, MatchState, Side } from '@arenalive/volley-stats';
 import { playerName, teamName } from './format.ts';
 
@@ -42,6 +42,16 @@ export const OVERLAY_MAX_AGE_MS = 10_000;
 export const OVERLAY_QUEUE_MAX = 5;
 /** Ids remembered as already seen before the list is trimmed to the events of the state. */
 const SEEN_MAX = 500;
+
+/**
+ * Pure: seconds an overlay with a video that follows its length stays on screen: the length of the video, at most
+ * OVERLAY_VIDEO_MAX_SECONDS; the `seconds` of the overlay when the length is not readable (unknown, 0, infinite: a
+ * stream) or the video did not start (`null`).
+ */
+export function videoHoldSeconds(videoSeconds: number | null | undefined, seconds: number): number {
+  if (typeof videoSeconds !== 'number' || !Number.isFinite(videoSeconds) || videoSeconds <= 0) return seconds;
+  return Math.min(videoSeconds, OVERLAY_VIDEO_MAX_SECONDS);
+}
 
 /** Events of a state; none for a state stored before they existed. */
 export function eventsOf(state: MatchState): MatchEvent[] {

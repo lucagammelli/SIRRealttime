@@ -293,20 +293,18 @@ describe('inventory: every option of the old pages is in the Studio', () => {
     expect(screen.getByRole('button', { name: 'Ripristina predefiniti' })).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Loghi e nome' }));
     expect(screen.getByLabelText('Nome visualizzato', { exact: false })).toBeTruthy();
-    for (const name of ['Carica logo orizzontale', 'Carica logo quadrato', 'Carica logo dello sponsor'])
+    for (const name of [
+      'Scegli dalla libreria: logo orizzontale',
+      'Scegli dalla libreria: logo quadrato',
+      'Scegli dalla libreria: logo dello sponsor',
+    ])
       expect(screen.getByLabelText(name)).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Squadra' }));
     expect(screen.getByRole('textbox', { name: /Codice squadra/ })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: /Testo nel nome/ })).toBeTruthy();
-    // The library of the files is a section of its own, no longer a tab of «Colori e loghi».
+    // The library of the files is the page «Immagini e video» of the menu, not a tab nor a section of the Studio.
     expect(screen.queryByRole('tab', { name: 'Immagini' })).toBeNull();
-    fireEvent.click(sectionButton(/^Immagini e video/));
-    expect(where()).toBe('/admin/studio/libreria');
-    expect(screen.getByRole('heading', { name: 'Immagini e video caricati' })).toBeTruthy();
-    expect(screen.queryByRole('region', { name: 'Modifiche non salvate' })).toBeNull();
-    expect(screen.getByText(/Spazio usato: .* MB di 50/)).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: /^Elimina / })).toHaveLength(2);
-    expect(screen.getAllByRole('button', { name: /^Rinomina / })).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: /^Immagini e video/ })).toBeNull();
   });
 
   it('«Pagina pubblica» → Pagina live: every block of the registry with its options, widths and order', async () => {
@@ -565,76 +563,25 @@ describe('Colori e loghi', () => {
     expect(puts('/api/admin/layout').at(-1)?.body).toEqual(defaultLayout('sir-volley'));
   });
 
-  it('uploads a logo, refuses a file over 2 MB, shows why the server refuses a deletion', async () => {
+  it('chooses a logo from the library: no upload here, a link to «Immagini e video»', async () => {
     const { calls } = mockServer();
     renderAt('/admin/studio/colori');
     await studio();
     fireEvent.click(screen.getByRole('tab', { name: 'Loghi e nome' }));
-    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
-    fireEvent.change(screen.getByLabelText('Carica logo quadrato'), {
-      target: { files: [new File([bytes], 'logo.png', { type: 'image/png' })] },
-    });
-    await waitFor(() => expect(calls.some((c) => c.url === '/api/admin/assets' && c.method === 'POST')).toBe(true));
-    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
-      kind: 'logo',
-      data: Buffer.from(bytes).toString('base64'),
-      name: 'logo.png',
-    });
+    expect(screen.queryByLabelText('Carica logo quadrato')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Carica immagine' })).toBeNull();
+    expect(screen.getAllByText('Carica nella libreria')[0]?.getAttribute('href')).toBe('/admin/media');
+    // Only the files of the right kind (logos) are offered, by name.
+    const mark = screen.getByLabelText('Scegli dalla libreria: logo quadrato');
+    expect(
+      within(mark)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Scegli dalla libreria…', 'Immagine del 15/10/2026 · 240×60 px · 0 MB']);
+    fireEvent.change(mark, { target: { value: LOGO } });
     expect(await screen.findByRole('img', { name: 'Logo quadrato' })).toBeTruthy();
-    const big = new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'grande.png', { type: 'image/png' });
-    fireEvent.change(screen.getByLabelText('Carica logo orizzontale'), { target: { files: [big] } });
-    expect(await screen.findByText('Immagine troppo grande: al massimo 2 MB.')).toBeTruthy();
-    fireEvent.click(sectionButton(/^Immagini e video/));
-    fireEvent.click(screen.getByRole('button', { name: 'Continua senza salvare' }));
-    const list = (await screen.findByRole('heading', { name: 'Immagini e video caricati' })).closest('section');
-    if (!list) throw new Error('no list');
-    fireEvent.click(within(list).getAllByRole('button', { name: /^Elimina / })[0] as HTMLElement);
-    fireEvent.click(within(list).getByRole('button', { name: 'Conferma eliminazione' }));
-    expect(await screen.findByText(/Immagine in uso nella grafica/)).toBeTruthy();
-  });
-
-  it('«Immagini»: every file with its name (or day and size), kind, size and weight; «Rinomina» changes the name', async () => {
-    const { calls } = mockServer();
-    renderAt('/admin/studio/libreria');
-    await studio();
-    const list = screen.getByRole('heading', { name: 'Immagini e video caricati' }).closest('section');
-    if (!list) throw new Error('no list');
-    // Files uploaded before the names: the day and the size, never a number of position.
-    expect(within(list).getByText('Immagine del 15/10/2026 · 240×60')).toBeTruthy();
-    expect(within(list).getByText(/^Logo · 240×60 px · 0 MB/)).toBeTruthy();
-    fireEvent.click(within(list).getByRole('button', { name: 'Rinomina Immagine del 15/10/2026 · 240×60' }));
-    const field = within(list).getByRole('textbox', { name: 'Nuovo nome di Immagine del 15/10/2026 · 240×60' });
-    fireEvent.change(field, { target: { value: 'loghi/club.png' } });
-    expect(within(list).getByRole('alert').textContent).toContain('Nome non valido');
-    expect(within(list).getByRole('button', { name: 'Salva nome' })).toHaveProperty('disabled', true);
-    fireEvent.change(field, { target: { value: '  Logo del club  ' } });
-    fireEvent.click(within(list).getByRole('button', { name: 'Salva nome' }));
-    await waitFor(() =>
-      expect(calls.find((c) => c.method === 'PATCH')).toMatchObject({
-        url: `/api/admin/assets/${LOGO}`,
-        body: { name: 'Logo del club' },
-      }),
-    );
-    expect(await within(list).findByText('Logo del club')).toBeTruthy();
-  });
-
-  it('«Immagini e video»: «in uso» counts the logos, the backgrounds of the overlays, the pauses and the sponsors', async () => {
-    const OVERLAY = '1b2c3d4e-5f60-4718-9a2b-3c4d5e6f7a8b';
-    const UNUSED = '2c3d4e5f-6071-4829-8b3c-4d5e6f7a8b9c';
-    const overlay = { ...asset(OVERLAY, 'logo'), kind: 'overlay' as const, name: 'Sfondo ace' };
-    const spare = { ...asset(UNUSED, 'logo'), name: 'Logo vecchio' };
-    const overlays = defaultOverlays();
-    overlays.ace = { ...overlays.ace, background: { kind: 'image', assetId: OVERLAY } } as typeof overlays.ace;
-    mockServer({ overlays }, 'admin', [overlay, spare]);
-    renderAt('/admin/studio/libreria');
-    await studio();
-    const list = screen.getByRole('heading', { name: 'Immagini e video caricati' }).closest('section');
-    if (!list) throw new Error('no list');
-    const row = (name: string) => within(list).getByText(name).closest('li') as HTMLElement;
-    expect(row('Sfondo ace').textContent).toContain('in uso');
-    expect(row('Logo vecchio').textContent).not.toContain('in uso');
-    // The saved logo (logoMain)
-    expect(within(list).getAllByText(/· in uso/).length).toBeGreaterThanOrEqual(2);
+    expect(within(saveBar()).getByText('1 modifica non salvata')).toBeTruthy();
+    expect(calls.some((c) => c.method === 'POST')).toBe(false);
   });
 
   it('pure helpers of the colours', () => {
@@ -709,7 +656,6 @@ describe('one save for each section', () => {
       'Pause',
       'Avvisi',
       'Esporta / Importa',
-      'Immagini e video',
     ]);
     fireEvent.click(sectionButton(/^Esporta \/ Importa/));
     expect(where()).toBe('/admin/studio/esporta');
@@ -919,8 +865,8 @@ describe('Pause', () => {
     });
   });
 
-  it('«Dopo la partita» in «Fine partita»: switch, photo chosen or uploaded as a sponsor image, minutes, PUT', async () => {
-    const { calls, puts } = mockServer();
+  it('«Dopo la partita» in «Fine partita»: switch, photo chosen from the library, minutes, PUT', async () => {
+    const { puts } = mockServer();
     renderAt('/admin/studio/pause');
     await studio();
     fireEvent.click(screen.getByRole('tab', { name: 'Fine partita' }));
@@ -944,19 +890,19 @@ describe('Pause', () => {
     const body = puts('/api/admin/intermissions').at(-1)?.body as TenantIntermissions;
     expect(body.afterMatch).toEqual({ enabled: true, image: SPONSOR, delayMinutes: 45 });
 
-    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 4, 5, 6]);
-    fireEvent.change(within(card).getByLabelText('Carica immagine'), {
-      target: { files: [new File([bytes], 'foto.png', { type: 'image/png' })] },
-    });
-    await waitFor(() => expect(calls.some((c) => c.url === '/api/admin/assets' && c.method === 'POST')).toBe(true));
-    expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({ kind: 'sponsor' });
-    await waitFor(() =>
-      expect(within(card).getByTestId('anteprima-dopo-partita').querySelector('img')?.getAttribute('src')).toBe(
-        `/api/admin/assets/${UPLOADED}/file`,
-      ),
-    );
     fireEvent.click(within(card).getByRole('button', { name: 'Togli foto' }));
     await waitFor(() => expect(within(card).queryByTestId('anteprima-dopo-partita')).toBeNull());
+    // No upload here: the photo is chosen from the library, which is filled in «Immagini e video».
+    expect(within(card).queryByLabelText('Carica immagine')).toBeNull();
+    expect(within(card).getByText('Carica nella libreria').getAttribute('href')).toBe('/admin/media');
+    const pick = within(card).getByLabelText('Scegli dalla libreria: Foto a tutto schermo');
+    await waitFor(() => expect(within(pick).getAllByRole('option').length).toBeGreaterThan(1));
+    fireEvent.change(pick, { target: { value: SPONSOR } });
+    await waitFor(() =>
+      expect(within(card).getByTestId('anteprima-dopo-partita').querySelector('img')?.getAttribute('src')).toBe(
+        `/api/admin/assets/${SPONSOR}/file`,
+      ),
+    );
   });
 
   it('own end of set of the 3rd set, a pause turned off, the rule of the «ogni N punti»', async () => {
@@ -1060,51 +1006,53 @@ describe('Avvisi', () => {
     );
   });
 
-  it('background: none, image or video; a video is checked before sending, uploaded as bytes, previewed and saved', async () => {
-    const { puts, calls } = mockServer();
+  it('background: none, image or video chosen from the library (no upload here), previewed, with its options, saved', async () => {
+    const video: AssetSummary = {
+      ...asset(VIDEO_ID, 'sponsor', 1280, 720),
+      kind: 'overlay',
+      mime: 'video/mp4',
+      url: `/api/admin/assets/${VIDEO_ID}/file`,
+      name: 'ace.mp4',
+    };
+    const { puts, calls } = mockServer({}, 'admin', [video]);
     renderAt('/admin/studio/avvisi');
+    await studio();
     const ace = await overlayRow('ace');
     expect(within(ace).getByRole('radio', { name: 'Nessuno' })).toHaveProperty('checked', true);
     fireEvent.click(within(ace).getByRole('radio', { name: 'Video' }));
-    const input = within(ace).getByLabelText('Carica video per lo sfondo: Ace');
-    expect(input.getAttribute('accept')).toBe('video/mp4,video/webm');
-    const pick = (file: File) => fireEvent.change(input, { target: { files: [file] } });
-    pick(new File(['x'], 'film.mov', { type: 'video/quicktime' }));
-    expect(within(ace).getByRole('alert').textContent).toContain('MP4 o WebM');
-    const big = new File(['x'], 'grande.mp4', { type: 'video/mp4' });
-    Object.defineProperty(big, 'size', { value: 16 * 1024 * 1024 });
-    pick(big);
-    expect(within(ace).getByRole('alert').textContent).toContain('15 MB');
-    expect(calls.some((c) => c.url === '/api/admin/assets/video')).toBe(false);
-    pick(new File([new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112])], 'ace.mp4', { type: 'video/mp4' }));
-    await waitFor(() =>
-      expect(within(ace).getByRole('combobox', { name: 'Video dello sfondo: Ace' })).toHaveProperty('value', VIDEO_ID),
-    );
-    const sent = vi.mocked(fetch).mock.calls.find((c) => c[0] === '/api/admin/assets/video')?.[1];
-    expect((sent?.headers as Record<string, string>)['content-type']).toBe('application/octet-stream');
-    // The name of the file goes with it and names the video in the list.
-    expect((sent?.headers as Record<string, string>)['x-file-name']).toBe('ace.mp4');
+    expect(within(ace).queryByLabelText('Carica video per lo sfondo: Ace')).toBeNull();
+    expect(within(ace).getByText('Carica nella libreria').getAttribute('href')).toBe('/admin/media');
+    const select = within(ace).getByRole('combobox', { name: 'Video dello sfondo: Ace' });
+    fireEvent.change(select, { target: { value: VIDEO_ID } });
     expect(
       within(within(ace).getByRole('combobox', { name: 'Video dello sfondo: Ace' })).getByRole('option', {
         name: /^ace\.mp4 · 1280×720 px/,
       }),
     ).toBeTruthy();
-    // Options of the video: muted, in the box, our team only by default.
+    // Options of the video: muted, in the box, our team only, for the seconds of the overlay by default.
     expect(within(ace).getByRole('checkbox', { name: 'Audio del video: Ace' })).toHaveProperty('checked', false);
     expect(within(ace).getByRole('combobox', { name: 'Posizione del video: Ace' })).toHaveProperty('value', 'center');
     expect(within(ace).getByRole('combobox', { name: 'Video per: Ace' })).toHaveProperty('value', 'ours');
-    expect(sent?.body).toBeInstanceOf(File);
+    expect(within(ace).getByRole('combobox', { name: 'Durata: Ace' })).toHaveProperty('value', 'seconds');
+    expect(
+      within(within(ace).getByRole('combobox', { name: 'Durata: Ace' }))
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Secondi impostati', 'Quanto il video']);
     expect(within(ace).getByLabelText('Anteprima del video dello sfondo: Ace').tagName).toBe('VIDEO');
-    // The preview of the overlay has the video behind its text.
+    // The preview of the overlay has the video behind its text, in a loop (no «Prova»).
     const region = screen.getByTestId('prova-avviso');
     expect(region.querySelector('[data-background="video"] video')?.getAttribute('src')).toBe(
       `/api/admin/assets/${VIDEO_ID}/file`,
     );
+    expect(region.querySelector('video')?.loop).toBe(true);
     fireEvent.click(within(ace).getByRole('checkbox', { name: 'Audio del video: Ace' }));
     fireEvent.change(within(ace).getByRole('combobox', { name: 'Posizione del video: Ace' }), {
       target: { value: 'fullscreen' },
     });
     fireEvent.change(within(ace).getByRole('combobox', { name: 'Video per: Ace' }), { target: { value: 'both' } });
+    fireEvent.change(within(ace).getByRole('combobox', { name: 'Durata: Ace' }), { target: { value: 'video' } });
+    expect(within(ace).getByText(/resta finché il video finisce/)).toBeTruthy();
     expect(region.querySelector('[data-background="video"]')?.getAttribute('data-fit')).toBe('fullscreen');
     // The preview always in view stays silent: the sound only in a «Prova».
     expect(region.querySelector('video')?.muted).toBe(true);
@@ -1116,7 +1064,9 @@ describe('Avvisi', () => {
       audio: true,
       fit: 'fullscreen',
       teams: 'both',
+      duration: 'video',
     });
+    expect(calls.some((c) => c.method === 'POST')).toBe(false);
     // Back to none: the background goes.
     fireEvent.click(within(await overlayRow('ace')).getByRole('radio', { name: 'Nessuno' }));
     save();

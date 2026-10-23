@@ -2,6 +2,7 @@ import type {
   LayoutDevice,
   OverlayBackground,
   OverlayBackgroundKind,
+  OverlayVideoDuration,
   OverlayVideoFit,
   TenantOverlays,
 } from '@arenalive/shared';
@@ -17,6 +18,8 @@ export interface OverlayMedia {
   url: string;
   audio?: boolean;
   fit?: OverlayVideoFit;
+  /** `video`: the video plays once and the overlay lasts as long as it (missing: in a loop, for the seconds). */
+  duration?: OverlayVideoDuration;
 }
 
 /** Pure: the media of `background` at `url`, with the options of a video. */
@@ -25,6 +28,7 @@ export const mediaOf = (background: OverlayBackground, url: string): OverlayMedi
   url,
   audio: background.audio,
   fit: background.fit,
+  duration: background.duration,
 });
 
 /**

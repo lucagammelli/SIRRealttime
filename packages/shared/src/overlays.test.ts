@@ -13,6 +13,8 @@ import {
   overlayPlacement,
   OVERLAY_MAX_SECONDS,
   OVERLAY_MIN_SECONDS,
+  OVERLAY_VIDEO_DURATIONS,
+  OVERLAY_VIDEO_MAX_SECONDS,
   OVERLAY_PLACEHOLDERS,
   OVERLAY_TEXT_MAX,
   OverlaysResponseSchema,
@@ -182,7 +184,7 @@ describe('overlays: background', () => {
       block: { background: { kind: 'image', assetId: ID2 } },
     });
     // A background saved before the options of the video: muted, in the box, our team only.
-    const plainOptions = { audio: false, fit: 'center', teams: 'ours' } as const;
+    const plainOptions = { audio: false, fit: 'center', teams: 'ours', duration: 'seconds' } as const;
     expect(doc.ace.background).toEqual({ kind: 'video', assetId: ID, ...plainOptions });
     expect(overlayBackgrounds(doc)).toEqual([
       { kind: 'video', assetId: ID, ...plainOptions },
@@ -203,6 +205,8 @@ describe('overlays: background', () => {
       { kind: 'video', assetId: ID, fit: 'cover' },
       { kind: 'video', assetId: ID, teams: 'away' },
       { kind: 'video', assetId: ID, teams: 'home' },
+      { kind: 'video', assetId: ID, duration: 'forever' },
+      { kind: 'video', assetId: ID, duration: 30 },
     ])
       expect(TenantOverlaysSchema.safeParse({ ace: { background } }).success).toBe(false);
   });
@@ -211,7 +215,26 @@ describe('overlays: background', () => {
     const doc = TenantOverlaysSchema.parse({
       ace: { background: { kind: 'video', assetId: ID, audio: true, fit: 'fullscreen', teams: 'both' } },
     });
-    expect(doc.ace.background).toEqual({ kind: 'video', assetId: ID, audio: true, fit: 'fullscreen', teams: 'both' });
+    expect(doc.ace.background).toEqual({
+      kind: 'video',
+      assetId: ID,
+      audio: true,
+      fit: 'fullscreen',
+      teams: 'both',
+      duration: 'seconds',
+    });
+  });
+
+  it('duration of the overlay: the seconds chosen by default (documents saved before), or the length of the video', () => {
+    const old = OverlayBackgroundSchema.parse({ kind: 'video', assetId: ID, audio: true });
+    expect(old.duration).toBe('seconds');
+    const follows = OverlayBackgroundSchema.parse({ kind: 'video', assetId: ID, duration: 'video' });
+    expect(follows.duration).toBe('video');
+    expect(OVERLAY_VIDEO_DURATIONS).toEqual(['seconds', 'video']);
+    expect(OVERLAY_VIDEO_MAX_SECONDS).toBe(30);
+    // It survives the round trip of the document.
+    const doc = TenantOverlaysSchema.parse({ ace: { background: follows } });
+    expect(TenantOverlaysSchema.parse(JSON.parse(JSON.stringify(doc))).ace.background?.duration).toBe('video');
   });
 
   it('a video for our team only is dropped for an event of the opponent, at home or away; an image always stays', () => {

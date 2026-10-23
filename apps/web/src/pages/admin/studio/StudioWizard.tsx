@@ -12,9 +12,7 @@ import { useId, useState } from 'react';
 import { BLOCKS } from '../../../blocks/registry.tsx';
 import { Button, ErrorBox } from '../../../components/ui.tsx';
 import { useModalDialog } from '../../../components/useModalDialog.ts';
-import { useApiError } from '../auth.tsx';
 import { Field, inputClass } from '../forms.tsx';
-import { IMAGE_TOO_LARGE, uploadImage } from '../imageUpload.ts';
 import { ColorField, ImageField, OurTeamFields, withColor } from './ColorsSection.tsx';
 import type { StudioScene } from './model.ts';
 import { activePauseModel, applyPauseModel, PAUSE_MODEL_LABELS } from './model.ts';
@@ -66,7 +64,6 @@ export function StudioWizard({
   onLayout,
   onIntermissions,
   assets,
-  onAssetsChanged,
   preview,
   busy,
   error,
@@ -81,7 +78,6 @@ export function StudioWizard({
   onLayout: (change: (l: TenantLayout) => TenantLayout) => void;
   onIntermissions: (change: (c: TenantIntermissions) => TenantIntermissions) => void;
   assets: AssetListResponse;
-  onAssetsChanged: () => void;
   /** Preview of a scene (TV). */
   preview: (scene: StudioScene) => ReactNode;
   busy: boolean;
@@ -89,10 +85,7 @@ export function StudioWizard({
   onClose: () => void;
   onFinish: () => void;
 }) {
-  const errorMessage = useApiError();
   const [step, setStep] = useState(0);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const titleId = useId();
   const current = WIZARD_STEPS[step] ?? { title: '', lead: '', scene: 'play' as const };
   const last = step === WIZARD_STEPS.length - 1;
@@ -110,23 +103,6 @@ export function StudioWizard({
     />
   );
 
-  const uploadLogo = async (file: File): Promise<void> => {
-    setUploadError(null);
-    setUploading(true);
-    try {
-      const asset = await uploadImage(file, 'logo');
-      if (!asset) setUploadError(IMAGE_TOO_LARGE);
-      else {
-        onBranding((b) => ({ ...b, logoMain: asset.id }));
-        onAssetsChanged();
-      }
-    } catch (err) {
-      setUploadError(errorMessage(err));
-    } finally {
-      setUploading(false);
-    }
-  };
-
   let body: ReactNode;
   if (step === 0)
     body = (
@@ -138,11 +114,10 @@ export function StudioWizard({
           slot="logoMain"
           assetId={branding.logoMain}
           asset={assets.assets.find((a) => a.id === branding.logoMain)}
-          busy={uploading}
-          onUpload={(_s, f) => void uploadLogo(f)}
+          assets={assets.assets}
+          onChoose={(_s, id) => onBranding((b) => ({ ...b, logoMain: id }))}
           onClear={() => onBranding((b) => ({ ...b, logoMain: null }))}
         />
-        {uploadError && <ErrorBox>{uploadError}</ErrorBox>}
         <Field label="Nome visualizzato" hint="Facoltativo: titolo delle pagine e testata senza logo.">
           <input
             type="text"

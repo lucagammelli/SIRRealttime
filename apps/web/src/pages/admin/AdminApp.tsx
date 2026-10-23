@@ -30,6 +30,7 @@ import { MatchesPage } from './MatchesPage.tsx';
 import { OnboardingHost } from './onboarding/OnboardingHost.tsx';
 import { ShareLinksPage } from './ShareLinksPage.tsx';
 import { SimulationPage } from './SimulationPage.tsx';
+import { MediaPage } from './MediaPage.tsx';
 import { SponsorsPage } from './SponsorsPage.tsx';
 import { StatsPage } from './StatsPage.tsx';
 import { LEGACY_PAGES, studioPath } from './studio/model.ts';
@@ -207,6 +208,9 @@ function AdminLayout() {
                 <Route path="statistiche" element={ofTenant(<StatsPage />)} />
                 <Route path="simulazione" element={adminOnly(<SimulationPage />)} />
                 <Route path="sponsor" element={adminOnly(<SponsorsPage />)} />
+                <Route path="media" element={adminOnly(<MediaPage />)} />
+                {/* The library of the files was a section of the Studio for a while. */}
+                <Route path="studio/libreria" element={ofTenant(<Navigate to="/admin/media" replace />)} />
                 <Route path="utenti" element={adminOnly(<UsersPage />)} />
                 <Route
                   path="studio/:section?"

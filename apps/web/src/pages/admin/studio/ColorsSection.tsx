@@ -9,12 +9,12 @@ import type {
   TenantBranding,
 } from '@arenalive/shared';
 import {
-  ASSET_MAX_BYTES,
   BRAND_COLOR_KEYS,
   BRANDING_IMAGE_SLOTS,
   brandContrastIssues,
   defaultBranding,
   HEX_COLOR_PATTERN,
+  isVideoMime,
   MIN_TEXT_CONTRAST,
   OUR_TEAM_CODE_MAX,
   OUR_TEAM_NAME_MAX,
@@ -25,10 +25,11 @@ import {
 } from '@arenalive/shared';
 import type { ChangeEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { Button, ErrorBox } from '../../../components/ui.tsx';
-import { useApiError, useAuth } from '../auth.tsx';
+import { Link } from 'react-router';
+import { Button } from '../../../components/ui.tsx';
+import { useAuth } from '../auth.tsx';
 import { Field, inputClass } from '../forms.tsx';
-import { ACCEPT, IMAGE_TOO_LARGE, uploadImage } from '../imageUpload.ts';
+import { assetOptionText } from '../imageUpload.ts';
 import type { StudioTarget } from './model.ts';
 import { ALL_DEVICES_TEXT, COLOR_LABELS, IMAGE_LABELS } from './model.ts';
 import { Advanced, Setting, SettingsCard, TabList } from './StudioUi.tsx';
@@ -238,24 +239,38 @@ export function OurTeamFields({ value, onChange }: { value: OurTeam; onChange: (
   );
 }
 
-/** One image of the branding: preview, upload, removal from the branding (the file stays in «Immagini»). */
+/** Link to the library, the only place where files are uploaded (the pages choose from it). */
+export function LibraryLink({ className = '' }: { className?: string }) {
+  return (
+    <Link to="/admin/media" className={`text-sm font-medium text-primary underline ${className}`}>
+      Carica nella libreria
+    </Link>
+  );
+}
+
+/**
+ * One image of the branding: preview, the choice among the files of the library of the right kind, removal from the
+ * branding (the file stays in the library). New files are uploaded in «Immagini e video».
+ */
 export function ImageField({
   slot,
   asset,
   assetId,
-  busy,
-  onUpload,
+  assets,
+  onChoose,
   onClear,
 }: {
   slot: BrandingImageSlot;
   asset: AssetSummary | undefined;
   assetId: string | null;
-  busy: boolean;
-  onUpload: (slot: BrandingImageSlot, file: File) => void;
+  /** The files of the library (the ones of the kind of the slot are offered). */
+  assets: readonly AssetSummary[];
+  onChoose: (slot: BrandingImageSlot, assetId: string) => void;
   onClear: (slot: BrandingImageSlot) => void;
 }) {
   const { label, hint } = IMAGE_LABELS[slot];
   const notSquare = slot === 'logoMark' && asset !== undefined && asset.width !== asset.height;
+  const files = assets.filter((a) => a.kind === BRANDING_IMAGE_SLOTS[slot] && !isVideoMime(a.mime));
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium text-text">{label}</p>
@@ -267,29 +282,30 @@ export function ImageField({
             <span className="text-xs text-muted">Nessuna immagine</span>
           )}
         </div>
-        <label className="inline-flex min-h-9 cursor-pointer items-center rounded-card border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text hover:bg-surface-2">
-          {busy ? 'Caricamento…' : 'Carica immagine'}
-          <input
-            type="file"
-            accept={ACCEPT}
-            className="sr-only"
-            disabled={busy}
-            aria-label={`Carica ${label.toLowerCase()}`}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.target.value = '';
-              if (file) onUpload(slot, file);
-            }}
-          />
-        </label>
+        <select
+          className={inputClass}
+          aria-label={`Scegli dalla libreria: ${label.toLowerCase()}`}
+          value={assetId ?? ''}
+          onChange={(e) => {
+            if (e.target.value) onChoose(slot, e.target.value);
+          }}
+        >
+          <option value="">{files.length === 0 ? 'Nessun file nella libreria' : 'Scegli dalla libreria…'}</option>
+          {files.map((a) => (
+            <option key={a.id} value={a.id}>
+              {assetOptionText(a)}
+            </option>
+          ))}
+        </select>
         {assetId && (
           <Button variant="ghost" onClick={() => onClear(slot)}>
             Togli
           </Button>
         )}
+        <LibraryLink />
       </div>
       <p className="text-xs text-muted">
-        {hint} PNG, JPEG, WebP o SVG, al massimo 2 MB.
+        {hint}
         {asset && ` ${asset.width}×${asset.height} px.`}
       </p>
       {notSquare && <p className="text-xs text-warn">L’immagine non è quadrata: verrà adattata.</p>}
@@ -307,7 +323,6 @@ export function ColorsSection({
   base,
   onChange,
   assets,
-  onAssetsChanged,
   tab,
   onTab,
   onTemplate,
@@ -318,37 +333,15 @@ export function ColorsSection({
   base: TenantBranding;
   onChange: (change: (branding: TenantBranding) => TenantBranding) => void;
   assets: AssetListResponse;
-  onAssetsChanged: () => void;
   tab: ColorsTab;
   onTab: (tab: ColorsTab) => void;
   /** Choice of another template (the Studio then asks whether the page takes its blocks); missing: only the draft. */
   onTemplate?: (template: TemplateId) => void;
 }) {
-  const errorMessage = useApiError();
   const { isSuperadmin } = useAuth();
-  const [uploading, setUploading] = useState<BrandingImageSlot | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const issues = useMemo(() => brandContrastIssues(draft.colors, draft.template), [draft.colors, draft.template]);
   const template = templateOf(draft.template);
   const byId = useMemo(() => new Map(assets.assets.map((a) => [a.id, a])), [assets]);
-
-  const upload = async (slot: BrandingImageSlot, file: File): Promise<void> => {
-    setError(null);
-    if (file.size > ASSET_MAX_BYTES) {
-      setError(IMAGE_TOO_LARGE);
-      return;
-    }
-    setUploading(slot);
-    try {
-      const asset = await uploadImage(file, BRANDING_IMAGE_SLOTS[slot]);
-      if (asset) onChange((d) => ({ ...d, [slot]: asset.id }));
-      onAssetsChanged();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setUploading(null);
-    }
-  };
 
   const panelId = 'pannello-colori';
   return (
@@ -466,8 +459,8 @@ export function ColorsSection({
                   slot={slot}
                   assetId={draft[slot]}
                   asset={draft[slot] ? byId.get(draft[slot]) : undefined}
-                  busy={uploading === slot}
-                  onUpload={(s, f) => void upload(s, f)}
+                  assets={assets.assets}
+                  onChoose={(s, id) => onChange((d) => ({ ...d, [s]: id }))}
                   onClear={(s) => onChange((d) => ({ ...d, [s]: null }))}
                 />
               </Setting>
@@ -486,7 +479,6 @@ export function ColorsSection({
             </Setting>
           </SettingsCard>
         )}
-        {error && <ErrorBox>{error}</ErrorBox>}
       </div>
     </div>
   );

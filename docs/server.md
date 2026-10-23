@@ -104,6 +104,17 @@ appartiene a un cliente e nessuna query legge o cambia righe di un altro (filtro
   registrazione degli agenti appartiene al cliente dell'hostname da cui arriva.
 - **Cache del cliente dell'hostname**: `hostTenant` ricorda per 30 s (`LOOKUP_CACHE_TTL_MS`) il cliente di ogni hostname
   (`ctx.caches.hosts`); la cache è svuotata a ogni creazione o modifica di un cliente (`src/tenancy.ts`).
+- **Certificati on demand per gli hostname dei clienti** (`GET /internal/tls/ask?domain=<host>`, `src/routes/tlsAsk.ts`):
+  prima di chiedere un certificato per un hostname non elencato in `ARENALIVE_HOSTNAMES`, Caddy (`on_demand_tls { ask … }`
+  in `docker/Caddyfile`, che chiama `http://server:8090/internal/tls/ask`) interroga il server. Risposte: **200** solo se
+  `domain` è in `tenants.hostnames` di un cliente (`isTenantHostname`, stessa cache di `hostTenant`, quindi vale entro 30 s
+  o subito dopo la modifica di un cliente); **404** se è sconosciuto o se la richiesta porta intestazioni di inoltro
+  (`X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Real-IP`, `Forwarded`: la chiamata di Caddy non le ha mai);
+  **400** se `domain` non è valido (`TlsAskQuerySchema`: maiuscole, porta, IP, punto finale, ripetuto, oltre 253
+  caratteri); **429** oltre 600 richieste al minuto (`TLS_ASK_PER_MINUTE`, finestra fissa; Caddy lo legge come «nessun
+  certificato»). La rotta è fuori da `/api/` e `/ws/`: nginx non la inoltra, quindi non è raggiungibile da Internet, e la
+  difesa con le intestazioni protegge anche se qualcuno la raggiungesse passando dal proxy. Ogni consenso è nel log
+  (`certificato on demand consentito`, con `domain`). Esito per l'operatore: `docs/infrastruttura.md`, «Modalità dei certificati».
 - **Origin ammessi** (`originAllowed`): `CORS_ORIGIN` oppure un hostname del cliente dell'host della richiesta.
 - **Link pubblici**: l'URL usa `PUBLIC_BASE_URL` se il suo hostname è del cliente (o il cliente non ha hostname), altrimenti
   il primo hostname del cliente con schema e porta di `PUBLIC_BASE_URL` (`publicBaseUrlFor`).
@@ -1387,7 +1398,8 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
   `security.ts` (`requireRole`, `browserWriteGuard`, `sameOriginGuard`, `authenticateAgent`, `bearerHash` condivisa con
   l'ingest), `lib/tokens.ts` (`generatePairingCode`), `state.ts`, `seed.ts`
 - Clienti: `src/tenancy.ts` (`hostTenant`, `hostnameFromHeader`, `tenantScope`, `adminTenantId`, `publicBaseUrlFor`),
-  `src/routes/tenants.ts`, `packages/shared/src/tenant.ts`, `src/seed.ts`
+  `src/routes/tenants.ts`, `packages/shared/src/tenant.ts`, `src/seed.ts`; certificati on demand: `src/routes/tlsAsk.ts`
+  (`tlsAskRoutes`, `TlsAskQuerySchema`), `isTenantHostname` in `src/tenancy.ts`, test `test/tlsAsk.test.ts`
 - Utenti: `src/routes/users.ts` (`userRoutes`, `userSummary`), `src/users.ts` (`lockTenantUsers`, `activeAdminsBesides`,
   `insertTenantUser`, `deleteUserSessions`, `closeSessionSockets`), `src/routes/auth.ts` (login), `src/security.ts`,
   `packages/shared/src/admin.ts` (`UpdateUserRequestSchema`, `UserSummarySchema`), `credentials.ts`;

@@ -44,6 +44,7 @@ import { simulationRoutes } from './routes/simulation.js';
 import { sponsorRoutes } from './routes/sponsors.js';
 import { systemLogoAdminRoutes, systemLogoPublicRoutes } from './routes/systemLogos.js';
 import { tenantRoutes } from './routes/tenants.js';
+import { tlsAskRoutes } from './routes/tlsAsk.js';
 import { userRoutes } from './routes/users.js';
 import { browserWriteGuard, rejectNulBody } from './security.js';
 import { tenantsOfLeague } from './club.js';
@@ -250,6 +251,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
 
   app.addHook('preValidation', rejectNulBody);
   healthRoutes(app, ctx);
+  tlsAskRoutes(app, ctx);
   ingestRoutes(app, ctx);
   brandingPublicRoutes(app, ctx);
   leaguePublicRoutes(app, ctx);

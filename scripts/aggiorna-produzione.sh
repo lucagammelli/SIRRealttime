@@ -55,12 +55,23 @@ attendi_salute() {
     return 1
 }
 
+# docker/Caddyfile è montato come singolo file: dopo il checkout il container vede ancora quello vecchio e
+# `compose up` non lo ricrea. Se il contenuto è cambiato, Caddy si riavvia (certificati nel volume: nessuna nuova richiesta).
+riallinea_caddy() {
+    local nel_container
+    nel_container="$(compose exec -T caddy cat /etc/caddy/Caddyfile 2>/dev/null | sha256sum | cut -d' ' -f1)" || return 0
+    if [[ "$nel_container" != "$(sha256sum docker/Caddyfile | cut -d' ' -f1)" ]]; then
+        echo "    Caddyfile cambiato: riavvio Caddy"
+        compose restart caddy
+    fi
+}
+
 costruisci_e_avvia() {
     # Con && perché la funzione gira dentro un `if` (set -e sospeso): il primo errore deve fermare la catena.
     # ARENALIVE_COMMIT: commit corto mostrato con la versione (le build Docker non vedono .git; vuoto se non si legge).
     export ARENALIVE_COMMIT
     ARENALIVE_COMMIT="$(git_utente rev-parse --short HEAD 2>/dev/null || true)"
-    compose pull --quiet caddy postgres && compose build --pull && compose up -d --remove-orphans
+    compose pull --quiet caddy postgres && compose build --pull && compose up -d --remove-orphans && riallinea_caddy
 }
 
 principale() {

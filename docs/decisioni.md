@@ -459,3 +459,8 @@ Una riga per decisione: data, scelta, motivo.
   e `--once` con `config.json` scritto a mano) ma nella finestra sta sotto «Avanzate», chiuso di default, perché la via
   normale è la registrazione online e il campo del token confondeva chi apre l'agente la prima volta
   (`docs/agente.md`, `docs/portale.md`).
+- 2026-10-23: certificati dei clienti «on demand» con `ask` al server (`/internal/tls/ask`: 200 solo per gli hostname in
+  `tenants.hostnames`) invece di rilanciare `installa-produzione.sh` a ogni nuovo cliente o di un certificato wildcard (che
+  richiederebbe la sfida DNS-01 e un plugin del provider DNS); la rotta è difesa rifiutando (404) le richieste con
+  intestazioni di inoltro invece di un listener separato, e il limite è fisso a 600 richieste al minuto, perché Caddy
+  chiede solo per hostname senza certificato (`docs/infrastruttura.md`, `docs/server.md`).

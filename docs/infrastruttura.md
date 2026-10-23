@@ -149,7 +149,7 @@ rilascio e l'altro. Il bundle principale è di circa 132 KB gzip. Le altre dipen
   passata dal servizio `server` di `docker-compose.yml` con `${DEFAULT_TENANT_SLUG-predefinito}`: se in `.env` è
   definita ma vuota resta vuota (hostname sconosciuto = 404, `docs/server.md`).
 - Multi-cliente in produzione: nginx (`docker/web.nginx.conf`, `server_name _`) accetta ogni hostname e passa `Host` al
-  server; i certificati https per ogni hostname li emette Caddy (`ARENALIVE_HOSTNAMES`), vedi «Installazione in produzione».
+  server; i certificati https per ogni hostname li emette Caddy (`ARENALIVE_HOSTNAMES` all'avvio, gli hostname dei clienti on demand), vedi «Modalità dei certificati».
 - `CORS_ORIGIN`, `PUBLIC_BASE_URL` e `TRUST_PROXY` sono **commentate** in `.env.example` di proposito: lasciate così
   valgono i default giusti per ogni modo di avvio (con compose `http://localhost:${WEB_PORT}` e `true`, perché il server
   è dietro nginx; con `pnpm --filter @arenalive/server dev` e `vite dev` `http://localhost:5173` e `false`). Una riga attiva
@@ -348,7 +348,7 @@ un editor). Aprilo e compila **solo** il blocco `--- variabili ---` in alto; ogn
 |---|---|---|
 | `CERTIFICATI` | `interno` (CA locale di Caddy, per hostname privati) o `letsencrypt` (certificato pubblico); vedi «Modalità dei certificati» | scelta tua |
 | `DOMINIO_PORTALE` | dominio del portale, solo il nome (es. `portale.example.org`, no `https://`, no IP; con `interno` anche nomi privati come `realtime.local`) | il tuo registrar DNS, o il tuo file hosts |
-| `ALTRI_HOSTNAME` | altri hostname dei clienti separati da spazio; vuoto se non ce ne sono | stesso pannello DNS |
+| `ALTRI_HOSTNAME` | facoltativo: hostname dei clienti separati da spazio, il cui certificato si chiede già all'avvio; vuoto va bene (i nuovi clienti non ne hanno bisogno, vedi passo 7) | stesso pannello DNS |
 | `EMAIL_LETSENCRYPT` | email per gli avvisi di scadenza; obbligatoria solo con `letsencrypt` | la tua |
 | `ADMIN_EMAIL` | email del superadmin iniziale | la tua |
 | `ADMIN_PASSWORD` | vuota = generata e mostrata una volta; altrimenti almeno 12 caratteri tra lettere, cifre e `@ % + = . , : ! _ -` | scelta tua |
@@ -386,6 +386,15 @@ esecuzione; `docker/Caddyfile` importa lo snippet `modo_<valore>`).
   esportata (mai `-k`). Lo script copia **solo il certificato pubblico** (mai la chiave) in
   `/etc/arenalive/ca-pubblica/arenalive-ca.crt`, lo rende scaricabile da `https://<DOMINIO_PORTALE>/arenalive-ca.crt`
   (solo in questa modalità) e stampa nel riepilogo l'impronta SHA-256. I cookie restano `Secure` (c'è HTTPS).
+- **Hostname dei clienti: certificato «on demand»** (vale in entrambe le modalità). Gli hostname di `ARENALIVE_HOSTNAMES`
+  (portale e `ALTRI_HOSTNAME`) ottengono il certificato all'avvio. Per **qualunque altro hostname** Caddy lo chiede alla prima
+  connessione HTTPS, ma solo dopo aver chiesto al server `GET http://server:8090/internal/tls/ask?domain=<host>`: risponde 200
+  se l'hostname è assegnato a un cliente in «Clienti», 404 (o 400, 429) altrimenti, e allora non c'è certificato (con
+  `interno` si usa `tls internal { on_demand }`). Così non si possono far emettere certificati per nomi arbitrari. La rotta è
+  interna: nginx non la inoltra (`docs/server.md`, «Certificati on demand per gli hostname dei clienti»). Il **primo accesso**
+  a un dominio nuovo richiede qualche secondo, il tempo di emettere il certificato; servono DNS pubblico verso il server e
+  porte 80 e 443 aperte. Ogni altro hostname in HTTP è reindirizzato a HTTPS (308; le verifiche HTTP-01 di Let's Encrypt
+  sono risposte da Caddy prima del redirect).
 - **Passare da `interno` a `letsencrypt`**: imposta `CERTIFICATI="letsencrypt"`, compila `EMAIL_LETSENCRYPT`, usa hostname con
   DNS pubblico e rilancia `installa-produzione.sh`: riallinea `ARENALIVE_TLS_MODE`, `ACME_EMAIL`, `PUBLIC_BASE_URL` e `CORS_ORIGIN` nel `.env` (questi due derivano da `DOMINIO_PORTALE` e si rimettono a ogni esecuzione), riavvia Caddy, che
   chiede i certificati pubblici e smette di servire la radice. Il passo inverso funziona allo stesso modo. Dopo il passaggio la
@@ -590,13 +599,15 @@ perché i codici dei link ripristinati restino validi (`docs/server.md`).
 
 ### 7. Aggiungere l'hostname di un nuovo cliente
 1. Crea il record DNS A (e AAAA) dell'hostname verso il server.
-2. Rilancia `installa-produzione.sh` con l'hostname in `ALTRI_HOSTNAME` (insieme a quelli già presenti: l'elenco
-   `ARENALIVE_HOSTNAMES` del `.env` viene riscritto da quello dello script) e le stesse altre variabili; è sicuro, il `.env`
-   esistente non si sovrascrive. Caddy ottiene il certificato da solo.
-3. Nel portale, in «Clienti», assegna l'hostname al cliente (campo «Hostname», solo il nome senza `https://`).
+2. Nel portale, in «Clienti», assegna l'hostname al cliente (campo «Hostname», solo il nome senza `https://`).
 
-Un hostname non elencato in `ARENALIVE_HOSTNAMES` non ha certificato né risposta; uno elencato ma non assegnato risponde col cliente
-di `DEFAULT_TENANT_SLUG` (`docs/server.md`).
+Nessuno script da rilanciare: alla prima visita HTTPS Caddy chiede al server se l'hostname è di un cliente e, se sì, emette
+il certificato (qualche secondo al primo accesso; vedi «Modalità dei certificati»). Se il certificato non arriva: controlla
+che il DNS punti al server e le porte 80/443 siano aperte, che l'hostname sia scritto uguale (minuscolo, senza porta) nel
+cliente, e leggi `docker compose logs caddy` (e `docker compose logs server` per il consenso: «certificato on demand consentito»).
+
+Un hostname che nessun cliente elenca (e che non è in `ARENALIVE_HOSTNAMES`) non ottiene il certificato; uno elencato in
+`ARENALIVE_HOSTNAMES` ma non assegnato risponde col cliente di `DEFAULT_TENANT_SLUG` (`docs/server.md`).
 
 ### 8. Agente scaricabile
 `scripts/pubblica-agente-produzione.sh` costruisce l'agente C# per Windows **solo con Docker** (container temporaneo
@@ -632,7 +643,9 @@ sudo ufw status
 ```
 Riavvio: `sudo systemctl restart arenalive.service` (lo stack riparte da solo anche al riavvio del server). **Caddy non
 scrive access log** (e i suoi log di errore non contengono l'oggetto `request`, quindi nemmeno l'URI): nel percorso ci sono i token dei link (`/live/<token>`, `/l/<codice>`) che i log di nginx mascherano.
-Se un certificato non arriva: `docker compose logs caddy` (di solito DNS non puntato o porte 80/443 chiuse).
+Se un certificato non arriva: `docker compose logs caddy` (di solito DNS non puntato o porte 80/443 chiuse; per un hostname
+di un cliente anche hostname non assegnato in «Clienti», passo 7).
+`aggiorna-produzione.sh` riavvia Caddy se `docker/Caddyfile` è cambiato (è montato come file singolo; i certificati restano nel volume).
 
 ### 10. File nuovi e variabili del `.env` di produzione
 | File | A cosa serve |
@@ -643,7 +656,7 @@ Se un certificato non arriva: `docker compose logs caddy` (di solito DNS non pun
 | `scripts/pubblica-agente-produzione.sh` | costruisce e pubblica l'agente scaricabile |
 | `scripts/ripristina-produzione.sh` | porta in una nuova installazione i dati della vecchia (database, immagini, segreti, hostname) |
 | `docker/compose.produzione.yml` | sovrapposizione a `docker-compose.yml`: Caddy, nessuna porta di server e web, log a rotazione, sottoreti fisse `172.29.250.0/24` e `fd29:250::/64` (IPv6) |
-| `docker/Caddyfile` | HTTPS automatico per `ARENALIVE_HOSTNAMES` (Let's Encrypt o CA interna, secondo `ARENALIVE_TLS_MODE`), header HSTS, nessun access log |
+| `docker/Caddyfile` | HTTPS automatico per `ARENALIVE_HOSTNAMES` (Let's Encrypt o CA interna, secondo `ARENALIVE_TLS_MODE`) e on demand per gli hostname dei clienti (`ask` al server), redirect 80 → 443, header HSTS, nessun access log |
 | `docker/web.realip.conf` | nginx si fida di `X-Forwarded-For` solo dalla sottorete di Caddy (IP vero per rate limit) |
 | `/etc/arenalive/produzione.conf` | impostazioni non segrete lette dagli script e da systemd |
 | `arenalive.service`, `arenalive-backup.service`, `arenalive-backup.timer` | unit systemd (avvio automatico, backup 03:30) |
@@ -655,7 +668,7 @@ Segreti generati la prima volta: `POSTGRES_PASSWORD`, `SHARE_CODE_SECRET`, `SETT
 |---|---|---|
 | `COMPOSE_FILE` | `docker-compose.yml:docker/compose.produzione.yml` | rimessa a ogni esecuzione; fa sì che ogni `docker compose` usi la produzione |
 | `COMPOSE_PROJECT_NAME` | `arenalive` | rimessa a ogni esecuzione; dà il nome ai volumi (`arenalive_assets`) |
-| `ARENALIVE_HOSTNAMES` | elenco separato da virgole | rimessa a ogni esecuzione da `DOMINIO_PORTALE` e `ALTRI_HOSTNAME` |
+| `ARENALIVE_HOSTNAMES` | elenco separato da virgole | rimessa a ogni esecuzione da `DOMINIO_PORTALE` e `ALTRI_HOSTNAME` (solo certificati richiesti all'avvio) |
 | `ARENALIVE_TLS_MODE` | `CERTIFICATI` (`interno` o `letsencrypt`) | rimessa a ogni esecuzione |
 | `ACME_EMAIL` | `EMAIL_LETSENCRYPT` (vuota ammessa con `interno`) | rimessa a ogni esecuzione |
 | `CA_PUBBLICA_DIR` | `/etc/arenalive/ca-pubblica` | rimessa a ogni esecuzione; cartella della radice pubblica servita da Caddy (solo `interno`) |

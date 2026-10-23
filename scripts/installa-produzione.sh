@@ -9,7 +9,7 @@
 # --- variabili (le uniche da modificare; ogni "<…>" va sostituito) ---
 CERTIFICATI="interno"                              # «interno» = certificato firmato da una CA locale di Caddy (radice generata sul server; da installare sui PC): per hostname non pubblici, es. realtime.local risolti dal file hosts. «letsencrypt» = certificato pubblico (serve DNS pubblico e porte 80/443 raggiungibili). Si passa da uno all'altro rilanciando lo script
 DOMINIO_PORTALE="<dominio del portale, es. portale.example.org: con «letsencrypt» il record DNS A/AAAA deve puntare a questo server; con «interno» può essere un nome privato come realtime.local>"
-ALTRI_HOSTNAME=""                                  # altri hostname dei clienti separati da spazio (stessi requisiti DNS); si aggiungono rilanciando lo script
+ALTRI_HOSTNAME=""                                  # facoltativo: hostname dei clienti separati da spazio, con certificato richiesto già all'avvio. Non serve per i nuovi clienti: basta il record DNS verso questo server e l'hostname assegnato al cliente in admin, il certificato arriva da solo alla prima visita
 EMAIL_LETSENCRYPT="<email per gli avvisi di scadenza di Let's Encrypt; con «interno» può restare vuota>"
 ADMIN_EMAIL="<email del superadmin iniziale>"
 ADMIN_PASSWORD=""                                  # vuota = generata e mostrata una sola volta; altrimenti almeno 12 caratteri tra lettere, cifre e @ % + = . , : ! _ -
@@ -478,7 +478,9 @@ riepilogo() {
 =====================================================================
  Portale:          https://$DOMINIO_PORTALE
  Area admin:       https://$DOMINIO_PORTALE/admin   (accesso: $ADMIN_EMAIL)
- Altri hostname:   ${ALTRI_HOSTNAME:-nessuno} (assegnali ai clienti dal portale)
+ Altri hostname:   ${ALTRI_HOSTNAME:-nessuno} (certificato richiesto all'avvio; assegnali ai clienti dal portale)
+ Nuovi clienti:    record DNS verso questo server + hostname assegnato al cliente in admin: il certificato
+                   arriva da solo alla prima visita (non serve rilanciare lo script).
  Codice e .env:    $CARTELLA_INSTALLAZIONE   (.env con i segreti: permessi 600, non condividerlo)
  Backup:           $CARTELLA_BACKUP   (ogni giorno alle 03:30, ne restano $BACKUP_DA_TENERE per tipo)
                    Contengono anche il .env: copiali ogni tanto FUORI da questo server.

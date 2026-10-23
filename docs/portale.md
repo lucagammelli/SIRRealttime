@@ -77,7 +77,15 @@ con lo schermo (leggibile a 4-5 m). I blocchi sotto il tabellone sono divisi in 
 con `TV_BLOCK_MIN_REM`, altezze minime in rem **stimate**, da verificare su TV veri) e i gruppi ruotano ogni 12 s
 (`TV_ROTATION_MS`, `rotationIndex`) con l'indicatore «Schermata N di M». La rotazione si ferma con
 `prefers-reduced-motion` (resta il primo gruppo) e con il pulsante «Ferma rotazione» (`aria-pressed`; in pausa il
-`title` è «Riprendi rotazione» e riprende dalla schermata corrente), richiesto da WCAG 2.2.2. Dopo 3 s senza movimenti
+`title` è «Riprendi rotazione» e riprende dalla schermata corrente), richiesto da WCAG 2.2.2.
+**Una schermata un po' più alta dello spazio non si divide**: `tvGroups` mette insieme le righe finché stanno in
+`spazio / TV_MAX_SHRINK` (0,85) e `BlockLayout` mostra quella schermata rimpicciolita con `zoom = tvZoom(...)` (al
+massimo del 15%: testi e spazi più piccoli, mai tagli); le altezze misurate sono in rem interni, quindi restano
+confrontabili. Le altezze misurate (`raiseMeasured`) si azzerano a ogni set (`measureReset` di `BlockLayout`, passato da
+`MatchView`: le liste di marcatori ripartono vuote) e quando cambiano modello, blocchi o altezza. Sulla TV le schede
+sono un po' più strette (`index.css`, `[data-tv-block] .sir-card-*`: meno spazio in testata, corpo e tra le parti).
+Caso verificato nel portale a 1920×1080 col modello SIR VOLLEY: «Ace», «Muri vincenti», «Attacco» (3 giocatori) e
+«Parziale e marcatori» (5) servono 43,5 rem su 40,1 disponibili: prima 3 schermate, ora 2 (zoom ≈ 0,92). Dopo 3 s senza movimenti
 (`IDLE_CURSOR_MS`) cursore e pulsanti si nascondono, ma restano raggiungibili da tastiera. Lo schermo resta acceso con
 Screen Wake Lock (`useWakeLock`, `src/lib/tvScreen.ts`), rilasciato a pagina nascosta e richiesto di nuovo al ritorno.
 Senza intestazione e con partita in corso, il logo del cliente (`BrandMark`) e i pulsanti stanno nel tabellone (il logo solo

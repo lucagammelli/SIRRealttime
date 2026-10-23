@@ -228,10 +228,33 @@ export function raiseMeasured(known: MeasuredRem, found: MeasuredRem): MeasuredR
 }
 
 /**
+ * Smallest scale (CSS `zoom`) the big screen gives the blocks of a screen to make one more row fit instead of
+ * starting another screen: text and spaces are at most 15 % smaller.
+ */
+export const TV_MAX_SHRINK = 0.85;
+
+/** Height of a group of rows, in rem (the rows and the `gapRem` between them). */
+export function groupMinRem(
+  group: LayoutGroup,
+  gapRem = 1,
+  minRem: Record<BlockType, number> = TV_BLOCK_MIN_REM,
+  measured: MeasuredRem = {},
+): number {
+  return group.reduce((sum, row, i) => sum + (i > 0 ? gapRem : 0) + rowMinRem(row, minRem, measured), 0);
+}
+
+/** Pure: scale of a group of `neededRem` in `availableRem`: 1 when it fits, never below `maxShrink`. */
+export function tvZoom(neededRem: number, availableRem: number, maxShrink = TV_MAX_SHRINK): number {
+  if (!(neededRem > availableRem) || !(availableRem > 0)) return 1;
+  return Math.max(maxShrink, availableRem / neededRem);
+}
+
+/**
  * Groups of the big screen: the blocks under the scoreboard in rows, and the rows in groups that fit `availableRem`
  * (height under the scoreboard, `gapRem` between rows). A row taller than the space is a group on its own; the first
  * group holds the most important blocks (shown fixed with reduced motion). `measured`: heights measured on the
- * screen, taller than the smallest of the type (see `MeasuredRem`).
+ * screen, taller than the smallest of the type (see `MeasuredRem`). `maxShrink` (default 1: none): a group may need up
+ * to `availableRem / maxShrink`, the screen then shows it scaled down (`tvZoom`).
  */
 export function tvGroups(
   blocks: readonly LayoutBlock[],
@@ -239,14 +262,16 @@ export function tvGroups(
   gapRem = 1,
   minRem: Record<BlockType, number> = TV_BLOCK_MIN_REM,
   measured: MeasuredRem = {},
+  maxShrink = 1,
 ): LayoutGroup[] {
   const groups: LayoutGroup[] = [];
   let group: LayoutGroup = [];
   let used = 0;
+  const room = availableRem / Math.min(1, Math.max(0.1, maxShrink));
   for (const row of packRows(blocks.filter((b) => b.type !== 'scoreboard'))) {
     const height = rowMinRem(row, minRem, measured);
     const needed = group.length === 0 ? height : used + gapRem + height;
-    if (group.length > 0 && needed > availableRem) {
+    if (group.length > 0 && needed > room) {
       groups.push(group);
       group = [row];
       used = height;

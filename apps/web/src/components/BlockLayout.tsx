@@ -5,13 +5,16 @@ import type { Device, LayoutBlock } from '../lib/layout.ts';
 import type { MeasuredRem } from '../lib/layout.ts';
 import {
   raiseMeasured,
+  groupMinRem,
   rotationIndex,
   rowMinRem,
   TABLET_GRID_FLOW,
   tabletSpan,
   TV_ROTATION_MS,
+  TV_MAX_SHRINK,
   tvGroups,
   tvMinRemFor,
+  tvZoom,
 } from '../lib/layout.ts';
 import { useReducedMotion } from '../lib/theme.ts';
 import { DeviceContext, LayoutScaleContext, rootFontPx, useElementHeight, useTicker } from '../lib/useLayout.ts';
@@ -64,17 +67,24 @@ export function BlockLayout({
   device,
   renderBlock,
   rotationPaused = false,
+  measureReset = '',
 }: {
   blocks: readonly LayoutBlock[];
   device: Device;
   renderBlock: RenderBlock;
   /** Big screen: rotation stopped by the viewer (button «Ferma rotazione», WCAG 2.2.2). */
   rotationPaused?: boolean;
+  /**
+   * Big screen: the measured heights are forgotten when this changes (a new set: the lists of scorers and aces start
+   * empty again, a height measured with the long lists would keep the blocks on separate screens for the rest of the
+   * match).
+   */
+  measureReset?: string;
 }) {
   return (
     <DeviceContext.Provider value={device}>
       {device === 'tv' ? (
-        <TvLayout blocks={blocks} renderBlock={renderBlock} paused={rotationPaused} />
+        <TvLayout blocks={blocks} renderBlock={renderBlock} paused={rotationPaused} measureReset={measureReset} />
       ) : device === 'phone' ? (
         <div className="sir-blocks flex flex-col gap-3" data-layout="phone">
           {blocks.map((block) =>
@@ -114,10 +124,12 @@ function TvLayout({
   blocks,
   renderBlock,
   paused,
+  measureReset,
 }: {
   blocks: readonly LayoutBlock[];
   renderBlock: RenderBlock;
   paused: boolean;
+  measureReset: string;
 }) {
   const area = useRef<HTMLDivElement>(null);
   const heightPx = useElementHeight(area) / (useContext(LayoutScaleContext) || 1);
@@ -125,17 +137,22 @@ function TvLayout({
   const scoreboard = blocks.find((b) => b.type === 'scoreboard');
   const template = useTemplate().id;
   const minRem = tvMinRemFor(template);
-  // Real heights of the blocks, measured on this screen: forgotten when the blocks or the height of the screen change.
-  const measureKey = `${template}|${Math.round(heightPx)}|${blocks.map((b) => `${b.id}:${b.width}`).join(',')}`;
+  // Real heights of the blocks, measured on this screen: forgotten when the blocks, the height of the screen or `measureReset` change.
+  const measureKey = `${template}|${measureReset}|${Math.round(heightPx)}|${blocks.map((b) => `${b.id}:${b.width}`).join(',')}`;
   const [measures, setMeasures] = useState<{ key: string; rem: MeasuredRem }>({ key: '', rem: {} });
   const measured = measures.key === measureKey ? measures.rem : NO_MEASURES;
+  const availableRem = heightPx / rootFontPx();
   const groups = useMemo(
-    () => tvGroups(blocks, heightPx / rootFontPx(), TV_GAP_REM, minRem, measured),
-    [blocks, heightPx, minRem, measured],
+    () => tvGroups(blocks, availableRem, TV_GAP_REM, minRem, measured, TV_MAX_SHRINK),
+    [blocks, availableRem, minRem, measured],
   );
   const tick = useTicker(groups.length > 1 && !reduced && !paused, TV_ROTATION_MS);
   const index = rotationIndex(tick, groups.length, reduced);
   const group = groups[index] ?? [];
+  // A screen a little taller than the space is shown scaled down (up to 15 %) instead of being split in two. `zoom`
+  // keeps the box of the container (it still fills the area) and gives the content `available / zoom` of room: the
+  // heights measured below stay in the same rem.
+  const zoom = tvZoom(groupMinRem(group, TV_GAP_REM, minRem, measured), availableRem);
   const shown = useRef<HTMLDivElement>(null);
 
   // After every render: a block whose content overflows its cell (the cell, or the body of its card) needs that much
@@ -168,7 +185,12 @@ function TvLayout({
         </div>
       )}
       <div ref={area} className="relative min-h-0 overflow-hidden" data-tv-area="">
-        <div key={index} ref={shown} className="sir-fade flex h-full min-h-0 flex-col gap-4">
+        <div
+          key={index}
+          ref={shown}
+          className="sir-fade flex h-full min-h-0 flex-col gap-4"
+          style={zoom < 1 ? { zoom } : undefined}
+        >
           {group.map((row) => (
             // Rows as tall as their smallest height asks (grow in proportion to it), never an equal share.
             <div

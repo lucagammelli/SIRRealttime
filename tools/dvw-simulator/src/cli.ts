@@ -8,7 +8,7 @@ export const HELP = `dvw-simulator: genera e riproduce nel tempo file .dvw sinte
 
 Uso:
   dvw-simulator generate --out <file> [--seed N] [--sets N]
-  dvw-simulator play --out <file> [--seed N] [--sets N] [--speed 20] [--mode atomic|direct] [--corrections]
+  dvw-simulator play --out <file> [--seed N] [--sets N] [--speed 20] [--min-break 20] [--mode atomic|direct] [--corrections]
 
 Comandi:
   generate        scrive la partita completa in un colpo solo
@@ -19,6 +19,7 @@ Opzioni:
   --seed N        seme del generatore; stesso seme = stessa partita (default 1)
   --sets N        set giocati: 3, 4 o 5 (default 3)
   --speed N       accelerazione del tempo, solo play (default 20)
+  --min-break N   solo play: pausa minima in secondi reali tra un set e l'altro (default 20)
   --mode M        atomic: file temporaneo + rinomina (default); direct: scrittura diretta in due pezzi
   --corrections   solo play: ogni tanto corregge una riga già scritta
   --help          mostra questo testo
@@ -40,6 +41,7 @@ async function main(argv: string[]): Promise<number> {
       seed: { type: 'string' },
       sets: { type: 'string' },
       speed: { type: 'string' },
+      'min-break': { type: 'string' },
       mode: { type: 'string' },
       corrections: { type: 'boolean' },
       help: { type: 'boolean' },
@@ -71,6 +73,7 @@ async function main(argv: string[]): Promise<number> {
   await play(match, {
     out: values.out,
     speed: intOption(values.speed, '--speed', 20),
+    minBreakSeconds: intOption(values['min-break'], '--min-break', 20),
     mode,
     corrections: values.corrections ?? false,
     seed,

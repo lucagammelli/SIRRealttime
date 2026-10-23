@@ -9,6 +9,7 @@ import { generateToken, hashToken } from '../src/lib/tokens.js';
 import { insertShareToken } from '../src/shareCodes.js';
 import type { SimulationTimers } from '../src/simulation/service.js';
 import { SIMULATION_MAX_ACTIVE } from '../src/simulation/service.js';
+import { setBreakSeconds } from '../src/simulation/breaks.js';
 import { generatedMatch } from '../src/simulation/source.js';
 import type { TestServer } from './helpers.js';
 import {
@@ -223,7 +224,12 @@ describe('simulation of a match', () => {
   it('follows the real rhythm of the lines with a speed', async () => {
     const body = { source: { kind: 'generated', sets: 5, seed: 14 }, pace: { kind: 'speed', speed: 10 } };
     const sim = (await start(body)).simulation;
-    const plan = planPlayback(generatedMatch({ sets: 5, seed: 14 }).timing, { kind: 'speed', speed: 10 });
+    // The default «Fine set» pause of the client keeps the next set away for its whole length.
+    const plan = planPlayback(
+      generatedMatch({ sets: 5, seed: 14 }).timing,
+      { kind: 'speed', speed: 10 },
+      { minBreakSeconds: (set) => setBreakSeconds({}, set) },
+    );
     expect(sim).toMatchObject({ source: 'Partita casuale (5 set, seme 14)', totalMs: plan.totalMs, status: 'running' });
     expect(sim?.homeName).toBe('Pallavolo Città');
     await timers.advance(20_000);
@@ -233,6 +239,33 @@ describe('simulation of a match', () => {
     // Every line due is sent, at most SIMULATION_MIN_SEND_MS later.
     expect(now?.linesSent).toBeGreaterThanOrEqual(plan.offsetsMs.filter((ms) => ms <= 19_750).length);
     expect(now?.linesSent).toBeLessThanOrEqual(due);
+  });
+
+  it('with a speed, the break between sets is the «Fine set» pause of the client, 20 s when it is off', () => {
+    expect(setBreakSeconds({}, 1)).toBe(89);
+    const own = {
+      setBreakBySet: {
+        '2': { enabled: true, delaySeconds: 2, slides: [{ id: 'a', type: 'setSummary', seconds: 15 }] },
+      },
+    };
+    expect(setBreakSeconds(own, 2)).toBe(17);
+    expect(setBreakSeconds(own, 1)).toBe(89);
+    expect(setBreakSeconds({ setBreak: { enabled: false } }, 1)).toBe(20);
+    expect(setBreakSeconds(null, 1)).toBe(89);
+  });
+
+  it('with a speed, no point of the next set comes before the end of the «Fine set» pause', async () => {
+    const body = { source: { kind: 'generated', sets: 3, seed: 5 }, pace: { kind: 'speed', speed: 10 } };
+    const timing = generatedMatch({ sets: 3, seed: 5 }).timing;
+    const plan = planPlayback(
+      timing,
+      { kind: 'speed', speed: 10 },
+      { minBreakSeconds: (set) => setBreakSeconds({}, set) },
+    );
+    await start(body);
+    const end = timing.findIndex((l) => l.kind === 'setEnd');
+    expect((plan.offsetsMs[end + 1] ?? 0) - (plan.offsetsMs[end] ?? 0)).toBeGreaterThanOrEqual(89_000);
+    expect((await simulation()).simulation?.totalMs).toBe(plan.totalMs);
   });
 
   it('uses the teams of the club with a generated match: ours and the opponent of the next match', async () => {

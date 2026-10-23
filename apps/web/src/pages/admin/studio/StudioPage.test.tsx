@@ -593,6 +593,22 @@ describe('one save for each section', () => {
 });
 
 describe('Pagina live', () => {
+  it('switches «Touch» off for one device and saves it', async () => {
+    const { puts } = mockServer();
+    renderAt('/admin/studio/pagina');
+    await studio();
+    fireEvent.click(screen.getByRole('tab', { name: 'Tablet' }));
+    expect(screen.getByRole<HTMLInputElement>('switch', { name: 'Touch: Tablet' }).checked).toBe(true);
+    fireEvent.click(screen.getByRole('tab', { name: 'Telefono' }));
+    expect(screen.getByRole<HTMLInputElement>('switch', { name: 'Touch: Telefono' }).checked).toBe(true);
+    fireEvent.click(screen.getByRole('switch', { name: 'Touch: Telefono' }));
+    expect(screen.getByText('Touch: No')).toBeTruthy();
+    save();
+    expect(await screen.findByText(/Pagina pubblica salvata/)).toBeTruthy();
+    const body = puts('/api/admin/layout').at(-1)?.body as TenantLayout;
+    expect(body.touch).toEqual({ tv: true, tablet: true, phone: false });
+  });
+
   it('reorders with the keyboard (focus stays) and by dragging, hides a block, changes its width, saves with PUT', async () => {
     const { puts } = mockServer();
     renderAt('/admin/studio/pagina');

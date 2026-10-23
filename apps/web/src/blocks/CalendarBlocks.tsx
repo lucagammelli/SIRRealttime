@@ -1,6 +1,7 @@
 import type { BlockOptions, ScheduleFixture, ScheduleStandings, ScheduleStandingRow } from '@arenalive/shared';
 import { standingsRowsToShow } from '@arenalive/shared';
 import { useState } from 'react';
+import { useTouch } from '../lib/useLayout.ts';
 import { teamInitials } from '../components/NextMatch.tsx';
 import { BreakableName, Card } from '../components/ui.tsx';
 import { formatDay, formatFixtureDate } from '../lib/format.ts';
@@ -109,6 +110,8 @@ export function NextMatchView({
   const showQr = options.qr && fixture.shortUrl !== null;
   // On the phone the viewer is already on the device: no QR in the banner, the name is the link of the match.
   const phone = env.device === 'phone';
+  // Without touch the name is plain text.
+  const touch = useTouch();
   const dateText = `${upper(when.date)} · ore ${when.time}`;
 
   if (size === 'compact') {
@@ -122,7 +125,7 @@ export function NextMatchView({
         />
         <p className="min-w-48 flex-1 text-sm text-text">
           <span className="font-semibold">Prossima partita: </span>
-          {phone && showQr && fixture.shortUrl ? (
+          {phone && showQr && fixture.shortUrl && touch ? (
             <a href={fixture.shortUrl} className="font-display font-bold uppercase text-opponent-ink underline">
               {opponent.name}
             </a>

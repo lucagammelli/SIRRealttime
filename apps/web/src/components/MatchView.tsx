@@ -7,7 +7,7 @@ import { useOurTeamColors, useTemplate } from '../lib/branding.ts';
 import type { Device, LayoutBlock } from '../lib/layout.ts';
 import { blocksFor } from '../lib/layout.ts';
 import { hasScheduleData, isScheduleType, useSchedule } from '../lib/schedule.ts';
-import { useDevice } from '../lib/useLayout.ts';
+import { TouchContext, useDevice } from '../lib/useLayout.ts';
 import { BlockLayout } from './BlockLayout.tsx';
 
 /**
@@ -73,5 +73,9 @@ export function MatchView({
       ...(logos ? { logos } : {}),
     });
 
-  return <BlockLayout blocks={blocks} device={used} renderBlock={renderBlock} rotationPaused={rotationPaused} />;
+  return (
+    <TouchContext.Provider value={layout?.touch[used] ?? true}>
+      <BlockLayout blocks={blocks} device={used} renderBlock={renderBlock} rotationPaused={rotationPaused} />
+    </TouchContext.Provider>
+  );
 }

@@ -68,6 +68,14 @@ describe('layout of the public page', () => {
     expect(TenantLayoutSchema.safeParse({ desktop: [] }).success).toBe(false);
   });
 
+  it('touch: every device, true when missing in the saved documents', () => {
+    expect(TenantLayoutSchema.parse({}).touch).toEqual({ tv: true, tablet: true, phone: true });
+    expect(TenantLayoutSchema.parse({ touch: { tv: false } }).touch).toEqual({ tv: false, tablet: true, phone: true });
+    expect(TenantLayoutSchema.safeParse({ touch: { tv: 'no' } }).success).toBe(false);
+    expect(TenantLayoutSchema.safeParse({ touch: { watch: true } }).success).toBe(false);
+    expect(resolveLayout({ touch: { phone: false } }).touch.phone).toBe(false);
+  });
+
   it('court field modes are optional and validated', () => {
     expect(parseBlock({ type: 'court' }).data?.options).not.toHaveProperty('fieldMode');
     const tri = { fieldMode: 'tricolor', tricolor: ['#009246', '#ffffff', '#ce2b37'] };

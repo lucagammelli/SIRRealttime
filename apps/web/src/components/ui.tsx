@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { createContext, Fragment, useContext, useEffect, useId, useRef, useState } from 'react';
+import { useTouch } from '../lib/useLayout.ts';
 
 /**
  * A name of the scout file (team, player) that may wrap also after `_`, `/`, `-` and `.` («PERUGIA_AMICHEVOLI»):
@@ -53,7 +54,9 @@ export function Card({
   bodyClassName?: string;
 }) {
   const collapse = useContext(CardCollapseContext);
-  const collapsible = collapse.collapsible && title !== undefined;
+  const touch = useTouch();
+  // Without touch the sections of the phone cannot be opened or closed: all open.
+  const collapsible = collapse.collapsible && title !== undefined && touch;
   const [open, setOpen] = useState(collapse.defaultOpen);
   const bodyId = useId();
   const shown = !collapsible || open;
@@ -156,6 +159,8 @@ export function Segmented<T extends string | number>({
   label: string;
   size?: 'sm' | 'xs';
 }) {
+  // Without touch the view stays the default one: no selector.
+  if (!useTouch()) return null;
   const pad = size === 'xs' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm';
   return (
     <div

@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import type { PlayerRow, PlayerSortKey, SortDirection } from '../charts/players.ts';
 import { playerRows, sortPlayerRows, statSets } from '../charts/players.ts';
 import { formatCount, formatPct, teamName } from '../lib/format.ts';
-import { useDeviceContext } from '../lib/useLayout.ts';
+import { useDeviceContext, useTouch } from '../lib/useLayout.ts';
 import { Card, Empty, Segmented } from './ui.tsx';
 
 interface Column {
@@ -66,6 +66,7 @@ const TEXT: Record<Side, string> = { home: 'text-home-ink', away: 'text-away-ink
  */
 export function PlayerTable({ state, className = '' }: { state: MatchState; className?: string }) {
   const compact = useDeviceContext() === 'phone';
+  const touch = useTouch();
   const [allColumns, setAllColumns] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
   const essential = compact && !allColumns;
@@ -116,7 +117,7 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
               options={[{ value: 0, label: 'Tutti' }, ...sets.map((n) => ({ value: n, label: `${n}°` }))]}
             />
           )}
-          {compact && (
+          {compact && touch && (
             <button
               type="button"
               aria-pressed={allColumns}
@@ -170,6 +171,7 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
                   active={sort.key === 'number'}
                   ariaSort={ariaSort('number')}
                   onClick={() => toggleSort('number')}
+                  interactive={touch}
                   className="pl-4 text-left sm:pl-5"
                 />
                 <th scope="col" className="px-2 py-1.5 text-left font-medium">
@@ -183,6 +185,7 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
                     active={sort.key === c.key}
                     ariaSort={ariaSort(c.key)}
                     onClick={() => toggleSort(c.key)}
+                    interactive={touch}
                     className={`text-center ${groupBorder(c.key, !essential)} ${c.key === 'points' ? 'bg-table-key' : ''}`}
                   />
                 ))}
@@ -207,15 +210,19 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
                       {r.number}
                     </td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-text">
-                      <button
-                        type="button"
-                        aria-pressed={isSelected}
-                        title={isSelected ? 'Togli la selezione' : 'Evidenzia il giocatore'}
-                        onClick={() => setSelected(isSelected ? null : r.number)}
-                        className="text-left hover:underline pointer-coarse:min-h-11"
-                      >
-                        {r.name}
-                      </button>
+                      {touch ? (
+                        <button
+                          type="button"
+                          aria-pressed={isSelected}
+                          title={isSelected ? 'Togli la selezione' : 'Evidenzia il giocatore'}
+                          onClick={() => setSelected(isSelected ? null : r.number)}
+                          className="text-left hover:underline pointer-coarse:min-h-11"
+                        >
+                          {r.name}
+                        </button>
+                      ) : (
+                        <span>{r.name}</span>
+                      )}
                       {r.libero && (
                         <span className="ml-1.5 rounded bg-surface-2 px-1 text-[10px] font-semibold uppercase text-muted">
                           Libero
@@ -254,6 +261,7 @@ function SortHeader({
   active,
   ariaSort,
   onClick,
+  interactive,
   className = 'text-center',
 }: {
   label: string;
@@ -261,21 +269,32 @@ function SortHeader({
   active: boolean;
   ariaSort: 'ascending' | 'descending' | 'none';
   onClick: () => void;
+  /** Without touch the header is plain text. */
+  interactive: boolean;
   className?: string;
 }) {
   return (
     <th scope="col" aria-sort={ariaSort} className={`px-1.5 py-1.5 font-medium ${className}`}>
-      <button
-        type="button"
-        onClick={onClick}
-        title={`Ordina per: ${title}`}
-        className={`inline-flex items-center gap-0.5 hover:text-text ${active ? 'text-text' : ''}`}
-      >
-        {label}
-        <span aria-hidden="true" className="text-[10px]">
-          {active ? (ariaSort === 'ascending' ? '▲' : '▼') : ''}
+      {interactive ? (
+        <button
+          type="button"
+          onClick={onClick}
+          title={`Ordina per: ${title}`}
+          className={`inline-flex items-center gap-0.5 hover:text-text ${active ? 'text-text' : ''}`}
+        >
+          {label}
+          <span aria-hidden="true" className="text-[10px]">
+            {active ? (ariaSort === 'ascending' ? '▲' : '▼') : ''}
+          </span>
+        </button>
+      ) : (
+        <span title={title}>
+          {label}
+          <span aria-hidden="true" className="text-[10px]">
+            {active ? (ariaSort === 'ascending' ? '▲' : '▼') : ''}
+          </span>
         </span>
-      </button>
+      )}
     </th>
   );
 }

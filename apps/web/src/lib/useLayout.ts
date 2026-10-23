@@ -28,6 +28,13 @@ export const DeviceContext = createContext<Device>('tablet');
 export const useDeviceContext = (): Device => useContext(DeviceContext);
 
 /**
+ * «Touch» of the device of the public page (option of the layout): with `false` nothing can be tapped or clicked
+ * (no buttons, selectors or links) and the charts keep their default view. Default: `true`.
+ */
+export const TouchContext = createContext(true);
+export const useTouch = (): boolean => useContext(TouchContext);
+
+/**
  * Scale of the page drawn inside a reduced frame (preview of the editor, CSS transform): measured heights are divided
  * by it, so the big screen groups its blocks as on the real screen.
  */

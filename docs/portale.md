@@ -916,6 +916,17 @@ controlli in `docs/server.md`, «Grafica per cliente»).
   cliente attivo; un'immagine SVG non ammessa è rifiutata con un messaggio, non convertita.
 
 ### Pagina pubblica a blocchi (sezione «Pagina live» dello Studio)
+
+- **Touch** (`touch.tv`, `touch.tablet`, `touch.phone` in `TenantLayoutSchema`, predefinito `true`; i documenti salvati senza
+  il campo restano validi; si salva con lo stesso `PUT /api/admin/layout`). Nello Studio, in «Pagina live», ogni scheda
+  dispositivo ha l'interruttore «Touch: Sì/No» (`PageSection.tsx`). Con «No», `TouchContext`/`useTouch()`
+  (`lib/useLayout.ts`), fornito da `LivePage` e da `MatchView` (anche per l'anteprima dello Studio), nasconde tutto ciò che si
+  tocca: i selettori `Segmented` (squadra, set, fondamentale, valutazione), «Giocatore» e «Altri filtri» della mappa di campo,
+  «Tutte le colonne», le intestazioni ordinabili e la selezione delle righe della tabella giocatori, i titoli comprimibili
+  delle card sul telefono (restano tutte aperte), i pulsanti ferma/riprendi rotazione, installazione, schermo intero e tema,
+  i pulsanti delle pause (pausa/riprendi, chiudi), il link dello sponsor e quello dello short URL del calendario (restano
+  contenuto senza `<a>`). I grafici restano sulla vista predefinita; la rotazione automatica della TV continua. Test:
+  `components/touch.test.tsx`.
 Ogni cliente sceglie quali blocchi mostra la pagina della partita, in che ordine e con che larghezza, separatamente per
 TV, tablet e telefono. Il contratto (`TenantLayoutSchema`, `docs/architettura.md`) e le rotte (`GET`/`PUT
 /api/admin/layout`, `docs/server.md`) sono altrove; il layout arriva al portale in `GET /api/public/tenant` (`layout`,

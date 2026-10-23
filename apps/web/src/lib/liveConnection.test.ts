@@ -496,3 +496,67 @@ describe('LiveConnection: patches, resync and gzip', () => {
     conn.stop();
   });
 });
+
+describe('config signal of the graphics', () => {
+  it('calls onConfig on config and after a reconnection, never touching the match on screen', () => {
+    const sockets: FakeSocket[] = [];
+    const onConfig = vi.fn();
+    const conn = new LiveConnection({
+      url: 'ws://test/ws/public/abc',
+      onChange: vi.fn(),
+      createSocket: (url) => {
+        const s = new FakeSocket(url);
+        sockets.push(s);
+        return s;
+      },
+      baseDelayMs: 1000,
+      random: () => 0.5,
+      gzip: false,
+      restartSpreadMs: 0,
+      onConfig,
+    });
+    conn.start();
+    const first = sockets.at(-1) as FakeSocket;
+    first.open();
+    first.deliver(stateMsg(MATCH_A, 3));
+    expect(onConfig).not.toHaveBeenCalled();
+    const before = conn.current();
+    first.deliver({ type: 'config' });
+    expect(onConfig).toHaveBeenCalledWith('changed');
+    expect(conn.current()).toBe(before);
+    first.serverClose(1006);
+    vi.advanceTimersByTime(10_000);
+    (sockets.at(-1) as FakeSocket).open();
+    expect(onConfig).toHaveBeenLastCalledWith('reconnected');
+    expect(onConfig).toHaveBeenCalledTimes(2);
+    conn.stop();
+  });
+
+  it('useLiveSocket reads the graphics again (fresh) when config arrives, keeping the state', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(new Response('{}', { status: 404 })));
+    vi.stubGlobal('fetch', fetchMock);
+    const sockets: FakeSocket[] = [];
+    const createSocket = (url: string): FakeSocket => {
+      const s = new FakeSocket(url);
+      sockets.push(s);
+      return s;
+    };
+    const { result, unmount } = renderHook(() => useLiveSocket('ws://test/ws/public/abc', { createSocket }));
+    const socket = sockets.at(-1) as FakeSocket;
+    act(() => {
+      socket.open();
+      socket.deliver(stateMsg(MATCH_A, 2));
+      socket.deliver({ type: 'config' });
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith('/api/public/tenant', expect.objectContaining({ cache: 'no-cache' }));
+    expect(result.current.data).toMatchObject({ kind: 'state', matchId: MATCH_A, version: 2 });
+    expect(sockets).toHaveLength(1);
+    unmount();
+    vi.unstubAllGlobals();
+  });
+});

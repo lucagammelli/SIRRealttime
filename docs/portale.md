@@ -765,6 +765,17 @@ il browser non ha l'API non succede nulla.
 - **Versioni vecchie ignorate**: `applyMessage` scarta uno `state` della stessa partita con `version` non maggiore di
   quella a video e uno che `looksLikeMatchState` non riconosce (`src/lib/messages.ts`).
 - Quando il browser torna online (evento `online`) si riconnette subito, a meno che il link sia già non valido.
+- **Modifiche della grafica in diretta** (`createBrandingRefresh`, `lib/branding.ts`; collegato in `useLiveSocket.ts`): il
+  messaggio `config` (senza dati) non tocca lo stato della partita, che continua senza interruzioni. `changed()` rilegge
+  la grafica (`initBranding({ fresh: true })`) dopo un ritardo casuale di 0–3 s (`CONFIG_REFRESH_SPREAD_MS`), per non far
+  chiedere la grafica a tutti gli spettatori nello stesso istante; una sola lettura alla volta, i segnali arrivati
+  durante una lettura ne fanno una sola in più. Come rete di sicurezza `resume()` rilegge anche dopo una riconnessione e
+  al ritorno della scheda in primo piano (`visibilitychange`), al massimo una volta al minuto
+  (`CONFIG_REFRESH_MIN_INTERVAL_MS`).
+- **Studio**: al cambio di «Modello grafico» compare il dialogo «Applicare anche la disposizione dei blocchi del modello?»
+  («Sì, applica i blocchi del modello» / «No, tieni i blocchi attuali»); la scelta riguarda solo i blocchi della «Pagina
+  live» (poi va salvata). La didascalia dell'anteprima (`StudioPreview.tsx`) dice «Partita live» con una partita in corso,
+  altrimenti «Partita d’esempio».
 
 ### Dati e grafici
 I dati vengono **solo** da `MatchState`: il portale non rifà calcoli di pallavolo. Le trasformazioni da stato a grafico

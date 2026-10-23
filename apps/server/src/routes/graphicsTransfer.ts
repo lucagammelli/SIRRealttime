@@ -34,7 +34,7 @@ import { validate } from '../lib/validate.js';
 import { requireRole } from '../security.js';
 import type { Tx } from '../matchLock.js';
 import { listSponsors } from '../sponsors.js';
-import { adminTenantId, findTenant, forgetTenants, tenantScope } from '../tenancy.js';
+import { adminTenantId, findTenant, tenantConfigChanged, tenantScope } from '../tenancy.js';
 import { lockClientAssets, storeAsset } from './branding.js';
 
 const imageRejected = (message: string): HttpError => new HttpError(422, 'IMAGE_REJECTED', message);
@@ -243,7 +243,7 @@ export function graphicsTransferRoutes(app: FastifyInstance, ctx: AppContext): v
           .returning({ id: tenants.id });
         if (updated.length === 0) throw notFound();
       });
-      forgetTenants(ctx);
+      tenantConfigChanged(ctx, tenantId);
       request.log.info(
         { tenantId, images: checked.length, userId: request.user?.id },
         'grafica del cliente importata da un pacchetto',

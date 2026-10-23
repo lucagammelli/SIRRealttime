@@ -336,3 +336,31 @@ describe('channel of the club', () => {
     expect(hub.current(channel)?.matchId).toBe('m1');
   });
 });
+
+describe('config signal', () => {
+  it('reaches every socket of the client (any target, any encoding) and none of the other clients', () => {
+    const live = add({ kind: 'share', shareTokenId: 's1' });
+    const fixed = add(
+      { kind: 'session', sessionHash: 'h1' },
+      null,
+      { kind: 'match', tenantId: TENANT, matchId: 'm1' },
+      {
+        encoding: 'gzip',
+      },
+    );
+    const other = add({ kind: 'share', shareTokenId: 's2' }, null, { kind: 'channel', tenantId: 't-b' });
+    hub.notifyConfig(TENANT);
+    expect(live.messages()).toEqual([{ type: 'config' }]);
+    expect(fixed.messages()).toEqual([{ type: 'config' }]);
+    // Small signal: a text frame even for the gzip clients.
+    expect(fixed.frames[0]?.binary).toBe(false);
+    expect(other.sent).toEqual([]);
+  });
+
+  it('closes an expired socket instead of sending it the signal', () => {
+    const expired = add({ kind: 'share', shareTokenId: 's1' }, new Date('2026-01-01T09:00:00Z'));
+    hub.notifyConfig(TENANT);
+    expect(expired.sent).toEqual([]);
+    expect(expired.closedWith).toBe(CLOSE_TOKEN_GONE);
+  });
+});

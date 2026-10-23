@@ -1028,6 +1028,12 @@ Messaggi server→client (`ServerMessage`):
   campionato, stato, risultato ufficiale, `inCalendar`); è la «Prossima partita» di un link del calendario finché nessun
   `.dvw` è abbinato. Come `noMatch` non viene mai inviato a chi ha già ricevuto uno stato; quando il `.dvw`
   arriva il client riceve `state`.
+- `config`: `{ type }`, senza dati: la configurazione del cliente è cambiata e il client deve rileggere la grafica con
+  `GET` (così nessun dato passa dal socket). L'hub lo manda a tutti i socket pubblici e admin del solo cliente
+  (`LiveHub`, `src/hub.ts`) tramite `tenantConfigChanged(ctx, tenantId)` (`src/tenancy.ts`), chiamato dopo i salvataggi di
+  grafica, pagina, pause, avvisi (`routes/branding.ts`), sponsor (`routes/sponsors.ts`), importazione della grafica
+  (`routes/graphicsTransfer.ts`), profilo del club e salvataggi della grafica del club (`routes/club.ts`) e modifica del cliente da
+  parte del superadmin (`routes/tenants.ts`). Non cambia la versione dello stato.
 - `error`: `{ type, message }`, ad esempio se lo stato iniziale non è leggibile.
 
 Messaggi client→server (`ClientMessage`): `resync` (`{ "type": "resync" }`): il client ha perso il filo delle

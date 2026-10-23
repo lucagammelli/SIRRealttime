@@ -153,6 +153,14 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
+        text: 'Se in «Colori e loghi», sotto «Avanzate», scegli un altro «Modello grafico», colori e caratteri cambiano subito. Lo Studio ti chiede poi «Applicare anche la disposizione dei blocchi del modello?»: con «Sì, applica i blocchi del modello» la «Pagina live» prende i blocchi del modello su tutti i dispositivi (salvala per pubblicarli); con «No, tieni i blocchi attuali» resta com’è.',
+      },
+      {
+        kind: 'text',
+        text: 'Quando salvi una parte dello Studio, i tifosi che hanno già la pagina aperta vedono la nuova grafica entro pochi secondi, senza ricaricarla e senza perdere la partita.',
+      },
+      {
+        kind: 'text',
         text: 'Gli sponsor si preparano nella pagina «Sponsor»: per ognuno scrivi il nome, se vuoi il sito (che inizia con https://) e carica una o più immagini con «Carica immagine». Con ↑ e ↓ scegli l’ordine in cui ruotano. Le immagini caricate prima, senza sponsor, compaiono in «Immagini senza sponsor»: con «Assegna a» le dai a uno sponsor.',
       },
       {

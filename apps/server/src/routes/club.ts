@@ -50,7 +50,7 @@ import { lockClientAssets } from './branding.js';
 import {
   adminTenantId,
   findTenant,
-  forgetTenants,
+  tenantConfigChanged,
   hostTenant,
   publicBaseUrlFor,
   tenantDisplayName,
@@ -221,7 +221,7 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
         brandingChanged = true;
       }
     });
-    if (brandingChanged) forgetTenants(ctx);
+    if (brandingChanged) tenantConfigChanged(ctx, tenantId);
     await refreshClub(ctx, tenantId);
     request.log.info({ tenantId, userId: request.user?.id, leagues: ids.length }, 'campionati del club salvati');
     return clubOf(tenantId);
@@ -288,7 +288,7 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
       };
       await tx.update(tenants).set({ branding, clubProfile: profile }).where(eq(tenants.id, tenantId));
     });
-    forgetTenants(ctx);
+    tenantConfigChanged(ctx, tenantId);
     // «Nostra squadra» and the coverage change the link of the `.dvw` still to confirm: looked for again at once.
     await refreshClub(ctx, tenantId);
     await closeNotBroadcast(ctx, tenantId);

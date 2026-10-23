@@ -117,6 +117,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
           'Per aggiungere un’amichevole, una coppa o un’altra gara, premi «Nuova partita» e compila tipo, data, ora, avversario e dove si gioca.',
           'Se la data è sbagliata o è cambiata, apri la partita, premi «Cambia data e ora» e scrivi quelle giuste. La partita mostra «Modificata a mano».',
           'Per rimettere la data del sito della Lega premi «Torna alla data ufficiale».',
+          'Se un file .dvw si è abbinato alla partita sbagliata (per esempio una prova fatta prima della partita vera), accanto a «File .dvw» premi «Scollega» e poi «Conferma: scollega il file»: la partita torna «Programmata» e il file non viene più abbinato da solo.',
         ],
       },
     ],
@@ -177,7 +178,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'Per portare tutta la grafica da un portale a un altro (colori, loghi, pagina live, pause, avvisi, sponsor scelti e immagini) apri «Colori e loghi», scheda «Esporta / Importa». Con «Esporta configurazione» scarichi un file; con «Importa configurazione» scegli il file, controlli il riepilogo (club di origine, data, immagini, modello grafico) e confermi: la grafica attuale viene sostituita. Il file non contiene partite, utenti né link, né gli sfondi degli avvisi: quelli vanno caricati di nuovo. Un tema personalizzato lo può importare solo il superadmin.',
+        text: 'Per portare tutta la grafica da un portale a un altro (colori, loghi, pagina live, pause, avvisi, sponsor scelti e immagini) apri lo «Studio grafico» e scegli la sezione «Esporta / Importa» (sotto «Avvisi»). Se hai modifiche non salvate, salvale prima di esportare: il file contiene solo la grafica già salvata. Con «Esporta configurazione» scarichi un file; con «Importa configurazione» scegli il file, controlli il riepilogo (club di origine, data, immagini, modello grafico) e confermi: la grafica attuale viene sostituita. Il file non contiene partite, utenti né link, né gli sfondi degli avvisi: quelli vanno caricati di nuovo. Un tema personalizzato lo può importare solo il superadmin.',
       },
       {
         kind: 'text',

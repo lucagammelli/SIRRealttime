@@ -112,6 +112,7 @@ describe('scenes', () => {
     expect(autoScene('pause', 'timeout')).toBe('timeout');
     expect(autoScene('pause', 'milestone')).toBe('milestone');
     expect(autoScene('avvisi', 'setBreak')).toBe('overlay');
+    expect(autoScene('esporta', 'setBreak')).toBe('play');
   });
 
   it('old pages lead to their section', () => {

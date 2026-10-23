@@ -296,6 +296,7 @@ export const UpcomingFixtureSchema = z.object({
   venueCity: z.string().nullable(),
   /** Round as written by the league («1ª Giornata Andata»). */
   roundLabel: z.string(),
+  /** Championship of a downloaded match, competition written by the client for one added by hand; null: none. */
   leagueName: z.string().nullable(),
   status: FixtureStatusSchema,
   /** Official result when played without a `.dvw` here; null otherwise. */
@@ -403,6 +404,11 @@ export const ManualFixtureRequestSchema = z.strictObject({
   ourSide: ClubSideSchema,
   venue: plainText(100).nullable(),
   venueCity: plainText(100).nullable(),
+  /**
+   * Competition of the match («Champions League», «Coppa Italia»), shown with the match as the name of the
+   * championship of a downloaded one; null (or missing, a page made before it): none.
+   */
+  competition: plainText(100).nullable().default(null),
 });
 export type ManualFixtureRequest = z.infer<typeof ManualFixtureRequestSchema>;
 

@@ -15,7 +15,7 @@ import { adminAssetPath, publicAssetPath } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { matches } from '../src/db/index.js';
+import { matches, tenants } from '../src/db/index.js';
 import type { TestServer } from './helpers.js';
 import {
   ADMIN,
@@ -43,6 +43,8 @@ let viewerCookie: string;
 let cookieB: string;
 let agent: string;
 let manualId: string;
+let superCookie: string;
+let seriesLeagueId: string;
 
 const call = (options: InjectOptions, who: string | null = cookie, host?: string) =>
   server.app.inject({
@@ -111,7 +113,7 @@ async function send(matchKey: string, options: { home: string; away: string; sta
 beforeAll(async () => {
   server = await startServer({}, {}, { leagueFetcher: { fetch: superLega2026Fetch() } });
   server.setNow(BASE_TIME);
-  const superCookie = await login(server.app, SUPERADMIN);
+  superCookie = await login(server.app, SUPERADMIN);
   cookie = await login(server.app, ADMIN);
   viewerCookie = await login(server.app, VIEWER);
   const tenantB = await createTenant(server, 'cal-b', [HOST_B]);
@@ -123,6 +125,7 @@ beforeAll(async () => {
     superCookie,
   );
   const leagueId = created.json<LeagueSummary>().id;
+  seriesLeagueId = leagueId;
   await call({ method: 'POST', url: `/api/admin/leagues/${leagueId}/sync`, payload: {} }, superCookie);
   for (let k = 0; ; k++) {
     const sync = (await call({ url: `/api/admin/leagues/${leagueId}` }, superCookie)).json<LeagueDetailResponse>()
@@ -249,6 +252,93 @@ describe('matches added by the client', () => {
     const [row] = await server.database.db.select().from(matches).where(eq(matches.matchKey, 'amichevole-suntory'));
     expect(row).toMatchObject({ clientFixtureId: null, fixtureLink: 'pending', live: true });
     expect((await calendar()).pending.map((p) => p.id)).toContain(row?.id);
+  });
+});
+
+describe('competitions of the club', () => {
+  const CHAMPIONS = { ...FRIENDLY, kind: 'cup', startsAt: '2026-10-15T18:00:00.000Z', opponent: 'Zaksa Kędzierzyn' };
+
+  it('a match added by hand carries the name of its competition, in «Calendario» and on the public page', async () => {
+    const res = await call({
+      method: 'POST',
+      url: '/api/admin/calendar/fixtures',
+      payload: { ...CHAMPIONS, competition: '  Champions League ' },
+    });
+    expect(res.statusCode).toBe(201);
+    const id = res.json<{ id: string }>().id;
+    expect(await fixture(id)).toMatchObject({ league: null, leagueName: 'Champions League', roundLabel: 'Coppa' });
+    expect(
+      (await schedule()).fixtures.find(
+        (f) => f.home.name === 'Sir Susa Scai Perugia' && f.away.name === CHAMPIONS.opponent,
+      ),
+    ).toMatchObject({
+      leagueName: 'Champions League',
+      roundLabel: 'Coppa',
+    });
+    // The downloaded matches keep the name of their championship.
+    const downloaded = (await calendar()).fixtures.find((f) => f.origin === 'league');
+    expect(downloaded?.leagueName).toBe(downloaded?.league?.name ?? null);
+    // Changed, then taken away (null); a page made before the field sends none: no competition.
+    const put = (payload: object) => call({ method: 'PUT', url: `/api/admin/calendar/fixtures/${id}`, payload });
+    expect((await put({ ...CHAMPIONS, competition: 'CEV Cup' })).statusCode).toBe(204);
+    expect((await fixture(id)).leagueName).toBe('CEV Cup');
+    expect((await put({ ...CHAMPIONS, competition: null })).statusCode).toBe(204);
+    expect((await fixture(id)).leagueName).toBeNull();
+    expect((await put({ ...CHAMPIONS, competition: 'Champions League' })).statusCode).toBe(204);
+    expect((await put(CHAMPIONS)).statusCode).toBe(204);
+    expect((await fixture(id)).leagueName).toBeNull();
+    // Plain text only, at most 100 characters.
+    for (const competition of ['', 'x'.repeat(101), 'Coppa\u0007'])
+      expect((await put({ ...CHAMPIONS, competition })).statusCode).toBe(400);
+    expect((await call({ method: 'DELETE', url: `/api/admin/calendar/fixtures/${id}` })).statusCode).toBe(204);
+  });
+
+  it('a second championship (not of the series) stays with the one of the series and its team', async () => {
+    const [before] = await server.database.db
+      .select({ clubProfile: tenants.clubProfile })
+      .from(tenants)
+      .where(eq(tenants.id, server.tenantId));
+    const profile = before?.clubProfile ?? {};
+    // The championship of the test is the one of the series of the club.
+    await server.database.db
+      .update(tenants)
+      .set({ clubProfile: { ...profile, leagueId: seriesLeagueId, leagueIds: [seriesLeagueId] } })
+      .where(eq(tenants.id, server.tenantId));
+    // The session of the start may be expired by the clock of the tests.
+    superCookie = await login(server.app, SUPERADMIN);
+    const cup = (
+      await call(
+        {
+          method: 'POST',
+          url: '/api/admin/leagues',
+          payload: { provider: 'legavolley', externalId: 998, season: 2026 },
+        },
+        superCookie,
+      )
+    ).json<LeagueSummary>().id;
+    const club = (await call({ url: '/api/admin/club' })).json<ClubResponse>();
+    const ours = club.leagues.find((l) => l.league.id === seriesLeagueId);
+    const res = await call({
+      method: 'PUT',
+      url: '/api/admin/club',
+      payload: {
+        leagues: [
+          { leagueId: seriesLeagueId, teamId: ours?.team?.id ?? null },
+          { leagueId: cup, teamId: null },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const after = res.json<ClubResponse>().leagues;
+    expect(after.map((l) => l.league.id).sort()).toEqual([seriesLeagueId, cup].sort());
+    expect(after.find((l) => l.league.id === seriesLeagueId)?.team?.id).toBe(ours?.team?.id);
+    // Back as before.
+    await call({
+      method: 'PUT',
+      url: '/api/admin/club',
+      payload: { leagues: [{ leagueId: seriesLeagueId, teamId: ours?.team?.id ?? null }] },
+    });
+    await server.database.db.update(tenants).set({ clubProfile: profile }).where(eq(tenants.id, server.tenantId));
   });
 });
 

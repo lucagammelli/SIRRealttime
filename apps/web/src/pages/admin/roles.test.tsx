@@ -250,7 +250,7 @@ describe('page «Calendario» of an admin', () => {
     );
   });
 
-  it('adds a match by hand: kind, date and time, opponent, home or away, venue', async () => {
+  it('adds a match by hand: kind, competition, date and time, opponent, home or away, venue', async () => {
     const calls = api();
     renderAs('admin', <CalendarPage />);
     fireEvent.click(await screen.findByRole('button', { name: 'Aggiungi partita' }));
@@ -261,6 +261,7 @@ describe('page «Calendario» of an admin', () => {
     fireEvent.change(within(form).getByLabelText('Avversario'), { target: { value: 'Itas Trentino' } });
     fireEvent.click(within(form).getByRole('radio', { name: 'In trasferta' }));
     fireEvent.change(within(form).getByLabelText(/^Palazzetto/), { target: { value: 'BLM Group Arena' } });
+    fireEvent.change(within(form).getByLabelText(/^Competizione/), { target: { value: ' Champions League ' } });
     fireEvent.click(within(form).getByRole('button', { name: 'Aggiungi la partita' }));
     await waitFor(() =>
       expect(calls).toContainEqual({
@@ -275,6 +276,7 @@ describe('page «Calendario» of an admin', () => {
           ourSide: 'away',
           venue: 'BLM Group Arena',
           venueCity: null,
+          competition: 'Champions League',
         },
       }),
     );

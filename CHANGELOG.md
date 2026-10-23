@@ -4,6 +4,16 @@ Le versioni seguono il versionamento semantico (`vX.Y.Z`); la fonte della versio
 `package.json` alla radice. Le sezioni nuove le aggiunge `scripts/rilascia.sh` con i titoli dei commit dal tag
 precedente; le note della release su GitHub sono la sezione della versione (`docs/regole/test-job-rilasci.md`).
 
+## [2.3.0] - 2026-10-23
+
+- Calendario: competizione delle partite a mano (es. Champions League) e filtro per competizione
+- Simulatore: in modo velocità la pausa tra i set dura almeno la pausa «Fine set» del cliente
+- Pause: dimensione a tutto schermo (Normale, Grande, Riempi lo schermo); sponsor uno alla volta o tutti in una pagina
+- Studio: l'anteprima TV usa il rem della TV vera, stessi gruppi di blocchi dello schermo intero
+- Studio: sezione «Esporta / Importa» sotto «Avvisi»
+- Calendario: pulsante «Scollega» per staccare un file .dvw abbinato a una partita
+- Portale: mappa di campo senza scorrimento sulla TV, rotazioni verticali a tutta altezza
+
 ## [2.2.0] - 2026-10-23
 
 - Foto a tutto schermo dopo la partita con conto alla rovescia della prossima

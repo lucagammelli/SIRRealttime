@@ -3,12 +3,21 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { AdminApp } from './AdminApp.tsx';
+import {
+  ALL_COMPETITIONS,
+  competitionsOf,
+  filterByCompetition,
+  fixtureCompetition,
+  NO_COMPETITION,
+} from './CalendarPage.tsx';
 
 const USER_ID = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
 const LEAGUE = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
 const F1 = '9a1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7d';
 const F2 = '8b1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7e';
 const MATCH = '7c1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7f';
+const F3 = '6d1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b70';
+const F4 = '5e1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b71';
 
 const fixture = (over: Partial<ClubFixture>): ClubFixture => ({
   id: F1,
@@ -241,6 +250,102 @@ describe('page «Calendario»', () => {
         method: 'PUT',
         // 20:30 in Rome on 2 November (CET, UTC+1).
         body: { startsAt: '2026-11-02T19:30:00.000Z' },
+      }),
+    );
+  });
+});
+
+describe('competitions of the club', () => {
+  const manual = (over: Partial<ClubFixture>): ClubFixture =>
+    fixture({
+      origin: 'manual',
+      league: null,
+      kind: 'cup',
+      roundLabel: 'Coppa',
+      home: { name: 'Sir Susa Scai Perugia', logoUrl: null },
+      away: { name: 'Zaksa Kędzierzyn', logoUrl: null },
+      ourSide: 'home',
+      ...over,
+    });
+  const champions = manual({ id: F3, leagueName: 'Champions League', startsAt: '2026-10-22T18:00:00.000Z' });
+  const friendly = manual({
+    id: F4,
+    leagueName: null,
+    kind: 'friendly',
+    roundLabel: 'Amichevole',
+    away: { name: 'Suntory Sunbirds Osaka', logoUrl: null },
+  });
+  const many: CalendarResponse = { fixtures: [champions, fixture({}), friendly], pending: [] };
+
+  it('pure: competition of a match, the list (championships first) and the filter', () => {
+    expect(fixtureCompetition(fixture({}))).toBe('Regular Season SuperLega');
+    expect(fixtureCompetition(champions)).toBe('Champions League');
+    expect(fixtureCompetition(friendly)).toBeNull();
+    expect(fixtureCompetition(fixture({ leagueName: null }))).toBe('Regular Season SuperLega');
+    expect(competitionsOf(many.fixtures)).toEqual(['Regular Season SuperLega', 'Champions League']);
+    expect(filterByCompetition(many.fixtures, 'Champions League').map((f) => f.id)).toEqual([F3]);
+    expect(filterByCompetition(many.fixtures, NO_COMPETITION).map((f) => f.id)).toEqual([F4]);
+    expect(filterByCompetition(many.fixtures, ALL_COMPETITIONS)).toHaveLength(3);
+  });
+
+  it('shows the competition in every row and filters by «Competizione»', async () => {
+    mockServer(many);
+    renderCalendar();
+    expect(await screen.findAllByTestId('calendar-fixture')).toHaveLength(3);
+    expect(screen.getAllByTestId('fixture-competition').map((c) => c.textContent?.trim())).toEqual([
+      'Champions League ·',
+      'Regular Season SuperLega ·',
+    ]);
+    const filter = screen.getByLabelText('Competizione');
+    expect(
+      within(filter)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Tutte', 'Regular Season SuperLega', 'Champions League', 'Senza competizione']);
+    fireEvent.change(filter, { target: { value: 'Champions League' } });
+    const shown = screen.getAllByTestId('calendar-fixture');
+    expect(shown).toHaveLength(1);
+    expect(within(shown[0] as HTMLElement).getByText('Zaksa Kędzierzyn')).toBeTruthy();
+    fireEvent.change(filter, { target: { value: NO_COMPETITION } });
+    expect(screen.getAllByTestId('calendar-fixture')).toHaveLength(1);
+    expect(screen.getByText('Suntory Sunbirds Osaka')).toBeTruthy();
+    fireEvent.change(filter, { target: { value: ALL_COMPETITIONS } });
+    expect(screen.getAllByTestId('calendar-fixture')).toHaveLength(3);
+  });
+
+  it('no «Competizione» with one competition only; the form suggests the ones of the club', async () => {
+    mockServer({ fixtures: [fixture({})], pending: [] });
+    renderCalendar();
+    await screen.findAllByTestId('calendar-fixture');
+    expect(screen.queryByLabelText('Competizione')).toBeNull();
+    cleanup();
+    mockServer(many);
+    renderCalendar();
+    fireEvent.click(await screen.findByRole('button', { name: 'Aggiungi partita' }));
+    const input = screen.getByLabelText(/^Competizione \(facoltativa\)/);
+    const list = document.getElementById(input.getAttribute('list') ?? '');
+    expect([...(list?.querySelectorAll('option') ?? [])].map((o) => o.getAttribute('value'))).toEqual([
+      'Regular Season SuperLega',
+      'Champions League',
+    ]);
+  });
+
+  it('a match added by hand keeps its competition when changed', async () => {
+    const calls = mockServer(many);
+    renderCalendar();
+    const [first] = await screen.findAllByTestId('calendar-fixture');
+    if (!first) throw new Error('no item');
+    fireEvent.click(within(first).getByRole('button', { name: 'Modifica' }));
+    const form = within(first).getByRole('form', { name: 'Partita aggiunta a mano' });
+    expect(within(form).getByLabelText(/^Competizione/)).toHaveProperty('value', 'Champions League');
+    fireEvent.change(within(form).getByLabelText(/^Competizione/), { target: { value: '' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Salva la partita' }));
+    await waitFor(() =>
+      expect(
+        calls.find((c) => c.method === 'PUT' && c.url === `/api/admin/calendar/fixtures/${F3}`)?.body,
+      ).toMatchObject({
+        competition: null,
+        opponent: 'Zaksa Kędzierzyn',
       }),
     );
   });

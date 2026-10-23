@@ -992,6 +992,7 @@ paths:
                 ourSide: { type: string, enum: [home, away], example: home }
                 venue: { type: string, nullable: true, example: Palazzetto }
                 venueCity: { type: string, nullable: true, example: Susa }
+                competition: { type: string, nullable: true, example: Champions League }
       responses:
         '201': { description: partita creata }
         '400': { description: richiesta non valida }
@@ -1014,6 +1015,7 @@ paths:
                 ourSide: { type: string, enum: [home, away], example: home }
                 venue: { type: string, nullable: true, example: Palazzetto }
                 venueCity: { type: string, nullable: true, example: Susa }
+                competition: { type: string, nullable: true, example: Champions League }
       responses:
         '200': { description: partita aggiornata }
         '404': { description: non trovata }

@@ -1,7 +1,15 @@
 import { parseDvw } from '@arenalive/dvw-parser';
 import { describe, expect, it } from 'vitest';
 import type { PlaybackLine } from './index.js';
-import { AVERAGE_GAP_SECONDS, generateMatch, matchSeconds, planPlayback, renderDvw, timeSeconds } from './index.js';
+import {
+  AVERAGE_GAP_SECONDS,
+  generateMatch,
+  MIN_SPEED_BREAK_SECONDS,
+  matchSeconds,
+  planPlayback,
+  renderDvw,
+  timeSeconds,
+} from './index.js';
 
 /** Scout lines of a generated match as the parser reads them (with the times written by the generator). */
 const entriesOf = (seed: number, sets: 3 | 4 | 5 = 3) => {
@@ -84,6 +92,58 @@ describe('planPlayback', () => {
     const lines = Array.from({ length: 10 }, (_, i) => ({ kind: i % 5 === 4 ? 'point' : 'action' }));
     const plan = planPlayback(lines, { kind: 'speed', speed: 2 });
     expect(plan.offsetsMs.slice(0, 6)).toEqual([0, 1500, 3000, 4500, 6000, 16_000]);
+  });
+
+  it('with a speed, the next set never starts before the minimum break, even if the file has no gap', () => {
+    // As a real file: the times do not stop between the end of a set and the lineup of the next one.
+    const set = (t: number) => [
+      { kind: 'setter', time: `20.${t}.00` },
+      { kind: 'action', time: `20.${t}.05` },
+      { kind: 'point', time: `20.${t}.10` },
+      { kind: 'setEnd', time: `20.${t}.12` },
+    ];
+    const lines = [...set(10), ...set(10), ...set(10)];
+    for (const speed of [1, 5, 10, 60]) {
+      const plan = planPlayback(lines, { kind: 'speed', speed });
+      for (const end of [3, 7]) {
+        const gap = (plan.offsetsMs[end + 1] ?? 0) - (plan.offsetsMs[end] ?? 0);
+        expect(gap).toBeGreaterThanOrEqual(MIN_SPEED_BREAK_SECONDS * 1000);
+      }
+    }
+  });
+
+  it('with a speed, keeps a real break longer than the minimum and the rhythm inside the sets', () => {
+    const lines = [
+      { kind: 'action', time: '20.00.00' },
+      { kind: 'point', time: '20.00.10' },
+      { kind: 'setEnd', time: '20.00.12' },
+      { kind: 'setter', time: '20.05.12' },
+      { kind: 'point', time: '20.05.22' },
+    ];
+    const plan = planPlayback(lines, { kind: 'speed', speed: 2 });
+    expect(plan.offsetsMs).toEqual([0, 5000, 6000, 156_000, 161_000]);
+  });
+
+  it('with a speed, the minimum break can be chosen set by set', () => {
+    const set = (t: number) => [
+      { kind: 'setter', time: `20.${t}.00` },
+      { kind: 'point', time: `20.${t}.10` },
+      { kind: 'setEnd', time: `20.${t}.12` },
+    ];
+    const lines = [...set(10), ...set(10), ...set(10)];
+    const plan = planPlayback(lines, { kind: 'speed', speed: 10 }, { minBreakSeconds: (n) => (n === 1 ? 84 : 0) });
+    expect((plan.offsetsMs[3] ?? 0) - (plan.offsetsMs[2] ?? 0)).toBe(84_000);
+    // After set 2 no minimum: the next set follows at once (the file has no gap).
+    expect((plan.offsetsMs[6] ?? 0) - (plan.offsetsMs[5] ?? 0)).toBe(0);
+  });
+
+  it('with a duration, no line of the next set comes before the end of the break', () => {
+    const { entries } = entriesOf(6, 4);
+    const plan = planPlayback(entries, { kind: 'duration', setSeconds: 15, breakSeconds: 40 });
+    const ends = setEndIndexes(entries);
+    for (const end of ends.slice(0, -1)) {
+      expect((plan.offsetsMs[end + 1] ?? 0) - (plan.offsetsMs[end] ?? 0)).toBe(40_000);
+    }
   });
 
   it('is deterministic and never goes back', () => {

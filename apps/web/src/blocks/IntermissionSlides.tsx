@@ -42,7 +42,7 @@ export const SLIDE_LABELS: Record<SlideType, { label: string; description: strin
     description: 'Punti, attacco, battuta, ricezione, muri, errori e migliore.',
   },
   finalResult: { label: 'Risultato', description: 'Set vinti e parziali della partita.' },
-  mvp: { label: 'MVP', description: 'Il migliore della partita (punti, poi efficienza d’attacco).' },
+  mvp: { label: 'Miglior Realizzatore', description: 'Il migliore della partita (punti, poi efficienza d’attacco).' },
   setScores: { label: 'Parziali dei set', description: 'Punteggio di ogni set.' },
   setScorers: {
     label: 'Parziale e marcatori',
@@ -211,7 +211,7 @@ function MvpSlide({ env, size }: { env: SlideEnv; size: SlideSize }) {
   if (size === 'compact') {
     return (
       <p className="text-sm text-text">
-        <span className="font-display font-bold uppercase">MVP </span>
+        <span className="font-display font-bold uppercase">Miglior Realizzatore </span>
         <span className={`tabular font-bold ${TEXT[mvp.team]}`}>{mvp.number}</span> {name} (
         {teamShort(state.teams, mvp.team)}) · {mvp.points} punti
       </p>
@@ -219,7 +219,7 @@ function MvpSlide({ env, size }: { env: SlideEnv; size: SlideSize }) {
   }
   return (
     <div className="flex min-h-full flex-col items-center justify-center gap-4 text-center">
-      <p className="font-display text-xl font-semibold uppercase tracking-wide text-muted">MVP della partita</p>
+      <p className="font-display text-xl font-semibold uppercase tracking-wide text-muted">Miglior Realizzatore della partita</p>
       <p className="font-display text-5xl font-bold uppercase text-text">
         <span className={`tabular mr-4 ${TEXT[mvp.team]}`}>{mvp.number}</span>
         {name}

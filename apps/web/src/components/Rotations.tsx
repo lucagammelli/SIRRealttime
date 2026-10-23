@@ -13,7 +13,7 @@ const TEXT: Record<Side, string> = { home: 'text-home-ink', away: 'text-away-ink
 const BG: Record<Side, string> = { home: 'bg-home', away: 'bg-away' };
 
 /**
- * Points won/lost for each position of the setter, one chart per team (side by side when the card is wide enough),
+ * Points won/lost for each position of the setter, one chart per team (side by side when the card is wide enough, or one above the other with `orientation="vertical"`),
  * each with its legend «Vinti / Persi». On the phone one team at a time (selector of the team), lower charts without
  * value labels.
  */
@@ -21,10 +21,13 @@ export function Rotations({
   state,
   className = '',
   chartClassName,
+  orientation = 'horizontal',
 }: {
   state: MatchState;
   className?: string;
   chartClassName?: string;
+  /** `vertical`: one chart above the other, whatever the width of the card. */
+  orientation?: 'horizontal' | 'vertical';
 }) {
   const compact = useDeviceContext() === 'phone';
   const [chosen, setChosen] = useState<Side>('home');
@@ -51,7 +54,7 @@ export function Rotations({
       }
     >
       <div className="@container">
-        <div className="grid gap-4 @md:grid-cols-2">
+        <div className={orientation === 'vertical' ? 'grid gap-4' : 'grid gap-4 @md:grid-cols-2'}>
           {sides.map((side) => (
             <TeamRotations key={side} state={state} side={side} chartClassName={chartClass} compact={compact} />
           ))}

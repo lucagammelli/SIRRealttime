@@ -913,11 +913,12 @@ pagina di prima.
   prima; `TV_BLOCK_MIN_REM` ha le altezze minime anche dei nuovi tipi. `LayoutScaleContext` (`lib/useLayout.ts`) dà la
   scala dell'anteprima, così le misure restano quelle della pagina vera.
 - **Tipi di blocco**: Tabellone (uno solo, sempre a larghezza 12), Andamento del set, Confronto squadre, Statistiche
-  giocatori, Mappe di campo, Rotazioni (i sei di prima), più:
+  giocatori, Mappe di campo, Rotazioni (i sei di prima), più (la tabella dà anche le opzioni di Rotazioni):
 
 | Blocco | Opzioni | Comportamento |
 |---|---|---|
 | Logo | Orizzontale / Quadrato | logo del cliente in un `<img>`; senza logo, il nome |
+| Rotazioni | «Disposizione»: «Affiancati» (predefinita) / «Uno sopra l'altro» (opzione `orientation`: `horizontal` / `vertical`; i layout salvati senza il campo restano validi) | i due grafici affiancati se la card è larga, oppure sempre uno sopra l'altro; sulla TV in verticale i grafici sono più bassi perché stiano nella card; sul telefono non cambia |
 | Sponsor | gli sponsor scelti (al massimo 12; opzione `sponsors`), «Immagini singole» (opzione `images`, fino a 12, solo quelle già nei documenti salvati prima: si possono togliere, non aggiungere), «Secondi per immagine» (3-60, predefinito 8) | immagini a rotazione con dissolvenza breve (nessuna con `prefers-reduced-motion`): prima tutte le immagini degli sponsor nell'ordine della lista «Sponsor», poi le immagini singole (`sponsorItems` in `lib/sponsors.ts`); l'immagine di uno sponsor con sito è un link in una nuova scheda (`target="_blank"`, `rel="noopener noreferrer"`, `SponsorImage` in `BrandBlocks.tsx`); si ferma con «Ferma rotazione» della TV; senza immagini: «Nessuna immagine sponsor scelta.» (in una diapositiva si usa il logo sponsor della grafica, `sponsorLogo`) |
 | Messaggio | testo (al massimo 280 caratteri, una riga), «Dimensione» Normale / Grande | sempre testo semplice, mai HTML |
 | Codice QR | testo sopra il codice (al massimo 80 caratteri, predefinito «Segui la partita sul telefono») | QR del link della pagina aperta (origine + percorso, senza query come `?tv=1`); il codice breve sotto compare solo se la pagina è aperta con `/l/<codice>` |
@@ -1031,7 +1032,7 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   pulsante non c'è.
 - **Diapositive** (`blocks/IntermissionSlides.tsx`, `renderSlide`, a tutto schermo o compatte): «Riepilogo del set»
   (`setRecap`: punteggio, tabella per squadra con punti, attacco, efficienza, battuta, ricezione, muri, errori e «Migliore
-  del set»), «Risultato» (set vinti e parziali), «MVP» (`matchMvp`: maglia, nome, punti, attacchi vincenti, muri, ace,
+  del set»), «Risultato» (set vinti e parziali), «Miglior Realizzatore» (`matchMvp`: maglia, nome, punti, attacchi vincenti, muri, ace,
   efficienza d'attacco), «Parziali dei set», «Sponsor», «Messaggio», «Codice QR», «Logo» (gli ultimi quattro come i blocchi
   omonimi, `docs/portale.md` «Pagina pubblica a blocchi»), più le sei viste statistiche in stile TV: «Parziale e marcatori»,
   «Ace», «Muri» (titolo «Muri vincenti»), «Attacco», «Sfida per ruolo» e «Squadre a confronto» (misure e animazioni in
@@ -1039,7 +1040,7 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   calendario»; i predefiniti le mettono dopo le statistiche di fine set e di fine partita). «Sfida per ruolo» a rotazione diventa una diapositiva per ogni ruolo con un duello (id
   `<id>:<ruolo>`, ognuna per i suoi secondi). Le diapositive senza nulla da mostrare sono saltate
   (`visibleSlides`): lo sponsor senza immagini usa il logo sponsor della grafica, e se non c'è nemmeno quello è saltato;
-  il riepilogo senza il set, l'MVP senza giocatori con punti, i parziali senza set, ace/muri/attacco senza nemmeno un punto
+  il riepilogo senza il set, il Miglior Realizzatore senza giocatori con punti, i parziali senza set, ace/muri/attacco senza nemmeno un punto
   o tentativo, il confronto senza righe con valori, il duello senza giocatori. **Conseguenza**: la pausa time-out di
   default (solo sponsor) non compare se il cliente non ha né immagini sponsor né logo sponsor.
 - **Caricamento della grafica** (`useTenantIntermissions` in `lib/branding.ts`, stato caricamento/caricata/fallita):

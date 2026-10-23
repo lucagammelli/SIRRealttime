@@ -115,7 +115,7 @@ scout), `set`, `team`, `player`, `playerOut`, `homeScore`, `awayScore` (dopo l'e
   `block` 6, `lead` 5, `tie`, `run` e `timeout` 4, `longRally` 3, `substitution` 2.
 - Un set nuovo senza `**Nset` per il precedente conta come chiuso per i set vinti, senza evento.
 
-### Riepilogo del set e MVP (`recap.ts`)
+### Riepilogo del set e Miglior Realizzatore (`recap.ts`; nel codice `matchMvp`)
 - `setRecap(state, set)`: funzione pura sul solo set `set` (null se il set non c'è). Dà punteggio ufficiale (righe `point`),
   `winner`, `finished`, `durationMinutes`, le statistiche di squadra **del solo set** (`teams`, righe `StatLine`) e il
   migliore del set (`best`, il primo di `topPlayers` sulle statistiche del solo set; null senza punti).

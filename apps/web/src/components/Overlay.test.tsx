@@ -103,11 +103,11 @@ describe('Overlay: which events', () => {
     const first = [event('block')];
     const view = setup(withEvents(first), { config: { ace: { seconds: 3 } } });
     view.update(withEvents([...first, event('ace')]));
-    expect(shown()).toBe('ACE! Rossi M.');
+    expect(shown()).toBe('ACE! Rossi');
     expect(document.querySelector('[data-overlay="home"]')?.className).toContain('bg-home');
     expect(document.querySelector('[data-overlay="home"]')?.className).toContain('sir-overlay');
     advance(2900);
-    expect(shown()).toBe('ACE! Rossi M.');
+    expect(shown()).toBe('ACE! Rossi');
     advance(100);
     expect(shown()).toBe('');
     // the same event again (another update of the same point): not repeated
@@ -133,7 +133,7 @@ describe('Overlay: which events', () => {
     expect(shown()).toBe('');
     // the last rally corrected: the block becomes an ace on the same line
     view.update(withEvents([past, event('ace', { id: 'ace-2-24-20', index: 20 })]));
-    expect(shown()).toBe('ACE! Rossi M.');
+    expect(shown()).toBe('ACE! Rossi');
   });
 
   it('only on the devices chosen, only the events on', () => {
@@ -163,7 +163,7 @@ describe('Overlay: queue', () => {
     expect(shown()).toContain('MATCH POINT');
     expect(region()?.children).toHaveLength(1);
     advance(4000);
-    expect(shown()).toBe('ACE! Rossi M.');
+    expect(shown()).toBe('ACE! Rossi');
     advance(2000);
     expect(shown()).toBe('');
   });
@@ -171,7 +171,7 @@ describe('Overlay: queue', () => {
   it('the priority chosen by the client wins over the default one', () => {
     const view = setup(withEvents([]), { config: { ace: { priority: 10 } } });
     view.update(withEvents([event('matchPoint'), event('ace')]));
-    expect(shown()).toBe('ACE! Rossi M.');
+    expect(shown()).toBe('ACE! Rossi');
   });
 
   it('an overlay waiting too long is dropped', () => {
@@ -221,7 +221,7 @@ describe('Overlay: text and motion', () => {
 describe('overlays: pure functions', () => {
   it('placeholders of an event: player, number, team, score, set, run', () => {
     expect(overlayValues(event('ace'), base)).toMatchObject({
-      giocatore: 'Rossi M.',
+      giocatore: 'Rossi',
       numero: '8',
       punteggio: '24-20',
       set: '2',

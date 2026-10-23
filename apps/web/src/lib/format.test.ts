@@ -49,7 +49,7 @@ describe('other formats', () => {
     expect(teamShort(teams, 'away')).toBe('VOL');
     expect(playerName(undefined, 7)).toBe('#7');
     expect(playerName({ number: 7, firstName: 'Luca', lastName: 'Rossi', role: null, specialRole: null }, 7)).toBe(
-      'Rossi L.',
+      'Rossi',
     );
   });
 });

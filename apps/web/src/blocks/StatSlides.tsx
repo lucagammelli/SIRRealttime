@@ -122,11 +122,6 @@ const COMPACT_ROWS = 5;
 /** Seconds of every role of a block «a rotazione». */
 const ROLE_ROTATION_SECONDS = 8;
 
-/** Surname for the big screen («Semeniuk»), the short name when the file has no surname. */
-export function surname(player: PlayerRef | null, number: number): string {
-  return player?.lastName?.trim() || playerName(player ?? undefined, number);
-}
-
 /** Classes of the entrance of a side (none with reduced motion). */
 function useEnter(): Record<Side, string> & { grow: string } {
   const reduced = useReducedMotion();
@@ -289,7 +284,7 @@ function PlayerList({
   return (
     <ol className={`space-y-1.5 ${enter[side]}`}>
       {rows.map((r) => {
-        const name = surname(r.player, r.number);
+        const name = playerName(r.player, r.number);
         return (
           <li
             key={r.number}
@@ -381,7 +376,7 @@ export function SetScorersView({
     const names = (side: Side): string =>
       lists[side]
         .slice(0, 3)
-        .map((p) => `${surname(p.player, p.number)} ${p.points}`)
+        .map((p) => `${playerName(p.player, p.number)} ${p.points}`)
         .join(', ') || 'nessun punto';
     return (
       <p className="text-sm text-text">
@@ -454,7 +449,7 @@ export function CountView({
   if (size === 'compact') {
     const part = (side: Side): string => {
       const names = list(side)
-        .map((s) => `${surname(s.player, s.number)} ${s.count}`)
+        .map((s) => `${playerName(s.player, s.number)} ${s.count}`)
         .join(', ');
       return `${count(side)}${names ? ` (${names})` : ''}`;
     };
@@ -549,7 +544,7 @@ export function AttackView({
     const part = (side: Side): string => {
       const t = summary.teams[side];
       const top = best[side][0];
-      return `${formatPct(t.attackKillPct)} (eff. ${formatPct(t.attackEfficiency)})${top ? `, ${surname(top.player, top.number)} ${top.attack.kills}/${top.attack.total}` : ''}`;
+      return `${formatPct(t.attackKillPct)} (eff. ${formatPct(t.attackEfficiency)})${top ? `, ${playerName(top.player, top.number)} ${top.attack.kills}/${top.attack.total}` : ''}`;
     };
     return (
       <p className="text-sm text-text">
@@ -658,10 +653,10 @@ function DuelPlayer({
         {line.number}
       </span>
       <span
-        title={surname(line.player, line.number)}
+        title={playerName(line.player, line.number)}
         className={`max-w-full truncate font-display font-bold uppercase text-text ${t.duelName}`}
       >
-        {surname(line.player, line.number)}
+        {playerName(line.player, line.number)}
       </span>
       <TeamTitle state={state} side={side} className={`font-display font-semibold uppercase ${t.duelTeam}`} />
       <span className={`uppercase tracking-wide text-muted ${t.duelRole}`}>{ROLE_LABELS[role].one}</span>
@@ -694,7 +689,7 @@ export function DuelView({
     const part = (side: Side): string => {
       const line = duel[side];
       const values = rows.map((r) => `${valueText(r.kind, r[side])} ${r.label.toLowerCase()}`).join(', ');
-      return `${line.number} ${surname(line.player, line.number)} ${values}`;
+      return `${line.number} ${playerName(line.player, line.number)} ${values}`;
     };
     return (
       <p className="text-sm text-text">

@@ -471,3 +471,4 @@ Una riga per decisione: data, scelta, motivo.
   applicare anche i blocchi, perché sostituirli di nascosto cancellerebbe la disposizione scelta
   (`docs/server.md`, `docs/portale.md`, `docs/architettura.md`).
 - 2026-10-23: a video la scritta «MVP» diventa «Miglior Realizzatore» (diapositiva delle pause, riga compatta, titolo); il criterio resta quello del 2026-10-15 e l'id `mvp` e `matchMvp` non cambiano. I giocatori si mostrano ovunque con il solo cognome (`playerName`); il blocco Rotazioni ha l'opzione «Disposizione» (affiancati / uno sopra l'altro).
+- 2026-10-23: la mappa del campo ha «Colore del campo»: automatico, colore singolo o tricolore (verde, bianco, rosso in tre fasce da due colonne, bianca sulla rete); campi facoltativi nello schema, perché i layout salvati restino validi e senza opzioni la mappa sia identica. Con fondo scelto, le linee automatiche passano a inchiostro scuro/chiaro in base alla luminosità, per leggersi sul bianco.

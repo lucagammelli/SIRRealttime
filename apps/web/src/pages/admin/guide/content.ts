@@ -178,7 +178,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'Per portare tutta la grafica da un portale a un altro (colori, loghi, pagina live, pause, avvisi, sponsor scelti e immagini) apri «Colori e loghi», scheda «Esporta / Importa». Con «Esporta configurazione» scarichi un file; con «Importa configurazione» scegli il file, controlli il riepilogo (club di origine, data, immagini, modello grafico) e confermi: la grafica attuale viene sostituita. Il file non contiene partite, utenti né link, né gli sfondi degli avvisi: quelli vanno caricati di nuovo. Un tema personalizzato lo può importare solo il superadmin.',
+        text: 'Per portare tutta la grafica da un portale a un altro (colori, loghi, pagina live, pause, avvisi, sponsor scelti e immagini) apri lo «Studio grafico» e scegli la sezione «Esporta / Importa» (sotto «Avvisi»). Se hai modifiche non salvate, salvale prima di esportare: il file contiene solo la grafica già salvata. Con «Esporta configurazione» scarichi un file; con «Importa configurazione» scegli il file, controlli il riepilogo (club di origine, data, immagini, modello grafico) e confermi: la grafica attuale viene sostituita. Il file non contiene partite, utenti né link, né gli sfondi degli avvisi: quelli vanno caricati di nuovo. Un tema personalizzato lo può importare solo il superadmin.',
       },
       {
         kind: 'text',

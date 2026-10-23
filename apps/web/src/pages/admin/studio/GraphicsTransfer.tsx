@@ -61,10 +61,13 @@ export function readPackage(text: string): { pkg: GraphicsExport; problem: null 
 export function GraphicsTransfer({
   currentTemplate,
   onImported,
+  unsaved = [],
 }: {
   /** Saved template of the client: a client that already has a custom theme can import a package with it. */
   currentTemplate: TemplateId;
   onImported?: () => void;
+  /** Sections of the Studio with changes not saved: the export has the saved graphics, not those. */
+  unsaved?: readonly string[];
 }) {
   const errorMessage = useApiError();
   const { user, isSuperadmin } = useAuth();
@@ -142,6 +145,12 @@ export function GraphicsTransfer({
           Scarica un file con tutta la grafica del club: colori, loghi, pagina live, pause e avvisi, con le immagini
           usate. Non contiene partite, utenti né link.
         </p>
+        {unsaved.length > 0 && (
+          <p className="pt-2 text-sm text-warn" role="alert" data-testid="export-unsaved">
+            Hai modifiche non salvate in {unsaved.map((l) => `«${l}»`).join(', ')}: il file contiene la grafica già
+            salvata, senza quelle modifiche. Salvale prima di esportare.
+          </p>
+        )}
         <div className="pt-2">
           <Button variant="primary" disabled={busy !== null} onClick={() => void exportNow()}>
             {busy === 'export' ? 'Esportazione…' : 'Esporta configurazione'}

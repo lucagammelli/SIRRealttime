@@ -589,6 +589,41 @@ describe('one save for each section', () => {
     expect(puts('/api/admin/branding')).toHaveLength(1);
   });
 
+  it('«Esporta / Importa» is a section under «Avvisi», no longer a tab of «Colori e loghi»', async () => {
+    mockServer();
+    renderAt('/admin/studio/colori');
+    await studio();
+    expect(screen.queryByRole('tab', { name: 'Esporta / Importa' })).toBeNull();
+    const names = within(screen.getByRole('navigation', { name: 'Sezioni dello Studio' }))
+      .getAllByRole('button')
+      .map((b) => b.textContent ?? '');
+    expect(names.map((n) => n.split(/Ace|Aspetto|Blocchi|Fine set|Salva/)[0])).toEqual([
+      'Colori e loghi',
+      'Pagina live',
+      'Pause',
+      'Avvisi',
+      'Esporta / Importa',
+    ]);
+    fireEvent.click(sectionButton(/^Esporta \/ Importa/));
+    expect(where()).toBe('/admin/studio/esporta');
+    expect(screen.getByRole('button', { name: 'Esporta configurazione' })).toBeTruthy();
+    expect(screen.getByLabelText(/File della configurazione/)).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Modifiche non salvate' })).toBeNull();
+    expect(screen.queryByTestId('export-unsaved')).toBeNull();
+  });
+
+  it('warns in «Esporta / Importa» that the file has the saved graphics, not the changes in progress', async () => {
+    mockServer();
+    renderAt('/admin/studio/avvisi');
+    const ace = await overlayRow('ace');
+    fireEvent.click(within(ace).getByRole('switch', { name: 'Ace' }));
+    fireEvent.click(sectionButton(/^Esporta \/ Importa/));
+    fireEvent.click(screen.getByRole('button', { name: 'Continua senza salvare' }));
+    const warning = await screen.findByTestId('export-unsaved');
+    expect(warning.textContent).toContain('«Avvisi»');
+    expect(warning.textContent).toContain('già salvata');
+  });
+
   it('asks before leaving the Studio with changes not saved', async () => {
     mockServer();
     renderAt('/admin/studio/avvisi');

@@ -311,7 +311,10 @@ tutte sono disattivate la pausa non compare (`intermissionFor` dà null) e l'ele
 disattivate: la pausa non compare.»). Sotto «Opzioni» «Secondi sullo schermo» e le opzioni del tipo (come nei blocchi;
 lo sponsor sceglie gli sponsor come il blocco); in fondo «Tipo di diapositiva» con «Aggiungi diapositiva» (al massimo 12). In «Avanzate»: «Ritardo prima della
 pausa (secondi)» e «Ripristina predefinito» (solo della pausa aperta). «Salva» è disattivato se una pausa attiva non ha
-diapositive o un testo è vuoto. Logica pura in `intermissionEditor.ts` (`moveSlide`, `addSlide`, `removeSlide`,
+diapositive o un testo è vuoto. Nella scheda «Fine partita» c'è anche la card «Dopo la partita» (`AfterMatchEditor`):
+«Mostra la foto dopo la partita» (interruttore), «Foto a tutto schermo» con «Carica immagine» e «Togli foto», «Oppure
+scegli un’immagine già caricata», «Minuti dopo la fine della partita» (0-240) e l'anteprima TV con la prossima partita
+d'esempio. I «Modelli pronti» non la toccano. Logica pura in `intermissionEditor.ts` (`moveSlide`, `addSlide`, `removeSlide`,
 `updateSlide`, `setOwnPause`, `resetPause`, `pauseProblems`); le opzioni delle statistiche in `StatOptionsFields.tsx`.
 Nell'anteprima la pausa è mostrata subito con le bozze (`previewState` mette nello stato la fase della pausa aperta).
 
@@ -1049,6 +1052,14 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   `delaySeconds` della pausa (il tabellone mostra prima la fine del set); **non si applica a chi apre la pagina durante
   una pausa**, che la vede subito. Si chiude da sola alla prima azione dopo (la fase torna `rally`); la fine partita
   resta finché lo spettatore non la chiude. Sotto la pausa la pagina continua ad aggiornarsi.
+- **«Dopo la partita»** (`components/AfterMatchScreen.tsx`, `lib/afterMatch.ts`, montata da `LivePage.tsx`): la foto scelta
+  dal cliente a tutto schermo (`object-cover`) e, sopra, squadre, data e ora e conto alla rovescia della prossima partita
+  (`nextFixture`); se non c'è, la sola foto. Nessun elemento cliccabile e nessuna animazione, quindi funziona uguale con
+  «Touch» = No. Parte quando la partita è `finished` e sono passati `delayMinutes` da `finishedAt` (campo del messaggio
+  `state`, conservato da `liveConnection.ts` nei patch finché la partita è finita), calcolati con l'**orologio del
+  dispositivo** e **un solo `setTimeout`** (`afterMatchDueAt`, `useAfterMatchImage`; niente polling; attese più lunghe di 24 ore
+  si riarmano). Sostituisce la pausa di fine partita e blocca gli avvisi; resta finché la partita non è più finita (una
+  correzione) o il link passa a un'altra partita. Il calendario si legge solo mentre è a video.
 - **Chiusura a mano**: una pausa chiusa a mano non si riapre; la pausa successiva (`describePause` dà una chiave per ogni
   pausa: set, squadra e numero del time-out) sì.
 - **Tutto schermo**: finestra di dialogo (`role="dialog"`, `aria-modal`) sopra la pagina con i pulsanti «Torna alla

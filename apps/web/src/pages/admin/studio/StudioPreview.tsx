@@ -201,6 +201,7 @@ function Stage({
   return (
     <DevicePreview
       device={device}
+      template={docs.branding.template}
       layout={docs.layout}
       state={shown}
       look={look}

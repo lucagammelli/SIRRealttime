@@ -6,6 +6,24 @@ export const IDLE_CURSOR_MS = 3000;
 /** Class on <html> that scales the text of the big screen with the viewport (styles/index.css). */
 export const TV_ROOT_CLASS = 'sir-tv';
 
+/** Variable of the font size of the big screen (tokens.css, one value per graphic template). */
+export const TV_FONT_VAR = '--sir-tv-font-size';
+/** Value of the default theme, used where the variable cannot be read. */
+const TV_FONT_FALLBACK = 'clamp(16px, min(1.25vw, 2.2vh), 48px)';
+const TV_FONT_CLAMP = /clamp\(\s*([\d.]+)px\s*,\s*min\(\s*([\d.]+)vw\s*,\s*([\d.]+)vh\s*\)\s*,\s*([\d.]+)px\s*\)/;
+
+/**
+ * Pure: 1 rem (px) of the big screen for a viewport of `width` × `height` px, from the text of the variable
+ * `--sir-tv-font-size` (`clamp(min, min(Xvw, Yvh), max)`); the default theme's value when the text is not that form.
+ * The preview of the Studio uses it for a 1920 × 1080 screen: the viewport of the reserved area is not the screen.
+ */
+export function tvRemPx(raw: string | null | undefined, width: number, height: number): number {
+  const m = TV_FONT_CLAMP.exec(raw ?? '') ?? TV_FONT_CLAMP.exec(TV_FONT_FALLBACK);
+  if (!m) return 16;
+  const [lo, vw, vh, hi] = [m[1], m[2], m[3], m[4]].map(Number) as [number, number, number, number];
+  return Math.min(hi, Math.max(lo, Math.min((vw * width) / 100, (vh * height) / 100)));
+}
+
 /**
  * True after `idleMs` without moving the mouse, touching or pressing a key (only while `enabled`): the big screen
  * hides the pointer and the buttons.

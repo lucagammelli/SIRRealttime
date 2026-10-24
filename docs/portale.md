@@ -117,7 +117,7 @@ server non risponde «Area riservata non disponibile» con «Riprova». Il **men
 spariscono) sostituisce la barra a pillole. Gruppi di un cliente (admin e viewer, e il superadmin dentro un cliente):
 
 - «Partite»: Partita live, Partite, Calendario;
-- «Club»: Club;
+- «Club»: Club, Squadra (icona `roster`);
 - «Pagina pubblica»: Studio grafico, Sponsor, Link pubblici, Simulazione. Il **viewer** ci vede solo Link pubblici (Studio
   grafico, Sponsor e Simulazione sono dell'admin);
 - «Dispositivi»: Agenti;
@@ -148,6 +148,7 @@ Le voci:
 | Calendario | `/admin/calendario` | admin e viewer (il viewer in sola lettura) | le partite del club con link, QR e stato; partite aggiunte a mano, «Trasmessa»/«Non trasmessa»; «Da confermare»; «Aggiorna calendario», vedi «Club e Calendario» |
 | Club | `/admin/club` | admin e viewer (il superadmin dentro un cliente) | profilo del club, campionati e squadra, «Nostra squadra nei file .dvw», vedi «Club e Calendario» |
 | Campionati | `/admin/campionati` | solo superadmin | elenco dei campionati della Lega, «Nuovo campionato della Lega», «Aggiorna ora», vedi «Club e Calendario» |
+| Squadra | `/admin/squadra` | admin e viewer (il viewer in sola lettura) | rosa della squadra del club: «Importa dal sito della Lega», tabella dei giocatori, «Foto e video», vedi «Squadra» |
 | Link pubblici | `/admin/link` | admin e viewer (il viewer in sola lettura) | «Nuovo link pubblico» (etichetta, «Cosa mostra»: «Tutte le partite del calendario (canale del club)» oppure «Una partita fissa», «Scadenza (facoltativa)»), «Link creati» (per i link attivi «Link breve», codice e QR, vedi «Link breve e QR»; i revocati stanno dietro «Mostra revocati (N)»), «Revoca» |
 | Simulazione | `/admin/simulazione` | solo admin (il superadmin dentro un cliente) | «Nuova simulazione», «Avanzamento», «Link della simulazione» (con QR): una partita giocata dal server su un link a parte, vedi «Simulazione» |
 | Agenti | `/admin/agenti` | admin e viewer (il viewer in sola lettura) | «Agente per Windows» (vedi sotto), «Nuovo agente» (sottotitolo «Alternativa alla registrazione dall'agente: token da incollare a mano», per chi non può registrare dalla finestra, per esempio servizio o `--once`, o la usa sotto «Avanzate»; `docs/agente.md`; «Crea token», mostrato una sola volta con «Copia config.json»), «Richieste in attesa» (vedi sotto), «Agenti» (stato «Attivo»/«Scaduto»/«Revocato», «Prolunga» con «Salva validità», «Revoca»), con la riga «N di M agenti in uso (limite dato dal superadmin)» |
@@ -345,7 +346,14 @@ schermo») «Video per» («Solo la nostra squadra» / «Entrambe le squadre») 
 Piccolo / Medio / Grande; oppure «Come tutti gli avvisi»), «Prova» (lo mostra nell'anteprima con le modifiche non salvate,
 per i suoi secondi, con l'animazione; la scena passa ad «Avviso»), e in «Avanzate» «Priorità» (1-10) e «Ripristina
 predefinito» (solo di quell'evento). «Posizione e dimensione» è il riquadro «Posizione e dimensione di tutti gli avvisi»
-(impostazioni generali). «Salva» è disattivato con un testo non valido. Logica pura: `lib/overlay.ts` (`overlayValues`,
+(impostazioni generali). Per i tre avvisi di un giocatore (ACE!, Muro, Cambio: `OVERLAY_PLAYER_KINDS`) l'avviso aperto ha
+anche il riquadro «Giocatore della nostra squadra» (`PlayerMediaSetting`): «Sfondo fisso dell'avviso» (nessun `playerMedia`),
+«Foto del giocatore» o «Video del giocatore»; «Quale» («Principale» / «Casuale», `pick`); con il video «Audio», «Posizione del
+video» e «Durata» (come lo sfondo video, senza «Video per»: è sempre la nostra squadra) e la nota «Se il giocatore non ha foto
+né video si usa lo sfondo dell'avviso, altrimenti solo il testo. Solo per la nostra squadra.» con il rimando a «Squadra».
+L'anteprima e «Prova» usano il primo giocatore della rosa con foto o video (`rosterSample`, `overlayPreview` in
+`studio/model.ts`; la rosa è letta da `GET /api/admin/roster`, se non si legge lo Studio funziona senza) e, per «Casuale», una
+scelta diversa a ogni «Prova». «Salva» è disattivato con un testo non valido. Logica pura: `lib/overlay.ts` (`overlayValues`,
 `overlayText`, `overlayFor`, `unseenEvents`, `enqueue`, `nextOverlay`, `sampleEvent`).
 
 **Limiti noti dello Studio**: i valori da provare su dispositivi veri sono quelli di sempre (TV a 4-5 m, telefono con la
@@ -641,7 +649,7 @@ token da solo entro pochi secondi e compare in «Agenti»; oltre il limite di ag
 «Rifiuta», senza conferma perché la richiesta si può rifare. Senza richieste: «Nessuna richiesta in attesa.». Elenco
 richieste e agenti si aggiornano ogni 5 secondi (`AGENTS_REFRESH_MS`) e si fermano a scheda nascosta.
 
-Un **viewer** (ruolo «sola lettura») nel menu vede «Partita live», «Partite», «Calendario», «Link pubblici», «Club» e
+Un **viewer** (ruolo «sola lettura») nel menu vede «Partita live», «Partite», «Calendario», «Link pubblici», «Club», «Squadra» e
 «Agenti» (in «Pagina pubblica» solo Link pubblici); «Studio grafico», «Simulazione» e «Utenti» sono solo per l'admin, «Clienti» e «Campionati» solo per il superadmin (gli indirizzi
 non permessi lo riportano a `/admin/live`: `menuGroups` e `adminOnly`/`superadminOnly` in `AdminSidebar.tsx` e
 `AdminApp.tsx`). Il server fa leggere club, calendario, agenti e link al viewer (`docs/server.md`, «Ruoli»); `useCanEdit`
@@ -1064,18 +1072,43 @@ Carica con le API esistenti: `GET /api/admin/assets`, `/sponsors` e i quattro do
   «Calendario», «Club», procedura guidata) scelgono da un menu «Scegli dalla libreria…» con i file del tipo giusto, per nome
   (`assetOptionText`), e rimandano qui con il collegamento «Carica nella libreria». «Uso dell'immagine»: «Logo» (`kind` `logo`),
   «Sponsor o foto delle pause» (`kind` `sponsor`, con «Sponsor» facoltativo: «Nessuno sponsor» lascia l'immagine in «Immagini
-  senza sponsor» di «Sponsor»; `sponsorId`) e «Sfondo degli avvisi» (`kind` `overlay`). «Carica immagine»
-  (`POST /api/admin/assets`, base64, PNG/JPEG/WebP/SVG, 2 MB, `X`-nome del file) e «Carica video» (sempre sfondo degli avvisi;
-  `uploadVideo`, MP4 o WebM, 15 MB, controllati prima con `videoProblem`: «Formato non ammesso: scegli un video MP4 o WebM.»,
+  senza sponsor» di «Sponsor»; `sponsorId`) e «Sfondo degli avvisi» (`kind` `overlay`) e «Foto e video dei giocatori» (`kind` `player`, per la pagina «Squadra»). «Carica immagine»
+  (`POST /api/admin/assets`, base64, PNG/JPEG/WebP/SVG, 2 MB, `X`-nome del file) e «Carica video» (il video segue l'uso: con «Foto e video dei giocatori» è
+  `POST /api/admin/assets/video?kind=player`, con gli altri usi è sfondo degli avvisi; `uploadVideo(file, kind)`, MP4 o WebM, 15 MB, controllati prima con `videoProblem`: «Formato non ammesso: scegli un video MP4 o WebM.»,
   «Immagine troppo grande: al massimo 2 MB.»). Stato «Caricamento…» e «Caricato: <nome>.»; gli errori del server sono in italiano.
 - **«Immagini e video caricati»** (sottotitolo «Spazio usato: … MB di … MB»): per ogni file nome (quello del file al
   caricamento; senza nome il ripiego «Immagine/Video del gg/mm/aaaa · L×A»), uso (`assetUseText`: «Logo», «Sponsor: <nome>»,
-  «Sfondo di un avviso»…), misure, peso, «in uso», «Rinomina» con «Salva nome» (`PATCH /api/admin/assets/:id`; vuoto toglie
+  «Sfondo di un avviso», «Giocatore: <Cognome>» per i file che la rosa usa, altrimenti «Foto/Video di un giocatore»; la rosa
+  arriva da `GET /api/admin/roster`, `playersByAsset`), misure, peso, «in uso», «Rinomina» con «Salva nome» (`PATCH /api/admin/assets/:id`; vuoto toglie
   il nome) ed «Elimina» / «Conferma eliminazione» (il server rifiuta un file in uso). «in uso» (`assetsInUse`) considera i
   documenti **salvati**: logo e immagini della grafica, immagini dei blocchi «Sponsor» e delle pause (diapositive «Sponsor»,
-  «Dopo la partita»), sfondi degli avvisi, immagini degli sponsor scelti da un blocco o da una diapositiva. Vuota: «Nessun file
+  «Dopo la partita»), sfondi degli avvisi, immagini degli sponsor scelti da un blocco o da una diapositiva, foto e video dei giocatori della rosa. Vuota: «Nessun file
   caricato.».
 - Test: `MediaPage.test.tsx`, `AdminApp.test.tsx` (voce di menu e rimando).
+
+### Squadra (`pages/admin/RosterPage.tsx`, rotta `/admin/squadra`, admin e viewer)
+Voce «Squadra» del gruppo «Club» (icona `roster`). Mostra la rosa della squadra del club in una stagione (`GET
+/api/admin/roster?season=`; contratti in `packages/shared/src/players.ts`, rotte in `docs/server.md`, «Rosa della squadra»).
+Titolo scheda «Squadra · Area riservata»; mentre carica «Caricamento della squadra…», gli errori sono in italiano con «Riprova».
+Con più stagioni c'è il menu «Stagione», altrimenti la riga «Stagione 2026/2027».
+- **«Importa dal sito della Lega»** (solo admin; `POST /api/admin/roster/import`): disattivato senza la squadra scelta in «Club»
+  (il testo rimanda a «Club»). L'esito resta sotto il pulsante: «Aggiunti N, aggiornati N, invariati N.», «Saltati» con il
+  motivo e «Non più sul sito» (restano nella rosa, con lo stesso segno nella tabella). Finché `import.running` la pagina
+  chiede la rosa ogni `ROSTER_POLL_MS` (2 s) e mostra «Foto scaricate: N di M»; l'ultimo errore compare come «Ultima
+  importazione: …».
+- **Tabella «Giocatori»**: foto (o il numero), N°, Cognome, Nome, Ruolo (`PLAYER_ROLE_LABELS`), Anno, Altezza, Naz. Il segno ✎
+  («modificato a mano», anche per i lettori di schermo) compare accanto ai campi di `editedFields`. Per riga (admin):
+  «Modifica» (modulo con numero, cognome, nome, ruolo, anno, altezza, luogo di nascita, nazionalità; controllato con
+  `CreatePlayerRequestSchema` / `UpdatePlayerRequestSchema`, di un giocatore esistente si inviano solo i campi cambiati con
+  `PATCH`), «Foto e video», «Rimuovi» / «Conferma rimozione» (`DELETE`: un giocatore aggiunto a mano si elimina, uno importato
+  si segna rimosso). «Aggiungi giocatore» (solo nella stagione più recente; `POST`) apre lo stesso modulo. «Mostra rimossi (N)»
+  li mostra attenuati con «Ripristina» (`PATCH removed: false`). Il numero già usato dà l'errore del server (409).
+- **«Foto e video»** (`MediaEditor`, `PUT /api/admin/roster/players/:id/media`): foto principale (menu «Nessuna» + immagini) e
+  «Altre foto e video» (caselle con anteprima, al massimo `PLAYER_MEDIA_MAX` = 12 file, di cui `PLAYER_VIDEOS_MAX` = 3 video),
+  **solo tra i file della libreria di tipo `player`** (`GET /api/admin/assets`, `playerFiles`); il collegamento «Carica nella
+  libreria» porta a `/admin/media` (qui non si carica). Senza file: «Nessun file per i giocatori nella libreria.».
+- **Viewer**: vede la tabella e il segno ✎, con `READ_ONLY_TEXT`; niente importazione, modulo né comandi (`useCanEdit`).
+- Test: `RosterPage.test.tsx`, `AdminApp.test.tsx` (menu).
 
 ### Sponsor (`pages/admin/SponsorsPage.tsx`, rotta `/admin/sponsor`, solo admin)
 Anagrafica degli sponsor del cliente, nel gruppo di menu «Pagina pubblica». Server, tabelle e limiti in `docs/server.md`
@@ -1195,6 +1228,14 @@ configurazione del cliente da `overlays` di `GET /api/public/tenant` (`docs/arch
   (`aspect-video`, larghezza per dispositivo), con l'immagine o il video (`playsInline`, in ciclo; muto salvo l'opzione `audio`: se il browser rifiuta l'avvio con audio il video riparte muto; con `fit: 'fullscreen'` il video copre lo schermo, `fixed inset-0` e `pointer-events-none`; cambiando video il `key` è l'URL, così l'anteprima non resta sul precedente; per gli eventi della squadra avversaria con `teams: 'ours'` il video non c'è, `backgroundForTeam`, e l'avviso esce col solo testo; «la nostra squadra» è quella del cliente ovunque giochi, il lato viene da `useOurSide()` in `lib/branding.ts` (lo stesso dei colori «nostra squadra»); se il lato non è noto il video compare per entrambe) coperti da una velatura
   del colore della squadra al 65 %, e il testo sopra. **Se il media non è ancora pronto (o non si è potuto leggere) l'avviso
   esce con il solo testo**, come senza sfondo. La CSP ammette `blob:` (vedi «CSP rigida»).
+- **Foto o video del giocatore** (ACE!, Muro, Cambio con `playerMedia`): `overlayFor` usa
+  `playerBackground(...) ?? backgroundForTeam(...)` con i `players` di `GET /api/public/tenant` (`TenantLook.players`) e il lato
+  di `useOurSide()`: solo per gli eventi di un giocatore della nostra squadra con quel numero di maglia nella rosa, altrimenti
+  lo sfondo fisso dell'avviso, altrimenti il solo testo. Il video solo se non è un telefono e senza movimento ridotto
+  (`videos` passato da `Overlay.tsx`), altrimenti la foto. Precaricamento: `wantedBackgrounds(..., preload)` aggiunge i file dei
+  giocatori della nostra squadra **in campo** (`playerNumbersInPlay`: formazione di `state.live.lineups`, più la panchina se
+  l'avviso «Cambio» mostra il giocatore) per gli avvisi accesi sul dispositivo: foto sempre, video solo se ammessi; con
+  «Principale» solo il file principale, con «Casuale» tutti.
 - **Posizione e dimensione** (`position`: `top`, `center`, `bottom`, predefinito `top`; `size`: `small`, `medium`,
   `large`, predefinita `medium`; `overlayPlacement` di `@arenalive/shared`): impostazioni generali del documento e override
   facoltativo per ogni avviso. In alto al 12 % dal bordo, al centro, in basso al 14 % sopra la banda delle pause; tre

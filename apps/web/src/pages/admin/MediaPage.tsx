@@ -1,5 +1,6 @@
 import type {
   AssetKind,
+  Player,
   AssetListResponse,
   AssetSummary,
   Sponsor,
@@ -24,6 +25,7 @@ import {
   layoutSponsorIds,
   OverlaysResponseSchema,
   overlayBackgrounds,
+  RosterResponseSchema,
   SponsorListResponseSchema,
 } from '@arenalive/shared';
 import { useCallback, useEffect, useState } from 'react';
@@ -71,9 +73,36 @@ export function assetsInUse(saved: SavedDocs, assets: readonly AssetSummary[]): 
   return used;
 }
 
-/** Pure: what a file of the list is for: «Logo», «Video dello sfondo di un avviso», «Sponsor: Bar Sport»… */
-export function assetUseText(a: AssetSummary, sponsorName: ReadonlyMap<string, string>): string {
+/**
+ * Pure: the players of the roster that use each file (main photo or other photo or video), by asset id, as their
+ * surnames in the order of the roster.
+ */
+export function playersByAsset(
+  players: readonly Pick<Player, 'lastName' | 'photo' | 'media' | 'removed'>[],
+): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const p of players) {
+    if (p.removed) continue;
+    const ids = new Set([...(p.photo ? [p.photo.assetId] : []), ...p.media.map((m) => m.assetId)]);
+    for (const id of ids) out.set(id, [...(out.get(id) ?? []), p.lastName]);
+  }
+  return out;
+}
+
+/**
+ * Pure: what a file of the list is for: «Logo», «Video dello sfondo di un avviso», «Sponsor: Bar Sport», «Giocatore:
+ * Rossi»… (`playerNames`: the surnames of the players that use it).
+ */
+export function assetUseText(
+  a: AssetSummary,
+  sponsorName: ReadonlyMap<string, string>,
+  playerNames: readonly string[] = [],
+): string {
   if (a.kind === 'logo') return 'Logo';
+  if (a.kind === 'player') {
+    const what = isVideoMime(a.mime) ? 'Video di un giocatore' : 'Foto di un giocatore';
+    return playerNames.length > 0 ? `Giocatore: ${playerNames.join(', ')}` : what;
+  }
   if (a.kind === 'overlay') return isVideoMime(a.mime) ? 'Video dello sfondo di un avviso' : 'Sfondo di un avviso';
   const sponsor = a.sponsorId ? sponsorName.get(a.sponsorId) : undefined;
   return sponsor === undefined ? 'Sponsor (senza sponsor)' : `Sponsor: ${sponsor}`;
@@ -154,11 +183,12 @@ function RenameAsset({
 }
 
 /** What a new image is for: the kind the server asks for (and, for a sponsor, the sponsor). */
-export type UploadUse = 'logo' | 'sponsor' | 'overlay';
+export type UploadUse = 'logo' | 'sponsor' | 'overlay' | 'player';
 export const UPLOAD_USES: readonly { value: UploadUse; label: string }[] = [
   { value: 'logo', label: 'Logo' },
   { value: 'sponsor', label: 'Sponsor o foto delle pause' },
   { value: 'overlay', label: 'Sfondo degli avvisi' },
+  { value: 'player', label: 'Foto e video dei giocatori' },
 ];
 const NO_SPONSOR = '';
 
@@ -184,7 +214,7 @@ function UploadCard({ sponsors, onUploaded }: { sponsors: readonly Sponsor[]; on
     try {
       const asset =
         what === 'video'
-          ? await uploadVideo(file)
+          ? await uploadVideo(file, use === 'player' ? 'player' : 'overlay')
           : await uploadImage(file, use satisfies AssetKind, use === 'sponsor' && sponsorId ? sponsorId : undefined);
       if (!asset) setError(IMAGE_TOO_LARGE);
       else {
@@ -274,8 +304,9 @@ function UploadCard({ sponsors, onUploaded }: { sponsors: readonly Sponsor[]; on
           </label>
         </div>
         <p className="text-xs text-muted">
-          Immagini PNG, JPEG, WebP o SVG, al massimo 2 MB. Video MP4 o WebM, al massimo 15 MB: servono solo come sfondo
-          degli avvisi.
+          Immagini PNG, JPEG, WebP o SVG, al massimo 2 MB. Video MP4 o WebM, al massimo 15 MB: servono come sfondo degli
+          avvisi o come video dei giocatori: il video segue l’uso scelto sopra («Foto e video dei giocatori»; con gli
+          altri usi è per gli avvisi).
         </p>
         {busy !== null && (
           <p role="status" className="text-xs text-muted">
@@ -294,7 +325,7 @@ function UploadCard({ sponsors, onUploaded }: { sponsors: readonly Sponsor[]; on
 }
 
 /**
- * Section «Immagini e video»: the files uploaded by the client (logos, sponsor images, backgrounds of the overlays) with
+ * Section «Immagini e video»: the files uploaded by the client (logos, sponsor images, backgrounds of the overlays, photos and videos of the players) with
  * name, use, size and weight; «Rinomina» and «Elimina». No draft and no «Salva»: a change is made at once. The files
  * are uploaded only here (`UploadCard`): the other pages choose from this library.
  */
@@ -302,11 +333,14 @@ function LibraryList({
   assets,
   sponsors,
   saved,
+  playerNames,
   onAssetsChanged,
 }: {
   assets: AssetListResponse;
   sponsors: readonly Sponsor[];
   saved: SavedDocs;
+  /** Surnames of the players of the roster that use each file, by asset id. */
+  playerNames: ReadonlyMap<string, string[]>;
   onAssetsChanged: () => void;
 }) {
   const errorMessage = useApiError();
@@ -353,8 +387,8 @@ function LibraryList({
                     {assetLabel(a)}
                   </span>
                   <span className="block text-xs text-muted">
-                    {assetUseText(a, sponsorName)} · {assetDetails(a)}
-                    {usedIds.has(a.id) && ' · in uso'}
+                    {assetUseText(a, sponsorName, playerNames.get(a.id))} · {assetDetails(a)}
+                    {(usedIds.has(a.id) || playerNames.has(a.id)) && ' · in uso'}
                   </span>
                 </span>
                 <RenameAsset
@@ -410,6 +444,12 @@ export function MediaPage() {
   const assets = useAsync(loadAssets);
   const sponsors = useAsync(loadSponsors);
   const saved = useAsync(loadSaved);
+  // The roster tells which player uses each file; without it («Squadra» not readable) the files show no player.
+  const loadRoster = useCallback(
+    (signal: AbortSignal) => apiRequest('/api/admin/roster', RosterResponseSchema, { signal }),
+    [],
+  );
+  const roster = useAsync(loadRoster);
 
   useEffect(() => {
     document.title = 'Immagini e video · Area riservata';
@@ -423,12 +463,19 @@ export function MediaPage() {
     assets.reload();
     saved.reload();
     sponsors.reload();
+    roster.reload();
   };
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold text-text">Immagini e video</h1>
       <UploadCard sponsors={sponsors.data.sponsors} onUploaded={reload} />
-      <LibraryList assets={assets.data} sponsors={sponsors.data.sponsors} saved={saved.data} onAssetsChanged={reload} />
+      <LibraryList
+        assets={assets.data}
+        sponsors={sponsors.data.sponsors}
+        saved={saved.data}
+        playerNames={playersByAsset(roster.data?.players ?? [])}
+        onAssetsChanged={reload}
+      />
     </div>
   );
 }

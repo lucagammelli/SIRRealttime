@@ -21,17 +21,18 @@ import { PreviewFullscreen } from '../../../components/PreviewDock.tsx';
 import { buttonClass, Segmented, Spinner } from '../../../components/ui.tsx';
 import { previewState, visibleSlides } from '../../../lib/intermission.ts';
 import { nextFixture } from '../../../lib/schedule.ts';
-import { overlayText, sampleEvent } from '../../../lib/overlay.ts';
+import { overlayText } from '../../../lib/overlay.ts';
 import { mediaOf } from '../../../lib/overlayMedia.ts';
 import { teamColorVars } from '../../../lib/teamColors.ts';
 import { useResolvedTheme } from '../../../lib/theme.ts';
 import type { PauseTarget } from '../intermissionEditor.ts';
 import { pauseAt, targetSet } from '../intermissionEditor.ts';
 import { DevicePreview, previewPageUrl } from './blockEditors.tsx';
-import type { PickBox, StudioDocs, StudioScene, StudioTarget } from './model.ts';
+import type { PickBox, RosterSample, StudioDocs, StudioScene, StudioTarget } from './model.ts';
 import {
   DEVICE_LABELS,
   OVERLAY_LABELS,
+  overlayPreview,
   pauseKindOf,
   pickAt,
   PICKABLE,
@@ -153,6 +154,7 @@ function Stage({
   pauseTarget,
   overlayKind,
   trial,
+  sample,
   fit,
   top,
   live,
@@ -169,6 +171,8 @@ function Stage({
   pauseTarget: PauseTarget;
   overlayKind: OverlayKind;
   trial: OverlayTrial | null;
+  /** A player of the roster with a photo or video, for the overlays of a player. */
+  sample: RosterSample | null;
   fit: boolean;
   top: boolean;
   /** The match is the live one (not the example): the caption says so. */
@@ -192,6 +196,8 @@ function Stage({
   const placement = overlayPlacement(docs.overlays, overlay);
   // The example event is of our team (home when the team of the client is not in the match): its video is shown.
   const trialSide = ourTeamSide(shown.teams, docs.branding.ourTeam) ?? 'home';
+  const preview = overlayPreview(overlayKindShown, overlay, shown, trialSide, sample, trial?.key ?? 0, device);
+  const previewBackground = preview.background;
   const slides =
     pause && kind
       ? visibleSlides(
@@ -254,18 +260,18 @@ function Stage({
           {showOverlay && (
             <OverlayBanner
               key={trial ? `prova-${trial.key}` : overlayKindShown}
-              text={overlayText(sampleEvent(overlayKindShown, shown, trialSide), shown, overlay)}
+              text={overlayText(preview.event, shown, overlay)}
               team={trialSide}
               device={device}
               size={placement.size}
               media={
-                overlay.background
+                previewBackground
                   ? {
-                      ...mediaOf(overlay.background, adminAssetPath(overlay.background.assetId)),
+                      ...mediaOf(previewBackground, adminAssetPath(previewBackground.assetId)),
                       // The sound only in a «Prova»: the preview always in view stays silent.
-                      audio: overlay.background.audio && trial !== null,
+                      audio: previewBackground.audio && trial !== null,
                       // Always in view (no «Prova»): the video loops; in a «Prova» it plays once and ends the test.
-                      duration: trial === null ? 'seconds' : overlay.background.duration,
+                      duration: trial === null ? 'seconds' : previewBackground.duration,
                     }
                   : null
               }
@@ -298,6 +304,7 @@ export function StudioPreview({
   pauseTarget,
   overlayKind,
   trial,
+  sample = null,
   highlight,
   onPick,
   toolbar = true,
@@ -320,6 +327,8 @@ export function StudioPreview({
   pauseTarget: PauseTarget;
   overlayKind: OverlayKind;
   trial: OverlayTrial | null;
+  /** A player of the roster with a photo or video, for the preview of the overlays of a player. */
+  sample?: RosterSample | null;
   highlight: StudioHighlight | null;
   onPick: (target: StudioTarget) => void;
   /** Device, scene and full screen buttons (the guided setup has its own). */
@@ -402,6 +411,7 @@ export function StudioPreview({
           pauseTarget={pauseTarget}
           overlayKind={overlayKind}
           trial={trial}
+          sample={sample}
           onTrialLength={onTrialLength}
           onTrialEnd={onTrialEnd}
           fit

@@ -4,6 +4,7 @@ import type {
   IntermissionKind,
   LayoutDevice,
   OverlayKind,
+  Player,
   Sponsor,
   TemplateId,
   TenantBranding,
@@ -21,6 +22,8 @@ import {
   OVERLAY_VIDEO_MAX_SECONDS,
   OverlaysResponseSchema,
   adminAssetPath,
+  ourTeamSide,
+  RosterResponseSchema,
   defaultLayout,
   SponsorListResponseSchema,
   TEMPLATES,
@@ -59,6 +62,8 @@ import {
   SECTION_LABELS,
   STUDIO_SECTIONS,
   studioPath,
+  overlayPreview,
+  rosterSample,
 } from './model.ts';
 import type { OverlaysTab } from './OverlaysSection.tsx';
 import { OverlaysSection, overlaySettingId, textProblem } from './OverlaysSection.tsx';
@@ -117,6 +122,7 @@ function Studio({
   tenantName,
   saved,
   assets,
+  roster,
   sponsors,
   hasSection,
   onImported,
@@ -125,6 +131,8 @@ function Studio({
   tenantName: string;
   saved: StudioDocs;
   assets: AssetListResponse;
+  /** Players of the roster («Squadra»): the preview of the overlays of a player uses the first one with files. */
+  roster: readonly Player[];
   /** Sponsors of the client (the sponsor blocks and slides choose among them; changed on the page «Sponsor»). */
   sponsors: readonly Sponsor[];
   /** The address names a section (the phone opens it at once instead of the list of sections). */
@@ -249,6 +257,7 @@ function Studio({
     () => liveState ?? (sample ? sampleWithOurTeam(sample, branding.draft.ourTeam, name) : null),
     [liveState, sample, branding.draft.ourTeam, name],
   );
+  const rosterPick = useMemo(() => rosterSample(roster), [roster]);
   const look = useMemo(
     () => blockBrandOf({ tenantName, branding: branding.draft } satisfies BrandingResponse, sponsors),
     [tenantName, branding.draft, sponsors],
@@ -303,14 +312,25 @@ function Studio({
     if (!trial) return;
     const overlay = overlays.draft[trial.kind];
     let seconds = overlay.seconds;
-    if (overlay.background?.kind === 'video' && overlay.background.duration === 'video') {
+    const background = previewMatch
+      ? overlayPreview(
+          trial.kind,
+          overlay,
+          previewMatch,
+          ourTeamSide(previewMatch.teams, branding.draft.ourTeam) ?? 'home',
+          rosterPick,
+          trial.key,
+          device,
+        ).background
+      : overlay.background;
+    if (background?.kind === 'video' && background.duration === 'video') {
       const known = trialLength?.key === trial.key ? trialLength.seconds : undefined;
       seconds = known === undefined ? OVERLAY_VIDEO_MAX_SECONDS : videoHoldSeconds(known, overlay.seconds);
       if (typeof known === 'number' && Number.isFinite(known) && known > 0) seconds += 0.5;
     }
     const id = setTimeout(() => setTrial(null), seconds * 1000);
     return () => clearTimeout(id);
-  }, [trial, trialLength, overlays.draft]);
+  }, [trial, trialLength, overlays.draft, previewMatch, branding.draft.ourTeam, rosterPick, device]);
 
   const goSection = (to: StudioSection, force = false): void => {
     if (to === section) {
@@ -480,6 +500,7 @@ function Studio({
       pauseTarget={pauseTarget}
       overlayKind={overlayKind}
       trial={trial}
+      sample={rosterPick}
       highlight={toolbar ? highlight : null}
       onPick={toolbar ? pick : () => undefined}
       onTrialLength={(seconds) => setTrialLength({ key: trial?.key ?? 0, seconds })}
@@ -987,6 +1008,12 @@ export function StudioPage() {
     [],
   );
   const sponsors = useAsync(loadSponsors);
+  // The roster only serves the preview of the overlays of a player: if it cannot be read the Studio works without it.
+  const loadRoster = useCallback(
+    (signal: AbortSignal) => apiRequest('/api/admin/roster', RosterResponseSchema, { signal }),
+    [],
+  );
+  const roster = useAsync(loadRoster);
 
   // After an import the four documents arrive again: the Studio starts over from them (drafts included).
   const [loaded, setLoaded] = useState<readonly unknown[]>([]);
@@ -1017,6 +1044,7 @@ export function StudioPage() {
         overlays: overlays.data.overlays,
       }}
       assets={assets.data}
+      roster={roster.data?.players ?? []}
       sponsors={sponsors.data.sponsors}
       hasSection={isStudioSection(params.section)}
       onImported={() => {

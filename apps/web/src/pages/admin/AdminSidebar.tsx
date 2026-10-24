@@ -13,6 +13,7 @@ const ICONS = {
   simulation: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM10 8.5v7l5.5-3.5z',
   links: 'M10 14a4 4 0 0 0 5.7 0l3-3A4 4 0 0 0 13 5.3l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
   branding: 'M12 3a9 9 0 0 0 0 18c1.2 0 1.6-.9 1.4-1.8-.3-1.1.4-2.2 1.6-2.2H17a4 4 0 0 0 4-4c0-5-4-10-9-10z',
+  roster: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20a6 6 0 0 1 12 0M16 11a2.5 2.5 0 1 0 0-5M17 14.5a5 5 0 0 1 4 5.5',
   agents: 'M4 5h16v11H4zM9 20h6M12 16v4',
   sponsors: 'M12 3l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.4l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z',
   users: 'M16 20a4 4 0 0 0-8 0M12 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z',
@@ -110,7 +111,13 @@ export function menuGroups({
       ],
     },
     { label: 'Statistiche', items: [{ to: '/admin/statistiche', label: 'Visualizzazioni', icon: 'stats' }] },
-    { label: 'Club', items: [{ to: '/admin/club', label: 'Club', icon: 'club' }] },
+    {
+      label: 'Club',
+      items: [
+        { to: '/admin/club', label: 'Club', icon: 'club' },
+        { to: '/admin/squadra', label: 'Squadra', icon: 'roster' },
+      ],
+    },
     {
       label: 'Pagina pubblica',
       // Graphics, sponsors, links and simulation: what the spectators see. A viewer reads the links only.

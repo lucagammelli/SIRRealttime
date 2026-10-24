@@ -2,6 +2,7 @@ import type {
   AssetListResponse,
   AssetSummary,
   MeResponse,
+  Player,
   Sponsor,
   SponsorListResponse,
   TenantBranding,
@@ -42,6 +43,9 @@ const LOGO = '8a2d4e6f-1b3c-4d5e-8f7a-9b0c1d2e3f4a';
 const SPONSOR = '1b2c3d4e-5f60-4a1b-8c2d-3e4f5a6b7c8d';
 const UPLOADED = '5d4c3b2a-1f0e-4d9c-8b7a-6f5e4d3c2b1a';
 const VIDEO_ID = '7c6b5a49-3827-4615-8a4b-3c2d1e0f9a8b';
+
+/** Players of the roster served by `GET /api/admin/roster` (reset for every test). */
+let rosterPlayers: Player[] = [];
 
 interface Call {
   url: string;
@@ -163,6 +167,14 @@ function mockServer(
         return json({ error: 'Immagine in uso nella grafica: toglila prima di eliminarla' }, 409);
       if (url === '/api/admin/sponsors') return json({ sponsors: SPONSORS } satisfies SponsorListResponse);
       if (url === '/api/public/tenant') return json({ error: 'Non trovato' }, 404);
+      if (url === '/api/admin/roster')
+        return json({
+          season: 2026,
+          seasons: [2026],
+          team: null,
+          players: rosterPlayers,
+          import: { running: false, photosDone: 0, photosTotal: 0, lastAt: null, lastError: null },
+        });
       return json([]);
     }),
   );
@@ -225,6 +237,7 @@ const setWidth = (width: number) => {
 };
 
 beforeEach(() => {
+  rosterPlayers = [];
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
   window.localStorage.clear();
   setWidth(1440);
@@ -1106,6 +1119,124 @@ describe('Avvisi', () => {
     await waitFor(() =>
       expect((puts('/api/admin/overlays').at(-1)?.body as TenantOverlays).ace.background).toBeUndefined(),
     );
+  });
+
+  it('«Giocatore della nostra squadra»: only for ACE!, Muro and Cambio; photo or video, which one, the options of a video, saved', async () => {
+    const { puts } = mockServer();
+    renderAt('/admin/studio/avvisi');
+    await studio();
+    const tie = await overlayRow('tie');
+    fireEvent.click(within(tie).getByRole('button', { name: 'Modifica Pareggio' }));
+    expect(within(await overlayRow('tie')).queryByText('Giocatore della nostra squadra')).toBeNull();
+    for (const kind of ['block', 'substitution']) {
+      fireEvent.click(within(await overlayRow(kind)).getByRole('button', { name: /^Modifica / }));
+      expect(within(await overlayRow(kind)).getByText('Giocatore della nostra squadra')).toBeTruthy();
+    }
+    fireEvent.click(within(await overlayRow('ace')).getByRole('button', { name: 'Modifica Ace' }));
+    const ace = await overlayRow('ace');
+    expect(within(ace).getByRole('radio', { name: 'Sfondo fisso dell’avviso' })).toHaveProperty('checked', true);
+    expect(within(ace).queryByRole('combobox', { name: 'Quale foto o video: Ace' })).toBeNull();
+    expect(
+      within(ace).getByText(
+        /Se il giocatore non ha foto né video si usa lo sfondo dell’avviso, altrimenti solo il testo\. Solo per la nostra squadra\./,
+      ),
+    ).toBeTruthy();
+    expect(within(ace).getByRole('link', { name: 'Squadra' }).getAttribute('href')).toBe('/admin/squadra');
+    fireEvent.click(within(ace).getByRole('radio', { name: 'Foto del giocatore' }));
+    expect(within(ace).queryByRole('checkbox', { name: 'Audio del video del giocatore: Ace' })).toBeNull();
+    fireEvent.change(within(ace).getByRole('combobox', { name: 'Quale foto o video: Ace' }), {
+      target: { value: 'random' },
+    });
+    fireEvent.click(within(ace).getByRole('radio', { name: 'Video del giocatore' }));
+    // The choice of «Quale» stays; the options of the video appear.
+    expect(within(ace).getByRole('combobox', { name: 'Quale foto o video: Ace' })).toHaveProperty('value', 'random');
+    fireEvent.click(within(ace).getByRole('checkbox', { name: 'Audio del video del giocatore: Ace' }));
+    fireEvent.change(within(ace).getByRole('combobox', { name: 'Posizione del video del giocatore: Ace' }), {
+      target: { value: 'fullscreen' },
+    });
+    fireEvent.change(within(ace).getByRole('combobox', { name: 'Durata del video del giocatore: Ace' }), {
+      target: { value: 'video' },
+    });
+    save();
+    expect(await screen.findByText(/Avvisi salvati/)).toBeTruthy();
+    expect((puts('/api/admin/overlays').at(-1)?.body as TenantOverlays).ace.playerMedia).toEqual({
+      source: 'video',
+      pick: 'random',
+      audio: true,
+      fit: 'fullscreen',
+      duration: 'video',
+    });
+    // Back to the fixed background: no player media.
+    fireEvent.click(within(await overlayRow('ace')).getByRole('radio', { name: 'Sfondo fisso dell’avviso' }));
+    save();
+    await waitFor(() =>
+      expect((puts('/api/admin/overlays').at(-1)?.body as TenantOverlays).ace.playerMedia).toBeUndefined(),
+    );
+  });
+
+  it('the preview and «Prova» use the first player of the roster with files: its video, or its photo on the phone', async () => {
+    const item = (assetId: string, video: boolean) => ({
+      assetId,
+      url: `/api/admin/assets/${assetId}/file`,
+      video,
+      name: null,
+    });
+    const base = {
+      season: 2026,
+      firstName: 'Mario',
+      role: null,
+      birthYear: null,
+      heightCm: null,
+      birthplace: null,
+      nationality: null,
+      source: 'league' as const,
+      externalKey: null,
+      editedFields: [],
+      removed: false,
+    };
+    const PHOTO_ID = '2c3d4e5f-6071-4829-8b3c-4d5e6f7a8b9c';
+    rosterPlayers = [
+      {
+        ...base,
+        id: '11111111-1111-4111-8111-111111111111',
+        number: 1,
+        lastName: 'Senzafile',
+        photo: null,
+        media: [],
+        position: 0,
+      },
+      {
+        ...base,
+        id: '22222222-2222-4222-8222-222222222222',
+        number: 8,
+        lastName: 'Rossi',
+        photo: item(PHOTO_ID, false),
+        media: [item(VIDEO_ID, true)],
+        position: 1,
+      },
+    ];
+    const overlays = TenantOverlaysSchema.parse({ ace: { playerMedia: { source: 'video' } } });
+    mockServer({ overlays });
+    renderAt('/admin/studio/avvisi');
+    await studio();
+    await overlayRow('ace');
+    const region = await waitFor(() => {
+      const r = screen.getByTestId('prova-avviso');
+      if (!r.querySelector('video')) throw new Error('video not there yet');
+      return r;
+    });
+    expect(region.querySelector('video')?.getAttribute('src')).toBe(`/api/admin/assets/${VIDEO_ID}/file`);
+    // The text is the one of the player of the roster.
+    expect(region.textContent).toContain('ACE! Rossi');
+    fireEvent.click(within(await overlayRow('ace')).getByRole('button', { name: 'Prova Ace' }));
+    expect(screen.getByTestId('prova-avviso').querySelector('video')).not.toBeNull();
+    // Phone: the photo, never the video.
+    fireEvent.click(screen.getByRole('radio', { name: /Telefono/ }));
+    await waitFor(() => {
+      const r = screen.getByTestId('prova-avviso');
+      expect(r.querySelector('video')).toBeNull();
+      expect(r.querySelector('img')?.getAttribute('src')).toBe(`/api/admin/assets/${PHOTO_ID}/file`);
+    });
   });
 
   it('the videos are listed by name (a file without name by day and size); choosing another one changes the preview', async () => {

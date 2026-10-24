@@ -10,9 +10,16 @@ import type {
   OverlayPlaceholder,
   OverlayPosition,
   OverlaySize,
+  PublicPlayerMedia,
   TenantOverlays,
 } from '@arenalive/shared';
-import { backgroundForTeam, fillOverlayText, OVERLAY_VIDEO_MAX_SECONDS, overlayPlacement } from '@arenalive/shared';
+import {
+  backgroundForTeam,
+  fillOverlayText,
+  OVERLAY_VIDEO_MAX_SECONDS,
+  overlayPlacement,
+  playerBackground,
+} from '@arenalive/shared';
 import type { MatchEvent, MatchState, Side } from '@arenalive/volley-stats';
 import { playerName, teamName } from './format.ts';
 
@@ -91,6 +98,8 @@ export function overlayFor(
   now: number,
   /** Side of our team in the match (null: unknown, a video for our team only is then shown for both). */
   ourSide: Side | null = null,
+  /** Photos and videos of the players of our team (public answer) and whether a video may be shown (not the phone, not reduced motion). */
+  roster: { players: readonly PublicPlayerMedia[]; videos: boolean } = { players: [], videos: false },
 ): QueuedOverlay | null {
   const overlay = (config as Partial<TenantOverlays>)[event.kind];
   if (!overlay || !overlay.enabled || !overlay.devices[device]) return null;
@@ -98,7 +107,10 @@ export function overlayFor(
   if (text === '') return null;
   const { position, size } = overlayPlacement(config, overlay);
   // A video for our team only: none for an event of the opponent (text only, as without background).
-  const background = backgroundForTeam(overlay.background, event.team, ourSide);
+  // The photo or video of the player of our team first (ace, block, substitution), else the fixed background.
+  const background =
+    playerBackground(overlay, event, ourSide, roster.players, { videos: roster.videos }) ??
+    backgroundForTeam(overlay.background, event.team, ourSide);
   return {
     id: event.id,
     text,

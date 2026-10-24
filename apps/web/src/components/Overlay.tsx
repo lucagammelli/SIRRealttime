@@ -1,4 +1,4 @@
-import type { OverlayPosition, OverlaySize, TenantOverlays } from '@arenalive/shared';
+import type { OverlayPosition, OverlaySize, PublicPlayerMedia, TenantOverlays } from '@arenalive/shared';
 import { OVERLAY_VIDEO_MAX_SECONDS } from '@arenalive/shared';
 import type { MatchState, Side } from '@arenalive/volley-stats';
 import { useEffect, useRef, useState } from 'react';
@@ -6,9 +6,12 @@ import type { Device } from '../lib/layout.ts';
 import type { QueuedOverlay } from '../lib/overlay.ts';
 import { enqueue, eventsOf, nextOverlay, overlayFor, unseenEvents, videoHoldSeconds } from '../lib/overlay.ts';
 import type { OverlayMedia } from '../lib/overlayMedia.ts';
-import { mediaOf, useOverlayMedia } from '../lib/overlayMedia.ts';
-import { useOurSide } from '../lib/branding.ts';
+import { mediaOf, playerNumbersInPlay, useOverlayMedia } from '../lib/overlayMedia.ts';
+import { useOurSide, useTenantLook } from '../lib/branding.ts';
 import { useReducedMotion } from '../lib/theme.ts';
+
+/** No photos or videos of players (roster not loaded or empty). */
+const NO_PLAYERS: readonly PublicPlayerMedia[] = [];
 
 const TONE: Record<Side | 'neutral', string> = {
   home: 'bg-home text-on-home',
@@ -236,9 +239,15 @@ export function Overlay({
   const [current, setCurrent] = useState<QueuedOverlay | null>(null);
   const [arrivals, setArrivals] = useState(0);
   // The backgrounds of the overlays on for this device, read into memory now: an overlay lasts only a few seconds.
-  const media = useOverlayMedia(config, device, useReducedMotion());
+  const reducedMotion = useReducedMotion();
   // Side of our team, claimed by the match view (team chosen in «Grafica»): a video for our team only follows it.
   const ourSide = useOurSide();
+  // Photos and videos of the players of our team (roster): kept ready for the ones on court; no video on the phone nor
+  // with reduced motion (the photo is used).
+  const players = useTenantLook()?.players ?? NO_PLAYERS;
+  const videos = device !== 'phone' && !reducedMotion;
+  const numbers = playerNumbersInPlay(state, ourSide, config);
+  const media = useOverlayMedia(config, device, reducedMotion, undefined, { players, numbers });
 
   // New events of a live update go in the queue; everything else is only remembered as seen.
   useEffect(() => {
@@ -255,12 +264,12 @@ export function Overlay({
     if (!live || config === null || blocked || fresh.length === 0) return;
     const now = Date.now();
     const items = fresh
-      .map((e) => overlayFor(e, state, config, device, now, ourSide))
+      .map((e) => overlayFor(e, state, config, device, now, ourSide, { players, videos }))
       .filter((o): o is QueuedOverlay => o !== null);
     if (items.length === 0) return;
     queue.current = enqueue(queue.current, items);
     setArrivals((n) => n + 1);
-  }, [state, live, config, device, blocked, ourSide]);
+  }, [state, live, config, device, blocked, ourSide, players, videos]);
 
   // A full screen pause: nothing over it.
   useEffect(() => {

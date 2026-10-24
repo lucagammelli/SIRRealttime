@@ -11,10 +11,13 @@ import type {
   LayoutDevice,
   OurTeam,
   Overlay,
+  OverlayBackground,
   OverlayKind,
   OverlayPlaceholder,
   OverlayPosition,
   OverlaySize,
+  Player,
+  PublicPlayerMedia,
   SetBreakSet,
   TenantBranding,
   TenantIntermissions,
@@ -33,11 +36,13 @@ import {
   LAYOUT_DEVICES,
   newBlock,
   OVERLAY_KINDS,
+  playerBackground,
   SET_BREAK_SETS,
   TEMPLATES,
   THANKS_MESSAGE,
 } from '@arenalive/shared';
-import type { MatchState } from '@arenalive/volley-stats';
+import type { MatchEvent, MatchState, Side } from '@arenalive/volley-stats';
+import { sampleEvent } from '../../../lib/overlay.ts';
 import { COMEBACK_MIN_POINTS, LONG_RALLY_MIN_ATTACKS, RUN_MIN_POINTS } from '@arenalive/volley-stats';
 import { BLOCKS } from '../../../blocks/registry.tsx';
 import type { PauseTarget } from '../intermissionEditor.ts';
@@ -673,3 +678,45 @@ export function sampleWithOurTeam(state: MatchState, ourTeam: OurTeam, fallbackN
 }
 
 export type { PauseTarget, SetBreakSet };
+
+/** A player of the roster with a photo or video, to show in the preview of the overlays of a player. */
+export interface RosterSample {
+  player: { number: number; firstName: string; lastName: string };
+  media: PublicPlayerMedia;
+}
+
+/** Pure: the first player of the roster (not removed) with a photo or a video; null when none. */
+export function rosterSample(players: readonly Player[]): RosterSample | null {
+  const p = players.find((x) => !x.removed && (x.photo !== null || x.media.length > 0));
+  if (!p) return null;
+  return {
+    player: { number: p.number, firstName: p.firstName, lastName: p.lastName },
+    media: {
+      number: p.number,
+      photo: p.photo?.assetId ?? null,
+      images: p.media.filter((m) => !m.video).map((m) => m.assetId),
+      videos: p.media.filter((m) => m.video).map((m) => m.assetId),
+    },
+  };
+}
+
+/**
+ * Pure: the example event of an overlay for the preview and its background. For the overlays of a player with the photo
+ * or video of the player chosen, the event is of the player of `sample` (a different one for every `key`, so that «Casuale»
+ * varies) and the background is its file (a video not on the phone), else the fixed background of the overlay.
+ */
+export function overlayPreview(
+  kind: OverlayKind,
+  overlay: Overlay,
+  state: MatchState,
+  side: Side,
+  sample: RosterSample | null,
+  key: number,
+  device: LayoutDevice,
+): { event: MatchEvent; background: OverlayBackground | undefined } {
+  const base = sampleEvent(kind, state, side);
+  if (!sample || !overlay.playerMedia) return { event: base, background: overlay.background };
+  const event: MatchEvent = { ...base, id: `${base.id}-${key}`, player: sample.player };
+  const background = playerBackground(overlay, event, side, [sample.media], { videos: device !== 'phone' });
+  return { event, background: background ?? overlay.background };
+}

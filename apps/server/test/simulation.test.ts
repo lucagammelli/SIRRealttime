@@ -138,6 +138,7 @@ describe('simulation of a match', () => {
     expect((await call('GET', '/api/admin/simulation', viewer)).statusCode).toBe(403);
     expect((await call('POST', '/api/admin/simulation', viewer, GENERATED)).statusCode).toBe(403);
     expect((await command('pause', viewer)).statusCode).toBe(403);
+    expect((await command('stop', viewer)).statusCode).toBe(403);
     expect((await call('DELETE', '/api/admin/simulation', viewer)).statusCode).toBe(403);
     const superadmin = await login(server.app, SUPERADMIN);
     // A superadmin works only on a client chosen (409 without one).
@@ -201,6 +202,10 @@ describe('simulation of a match', () => {
     expect(stopped?.deleteAt).toBe(new Date(timers.now + SIMULATION_RETENTION_MS).toISOString());
     await timers.advance(60_000);
     expect((await simulation()).simulation?.linesSent).toBe(stopped?.linesSent);
+    expect(timers.count).toBe(0);
+    // Stopping twice is not an error and changes nothing.
+    expect((await command('stop')).statusCode).toBe(200);
+    expect((await simulation()).simulation).toEqual(stopped);
 
     expect((await command('restart')).statusCode).toBe(200);
     expect((await simulation()).simulation).toMatchObject({ status: 'running', linesSent: first, set: 1 });
@@ -218,7 +223,8 @@ describe('simulation of a match', () => {
     const won = match.sets.filter((s) => s.home > s.away).length;
     expect(done?.setsWon).toEqual({ home: won, away: 3 - won });
     expect(timers.count).toBe(0);
-    expect((await command('stop')).statusCode).toBe(409);
+    expect((await command('stop')).statusCode).toBe(200);
+    expect((await simulation()).simulation).toMatchObject({ status: 'finished', linesSent: match.lines.length });
   });
 
   it('follows the real rhythm of the lines with a speed', async () => {
@@ -494,7 +500,8 @@ describe('simulation of a match', () => {
     });
     await timers.advance(81_000);
     expect((await simulation()).simulation?.status).toBe('finished');
-    expect((await command('stop')).statusCode).toBe(409);
+    expect((await command('stop')).statusCode).toBe(200);
+    expect((await simulation()).simulation?.status).toBe('finished');
 
     const refused = async (body: unknown) => (await call('POST', '/api/admin/simulation', admin, body)).statusCode;
     expect(await refused(upload('non è un file di DataVolley'))).toBe(422);

@@ -323,7 +323,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'Per la TV: apri il link sul computer o sulla TV e premi «Schermo intero». Su tablet e telefono puoi premere «Installa come app»: la pagina si apre come un’app, a tutto schermo.',
+        text: 'Per fermare una simulazione in corso o in pausa premi «Arresta» e poi «Conferma arresto»: si ferma subito e per sempre, con il punteggio raggiunto, senza vincitore. Poi puoi premere «Ricomincia» oppure avviarne un’altra. Per la TV: apri il link sul computer o sulla TV e premi «Schermo intero». Su tablet e telefono puoi premere «Installa come app»: la pagina si apre come un’app, a tutto schermo.',
       },
     ],
     links: [{ label: 'Vai a Simulazione', to: '/admin/simulazione' }],

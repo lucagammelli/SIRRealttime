@@ -521,13 +521,13 @@ per riga, come farebbe l'agente (`docs/server.md`, «Simulazione di una partita�
     fermala per avviarne un'altra.».
 - **«Avanzamento»** (sottotitolo «La partita simulata non entra nel canale del club, nel calendario, tra le partite né
   nella partita live.»; senza simulazione «Nessuna simulazione. Scegli la partita e i tempi, poi premi «Avvia».»): stato
-  («In corso», «In pausa», «Fermata», «Finita»), origine della partita, squadre, riquadri «Set», «Punteggio», «Set vinti»,
+  («In corso», «In pausa», «Arrestata», «Finita»), origine della partita, squadre, riquadri «Set», «Punteggio», «Set vinti»,
   «Righe» (inviate / totali), barra «Righe inviate», «Trascorso m:ss · rimanente m:ss» con il ritmo scelto («Velocità N×
   sul ritmo reale» oppure «Set da N s, pausa tra i set di N s»), l'avviso del server (per esempio dopo un riavvio: «La
-  simulazione si è interrotta con il riavvio del server: puoi ricominciarla da capo.») e, a simulazione ferma o in pausa,
+  simulazione si è interrotta con il riavvio del server: puoi ricominciarla da capo.») e, a simulazione arrestata, finita o in pausa,
   «Partita e link si cancellano da soli il … (6 ore dopo la fine o la pausa).». Mentre è «In corso» la pagina rilegge
   l'avanzamento ogni secondo (`SIMULATION_POLL_MS`).
-- **Comandi**: «Pausa» (se in corso), «Riprendi» (se in pausa), «Ferma» (se in corso o in pausa), «Ricomincia» (se i tempi
+- **Comandi**: «Pausa» (se in corso), «Riprendi» (se in pausa), «Arresta» (se in corso o in pausa; chiede conferma con «Conferma arresto» e «Annulla»: la ferma subito e per sempre, la partita resta con il punteggio raggiunto e si può solo ricominciare, eliminare o avviarne un'altra), «Ricomincia» (se i tempi
   sono ancora noti: dopo un riavvio del server no) ed «Elimina» (con conferma «Elimina partita e link»: cancella partita e
   link subito).
 - **«Link della simulazione»** (sottotitolo «Aprilo sulla TV, sul tablet o sul telefono.»): link breve `/l/<codice>` con

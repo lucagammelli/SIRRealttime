@@ -4,6 +4,13 @@ Le versioni seguono il versionamento semantico (`vX.Y.Z`); la fonte della versio
 `package.json` alla radice. Le sezioni nuove le aggiunge `scripts/rilascia.sh` con i titoli dei commit dal tag
 precedente; le note della release su GitHub sono la sezione della versione (`docs/regole/test-job-rilasci.md`).
 
+## [2.6.0] - 2026-10-24
+
+- Test Tabellone: rosa nel tenant pubblico dopo l'allineamento
+- Squadra: pagina della rosa nel portale, foto e video del giocatore negli avvisi ACE!, Muro e Cambio
+- Logo del club sempre per la nostra squadra, con dimensione piccolo/medio/grande scelta in Club
+- Rosa: giocatori della squadra dal sito della Lega con foto, modifiche a mano, foto e video per giocatore negli avvisi (dati e server)
+
 ## [2.5.1] - 2026-10-24
 
 - Dopo la partita: visibile in simulazione e in anteprima nello Studio; tolto il doppione della foto

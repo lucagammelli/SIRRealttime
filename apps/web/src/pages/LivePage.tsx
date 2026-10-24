@@ -5,7 +5,7 @@ import { AfterMatchScreen } from '../components/AfterMatchScreen.tsx';
 import { BrandMark } from '../components/BrandMark.tsx';
 import { FullscreenHint, InstallButton } from '../components/AppInstall.tsx';
 import { Intermission } from '../components/Intermission.tsx';
-import { LiveMatch } from '../components/LiveMatch.tsx';
+import { LiveMatch, screensFor } from '../components/LiveMatch.tsx';
 import { Overlay } from '../components/Overlay.tsx';
 import { StatusScreen } from '../components/StatusScreen.tsx';
 import { SystemLogosBar } from '../components/SystemLogosBar.tsx';
@@ -180,6 +180,8 @@ export function LivePage() {
   // Over the match (pauses, tables, maps) nothing can be tapped until the look is known: a device without touch must
   // never see a button, not even while it loads.
   const touchReady = look === null ? false : touch;
+  // Without touch also the phone and the tablet are laid out in screens without scrolling, like the big screen.
+  const screens = screensFor(device, look?.layout ?? null);
   const controls = !touch ? null : (
     <div
       className={`flex items-center gap-2 transition-opacity focus-within:opacity-100 motion-reduce:transition-none ${idle ? 'opacity-0' : ''}`}
@@ -247,21 +249,21 @@ export function LivePage() {
     <TouchContext.Provider value={touchReady}>
       <div
         className={`${template.id === 'standard' ? 'border-t-4 border-accent' : ''} ${
-          tv ? 'flex h-dvh flex-col overflow-hidden p-3 lg:p-5' : 'flex min-h-dvh flex-col'
+          screens ? 'flex h-dvh flex-col overflow-hidden p-3 lg:p-5' : 'flex min-h-dvh flex-col'
         } ${idle ? 'cursor-none' : ''}`}
         data-device={device}
       >
         {/* Logos of the platform (superadmin), above everything, also on the big screen; nothing without them. */}
-        <SystemLogosBar className={tv ? 'shrink-0 pb-3' : 'sir-page mx-auto w-full max-w-7xl px-3 pt-3 sm:px-5'} />
+        <SystemLogosBar className={screens ? 'shrink-0 pb-3' : 'sir-page mx-auto w-full max-w-7xl px-3 pt-3 sm:px-5'} />
         {!inScoreboard && (
           <header
-            className={`sir-navbar flex items-center justify-between gap-3 ${tv ? 'pb-3' : 'sir-page mx-auto w-full max-w-7xl px-3 pt-3 sm:px-5'}`}
+            className={`sir-navbar flex shrink-0 items-center justify-between gap-3 ${screens ? 'pb-3' : 'sir-page mx-auto w-full max-w-7xl px-3 pt-3 sm:px-5'}`}
           >
             {showBrand ? <BrandMark clubSize /> : <span />}
             {controls}
           </header>
         )}
-        <main className={tv ? 'min-h-0 flex-1' : 'sir-page mx-auto w-full max-w-7xl flex-1 px-3 py-3 sm:px-5'}>
+        <main className={screens ? 'min-h-0 flex-1' : 'sir-page mx-auto w-full max-w-7xl flex-1 px-3 py-3 sm:px-5'}>
           <LiveMatch
             snapshot={snapshot}
             device={device}

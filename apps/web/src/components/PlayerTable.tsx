@@ -4,6 +4,7 @@ import type { PlayerRow, PlayerSortKey, SortDirection } from '../charts/players.
 import { playerRows, sortPlayerRows, statSets } from '../charts/players.ts';
 import { formatCount, formatPct, teamName } from '../lib/format.ts';
 import { useDeviceContext, useTouch } from '../lib/useLayout.ts';
+import { FitRows, MoreRows } from './FitToBox.tsx';
 import { Card, Empty, Segmented } from './ui.tsx';
 
 interface Column {
@@ -135,12 +136,13 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
       ) : (
         // Wide table: it scrolls sideways inside the card (focusable, so also with the keyboard), never the page.
         // Phone: also vertically inside the card, so that the header stays visible (sticky) while scrolling.
+        // Without touch nothing scrolls: the card fits the table to its cell (`FitToBox`), the last rows become «+N».
         <div
-          role="region"
-          aria-label="Tabella giocatori, scorrevole in orizzontale"
-          tabIndex={0}
-          className={`sir-scroll-x sir-card-bleed -mx-4 max-w-[calc(100%+2rem)] sm:-mx-5 sm:max-w-[calc(100%+2.5rem)] ${
-            compact ? 'max-h-[70dvh] overflow-y-auto' : ''
+          {...(touch
+            ? { role: 'region', 'aria-label': 'Tabella giocatori, scorrevole in orizzontale', tabIndex: 0 }
+            : {})}
+          className={`sir-card-bleed -mx-4 max-w-[calc(100%+2rem)] sm:-mx-5 sm:max-w-[calc(100%+2.5rem)] ${
+            touch ? `sir-scroll-x ${compact ? 'max-h-[70dvh] overflow-y-auto' : ''}` : ''
           }`}
         >
           <table className={`w-full border-collapse text-sm tabular ${essential ? '' : 'min-w-[46rem]'}`}>
@@ -148,7 +150,7 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
               Statistiche dei giocatori di {teamName(state.teams, side)}
               {setShown ? ` nel ${setShown}° set` : ' nella partita'}. Le intestazioni ordinano la tabella.
             </caption>
-            <thead className={compact ? 'sticky top-0 z-10 bg-surface' : ''}>
+            <thead className={compact && touch ? 'sticky top-0 z-10 bg-surface' : ''}>
               {!essential && (
                 <tr className="bg-table-head text-xs uppercase tracking-wide text-muted">
                   <th colSpan={2} scope="colgroup" />
@@ -191,58 +193,71 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
                 ))}
               </tr>
             </thead>
-            <tbody>
-              {rows.map((r) => {
-                const isSelected = selected === r.number;
-                return (
-                  <tr
-                    key={r.number}
-                    data-selected={isSelected}
-                    className={`border-b border-table-border last:border-0 hover:bg-hover ${
-                      isSelected ? 'bg-table-selected' : 'even:bg-table-alt'
-                    }`}
-                  >
-                    <td
-                      className={`py-1.5 pl-4 font-bold sm:pl-5 ${TEXT[side]} ${
-                        isSelected ? 'shadow-[inset_3px_0_0_var(--sir-table-indicator)]' : ''
-                      }`}
-                    >
-                      {r.number}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-text">
-                      {touch ? (
-                        <button
-                          type="button"
-                          aria-pressed={isSelected}
-                          title={isSelected ? 'Togli la selezione' : 'Evidenzia il giocatore'}
-                          onClick={() => setSelected(isSelected ? null : r.number)}
-                          className="text-left hover:underline pointer-coarse:min-h-11"
-                        >
-                          {r.name}
-                        </button>
-                      ) : (
-                        <span>{r.name}</span>
-                      )}
-                      {r.libero && (
-                        <span className="ml-1.5 rounded bg-surface-2 px-1 text-[10px] font-semibold uppercase text-muted">
-                          Libero
-                        </span>
-                      )}
-                    </td>
-                    {columns.map((c) => (
-                      <td
-                        key={c.key}
-                        className={`px-1.5 py-1.5 text-center text-text ${groupBorder(c.key, !essential)} ${
-                          c.key === 'points' ? 'bg-table-key font-bold' : ''
+            {/* In a card that cannot scroll (screen without touch) and does not fit even scaled down: the first rows
+                and «+N». */}
+            <FitRows count={rows.length}>
+              {(fit) => (
+                <tbody data-fit-list={rows.length}>
+                  {rows.slice(0, fit.shown).map((r) => {
+                    const isSelected = selected === r.number;
+                    return (
+                      <tr
+                        key={r.number}
+                        data-selected={isSelected}
+                        className={`border-b border-table-border last:border-0 hover:bg-hover ${
+                          isSelected ? 'bg-table-selected' : 'even:bg-table-alt'
                         }`}
                       >
-                        {cell(r, c)}
+                        <td
+                          className={`py-1.5 pl-4 font-bold sm:pl-5 ${TEXT[side]} ${
+                            isSelected ? 'shadow-[inset_3px_0_0_var(--sir-table-indicator)]' : ''
+                          }`}
+                        >
+                          {r.number}
+                        </td>
+                        <td className="whitespace-nowrap px-2 py-1.5 text-text">
+                          {touch ? (
+                            <button
+                              type="button"
+                              aria-pressed={isSelected}
+                              title={isSelected ? 'Togli la selezione' : 'Evidenzia il giocatore'}
+                              onClick={() => setSelected(isSelected ? null : r.number)}
+                              className="text-left hover:underline pointer-coarse:min-h-11"
+                            >
+                              {r.name}
+                            </button>
+                          ) : (
+                            <span>{r.name}</span>
+                          )}
+                          {r.libero && (
+                            <span className="ml-1.5 rounded bg-surface-2 px-1 text-[10px] font-semibold uppercase text-muted">
+                              Libero
+                            </span>
+                          )}
+                        </td>
+                        {columns.map((c) => (
+                          <td
+                            key={c.key}
+                            className={`px-1.5 py-1.5 text-center text-text ${groupBorder(c.key, !essential)} ${
+                              c.key === 'points' ? 'bg-table-key font-bold' : ''
+                            }`}
+                          >
+                            {cell(r, c)}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                  {fit.hidden > 0 && (
+                    <tr>
+                      <td colSpan={columns.length + 2} className="py-1.5 pl-4 sm:pl-5">
+                        <MoreRows hidden={fit.hidden} />
                       </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
+                    </tr>
+                  )}
+                </tbody>
+              )}
+            </FitRows>
           </table>
         </div>
       )}

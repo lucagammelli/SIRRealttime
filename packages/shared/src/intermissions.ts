@@ -73,6 +73,8 @@ export const SLIDE_DEFAULT_SECONDS = 8;
 export const INTERMISSION_MAX_SLIDES = 12;
 /** Longest wait (seconds) between the start of a pause and its screen. */
 export const INTERMISSION_MAX_DELAY_SECONDS = 60;
+/** Longest own title of a pause. */
+export const PAUSE_TITLE_MAX_LENGTH = 60;
 /** Default text of the end of the match. */
 export const THANKS_MESSAGE = 'Grazie per aver seguito la partita';
 
@@ -241,6 +243,11 @@ const pauseShape = (kind: IntermissionKind) => {
       .prefault({}),
     /** Seconds between the start of the pause and its screen (the scoreboard shows the end of the set first). */
     delaySeconds: z.int().min(0).max(INTERMISSION_MAX_DELAY_SECONDS).default(d.delaySeconds),
+    /**
+     * Title of the pause on full screen and in the banner; empty (also missing in a saved document): the automatic one
+     * of the portal («Time-out <squadra>», «Fine 2° set», «Fine partita», «Statistiche del set · 2° set 16-16»).
+     */
+    title: z.string().trim().max(PAUSE_TITLE_MAX_LENGTH).default(''),
     /** Size of the slides on full screen (the banner does not change). */
     fullscreenSize: z.enum(INTERMISSION_FULLSCREEN_SIZES).default('normal'),
     slides: IntermissionSlidesSchema.default(() => IntermissionSlidesSchema.parse(d.slides)),

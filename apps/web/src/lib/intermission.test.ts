@@ -108,7 +108,10 @@ describe('«ogni N punti»: the pause', () => {
     if (!step.open) throw new Error('milestone');
     const active = milestonePause(step.open, pause);
     expect(active).toMatchObject({ kind: 'milestone', key: `milestone-set-${SET}-16`, set: SET });
-    expect(pauseTitle(active, () => '')).toBe(`${SET}° set: 9-7`);
+    expect(pauseTitle(active, () => '')).toBe(`Statistiche del set · ${SET}° set 9-7`);
+    expect(pauseTitle({ ...active, pause: { ...pause, title: '  Il punto della situazione ' } }, () => '')).toBe(
+      'Il punto della situazione',
+    );
     expect(previewState(mid, 'milestone').phase).toEqual({ kind: 'rally', set: SET });
   });
 

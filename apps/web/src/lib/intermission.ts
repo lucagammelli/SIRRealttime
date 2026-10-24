@@ -229,11 +229,17 @@ export function milestonePause(milestone: PointMilestone, pause: Intermission): 
   };
 }
 
-/** Headline of a pause, e.g. «Fine 2° set», «Time-out Alfa», «Fine partita», «2° set: 9-7». */
+/**
+ * Headline of a pause: the own title chosen in «Pause» (`title`) when there is one, otherwise the automatic one, e.g.
+ * «Time-out Alfa», «Fine 2° set», «Fine partita», «Statistiche del set · 2° set 9-7» (the «ogni N punti» says why the
+ * screen changed).
+ */
 export function pauseTitle(
-  active: Pick<ActivePause, 'kind' | 'set' | 'team' | 'score'>,
+  active: Pick<ActivePause, 'kind' | 'set' | 'team' | 'score'> & { pause?: { title?: string } },
   teamLabel: (side: Side) => string,
 ): string {
+  const own = active.pause?.title?.trim() ?? '';
+  if (own !== '') return own;
   switch (active.kind) {
     case 'timeout':
       return active.team ? `Time-out ${teamLabel(active.team)}` : 'Time-out';
@@ -242,9 +248,14 @@ export function pauseTitle(
     case 'matchEnd':
       return 'Fine partita';
     case 'milestone':
-      return active.score ? `${active.set}° set: ${active.score.home}-${active.score.away}` : `${active.set}° set`;
+      return active.score
+        ? `${MILESTONE_TITLE} · ${active.set}° set ${active.score.home}-${active.score.away}`
+        : `${MILESTONE_TITLE} · ${active.set}° set`;
   }
 }
+
+/** Start of the automatic title of the «ogni N punti» pause. */
+export const MILESTONE_TITLE = 'Statistiche del set';
 
 /**
  * Example state for the preview of a pause in the reserved area: the state given (live or the example match) with

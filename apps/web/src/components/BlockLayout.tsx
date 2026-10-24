@@ -6,6 +6,7 @@ import {
   groupMinRem,
   rotationIndex,
   rowMinRem,
+  screenWidth,
   TABLET_GRID_FLOW,
   tabletSpan,
   TV_ROTATION_MS,
@@ -15,7 +16,15 @@ import {
   tvZoom,
 } from '../lib/layout.ts';
 import { useReducedMotion } from '../lib/theme.ts';
-import { DeviceContext, LayoutScaleContext, rootFontPx, useElementSize, useTicker } from '../lib/useLayout.ts';
+import {
+  DeviceContext,
+  LayoutScaleContext,
+  rootFontPx,
+  useElementSize,
+  useTicker,
+  useTouch,
+} from '../lib/useLayout.ts';
+import { FitCellContext } from './FitToBox.tsx';
 import { CardCollapseContext } from './ui.tsx';
 
 /** Columns of a block on the 12-column grid (tablet and big screen); written out for Tailwind. */
@@ -58,8 +67,11 @@ const studioAttrs = (block: LayoutBlock): Record<'data-studio-block' | 'data-stu
  *   height left; with more than one group they rotate every 12 s (fixed on the first with reduced motion). The groups
  *   and the height of every row come only from the layout and from the heights of the types and of the options
  *   (`TV_BLOCK_MIN_REM`, `blockMinRem`: rows of the lists chosen), never from the content of the moment: an empty block (start of the match) takes the same cell it will have with
- *   the data, and the screens do not change when the data arrive. A card taller than its cell scrolls inside its body
- *   (`index.css`): content is never cut without a sign.
+ *   the data, and the screens do not change when the data arrive. With touch a card taller than its cell scrolls
+ *   inside its body (`index.css`); without touch it never scrolls: its content fits the cell (`FitToBox` in `Card`:
+ *   scaled down, then «+N» rows), never cut without a sign.
+ * Without touch (option «Touch» of the device) the phone and the tablet are laid out in screens like the big screen
+ * (nobody can scroll them): same rotation, the columns of their own grid (`screenWidth`).
  */
 export function BlockLayout({
   blocks,
@@ -73,10 +85,11 @@ export function BlockLayout({
   /** Big screen: rotation stopped by the viewer (button «Ferma rotazione», WCAG 2.2.2). */
   rotationPaused?: boolean;
 }) {
+  const touch = useTouch();
   return (
     <DeviceContext.Provider value={device}>
-      {device === 'tv' ? (
-        <TvLayout blocks={blocks} renderBlock={renderBlock} paused={rotationPaused} />
+      {device === 'tv' || !touch ? (
+        <TvLayout blocks={blocks} device={device} renderBlock={renderBlock} paused={rotationPaused} touch={touch} />
       ) : device === 'phone' ? (
         <div className="sir-blocks flex flex-col gap-3" data-layout="phone">
           {blocks.map((block) =>
@@ -113,18 +126,34 @@ export function BlockLayout({
 }
 
 function TvLayout({
-  blocks,
+  blocks: given,
+  device,
   renderBlock,
   paused,
+  touch,
 }: {
   blocks: readonly LayoutBlock[];
+  device: Device;
   renderBlock: RenderBlock;
   paused: boolean;
+  touch: boolean;
 }) {
   const area = useRef<HTMLDivElement>(null);
   const scale = useContext(LayoutScaleContext) || 1;
   const size = useElementSize(area);
   const heightPx = size.height / scale;
+  // Phone and tablet in screens: the columns their grid gives the blocks (the width of the area, not of the window).
+  const gridPx = size.width / scale;
+  const blocks = useMemo(
+    () =>
+      device === 'tv'
+        ? given
+        : given.map((b) => {
+            const width = screenWidth(b.width, device, gridPx);
+            return width === b.width ? b : { ...b, width };
+          }),
+    [given, device, gridPx],
+  );
   const reduced = useReducedMotion();
   const scoreboard = blocks.find((b) => b.type === 'scoreboard');
   const template = useTemplate().id;
@@ -145,10 +174,13 @@ function TvLayout({
   const zoom = tvZoom(groupMinRem(group, TV_GAP_REM, minRem, widthRem), availableRem);
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4" data-layout="tv">
+    <div
+      className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4"
+      data-layout={device === 'tv' ? 'tv' : 'screens'}
+    >
       {scoreboard && (
         <div className="contents" {...studioAttrs(scoreboard)}>
-          {renderBlock(scoreboard, 'tv')}
+          {renderBlock(scoreboard, device)}
         </div>
       )}
       <div ref={area} className="relative min-h-0 overflow-hidden" data-tv-area="">
@@ -168,10 +200,11 @@ function TvLayout({
                 <div
                   key={block.id}
                   data-tv-block={block.id}
+                  data-touch={touch}
                   {...studioAttrs(block)}
                   className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${span(block)}`}
                 >
-                  {renderBlock(block, 'tv')}
+                  <FitCellContext.Provider value={true}>{renderBlock(block, device)}</FitCellContext.Provider>
                 </div>
               ))}
             </div>

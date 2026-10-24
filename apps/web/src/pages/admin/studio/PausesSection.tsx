@@ -25,6 +25,7 @@ import {
   MILESTONE_MAX_STOP_BEFORE_END,
   MILESTONE_MIN_EVERY,
   MILESTONE_MIN_STOP_BEFORE_END,
+  PAUSE_TITLE_MAX_LENGTH,
   SET_BREAK_SETS,
   SLIDE_TYPES,
 } from '@arenalive/shared';
@@ -87,6 +88,14 @@ const SET_LABELS: Record<IntermissionKind, string> = {
 };
 
 export type SetTab = 'all' | SetBreakSet;
+
+/** Example of the automatic title of every pause (placeholder of «Titolo»). */
+const AUTO_TITLE_HINTS: Record<IntermissionKind, string> = {
+  timeout: 'Time-out <squadra>',
+  setBreak: 'Fine 1° set',
+  matchEnd: 'Fine partita',
+  milestone: 'Statistiche del set · 2° set 16-16',
+};
 
 /** Pause edited for a kind and a set tab: `setBreak-N` for the own end of set of the set N. */
 export const pauseTargetOf = (kind: IntermissionKind, set: SetTab): PauseTarget =>
@@ -454,6 +463,26 @@ function PauseEditor({
             checked={pause.enabled}
             onChange={(on) => onChange((p) => ({ ...p, enabled: on }))}
           />
+        </Setting>
+        <Setting id="pause-title" where={where} scene={kind} targets={['pause']}>
+          <label className="flex flex-col gap-1 text-sm text-text">
+            Titolo
+            <input
+              type="text"
+              className={inputClass}
+              maxLength={PAUSE_TITLE_MAX_LENGTH}
+              value={pause.title}
+              placeholder={AUTO_TITLE_HINTS[kind]}
+              onChange={(e) => {
+                const title = e.target.value.slice(0, PAUSE_TITLE_MAX_LENGTH);
+                onChange((p) => ({ ...p, title }));
+              }}
+            />
+          </label>
+          <p className="text-xs text-muted">
+            Facoltativo: compare in alto a tutto schermo e nella banda. Un titolo scritto sostituisce quello automatico,
+            punteggio compreso. Vuoto: il titolo automatico (per esempio «{AUTO_TITLE_HINTS[kind]}»).
+          </p>
         </Setting>
         <Setting id="pause-modes" where={where} scene={kind} targets={['pause']}>
           <fieldset className="space-y-1">

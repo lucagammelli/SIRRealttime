@@ -24,6 +24,25 @@ export function mp4(width: number, height: number, pad = 64, brands = ['isom', '
   ]);
 }
 
+/** QuickTime (`.mov`): `ftyp` `qt  `, a `wide` box, `mdat`, then `moov` with one track (`tkhd` version 0 or 1). */
+export function quicktime(width: number, height: number, { moov = true, version = 0 } = {}): Buffer {
+  const ftyp = Buffer.alloc(16);
+  ftyp.write('qt  ', 0, 'latin1');
+  ftyp.writeUInt32BE(0x20050300, 4);
+  ftyp.write('qt  ', 8, 'latin1');
+  const tkhd = Buffer.alloc(version === 1 ? 96 : 84);
+  tkhd[0] = version;
+  const at = version === 1 ? 88 : 76;
+  tkhd.writeUInt32BE(width * 65536, at);
+  tkhd.writeUInt32BE(height * 65536, at + 4);
+  return Buffer.concat([
+    box('ftyp', ftyp),
+    box('wide'),
+    box('mdat', Buffer.alloc(32, 7)),
+    ...(moov ? [box('moov', box('trak', box('tkhd', tkhd)))] : []),
+  ]);
+}
+
 const vint8 = (n: number): Buffer => {
   const out = Buffer.alloc(8);
   out[0] = 0x01;

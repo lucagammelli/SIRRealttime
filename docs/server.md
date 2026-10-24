@@ -183,7 +183,7 @@ resta 1.
   è il file stesso, `Content-Type: application/octet-stream` (rotta con `BINARY_BODY` in `src/security.ts`; tutte le altre
   restano solo JSON), senza base64. Ordine dei controlli: sessione e ruolo `admin` (403) prima di leggere il corpo, tipo
   (415 se non è `octet-stream`), dimensione (413 oltre 15 MB, `VIDEO_MAX_BYTES`, già dalla `Content-Length`), contenuto
-  (422 `VIDEO_REJECTED` se i byte non sono MP4 con marca ISO né WebM: `inspectVideo` in `src/lib/videos.ts`, mai dal nome o dal
+  (422 `VIDEO_REJECTED` se i byte non sono MP4 con marca ISO, QuickTime (marca `qt  `, i `.mov` di iPhone e Mac, salvato e servito come `video/mp4`) né WebM: `inspectVideo` in `src/lib/videos.ts`, mai dal nome o dal
   tipo dichiarato), quota (409 «Spazio per i file esaurito (N MB): elimina quelli che non usi»). Il file è un asset di
   `kind` `overlay`; stessa quota, stesso blocco per cliente e stesso `storeAsset` delle immagini. Lo stesso file di nuovo:
   200 con il video già salvato (201 se nuovo). Il nome originale arriva nell'header `X-File-Name` (`FILE_NAME_HEADER`,

@@ -41,6 +41,8 @@ export interface QueuedOverlay {
   index: number;
   /** Image or video behind the text, with the options of a video (missing: text only). */
   background?: OverlayBackground;
+  /** The background is the photo or video of a player: shown clean, no veil; `showText` false hides the text. */
+  player?: { showText: boolean };
 }
 
 /** An overlay waiting longer than this is dropped: it is no longer news. */
@@ -108,9 +110,8 @@ export function overlayFor(
   const { position, size } = overlayPlacement(config, overlay);
   // A video for our team only: none for an event of the opponent (text only, as without background).
   // The photo or video of the player of our team first (ace, block, substitution), else the fixed background.
-  const background =
-    playerBackground(overlay, event, ourSide, roster.players, { videos: roster.videos }) ??
-    backgroundForTeam(overlay.background, event.team, ourSide);
+  const ofPlayer = playerBackground(overlay, event, ourSide, roster.players, { videos: roster.videos });
+  const background = ofPlayer ?? backgroundForTeam(overlay.background, event.team, ourSide);
   return {
     id: event.id,
     text,
@@ -122,6 +123,7 @@ export function overlayFor(
     receivedAt: now,
     index: event.index,
     ...(background ? { background } : {}),
+    ...(ofPlayer ? { player: { showText: overlay.playerMedia?.showText ?? true } } : {}),
   };
 }
 

@@ -304,7 +304,7 @@ function UploadCard({ sponsors, onUploaded }: { sponsors: readonly Sponsor[]; on
           </label>
         </div>
         <p className="text-xs text-muted">
-          Immagini PNG, JPEG, WebP o SVG, al massimo 2 MB. Video MP4 o WebM, al massimo 15 MB: servono come sfondo degli
+          Immagini PNG, JPEG, WebP o SVG, al massimo 2 MB. Video MP4, MOV o WebM, al massimo 15 MB: servono come sfondo degli
           avvisi o come video dei giocatori: il video segue l’uso scelto sopra («Foto e video dei giocatori»; con gli
           altri usi è per gli avvisi).
         </p>

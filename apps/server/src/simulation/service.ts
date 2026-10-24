@@ -251,8 +251,8 @@ export class SimulationService {
       s.pausedAt = null;
       this.schedule(s);
     } else if (command === 'stop') {
-      if (s.status !== 'running' && s.status !== 'paused') throw conflict('La simulazione è già finita');
-      this.end(s, 'stopped', null);
+      // Idempotent: on a simulation already stopped or finished nothing changes (never an error).
+      if (s.status === 'running' || s.status === 'paused') this.end(s, 'stopped', null);
     } else {
       if (s.status !== 'running' && s.status !== 'paused' && this.activeCount() >= SIMULATION_MAX_ACTIVE)
         throw conflict('Troppe simulazioni in corso sul server: riprova tra qualche minuto');

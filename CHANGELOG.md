@@ -4,6 +4,14 @@ Le versioni seguono il versionamento semantico (`vX.Y.Z`); la fonte della versio
 `package.json` alla radice. Le sezioni nuove le aggiunge `scripts/rilascia.sh` con i titoli dei commit dal tag
 precedente; le note della release su GitHub sono la sezione della versione (`docs/regole/test-job-rilasci.md`).
 
+## [2.5.0] - 2026-10-23
+
+- Test Club: più avvisi nella pagina con la libreria
+- Libreria «Immagini e video» nel menu, caricamenti solo dalla libreria; durata dell'avviso pari al video
+- Club: «Aggiungi competizione» dal sito della Lega, squadra automatica e cambio stagione
+- Mappa di campo: sulla TV squadre e fondamentali a turno, o solo la nostra squadra
+- Studio: sezione «Immagini e video» con la libreria dei file e l'uso reale
+
 ## [2.4.0] - 2026-10-23
 
 - TV: schermate rimpicciolite fino al 15% invece di una schermata in più; misure azzerate a ogni set

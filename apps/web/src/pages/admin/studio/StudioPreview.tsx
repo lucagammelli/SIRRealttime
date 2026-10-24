@@ -14,11 +14,13 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { BlockBrand } from '../../../blocks/env.ts';
 import { PaletteScopeContext } from '../../../charts/usePalette.ts';
 import { SAMPLE_SCHEDULE } from '../../../blocks/sampleSchedule.ts';
+import { AfterMatchScreen } from '../../../components/AfterMatchScreen.tsx';
 import { Intermission } from '../../../components/Intermission.tsx';
 import { OVERLAY_REGION_CLASSES, OverlayBanner } from '../../../components/Overlay.tsx';
 import { PreviewFullscreen } from '../../../components/PreviewDock.tsx';
 import { buttonClass, Segmented, Spinner } from '../../../components/ui.tsx';
 import { previewState, visibleSlides } from '../../../lib/intermission.ts';
+import { nextFixture } from '../../../lib/schedule.ts';
 import { overlayText, sampleEvent } from '../../../lib/overlay.ts';
 import { mediaOf } from '../../../lib/overlayMedia.ts';
 import { teamColorVars } from '../../../lib/teamColors.ts';
@@ -202,6 +204,13 @@ function Stage({
   if (pause && !pause.enabled) notice = 'Pausa disattivata: gli spettatori non la vedono.';
   else if (pause && slides.length === 0)
     notice = 'Nessuna diapositiva da mostrare (uno sponsor senza immagini?): la pausa non compare.';
+  const afterMatch = docs.intermissions.afterMatch;
+  const afterMatchPhoto = scene === 'afterMatch' ? afterMatch.image : null;
+  if (scene === 'afterMatch' && afterMatchPhoto === null)
+    notice =
+      'Dopo la partita: scegli una foto e accendi «Mostra la foto dopo la partita», altrimenti la schermata non compare.';
+  else if (scene === 'afterMatch' && !afterMatch.enabled)
+    notice = 'Dopo la partita è spento: gli spettatori non lo vedono (qui lo vedi comunque).';
   if (scene === 'overlay' && !overlay.enabled) notice = 'Avviso spento: gli spettatori non lo vedono.';
   else if (scene === 'overlay' && !overlay.devices[device])
     notice = `Su ${DEVICE_LABELS[device]} questo avviso non compare.`;
@@ -230,6 +239,14 @@ function Stage({
           pageUrl={previewPageUrl()}
           schedule={SAMPLE_SCHEDULE}
           preview={pause}
+        />
+      )}
+      {scene === 'afterMatch' && (docs.intermissions.afterMatch.image ?? null) !== null && (
+        <AfterMatchScreen
+          imageUrl={adminAssetPath(docs.intermissions.afterMatch.image ?? '')}
+          fixture={nextFixture(SAMPLE_SCHEDULE)}
+          device={device}
+          contained
         />
       )}
       {scene === 'overlay' && (

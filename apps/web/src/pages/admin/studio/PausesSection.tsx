@@ -349,19 +349,19 @@ function AfterMatchPreview({ image }: { image: string }) {
 }
 
 /**
- * «Dopo la partita» (in the tab «Fine partita»): on/off, the photo (uploaded here or chosen among the images of the
- * sponsors already loaded) and the minutes after the end of the match.
+ * «Dopo la partita» (in the tab «Fine partita»): on/off, the photo (chosen from the library) and the minutes after the
+ * end of the match; «Vedi nell'anteprima» shows the screen in the big preview.
  */
 export function AfterMatchEditor({
   config,
-  assets,
   onChange,
+  onShow,
 }: {
   config: AfterMatch;
-  assets: AssetListResponse;
   onChange: (change: Partial<AfterMatch>) => void;
+  /** Shows the scene «Dopo la partita» in the big preview of the Studio. */
+  onShow?: (() => void) | undefined;
 }) {
-  const photos = assets.assets.filter((a) => a.kind === 'sponsor');
   return (
     <SettingsCard title="Dopo la partita">
       <p className="text-xs text-muted">
@@ -385,27 +385,6 @@ export function AfterMatchEditor({
           return Promise.resolve();
         }}
       />
-      {photos.length > 0 && (
-        <fieldset className="space-y-1">
-          <legend className="text-sm text-text">Oppure scegli un’immagine già caricata</legend>
-          <ul className="flex flex-wrap gap-2">
-            {photos.map((a, i) => (
-              <li key={a.id}>
-                <label className="flex items-center gap-2 rounded-card border border-border bg-surface px-2 py-1 text-xs text-text">
-                  <input
-                    type="radio"
-                    name="dopo-partita-foto"
-                    checked={config.image === a.id}
-                    onChange={() => onChange({ image: a.id })}
-                  />
-                  <img src={a.url} alt="" className="h-8 w-14 object-cover" />
-                  Immagine {i + 1}
-                </label>
-              </li>
-            ))}
-          </ul>
-        </fieldset>
-      )}
       <label className="flex flex-wrap items-center gap-2 text-sm text-text">
         Minuti dopo la fine della partita
         <input
@@ -420,7 +399,12 @@ export function AfterMatchEditor({
         <span className="text-xs text-muted">Da 0 a {AFTER_MATCH_MAX_DELAY_MINUTES}.</span>
       </label>
       {config.enabled && config.image === null && (
-        <p className="text-sm text-muted">Carica o scegli una foto: senza foto la schermata non compare.</p>
+        <p className="text-sm text-muted">Scegli una foto dalla libreria: senza foto la schermata non compare.</p>
+      )}
+      {onShow && (
+        <Button variant="ghost" onClick={onShow}>
+          Vedi nell’anteprima grande
+        </Button>
       )}
       {config.image !== null && <AfterMatchPreview image={config.image} />}
     </SettingsCard>
@@ -621,6 +605,7 @@ export function PausesSection({
   onSetTab,
   assets,
   sponsors,
+  onShowAfterMatch,
 }: {
   draft: TenantIntermissions;
   onChange: (change: (config: TenantIntermissions) => TenantIntermissions) => void;
@@ -631,6 +616,8 @@ export function PausesSection({
   assets: AssetListResponse;
   /** Sponsors of the client (the sponsor slides choose among them). */
   sponsors: readonly Sponsor[];
+  /** Shows «Dopo la partita» in the preview (scene of the Studio). */
+  onShowAfterMatch?: (() => void) | undefined;
 }) {
   const [announce, setAnnounce] = useState('');
   const target = pauseTargetOf(kind, setTab);
@@ -749,7 +736,7 @@ export function PausesSection({
           {kind === 'matchEnd' && (
             <AfterMatchEditor
               config={draft.afterMatch}
-              assets={assets}
+              onShow={onShowAfterMatch}
               onChange={(patch) => onChange((d) => ({ ...d, afterMatch: { ...d.afterMatch, ...patch } }))}
             />
           )}

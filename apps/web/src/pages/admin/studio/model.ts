@@ -713,10 +713,12 @@ export function overlayPreview(
   sample: RosterSample | null,
   key: number,
   device: LayoutDevice,
-): { event: MatchEvent; background: OverlayBackground | undefined } {
+): { event: MatchEvent; background: OverlayBackground | undefined; player?: { showText: boolean } } {
   const base = sampleEvent(kind, state, side);
   if (!sample || !overlay.playerMedia) return { event: base, background: overlay.background };
   const event: MatchEvent = { ...base, id: `${base.id}-${key}`, player: sample.player };
   const background = playerBackground(overlay, event, side, [sample.media], { videos: device !== 'phone' });
-  return { event, background: background ?? overlay.background };
+  return background
+    ? { event, background, player: { showText: overlay.playerMedia.showText } }
+    : { event, background: overlay.background };
 }

@@ -13,7 +13,7 @@ import { claimOurSide, setTenantLook, tenantLookOf } from '../lib/branding.ts';
 import { overlayFor } from '../lib/overlay.ts';
 import { playerNumbersInPlay, wantedBackgrounds } from '../lib/overlayMedia.ts';
 import { midMatchState } from '../test/fixtures.ts';
-import { Overlay } from './Overlay.tsx';
+import { Overlay, OverlayBanner } from './Overlay.tsx';
 
 const PHOTO = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
 const PHOTO_2 = '4a1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
@@ -115,6 +115,53 @@ describe('overlayFor: photo or video of the player', () => {
   it('the overlays that are not of a player ignore playerMedia', () => {
     const c = config({ tie: { playerMedia: { source: 'photo' } } });
     expect(overlayFor(ace({ kind: 'tie' }), state([]), c, 'tv', 0, 'home', roster(true))?.background).toBeUndefined();
+  });
+});
+
+describe('photo or video of the player: clean, with or without text', () => {
+  const c = (showText: boolean) => config({ ace: { playerMedia: { source: 'video', showText } } });
+
+  it('overlayFor flags the media of the player and carries showText (true when missing)', () => {
+    expect(overlayFor(ace(), state([]), c(false), 'tv', 0, 'home', roster(true))?.player).toEqual({ showText: false });
+    expect(overlayFor(ace(), state([]), c(true), 'tv', 0, 'home', roster(true))?.player).toEqual({ showText: true });
+    const fixed = config({ ace: { background: { kind: 'image', assetId: PHOTO } } });
+    expect(overlayFor(ace(), state([]), fixed, 'tv', 0, 'home', roster(true))?.player).toBeUndefined();
+  });
+
+  const box = (player?: { showText: boolean }) => {
+    const media = { kind: 'video' as const, url: 'blob:v', ...(player ? { player } : {}) };
+    return render(<OverlayBanner text="ACE! Rossi" team="home" device="tv" media={media} />).container;
+  };
+
+  it('no veil over the video of a player; the text is hidden (readable by screen readers only) or on a band of its own', () => {
+    const hidden = box({ showText: false });
+    expect(hidden.querySelector('div[aria-hidden="true"].absolute.inset-0')).toBeNull();
+    expect(hidden.querySelector('[data-player-text="hidden"]')?.className).toBe('sr-only');
+    cleanup();
+    const shown = box({ showText: true });
+    expect(shown.querySelector('div[aria-hidden="true"].absolute.inset-0')).toBeNull();
+    expect(shown.querySelector('[data-player-text="shown"]')?.textContent).toBe('ACE! Rossi');
+    expect(shown.querySelector('video')?.className).not.toMatch(/opacity|blur|filter/);
+  });
+
+  it('the photo of a player fills the screen like a video; a fixed image stays in the box', () => {
+    const at = (player?: { showText: boolean }) =>
+      render(
+        <OverlayBanner
+          text="ACE! Rossi"
+          team="home"
+          device="tv"
+          media={{ kind: 'image', url: 'blob:i', fit: 'fullscreen', ...(player ? { player } : {}) }}
+        />,
+      ).container;
+    expect(at({ showText: true }).querySelector('[data-fit="fullscreen"]')).not.toBeNull();
+    expect(at({ showText: true }).querySelector('div[aria-hidden="true"].absolute.inset-0')).toBeNull();
+    cleanup();
+    expect(at().querySelector('[data-fit="center"]')).not.toBeNull();
+  });
+
+  it('a fixed background keeps its veil', () => {
+    expect(box().querySelector('div[aria-hidden="true"].absolute.inset-0')).not.toBeNull();
   });
 });
 

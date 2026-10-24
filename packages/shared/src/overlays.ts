@@ -163,7 +163,7 @@ export const OVERLAY_PLAYER_PICKS = ['default', 'random'] as const;
 
 /**
  * Photo or video of the player of our team behind the overlay of its action (OVERLAY_PLAYER_KINDS), from the roster
- * («Squadra»); `audio`, `fit` and `duration` as for a video background. Missing (the documents saved before): the fixed
+ * («Squadra»); `audio`, `fit` and `duration` as for a video background; `showText` (missing: true) writes the text over it. Missing (the documents saved before): the fixed
  * background of the overlay.
  */
 export const OverlayPlayerMediaSchema = z.strictObject({
@@ -172,6 +172,8 @@ export const OverlayPlayerMediaSchema = z.strictObject({
   audio: z.boolean().default(false),
   fit: z.enum(OVERLAY_VIDEO_FITS).default('center'),
   duration: z.enum(OVERLAY_VIDEO_DURATIONS).default('seconds'),
+  /** The text of the overlay is written over the photo or video of the player (false: the media only, clean). */
+  showText: z.boolean().default(true),
 });
 export type OverlayPlayerMedia = z.output<typeof OverlayPlayerMediaSchema>;
 

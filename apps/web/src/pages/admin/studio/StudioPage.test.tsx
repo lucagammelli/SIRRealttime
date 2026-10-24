@@ -1136,6 +1136,7 @@ describe('Avvisi', () => {
     const ace = await overlayRow('ace');
     expect(within(ace).getByRole('radio', { name: 'Sfondo fisso dell’avviso' })).toHaveProperty('checked', true);
     expect(within(ace).queryByRole('combobox', { name: 'Quale foto o video: Ace' })).toBeNull();
+    expect(within(ace).queryByRole('checkbox', { name: /Mostra il testo sopra/ })).toBeNull();
     expect(
       within(ace).getByText(
         /Se il giocatore non ha foto né video si usa lo sfondo dell’avviso, altrimenti solo il testo\. Solo per la nostra squadra\./,
@@ -1144,6 +1145,12 @@ describe('Avvisi', () => {
     expect(within(ace).getByRole('link', { name: 'Squadra' }).getAttribute('href')).toBe('/admin/squadra');
     fireEvent.click(within(ace).getByRole('radio', { name: 'Foto del giocatore' }));
     expect(within(ace).queryByRole('checkbox', { name: 'Audio del video del giocatore: Ace' })).toBeNull();
+    // The photo has «Mostra il testo» and «Posizione» too (not «Audio» nor «Durata»).
+    expect(
+      within(ace).getByRole('checkbox', { name: 'Mostra il testo sopra la foto del giocatore: Ace' }),
+    ).toBeTruthy();
+    expect(within(ace).getByRole('combobox', { name: 'Posizione della foto del giocatore: Ace' })).toBeTruthy();
+    expect(within(ace).queryByRole('combobox', { name: /Durata/ })).toBeNull();
     fireEvent.change(within(ace).getByRole('combobox', { name: 'Quale foto o video: Ace' }), {
       target: { value: 'random' },
     });
@@ -1151,6 +1158,9 @@ describe('Avvisi', () => {
     // The choice of «Quale» stays; the options of the video appear.
     expect(within(ace).getByRole('combobox', { name: 'Quale foto o video: Ace' })).toHaveProperty('value', 'random');
     fireEvent.click(within(ace).getByRole('checkbox', { name: 'Audio del video del giocatore: Ace' }));
+    const showText = within(ace).getByRole('checkbox', { name: 'Mostra il testo sopra il video del giocatore: Ace' });
+    expect(showText).toHaveProperty('checked', true);
+    fireEvent.click(showText);
     fireEvent.change(within(ace).getByRole('combobox', { name: 'Posizione del video del giocatore: Ace' }), {
       target: { value: 'fullscreen' },
     });
@@ -1165,6 +1175,7 @@ describe('Avvisi', () => {
       audio: true,
       fit: 'fullscreen',
       duration: 'video',
+      showText: false,
     });
     // Back to the fixed background: no player media.
     fireEvent.click(within(await overlayRow('ace')).getByRole('radio', { name: 'Sfondo fisso dell’avviso' }));

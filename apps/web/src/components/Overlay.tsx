@@ -39,6 +39,12 @@ const VEIL: Record<Side | 'neutral', string> = {
   away: 'bg-away/65',
   neutral: 'bg-primary/65',
 };
+/** Light band only behind the text of a photo or video of a player (the media itself is never covered). */
+const TEXT_BAND: Record<Side | 'neutral', string> = {
+  home: 'bg-home/60',
+  away: 'bg-away/60',
+  neutral: 'bg-primary/60',
+};
 /** Text colour of the box with a background (the box itself has no colour: the media and the veil are under it). */
 const TEXT_TONE: Record<Side | 'neutral', string> = {
   home: 'text-on-home',
@@ -62,7 +68,8 @@ const BOX_SIZE: Record<Device, Record<OverlaySize, string>> = {
 /**
  * The box of an overlay: plain text (never HTML) in the colour of the team of the event, entering with a short
  * animation (none with reduced motion). With `media` (ready in memory) the box is larger, with the image or the video
- * behind the text under a veil of the team colour; a video plays inline and in a loop while the overlay is on, muted
+ * behind the text under a veil of the team colour (the photo or video of a player has no veil: only a light band behind
+ * its text, or no text at all); a video plays inline and in a loop while the overlay is on, muted
  * unless its sound is on (muted anyway when the browser refuses the sound), in the box or on the whole screen
  * (`fit`), never with reduced motion (text only, as without media). Also the «Prova» of the editor.
  */
@@ -102,7 +109,8 @@ export function OverlayBanner({
         {text}
       </div>
     );
-  const fullscreen = shown.kind === 'video' && shown.fit === 'fullscreen';
+  // The photo of a player can fill the screen too, like a video (a fixed image stays in the box).
+  const fullscreen = (shown.kind === 'video' || shown.player !== undefined) && shown.fit === 'fullscreen';
   // On the whole screen (of the page, or of the frame of the preview): the region is only where the text would be.
   const box = fullscreen
     ? 'fixed inset-0'
@@ -128,8 +136,24 @@ export function OverlayBanner({
       ) : (
         <img key={shown.url} src={shown.url} alt="" className="absolute inset-0 size-full object-cover" />
       )}
-      <div aria-hidden="true" className={`absolute inset-0 ${VEIL[tone]}`} />
-      <span className={`relative ${BOX_SIZE[device][size]}`}>{text}</span>
+      {shown.player ? (
+        // Photo or video of a player: as the original file, no veil. The text, when shown, has a band of its own.
+        <span
+          data-player-text={shown.player.showText ? 'shown' : 'hidden'}
+          className={
+            shown.player.showText
+              ? `relative max-w-[90%] rounded-panel ${TEXT_BAND[tone]} ${BOX_SIZE[device][size]}`
+              : 'sr-only'
+          }
+        >
+          {text}
+        </span>
+      ) : (
+        <>
+          <div aria-hidden="true" className={`absolute inset-0 ${VEIL[tone]}`} />
+          <span className={`relative ${BOX_SIZE[device][size]}`}>{text}</span>
+        </>
+      )}
     </div>
   );
 }
@@ -203,9 +227,10 @@ function OverlayVideo({
 function backgroundMedia(
   background: QueuedOverlay['background'],
   ready: ReadonlyMap<string, OverlayMedia>,
+  player?: QueuedOverlay['player'],
 ): OverlayMedia | null {
   const file = background ? ready.get(background.assetId) : undefined;
-  return background && file ? mediaOf(background, file.url) : null;
+  return background && file ? mediaOf(background, file.url, player) : null;
 }
 
 /**
@@ -288,7 +313,7 @@ export function Overlay({
 
   // The video of the overlay on screen, when the overlay follows its length (not on the phone nor with reduced motion:
   // there the video is not shown and the seconds apply).
-  const shownMedia = current ? backgroundMedia(current.background, media) : null;
+  const shownMedia = current ? backgroundMedia(current.background, media, current.player) : null;
   const followsVideo = shownMedia?.kind === 'video' && shownMedia.duration === 'video';
   // Length of that video: its id, the seconds (null: not readable or not started); nothing yet while it loads.
   const [length, setLength] = useState<{ id: string; seconds: number | null } | null>(null);

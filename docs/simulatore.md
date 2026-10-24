@@ -83,6 +83,11 @@ scout. Il formato scritto è quello letto da `docs/dvw-parser.md`.
   scout) dalla versione del simulatore precedente all'«Andamento della partita»: non è stato rigenerato perché i test di
   `packages/volley-stats` ne controllano i numeri. Rigenerato oggi con lo stesso comando darebbe un'altra partita.
 
+## Arresto nella pagina «Simulazione»
+Il pulsante «Arresta» (comando `stop` del server, `docs/server.md`) ferma la simulazione in corso o in pausa subito e per
+sempre: niente altre righe, la partita simulata e il suo link restano con il punteggio raggiunto (stato `stopped`, nessun
+vincitore inventato, mai «live») fino all'eliminazione automatica a 6 ore o a «Elimina». Poi si può «Ricomincia» o avviarne un'altra.
+
 ## API (`tools/dvw-simulator/src/index.ts`)
 - `generateMatch({ seed, sets?, homeName?, awayName?, startTime?, profile? }): GeneratedMatch`. `sets` è 3, 4 o 5
   (default 3); `startTime` è ISO UTC (default `2025-01-18T18:00:00Z`, `DEFAULT_START_TIME`); nomi di default

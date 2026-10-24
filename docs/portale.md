@@ -520,13 +520,13 @@ per riga, come farebbe l'agente (`docs/server.md`, «Simulazione di una partita�
     fermala per avviarne un'altra.».
 - **«Avanzamento»** (sottotitolo «La partita simulata non entra nel canale del club, nel calendario, tra le partite né
   nella partita live.»; senza simulazione «Nessuna simulazione. Scegli la partita e i tempi, poi premi «Avvia».»): stato
-  («In corso», «In pausa», «Fermata», «Finita»), origine della partita, squadre, riquadri «Set», «Punteggio», «Set vinti»,
+  («In corso», «In pausa», «Arrestata», «Finita»), origine della partita, squadre, riquadri «Set», «Punteggio», «Set vinti»,
   «Righe» (inviate / totali), barra «Righe inviate», «Trascorso m:ss · rimanente m:ss» con il ritmo scelto («Velocità N×
   sul ritmo reale» oppure «Set da N s, pausa tra i set di N s»), l'avviso del server (per esempio dopo un riavvio: «La
-  simulazione si è interrotta con il riavvio del server: puoi ricominciarla da capo.») e, a simulazione ferma o in pausa,
+  simulazione si è interrotta con il riavvio del server: puoi ricominciarla da capo.») e, a simulazione arrestata, finita o in pausa,
   «Partita e link si cancellano da soli il … (6 ore dopo la fine o la pausa).». Mentre è «In corso» la pagina rilegge
   l'avanzamento ogni secondo (`SIMULATION_POLL_MS`).
-- **Comandi**: «Pausa» (se in corso), «Riprendi» (se in pausa), «Ferma» (se in corso o in pausa), «Ricomincia» (se i tempi
+- **Comandi**: «Pausa» (se in corso), «Riprendi» (se in pausa), «Arresta» (se in corso o in pausa; chiede conferma con «Conferma arresto» e «Annulla»: la ferma subito e per sempre, la partita resta con il punteggio raggiunto e si può solo ricominciare, eliminare o avviarne un'altra), «Ricomincia» (se i tempi
   sono ancora noti: dopo un riavvio del server no) ed «Elimina» (con conferma «Elimina partita e link»: cancella partita e
   link subito).
 - **«Link della simulazione»** (sottotitolo «Aprilo sulla TV, sul tablet o sul telefono.»): link breve `/l/<codice>` con
@@ -1108,13 +1108,14 @@ Con più stagioni c'è il menu «Stagione», altrimenti la riga «Stagione 2026/
   motivo e «Non più sul sito» (restano nella rosa, con lo stesso segno nella tabella). Finché `import.running` la pagina
   chiede la rosa ogni `ROSTER_POLL_MS` (2 s) e mostra «Foto scaricate: N di M»; l'ultimo errore compare come «Ultima
   importazione: …».
-- **Tabella «Giocatori»**: foto (o il numero), N°, Cognome, Nome, Ruolo (`PLAYER_ROLE_LABELS`), Anno, Altezza, Naz. Il segno ✎
+- **Tabella «Giocatori»**: N°, Cognome, Nome, Ruolo (`PLAYER_ROLE_LABELS`), Anno, Altezza, Naz. La colonna «Foto e video» (`MediaCell`, dati già nella rosa: `photo` e `media` con `url` e `name`) mostra miniature da 32 px, la principale per prima e da 40 px (`loading="lazy"`, alt «Foto di Rossi Mario: nome»; la principale con bordo `ring-primary`; il video è un `<video preload="metadata">` fermo, muto, con ▶ sopra) con il nome del file nel `title`, oppure «Nessuno»; la tabella scorre in orizzontale su telefono. Il segno ✎
   («modificato a mano», anche per i lettori di schermo) compare accanto ai campi di `editedFields`. Per riga (admin):
   «Modifica» (modulo con numero, cognome, nome, ruolo, anno, altezza, luogo di nascita, nazionalità; controllato con
   `CreatePlayerRequestSchema` / `UpdatePlayerRequestSchema`, di un giocatore esistente si inviano solo i campi cambiati con
   `PATCH`), «Foto e video», «Rimuovi» / «Conferma rimozione» (`DELETE`: un giocatore aggiunto a mano si elimina, uno importato
   si segna rimosso). «Aggiungi giocatore» (solo nella stagione più recente; `POST`) apre lo stesso modulo. «Mostra rimossi (N)»
   li mostra attenuati con «Ripristina» (`PATCH removed: false`). Il numero già usato dà l'errore del server (409).
+- **Pannello laterale** (`components/Drawer.tsx`, su `useModalDialog`): «Modifica», «Aggiungi giocatore» e «Foto e video» non stanno più sotto la tabella ma in un drawer da destra con sfondo scurito (`role="dialog"`, `aria-modal`, titolo, pulsante «×» «Chiudi» in alto a destra, focus sul primo campo e ritorno al pulsante alla chiusura, Esc, clic fuori e «Annulla» chiudono, Tab intrappolato; a tutta larghezza sul telefono, `sm:max-w-xl` oltre). Nessuna conferma per modifiche non salvate (il portale non la usa altrove).
 - **«Foto e video»** (`MediaEditor`, `PUT /api/admin/roster/players/:id/media`): foto principale (menu «Nessuna» + immagini) e
   «Altre foto e video» (caselle con anteprima, al massimo `PLAYER_MEDIA_MAX` = 12 file, di cui `PLAYER_VIDEOS_MAX` = 3 video),
   **solo tra i file della libreria di tipo `player`** (`GET /api/admin/assets`, `playerFiles`); il collegamento «Carica nella

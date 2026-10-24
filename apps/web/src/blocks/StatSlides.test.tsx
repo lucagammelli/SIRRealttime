@@ -12,7 +12,7 @@ import type { SlideEnv, SlideSize } from './IntermissionSlides.tsx';
 import { renderSlide } from './IntermissionSlides.tsx';
 import { loadSampleMatch } from './sampleMatch.ts';
 import { playerName } from '../lib/format.ts';
-import { ROLE_LABELS } from './StatSlides.tsx';
+import { MirrorRow, ROLE_LABELS } from './StatSlides.tsx';
 
 vi.mock('../charts/EChart.tsx', () => ({
   EChart: ({ label }: { label: string }) => <div role="img" aria-label={label} />,
@@ -318,6 +318,32 @@ describe('rows value/bar and long names: never one over the other', () => {
       expect(line.querySelector('[data-value="home"]')?.textContent).toBe(text(row.home));
       expect(line.querySelector('[data-value="away"]')?.textContent).toBe(text(row.away));
     });
+  });
+
+  it('mirror rows: each value always in the colour of its team, the leader in bold, the other medium, both bold on a tie', () => {
+    const cell = (home: number, away: number, side: 'home' | 'away'): string => {
+      const { container, unmount } = render(
+        <MirrorRow label="Punti" kind="count" home={home} away={away} size="full" />,
+      );
+      const cls = container.querySelector(`[data-value="${side}"]`)?.className ?? '';
+      unmount();
+      return cls;
+    };
+    for (const [h, a] of [
+      [5, 2],
+      [2, 5],
+      [0, 0],
+    ] as const) {
+      expect(cell(h, a, 'home')).toContain('text-home-ink');
+      expect(cell(h, a, 'away')).toContain('text-away-ink');
+      expect(cell(h, a, 'home')).not.toContain('text-text');
+    }
+    expect(cell(5, 2, 'home')).toContain('font-bold');
+    expect(cell(5, 2, 'away')).toContain('font-medium');
+    expect(cell(2, 5, 'home')).toContain('font-medium');
+    expect(cell(2, 5, 'away')).toContain('font-bold');
+    expect(cell(0, 0, 'home')).toContain('font-bold');
+    expect(cell(0, 0, 'away')).toContain('font-bold');
   });
 
   it('every row is one grid bar | value | label | value | bar: values in their own columns, at least «100,0%»', () => {

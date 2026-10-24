@@ -846,8 +846,8 @@ come l'agente), così il comportamento è quello vero; la partita però è **iso
 - **Rotte** (`simulationRoutes`, solo admin, rate limit `admin`, il superadmin nel cliente in cui è entrato, il viewer 403):
   `GET /api/admin/simulation` (simulazione e squadre del club: `SimulationResponse`), `POST /api/admin/simulation`
   (avvia, 201; corpo fino a circa 2,7 MB: `SIMULATION_UPLOAD_MAX_BASE64_LENGTH` + 64 KB),
-  `POST /api/admin/simulation/:command` con `pause`, `resume`, `stop` o `restart` (`SIMULATION_COMMANDS`; 404 senza
-  simulazione, 409 se il comando non è ammesso nello stato), `DELETE /api/admin/simulation` (204).
+  `POST /api/admin/simulation/:command` con `pause`, `resume`, `stop` («Arresta» nella pagina) o `restart` (`SIMULATION_COMMANDS`; 404 senza
+  simulazione, 409 se il comando non è ammesso nello stato; `stop` è idempotente: su una simulazione già arrestata o finita risponde 200 senza cambiare nulla), `DELETE /api/admin/simulation` (204).
 - **Isolamento** (colonna `matches.simulated`, migrazione `drizzle/0009_simulazione.sql`, indice parziale
   `matches_simulated_idx`): una partita simulata non è mai `live` né ha `live_since`; non viene mai abbinata al calendario;
   `switchOffOthers` non scatta e le partite live vere restano come sono; la rotta di pubblicazione è `isolated: true`

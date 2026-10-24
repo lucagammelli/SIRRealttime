@@ -1,7 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { createContext, Fragment, useContext, useEffect, useId, useRef, useState } from 'react';
 import { useTouch } from '../lib/useLayout.ts';
-import { FitCellContext, FitToBox } from './FitToBox.tsx';
 
 /**
  * A name of the scout file (team, player) that may wrap also after `_`, `/`, `-` and `.` («PERUGIA_AMICHEVOLI»):
@@ -61,7 +60,6 @@ export function Card({
   const [open, setOpen] = useState(collapse.defaultOpen);
   const bodyId = useId();
   const shown = !collapsible || open;
-  const fit = useContext(FitCellContext) && !touch;
   return (
     <section
       className={`sir-surface sir-card flex min-w-0 flex-col rounded-panel border border-border shadow-card ${className}`}
@@ -107,14 +105,12 @@ export function Card({
         </header>
       )}
       {/* Closed: the body stays as the target of aria-controls, empty (charts are built when it opens). */}
-      {/* In a cell of a screen without touch the body never scrolls: its content fits it (scaled, «+N»). */}
       <div
         id={bodyId}
         hidden={!shown}
-        data-fit={fit ? '' : undefined}
-        className={`sir-card-body min-h-0 flex-1 px-4 pb-4 pt-3 sm:px-5 ${fit ? '' : bodyClassName}`}
+        className={`sir-card-body min-h-0 flex-1 px-4 pb-4 pt-3 sm:px-5 ${bodyClassName}`}
       >
-        {shown && (fit ? <FitToBox className={bodyClassName}>{children}</FitToBox> : children)}
+        {shown && children}
       </div>
     </section>
   );

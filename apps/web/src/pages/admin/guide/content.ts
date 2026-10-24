@@ -175,7 +175,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'In «Pagina live», per ogni dispositivo (TV, Tablet, Telefono), l’interruttore «Touch: Sì/No» decide se la pagina pubblica ha qualcosa da toccare. Con «No» spariscono pulsanti, selettori, ordinamento delle colonne, link degli sponsor e pulsanti di schermo intero, tema e pause, e i grafici restano sulla vista predefinita. Su una TV senza touch la rotazione dei blocchi continua da sola. Senza touch niente scorre, su nessun dispositivo: anche tablet e telefono diventano schermate che si alternano da sole come sulla TV, e una scheda con più righe di quante ne stanno si rimpicciolisce; se non basta, le ultime righe diventano un segno «+N» (per esempio «+3» giocatori non mostrati).',
+        text: 'In «Pagina live», per ogni dispositivo (TV, Tablet, Telefono), l’interruttore «Touch: Sì/No» decide se la pagina pubblica ha qualcosa da toccare. Con «No» spariscono pulsanti, selettori, ordinamento delle colonne, link degli sponsor e pulsanti di schermo intero, tema e pause, e i grafici restano sulla vista predefinita. Su una TV senza touch la rotazione dei blocchi continua da sola. Senza touch niente scorre, su nessun dispositivo: anche tablet e telefono diventano schermate che si alternano da sole come sulla TV, e le schede restano alla loro dimensione piena: se hanno più righe di quante ne stanno, quelle in eccesso non si vedono (tagliate dal bordo della scheda, senza barra di scorrimento).',
       },
       {
         kind: 'text',
@@ -183,7 +183,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'In «Pause», sotto «Come si mostra», «Dimensione a tutto schermo» decide quanto sono grandi le diapositive dove la pausa è a «Tutto schermo»: «Normale» (come sono disegnate, scorrono se non ci stanno), «Grande» (più grandi, finché stanno nello schermo) o «Riempi lo schermo» (occupano tutto lo spazio, senza scorrere). La banda in basso non cambia. Sui dispositivi con «Touch: No» le diapositive non scorrono mai: con «Normale» e «Grande» si rimpiccioliscono quanto serve per stare nello schermo.',
+        text: 'In «Pause», sotto «Come si mostra», «Dimensione a tutto schermo» decide quanto sono grandi le diapositive dove la pausa è a «Tutto schermo»: «Normale» (come sono disegnate, scorrono se non ci stanno), «Grande» (più grandi, finché stanno nello schermo) o «Riempi lo schermo» (occupano tutto lo spazio, senza scorrere). La banda in basso non cambia. Sui dispositivi con «Touch: No» le diapositive non scorrono mai: hanno la stessa dimensione e quello che non ci sta nello schermo non si vede.',
       },
       {
         kind: 'text',

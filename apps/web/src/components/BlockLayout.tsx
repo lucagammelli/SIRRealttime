@@ -24,7 +24,6 @@ import {
   useTicker,
   useTouch,
 } from '../lib/useLayout.ts';
-import { FitCellContext } from './FitToBox.tsx';
 import { CardCollapseContext } from './ui.tsx';
 
 /** Columns of a block on the 12-column grid (tablet and big screen); written out for Tailwind. */
@@ -68,8 +67,8 @@ const studioAttrs = (block: LayoutBlock): Record<'data-studio-block' | 'data-stu
  *   and the height of every row come only from the layout and from the heights of the types and of the options
  *   (`TV_BLOCK_MIN_REM`, `blockMinRem`: rows of the lists chosen), never from the content of the moment: an empty block (start of the match) takes the same cell it will have with
  *   the data, and the screens do not change when the data arrive. With touch a card taller than its cell scrolls
- *   inside its body (`index.css`); without touch it never scrolls: its content fits the cell (`FitToBox` in `Card`:
- *   scaled down, then «+N» rows), never cut without a sign.
+ *   inside its body (`index.css`); without touch it never scrolls: the card keeps its full size and what does not fit its cell is cut
+ *   (overflow hidden, choice of Luca), never scaled.
  * Without touch (option «Touch» of the device) the phone and the tablet are laid out in screens like the big screen
  * (nobody can scroll them): same rotation, the columns of their own grid (`screenWidth`).
  */
@@ -204,7 +203,7 @@ function TvLayout({
                   {...studioAttrs(block)}
                   className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${span(block)}`}
                 >
-                  <FitCellContext.Provider value={true}>{renderBlock(block, device)}</FitCellContext.Provider>
+                  {renderBlock(block, device)}
                 </div>
               ))}
             </div>

@@ -1,17 +1,7 @@
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { FIT_LIMITS, fitLimits, largestFit, SlideFit } from './SlideFit.tsx';
-
-describe('fitLimits', () => {
-  it('with touch as chosen («Normale» not scaled); without touch every size also shrinks, never scrolls', () => {
-    expect(fitLimits('normal', true)).toBeNull();
-    expect(fitLimits('large', true)).toEqual(FIT_LIMITS.large);
-    expect(fitLimits('fill', true)).toEqual(FIT_LIMITS.fill);
-    expect(fitLimits('normal', false)).toEqual({ min: FIT_LIMITS.fill.min, max: 1 });
-    expect(fitLimits('large', false)).toEqual({ min: FIT_LIMITS.fill.min, max: FIT_LIMITS.large.max });
-    expect(fitLimits('fill', false)).toEqual(FIT_LIMITS.fill);
-  });
-});
+import { TouchContext } from '../lib/useLayout.ts';
+import { FIT_LIMITS, largestFit, SlideFit } from './SlideFit.tsx';
 
 describe('largestFit', () => {
   it('gives the largest scale that fits, the maximum when all fit and the minimum when none does', () => {
@@ -77,6 +67,23 @@ describe('SlideFit', () => {
     const box = container.querySelector('[data-studio-slide="a"]');
     expect(box?.className).toContain('overflow-y-auto');
     expect(container.querySelector('[data-slide-fit]')).toBeNull();
+  });
+
+  it('without touch never scrolls: what does not fit is cut, «Normale» still not scaled', () => {
+    for (const size of ['normal', 'large', 'fill'] as const) {
+      const { container, unmount } = render(
+        <TouchContext.Provider value={false}>
+          <SlideFit size={size} data-studio-slide="a">
+            <p>Slide</p>
+          </SlideFit>
+        </TouchContext.Provider>,
+      );
+      const box = container.querySelector('[data-studio-slide="a"]');
+      expect(box?.className).toContain('overflow-hidden');
+      expect(box?.className).not.toContain('overflow-y-auto');
+      if (size === 'normal') expect(container.querySelector('[style*="scale"]')).toBeNull();
+      unmount();
+    }
   });
 
   it('without layout (no measures) the slide is not scaled', () => {

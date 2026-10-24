@@ -1,7 +1,6 @@
 import type { BlockOptions } from '@arenalive/shared';
 import type { Side } from '@arenalive/volley-stats';
 import { topPlayers } from '@arenalive/volley-stats';
-import { FitRows, MoreRows } from '../components/FitToBox.tsx';
 import { Partials } from '../components/Scoreboard.tsx';
 import { Card, Empty } from '../components/ui.tsx';
 import { playerName, teamName, teamShort } from '../lib/format.ts';
@@ -82,38 +81,25 @@ export function TopPlayersBlock({ options, env }: { options: BlockOptions<'topPl
               </th>
             </tr>
           </thead>
-          <FitRows count={rows.length}>
-            {(fit) => (
-              <tbody data-fit-list={rows.length} className="divide-y divide-grid">
-                {rows.slice(0, fit.shown).map((p) => (
-                  <tr key={`${p.team}-${p.number}`}>
-                    <th scope="row" className="py-1.5 pr-2 text-left font-medium text-text">
-                      <span className={`tabular mr-2 font-bold ${TEXT[p.team]}`}>{p.number}</span>
-                      {playerName(p.player ?? undefined, p.number)}
-                      {options.team === 'both' && (
-                        <span className={`ml-2 text-xs font-semibold ${TEXT[p.team]}`}>
-                          {teamShort(state.teams, p.team)}
-                        </span>
-                      )}
-                    </th>
-                    <td className="tabular px-1 py-1.5 text-right text-muted">{p.attackKills}</td>
-                    <td className="tabular px-1 py-1.5 text-right text-muted">{p.blockKills}</td>
-                    <td className="tabular px-1 py-1.5 text-right text-muted">{p.aces}</td>
-                    <td className="tabular py-1.5 pl-1 text-right font-display text-lg font-bold text-text">
-                      {p.points}
-                    </td>
-                  </tr>
-                ))}
-                {fit.hidden > 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-1.5">
-                      <MoreRows hidden={fit.hidden} />
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            )}
-          </FitRows>
+          <tbody className="divide-y divide-grid">
+            {rows.map((p) => (
+              <tr key={`${p.team}-${p.number}`}>
+                <th scope="row" className="py-1.5 pr-2 text-left font-medium text-text">
+                  <span className={`tabular mr-2 font-bold ${TEXT[p.team]}`}>{p.number}</span>
+                  {playerName(p.player ?? undefined, p.number)}
+                  {options.team === 'both' && (
+                    <span className={`ml-2 text-xs font-semibold ${TEXT[p.team]}`}>
+                      {teamShort(state.teams, p.team)}
+                    </span>
+                  )}
+                </th>
+                <td className="tabular px-1 py-1.5 text-right text-muted">{p.attackKills}</td>
+                <td className="tabular px-1 py-1.5 text-right text-muted">{p.blockKills}</td>
+                <td className="tabular px-1 py-1.5 text-right text-muted">{p.aces}</td>
+                <td className="tabular py-1.5 pl-1 text-right font-display text-lg font-bold text-text">{p.points}</td>
+              </tr>
+            ))}
+          </tbody>
         </table>
       )}
     </Card>

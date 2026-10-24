@@ -4,7 +4,6 @@ import type { BlockBrand } from '../blocks/env.ts';
 import type { Device } from '../lib/layout.ts';
 import type { LiveSnapshot } from '../lib/liveConnection.ts';
 import { ConnectionBadge } from './ConnectionBadge.tsx';
-import { FitToBox } from './FitToBox.tsx';
 import { MatchView } from './MatchView.tsx';
 import { NextMatch } from './NextMatch.tsx';
 import { StatusScreen } from './StatusScreen.tsx';
@@ -77,14 +76,9 @@ export function LiveMatch({
   }
   if (data.kind === 'scheduled') {
     return (
-      <div className={screens ? 'h-full min-h-0' : ''}>
-        {screens && layout?.touch[device ?? 'tablet'] === false ? (
-          <FitToBox>
-            <NextMatch fixture={data.fixture} status={badge} {...(device ? { device } : {})} />
-          </FitToBox>
-        ) : (
-          <NextMatch fixture={data.fixture} status={badge} {...(device ? { device } : {})} />
-        )}
+      // Screens without scrolling: what does not fit the page is cut (choice of Luca), never scaled.
+      <div className={screens ? 'h-full min-h-0 overflow-hidden' : ''}>
+        <NextMatch fixture={data.fixture} status={badge} {...(device ? { device } : {})} />
       </div>
     );
   }

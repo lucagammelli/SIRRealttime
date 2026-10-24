@@ -5,7 +5,6 @@ import type { LayoutBlock } from './layout.ts';
 import {
   blockMinRem,
   blocksFor,
-  raiseMeasured,
   defaultLayouts,
   deviceFor,
   tabletSpan,
@@ -21,6 +20,9 @@ import {
   tvModeOf,
   tvZoom,
   TV_MAX_SHRINK,
+  TV_LIST_ROW_REM,
+  TV_PLAYERS_ROWS,
+  tvContentRem,
 } from './layout.ts';
 
 let next = 0;
@@ -119,16 +121,14 @@ describe('default page of the template', () => {
     expect(templateLayouts.standard).toEqual(defaultLayouts);
   });
 
-  it('fits the page of the mockup in one 16:9 screen of the big screen', () => {
+  it('the page of the mockup on the big screen: two screens, the player table whole', () => {
     // 1920 × 1080 with --sir-tv-font-size of the template: 1 rem = 17.28 px; about 40 rem under the scoreboard.
-    const groups = tvGroups(templateLayouts['sir-volley'].tv, 40, 1, tvMinRemFor('sir-volley'));
-    expect(groups).toHaveLength(1);
-    expect(types(groups)).toEqual([
-      [
-        ['momentum', 'comparison', 'court'],
-        ['players', 'rotations'],
-      ],
-    ]);
+    // The table of the players of a team (14 rows) needs 36 rem: 18 + 1 + 36 = 55 > 40 / 0.85, so two screens.
+    const minRem = tvMinRemFor('sir-volley');
+    const groups = tvGroups(templateLayouts['sir-volley'].tv, 40, 1, minRem, TV_MAX_SHRINK);
+    expect(types(groups)).toEqual([[['momentum', 'comparison', 'court']], [['players', 'rotations']]]);
+    expect(groupMinRem(groups[1] ?? [], 1, minRem)).toBe(36);
+    expect(tvZoom(groupMinRem(groups[1] ?? [], 1, minRem), 40)).toBe(1);
     expect(tvMinRemFor('standard')).toBe(TV_BLOCK_MIN_REM);
   });
 });
@@ -181,7 +181,10 @@ describe('packRows', () => {
   });
 
   it('measures a row by its tallest block', () => {
-    expect(rowMinRem([block({ type: 'momentum', width: 6 }), block({ type: 'players', width: 6 })])).toBe(22);
+    expect(rowMinRem([block({ type: 'momentum', width: 6 }), block({ type: 'comparison', width: 6 })])).toBe(18);
+    // The players of a team (14 rows), whatever the template.
+    expect(rowMinRem([block({ type: 'momentum', width: 6 }), block({ type: 'players', width: 6 })])).toBe(36);
+    expect(rowMinRem([block({ type: 'players', width: 6 })], tvMinRemFor('sir-volley'))).toBe(36);
   });
 });
 
@@ -194,41 +197,34 @@ describe('screens of a TV page with long lists (sir-volley, 1920 × 1080: 1 rem 
     block({ type: 'attack', width: 4 }),
     block({ type: 'setScorers', width: 12 }),
     block({ type: 'court', width: 8 }),
-    block({ type: 'rotations', width: 4 }),
+    block({ type: 'rotations', width: 4, options: { orientation: 'vertical' } }),
   ];
-  // Heights measured on the real screen with 3 attackers and 5 scorers per team (rem).
-  const measuredOf = (tv: LayoutBlock[]): Record<string, number> => {
-    const id = (type: string) => tv.find((b) => b.type === type)?.id ?? '';
-    return { [id('attack')]: 21.43, [id('setScorers')]: 21.03, [id('rotations')]: 21.66 };
-  };
+  // Heights measured on the real screen with 3 attackers and 5 scorers per team: 21.43, 21.03 and 21.66 rem (vertical
+  // rotations). The heights from the options hold them, so the screens are the same with and without data.
   const minRem = tvMinRemFor('sir-volley');
 
-  it('before: the measured heights do not fit two rows in one screen, three screens', () => {
+  it('two screens, the first scaled down, from the layout only', () => {
     const tv = page();
-    expect(types(tvGroups(tv, 40.1, 1, minRem, measuredOf(tv)))).toEqual([
+    const groups = tvGroups(tv, 40.1, 1, minRem, TV_MAX_SHRINK);
+    expect(types(groups)).toEqual([[['aces', 'blocks', 'attack'], ['setScorers']], [['court', 'rotations']]]);
+    const first = groups[0] ?? [];
+    const needed = 14 + 3 * 2.55 + 1 + 8.5 + 5 * 2.55;
+    expect(groupMinRem(first, 1, minRem)).toBeCloseTo(needed, 5);
+    expect(tvZoom(groupMinRem(first, 1, minRem), 40.1)).toBeCloseTo(40.1 / needed, 3);
+    expect(tvZoom(groupMinRem(groups[1] ?? [], 1, minRem), 40.1)).toBe(1);
+  });
+
+  it('without scaling down: three screens', () => {
+    expect(types(tvGroups(page(), 40.1, 1, minRem))).toEqual([
       [['aces', 'blocks', 'attack']],
       [['setScorers']],
       [['court', 'rotations']],
     ]);
   });
 
-  it('a screen may need up to 1 / TV_MAX_SHRINK of the space: two screens, the first scaled down', () => {
-    const tv = page();
-    const measured = measuredOf(tv);
-    const groups = tvGroups(tv, 40.1, 1, minRem, measured, TV_MAX_SHRINK);
-    expect(types(groups)).toEqual([[['aces', 'blocks', 'attack'], ['setScorers']], [['court', 'rotations']]]);
-    const first = groups[0] ?? [];
-    expect(groupMinRem(first, 1, minRem, measured)).toBeCloseTo(21.43 + 1 + 21.03, 5);
-    expect(tvZoom(groupMinRem(first, 1, minRem, measured), 40.1)).toBeCloseTo(40.1 / 43.46, 3);
-    // The last screen fits as it is.
-    expect(tvZoom(groupMinRem(groups[1] ?? [], 1, minRem, measured), 40.1)).toBe(1);
-  });
-
   it('never makes a screen smaller than TV_MAX_SHRINK: a row too tall for it goes to the next screen', () => {
-    const tv = page();
-    const measured = { ...measuredOf(tv), [tv[4]?.id ?? '']: 30 };
-    // 21.43 + 1 + 30 = 52.43 > 40.1 / 0.85 = 47.2
-    expect(types(tvGroups(tv, 40.1, 1, minRem, measured, TV_MAX_SHRINK))[0]).toEqual([['aces', 'blocks', 'attack']]);
+    // 21.65 + 1 + 21.25 = 43.9 > 36 / 0.85 = 42.4
+    expect(types(tvGroups(page(), 36, 1, minRem, TV_MAX_SHRINK))[0]).toEqual([['aces', 'blocks', 'attack']]);
     expect(tvZoom(60, 40.1)).toBe(TV_MAX_SHRINK);
   });
 });
@@ -255,11 +251,11 @@ describe('tvGroups', () => {
   });
 
   it('splits the rows in groups by the available height (gaps included)', () => {
-    // Rows: 18, 22, 22 rem; gap 1.
-    expect(types(tvGroups(tv, 41))).toEqual([[['momentum', 'comparison'], ['players']], [['court', 'rotations']]]);
-    expect(types(tvGroups(tv, 40.9))).toEqual([[['momentum', 'comparison']], [['players']], [['court', 'rotations']]]);
-    expect(types(tvGroups(tv, 45))).toEqual([[['momentum', 'comparison'], ['players']], [['court', 'rotations']]]);
-    expect(types(tvGroups(tv, 64))).toHaveLength(1);
+    // Rows: 18, 36 (the 14 players of a team), 22 rem; gap 1.
+    expect(types(tvGroups(tv, 55))).toEqual([[['momentum', 'comparison'], ['players']], [['court', 'rotations']]]);
+    expect(types(tvGroups(tv, 54.9))).toEqual([[['momentum', 'comparison']], [['players']], [['court', 'rotations']]]);
+    expect(types(tvGroups(tv, 59))).toEqual([[['momentum', 'comparison'], ['players']], [['court', 'rotations']]]);
+    expect(types(tvGroups(tv, 78))).toHaveLength(1);
   });
 
   it('keeps a row taller than the space as a group of its own, and never shows the scoreboard in a group', () => {
@@ -279,30 +275,51 @@ describe('rotationIndex', () => {
   });
 });
 
-describe('heights measured on the big screen', () => {
-  it('raise the smallest height of a block, never lower it', () => {
-    const b = block({ type: 'comparison', width: 4 });
-    expect(blockMinRem(b)).toBe(18);
-    expect(blockMinRem(b, TV_BLOCK_MIN_REM, { [b.id]: 30 })).toBe(30);
-    expect(blockMinRem(b, TV_BLOCK_MIN_REM, { [b.id]: 10 })).toBe(18);
+describe('heights of the blocks on the big screen', () => {
+  it('come from the type, «Rotazioni» in vertical is taller', () => {
+    expect(blockMinRem(block({ type: 'comparison', width: 4 }))).toBe(18);
+    expect(blockMinRem(block({ type: 'rotations', width: 4 }))).toBe(14);
+    expect(blockMinRem(block({ type: 'rotations', width: 4, options: { orientation: 'vertical' } }))).toBe(22);
   });
 
-  it('keep the same object when nothing needs more (no new render)', () => {
-    const known = { a: 20 };
-    expect(raiseMeasured(known, {})).toBe(known);
-    expect(raiseMeasured(known, { a: 20.05 })).toBe(known);
-    expect(raiseMeasured(known, { a: 19 })).toBe(known);
-    expect(raiseMeasured(known, { a: 25, b: 12 })).toEqual({ a: 25, b: 12 });
+  it('the blocks with lists take the height of the rows their options let them show', () => {
+    // Measured on the real screen: 3 attackers 21.43 rem, 5 scorers 21.03 rem.
+    expect(blockMinRem(block({ type: 'attack', width: 4 }))).toBeGreaterThanOrEqual(21.43);
+    expect(blockMinRem(block({ type: 'setScorers', width: 12 }))).toBeGreaterThanOrEqual(21.03);
+    const scorers8 = blockMinRem(block({ type: 'setScorers', width: 12, options: { limit: 8 } }));
+    expect(scorers8).toBeCloseTo(8.5 + 8 * TV_LIST_ROW_REM, 5);
+    expect(blockMinRem(block({ type: 'attack', width: 4, options: { limit: 5 } }))).toBeCloseTo(14 + 5 * 2.55, 5);
+    const top10 = blockMinRem(block({ type: 'topPlayers', width: 4, options: { count: 10 } }));
+    expect(top10).toBe(32);
+    expect(top10).toBeGreaterThan(blockMinRem(block({ type: 'topPlayers', width: 4, options: { count: 5 } })));
+    expect(blockMinRem(block({ type: 'standings', width: 4, options: { scope: 'top', count: 16 } }))).toBe(39);
+    expect(blockMinRem(block({ type: 'standings', width: 4, options: { scope: 'all' } }))).toBe(39);
+    expect(blockMinRem(block({ type: 'standings', width: 4 }))).toBe(20);
+    expect(blockMinRem(block({ type: 'players', width: 12 }))).toBe(8 + TV_PLAYERS_ROWS * 2);
   });
 
-  it('make the groups again: a block that needs more pushes the next row to another screen', () => {
-    const tv = defaultLayouts.tv;
-    // Rows 18, 22, 22 rem: 41 rem hold the first two.
-    expect(types(tvGroups(tv, 41))[0]).toEqual([['momentum', 'comparison'], ['players']]);
-    const comparison = tv.find((b) => b.type === 'comparison');
-    if (!comparison) throw new Error('comparison');
-    const groups = tvGroups(tv, 41, 1, TV_BLOCK_MIN_REM, { [comparison.id]: 25 });
-    expect(types(groups)).toEqual([[['momentum', 'comparison']], [['players']], [['court', 'rotations']]]);
-    expect(rowMinRem([comparison], TV_BLOCK_MIN_REM, { [comparison.id]: 25 })).toBe(25);
+  it('a narrow card puts the two lists one under the other: twice the rows', () => {
+    // 1920 px at 24 px per rem: 80 rem; 4 columns = 4 × 5.75 + 3 − 2.5 = 23.5 rem of content, under 28.
+    expect(tvContentRem(4, 80)).toBeCloseTo(23.5, 5);
+    expect(tvContentRem(4, Number.NaN)).toBe(Number.POSITIVE_INFINITY);
+    const scorers = block({ type: 'setScorers', width: 4, options: { limit: 8 } });
+    expect(blockMinRem(scorers, TV_BLOCK_MIN_REM, 80)).toBeCloseTo(8.5 + 16 * TV_LIST_ROW_REM + 1, 5);
+    expect(blockMinRem({ ...scorers, width: 12 }, TV_BLOCK_MIN_REM, 80)).toBeCloseTo(8.5 + 8 * TV_LIST_ROW_REM, 5);
+  });
+
+  it('the screens follow the options: more scorers push the next row to another screen', () => {
+    const tv = [
+      block({ type: 'scoreboard', width: 12 }),
+      block({ type: 'setScorers', width: 12 }),
+      block({ type: 'topPlayers', width: 12 }),
+    ];
+    expect(tvGroups(tv, 40.1, 1, TV_BLOCK_MIN_REM, TV_MAX_SHRINK)).toHaveLength(1);
+    const more = tv.map((b) =>
+      b.type === 'setScorers' ? block({ type: 'setScorers', width: 12, options: { limit: 8 } }) : b,
+    );
+    const long = more.map((b) =>
+      b.type === 'topPlayers' ? block({ type: 'topPlayers', width: 12, options: { count: 10 } }) : b,
+    );
+    expect(tvGroups(long, 40.1, 1, TV_BLOCK_MIN_REM, TV_MAX_SHRINK)).toHaveLength(2);
   });
 });

@@ -1,3 +1,4 @@
+import type { CourtOrientation } from '@arenalive/shared';
 import type { MatchState, Side, ZoneCell } from '@arenalive/volley-stats';
 
 export type ZoneSkill = 'attack' | 'serve';
@@ -110,7 +111,8 @@ export function zonePlayers(state: MatchState, side: Side, skill: ZoneSkill): nu
 
 /**
  * Court geometry (viewBox 0 0 200 110, net at x = 100, 10 units per metre).
- * The team of the filter plays on the left facing right; the opponent on the right facing left.
+ * Half `own`: the left one, its team facing right; half `opponent`: the right one, its team facing left (rotated by
+ * 180°). Which team plays where is said by `courtLayout`.
  * Zones of a half seen from its own players: front row 4-3-2, middle 7-8-9, back 5-6-1 (left to right).
  */
 export const COURT = { x0: 10, x1: 190, y0: 10, y1: 100, net: 100, cell: 30 } as const;
@@ -148,6 +150,28 @@ export function zoneRect(zone: string, half: CourtHalf): { x: number; y: number;
 export function zoneCenter(zone: string, half: CourtHalf): { x: number; y: number } | null {
   const r = zoneRect(zone, half);
   return r ? { x: r.x + r.w / 2, y: r.y + r.h / 2 } : null;
+}
+
+export interface CourtLayout {
+  /** Teams in the left and right half. */
+  left: Side;
+  right: Side;
+  /** Half of the starting zones of the shown team and half of the arrival zones (the other one). */
+  from: CourtHalf;
+  to: CourtHalf;
+}
+
+/**
+ * Halves of the map for the team shown. As the scoreboard (`scoreboard`): home on the left, away on the right, the
+ * arrows of the away team start on the right and arrive on the left. `shown`: the team shown always on the left. The
+ * zones are those of the team that plays in the half (DVW numbers them for who executes), so the right half always uses
+ * the rotated geometry.
+ */
+export function courtLayout(side: Side, orientation: CourtOrientation): CourtLayout {
+  const left: Side = orientation === 'scoreboard' ? 'home' : side;
+  const right: Side = left === 'home' ? 'away' : 'home';
+  const from: CourtHalf = left === side ? 'own' : 'opponent';
+  return { left, right, from, to: from === 'own' ? 'opponent' : 'own' };
 }
 
 export const ZONES = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;

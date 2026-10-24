@@ -203,7 +203,8 @@ const valueText = (kind: 'count' | 'ratio', v: number | null): string =>
 
 /**
  * One mirrored row: value and bar of the home team growing to the left, the name of the row in the middle, bar and
- * value of the away team growing to the right; the better value in bold and in the colour of its team.
+ * value of the away team growing to the right; each value always in the colour of its own team (`-ink` sits at the
+ * minimum contrast, so no fading): the better one in bold, the other in medium weight, both bold on a tie.
  */
 export function MirrorRow({
   label,
@@ -226,6 +227,7 @@ export function MirrorRow({
   const shares = barShares({ kind, home, away });
   const best = leader({ better, home, away });
   const { value, bar, rowLabel } = typeOf(size, dense);
+  const weight = (side: Side): string => (best === null || best === side ? 'font-bold' : 'font-medium');
   // One grid: bar | value | label | value | bar. The values have their own columns, at least 6 characters wide
   // («100,0%») with tabular figures: a value never covers its bar or the label, whatever the width of the card.
   return (
@@ -241,7 +243,7 @@ export function MirrorRow({
       </span>
       <span
         data-value="home"
-        className={`tabular-nums min-w-[6ch] whitespace-nowrap text-right font-display font-bold ${value} ${best === 'home' ? INK.home : 'text-text'}`}
+        className={`tabular-nums min-w-[6ch] whitespace-nowrap text-right font-display ${weight('home')} ${value} ${INK.home}`}
       >
         {valueText(kind, home)}
       </span>
@@ -250,7 +252,7 @@ export function MirrorRow({
       </span>
       <span
         data-value="away"
-        className={`tabular-nums min-w-[6ch] whitespace-nowrap text-left font-display font-bold ${value} ${best === 'away' ? INK.away : 'text-text'}`}
+        className={`tabular-nums min-w-[6ch] whitespace-nowrap text-left font-display ${weight('away')} ${value} ${INK.away}`}
       >
         {valueText(kind, away)}
       </span>

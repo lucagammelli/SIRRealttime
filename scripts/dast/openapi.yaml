@@ -1248,7 +1248,9 @@ paths:
         - { name: command, in: path, required: true, schema: { type: string, enum: [pause, resume, stop, restart], example: pause } }
       requestBody: { required: false, content: { application/json: { schema: { type: object, example: {} } } } }
       responses:
-        '200': { description: comando eseguito }
+        '200': { description: comando eseguito (stop è idempotente) }
+        '404': { description: nessuna simulazione }
+        '409': { description: comando non ammesso nello stato }
 components:
   schemas:
     LayoutBlocks:

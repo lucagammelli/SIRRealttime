@@ -167,8 +167,11 @@ describe('«Simulazione» page', () => {
     expect(await within(box).findByText('In pausa')).toBeTruthy();
     fireEvent.click(within(box).getByRole('button', { name: 'Riprendi' }));
     expect(await within(box).findByText('500 / 1000')).toBeTruthy();
-    fireEvent.click(within(box).getByRole('button', { name: 'Ferma' }));
-    expect(await within(box).findByText('Fermata')).toBeTruthy();
+    fireEvent.click(within(box).getByRole('button', { name: 'Arresta' }));
+    expect(calls.filter((c) => c.url === '/api/admin/simulation/stop')).toEqual([]);
+    fireEvent.click(within(box).getByRole('button', { name: 'Conferma arresto' }));
+    expect(await within(box).findByText('Arrestata')).toBeTruthy();
+    expect(within(box).queryByRole('button', { name: 'Arresta' })).toBeNull();
     expect(within(box).getByText(/si cancellano da soli/)).toBeTruthy();
     expect(within(box).queryByRole('button', { name: 'Pausa' })).toBeNull();
     expect(within(box).getByRole('button', { name: 'Ricomincia' })).toBeTruthy();
@@ -177,6 +180,24 @@ describe('«Simulazione» page', () => {
       '/api/admin/simulation/resume',
       '/api/admin/simulation/stop',
     ]);
+  });
+
+  it('offers «Arresta» only while the simulation runs or is paused, and not after a cancelled confirmation', async () => {
+    let current = summary({ status: 'paused' });
+    mockApi(() => ({ body: response(current) }));
+    renderAs('admin', <SimulationPage />);
+    const box = await screen.findByTestId('simulation');
+    fireEvent.click(within(box).getByRole('button', { name: 'Arresta' }));
+    fireEvent.click(within(box).getByRole('button', { name: 'Annulla' }));
+    expect(within(box).getByRole('button', { name: 'Arresta' })).toBeTruthy();
+    cleanup();
+    for (const status of ['finished', 'stopped'] as const) {
+      current = summary({ status, remainingMs: 0 });
+      renderAs('admin', <SimulationPage />);
+      const done = await screen.findByTestId('simulation');
+      expect(within(done).queryByRole('button', { name: 'Arresta' })).toBeNull();
+      cleanup();
+    }
   });
 
   it('reads the progress again every second while it runs', async () => {

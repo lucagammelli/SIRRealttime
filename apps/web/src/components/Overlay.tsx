@@ -33,24 +33,26 @@ export const OVERLAY_REGION_CLASSES: Record<OverlayPosition, string> = {
 /** Default region (near the top). */
 export const OVERLAY_REGION_CLASS = OVERLAY_REGION_CLASSES.top;
 
-/** Veil over the background, in the colour of the team: the text stays readable on any image or video. */
-const VEIL: Record<Side | 'neutral', string> = {
-  home: 'bg-home/65',
-  away: 'bg-away/65',
-  neutral: 'bg-primary/65',
-};
-/** Light band only behind the text of a photo or video of a player (the media itself is never covered). */
+/** Light band only behind the text of an overlay with a background (the media itself is never covered, no veil). */
 const TEXT_BAND: Record<Side | 'neutral', string> = {
   home: 'bg-home/60',
   away: 'bg-away/60',
   neutral: 'bg-primary/60',
 };
-/** Text colour of the box with a background (the box itself has no colour: the media and the veil are under it). */
+/** Text colour of the box with a background (the box itself has no colour: the media is under it). */
 const TEXT_TONE: Record<Side | 'neutral', string> = {
   home: 'text-on-home',
   away: 'text-on-away',
   neutral: 'text-on-primary',
 };
+/**
+ * Full screen: the whole picture fits (never cropped), centred; the sides are filled with the page background colour
+ * (a video) or with a blurred copy of the same image (an image). Nothing is laid over the real picture.
+ */
+export const FULLSCREEN_MEDIA_CLASS = 'absolute inset-0 size-full object-contain';
+export const FULLSCREEN_FILL_CLASS = 'absolute inset-0 size-full scale-110 object-cover blur-2xl';
+const COVER_MEDIA_CLASS = 'absolute inset-0 size-full object-cover';
+
 /** With a background the box is larger (16:9), so that the image or the video can be seen. */
 const MEDIA_BOX: Record<Device, string> = {
   tv: 'w-[min(56rem,90vw)]',
@@ -68,8 +70,7 @@ const BOX_SIZE: Record<Device, Record<OverlaySize, string>> = {
 /**
  * The box of an overlay: plain text (never HTML) in the colour of the team of the event, entering with a short
  * animation (none with reduced motion). With `media` (ready in memory) the box is larger, with the image or the video
- * behind the text under a veil of the team colour (the photo or video of a player has no veil: only a light band behind
- * its text, or no text at all); a video plays inline and in a loop while the overlay is on, muted
+ * behind the text, as the original file (no veil: only a light band behind the text, or no text at all); a video plays inline and in a loop while the overlay is on, muted
  * unless its sound is on (muted anyway when the browser refuses the sound), in the box or on the whole screen
  * (`fit`), never with reduced motion (text only, as without media). Also the «Prova» of the editor.
  */
@@ -109,8 +110,9 @@ export function OverlayBanner({
         {text}
       </div>
     );
-  // The photo of a player can fill the screen too, like a video (a fixed image stays in the box).
-  const fullscreen = (shown.kind === 'video' || shown.player !== undefined) && shown.fit === 'fullscreen';
+  const showText = shown.player ? shown.player.showText : shown.showText !== false;
+  // Any image or video can fill the screen (whole picture, never cropped); `fit` is 'center' by default.
+  const fullscreen = shown.fit === 'fullscreen';
   // On the whole screen (of the page, or of the frame of the preview): the region is only where the text would be.
   const box = fullscreen
     ? 'fixed inset-0'
@@ -123,6 +125,15 @@ export function OverlayBanner({
       data-fit={fullscreen ? 'fullscreen' : 'center'}
       className={`${reduced ? '' : 'sir-overlay'} flex items-center justify-center overflow-hidden text-center font-display font-bold uppercase tracking-wide ${box} ${TEXT_TONE[tone]}`}
     >
+      {fullscreen && (
+        <div
+          aria-hidden="true"
+          data-fill={shown.kind === 'image' ? 'blur' : 'color'}
+          className="absolute inset-0 bg-bg"
+        >
+          {shown.kind === 'image' && <img src={shown.url} alt="" className={FULLSCREEN_FILL_CLASS} />}
+        </div>
+      )}
       {shown.kind === 'video' ? (
         // A new element for every file: the same <video> with another src may keep showing the first one.
         <OverlayVideo
@@ -130,30 +141,27 @@ export function OverlayBanner({
           url={shown.url}
           audio={shown.audio === true}
           once={shown.duration === 'video'}
+          className={fullscreen ? FULLSCREEN_MEDIA_CLASS : COVER_MEDIA_CLASS}
           onLength={onVideoLength}
           onEnd={onVideoEnd}
         />
       ) : (
-        <img key={shown.url} src={shown.url} alt="" className="absolute inset-0 size-full object-cover" />
+        <img
+          key={shown.url}
+          src={shown.url}
+          alt=""
+          className={fullscreen ? FULLSCREEN_MEDIA_CLASS : COVER_MEDIA_CLASS}
+        />
       )}
-      {shown.player ? (
-        // Photo or video of a player: as the original file, no veil. The text, when shown, has a band of its own.
-        <span
-          data-player-text={shown.player.showText ? 'shown' : 'hidden'}
-          className={
-            shown.player.showText
-              ? `relative max-w-[90%] rounded-panel ${TEXT_BAND[tone]} ${BOX_SIZE[device][size]}`
-              : 'sr-only'
-          }
-        >
-          {text}
-        </span>
-      ) : (
-        <>
-          <div aria-hidden="true" className={`absolute inset-0 ${VEIL[tone]}`} />
-          <span className={`relative ${BOX_SIZE[device][size]}`}>{text}</span>
-        </>
-      )}
+      {/* Image or video as the original file, never covered. The text, when shown, has a band of its own. */}
+      <span
+        data-player-text={showText ? 'shown' : 'hidden'}
+        className={
+          showText ? `relative max-w-[90%] rounded-panel ${TEXT_BAND[tone]} ${BOX_SIZE[device][size]}` : 'sr-only'
+        }
+      >
+        {text}
+      </span>
     </div>
   );
 }
@@ -166,10 +174,12 @@ function OverlayVideo({
   url,
   audio,
   once,
+  className,
   onLength,
   onEnd,
 }: {
   url: string;
+  className: string;
   audio: boolean;
   /** Played once (the overlay follows its length) instead of in a loop. */
   once: boolean;
@@ -218,7 +228,7 @@ function OverlayVideo({
       onEnded={() => {
         if (once) callbacks.current.onEnd?.();
       }}
-      className="absolute inset-0 size-full object-cover"
+      className={className}
     />
   );
 }

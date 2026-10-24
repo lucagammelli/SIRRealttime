@@ -74,7 +74,15 @@ describe('preview with a player of the roster', () => {
     const overlay = withPlayerMode(
       {
         ...defaultOverlay('ace'),
-        background: { kind: 'image', assetId: FIXED, audio: false, fit: 'center', teams: 'ours', duration: 'seconds' },
+        background: {
+          kind: 'image',
+          assetId: FIXED,
+          audio: false,
+          fit: 'center',
+          teams: 'ours',
+          duration: 'seconds',
+          showText: true,
+        },
       },
       'video',
     );

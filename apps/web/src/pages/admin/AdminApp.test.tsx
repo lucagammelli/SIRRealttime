@@ -427,6 +427,7 @@ describe('loghi di sistema in the reserved area', () => {
         intermissions: defaultIntermissions(),
         overlays: defaultOverlays(),
         sponsors: [],
+        players: [],
       }),
     );
     setSystemLogos({ left: { positive: LOGO, negative: DARK }, right: { positive: RIGHT, negative: null } });

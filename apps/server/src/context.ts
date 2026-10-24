@@ -34,6 +34,8 @@ export interface RateLimits {
   agentDownload: number;
   /** «Aggiorna ora» of a championship (`POST /api/admin/leagues/:id/sync`): each one downloads pages of the league site. */
   leagueSync: number;
+  /** «Importa dal sito della Lega» of the roster (`POST /api/admin/roster/import`): each one reads a page and the photos. */
+  rosterImport: number;
   /** Reset of a password and use of invitation links (`/api/auth/password-reset/*`, `/api/auth/invite/*`, `/api/auth/links/*`). */
   passwordReset: number;
 }
@@ -49,6 +51,7 @@ export const DEFAULT_RATE_LIMITS: RateLimits = {
   shortCodeInvalidTotal: 1000,
   agentDownload: 10,
   leagueSync: 6,
+  rosterImport: 3,
   passwordReset: 10,
 };
 

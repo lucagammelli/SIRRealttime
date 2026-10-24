@@ -113,7 +113,7 @@ binario della piattaforma come dipendenza opzionale.
   servizio `server`, con `AGENT_DOWNLOAD_DIR=/data/downloads`. Lo riempiono solo gli script di costruzione: in produzione `scripts/pubblica-agente-produzione.sh` (agente C#, passo 8), a mano `scripts/costruisci-agente.sh` (agente Node, sotto);
   vuoto, il portale dice che l'agente non è pubblicato. Il server non lo scrive mai.
 - Campionati: il servizio `server` di `docker-compose.yml` passa `LEAGUE_SYNC` (default `on`), `LEAGUE_CONTACT` (vuoto: il
-  server usa `PUBLIC_BASE_URL`) e `RATE_LIMIT_LEAGUE_SYNC` (6). Il server **esce in https** verso `www.legavolley.it`
+  server usa `PUBLIC_BASE_URL`) `RATE_LIMIT_LEAGUE_SYNC` (6) e `RATE_LIMIT_ROSTER_IMPORT` (3, importazione della rosa). Il server **esce in https** verso `www.legavolley.it`
   (l'unico host ammesso): in una rete con uscita filtrata va consentito. I loghi scaricati stanno in `_leagues` dentro il
   volume `assets` (`ASSETS_DIR`): il backup del volume li comprende. Descrizione in `docs/server.md` («Campionati»).
 - Loghi di sistema: la migrazione `0016_loghi_sistema.sql` crea `system_logos` e la `0017_loghi_sistema_varianti.sql`
@@ -140,7 +140,7 @@ rilascio e l'altro. Il bundle principale è di circa 132 KB gzip. Le altre dipen
   `SESSION_TTL_HOURS`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `PUBLIC_BASE_URL`, `LOG_LEVEL`, `TRUST_PROXY`,
   `RATE_LIMIT_LOGIN`, `RATE_LIMIT_INGEST`, `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_PUBLIC_WS`, `RATE_LIMIT_PUBLIC_INVALID`, `RATE_LIMIT_SHORT_CODE_INVALID`, `RATE_LIMIT_ADMIN`, `RATE_LIMIT_REGISTER`, `SHARE_CODE_SECRET`,
   `RATE_LIMIT_AGENT_DOWNLOAD`, `WS_MAX_PER_IP`, `WS_MAX_TOTAL`, `MATCH_MAX_LINES`, `DEFAULT_TENANT_SLUG`, `ASSETS_DIR`,
-  `ASSETS_QUOTA_MB`, `AGENT_DOWNLOAD_DIR`, `RATE_LIMIT_LEAGUE_SYNC`, `LEAGUE_SYNC`, `LEAGUE_CONTACT`, `RATE_LIMIT_PASSWORD_RESET`, `SETTINGS_ENCRYPTION_KEY`) e quelle di Docker Compose (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
+  `ASSETS_QUOTA_MB`, `AGENT_DOWNLOAD_DIR`, `RATE_LIMIT_LEAGUE_SYNC`, `RATE_LIMIT_ROSTER_IMPORT`, `LEAGUE_SYNC`, `LEAGUE_CONTACT`, `RATE_LIMIT_PASSWORD_RESET`, `SETTINGS_ENCRYPTION_KEY`) e quelle di Docker Compose (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
   `SERVER_BIND`, `WEB_BIND`, `WEB_PORT`, `AGENT_DOWNLOAD_HOST_DIR`).
   Descrizione e default in `docs/server.md`. Il file `.env` vero non va mai nel repository.
 - Posta: il servizio `server` di `docker-compose.yml` passa `RATE_LIMIT_PASSWORD_RESET` (default 10, richieste al minuto

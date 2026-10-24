@@ -76,6 +76,7 @@ describe('public graphics of the client of the hostname', () => {
       intermissions: defaultIntermissions(),
       overlays: defaultOverlays(),
       sponsors: [],
+      players: [],
     });
   });
 

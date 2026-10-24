@@ -406,7 +406,7 @@ Profilo del club, partite del cliente e loghi (`club.ts`, lavoro «ruoli-calenda
 pagine in `docs/portale.md`): `ClubProfileSchema` (`series` fino a `CLUB_SERIES_MAX` = 60, `coverage`
 `ClubCoverageSchema` = `homeAndAway` predefinita o `homeOnly`, `teamLogos` `TeamLogosModeSchema` = `all` predefinita,
 `ours`, `none`) e `resolveClubProfile` (pura, i campi mancanti o un documento non valido tornano ai predefiniti),
-`UpdateClubProfileRequestSchema` (`displayName`, `logoMark`, `ourTeam`, `profile`; `PUT /api/admin/club/profile`);
+`UpdateClubProfileRequestSchema` (`displayName`, `logoMark`, `ourLogoSize` facoltativo: assente = invariato, `ourTeam`, `profile`; `PUT /api/admin/club/profile`); `CLUB_LOGO_SIZES` / `ClubLogoSizeSchema` (`small` | `medium` | `large`; `branding.ourLogoSize` nella grafica, predefinito `medium` = l'aspetto di prima; `ClubResponse` lo restituisce come `ourLogoSize`); `CalendarResponseSchema` (`GET /api/admin/calendar`) ha anche `clubLogo` (booleano, predefinito `false`: il club ha un logo);
 partite: `FixtureOriginSchema` (`league`/`manual`), `ManualFixtureKindSchema` (`friendly`/`cup`/`other`) e
 `MANUAL_FIXTURE_LABEL`, `FixtureBroadcastSchema` (`auto`/`on`/`off`), `isFixtureBroadcast` (pura: nascosta mai; altrimenti
 la scelta della partita, con `auto` la copertura), `ManualFixtureRequestSchema` (con `competition`: testo semplice fino a 100 caratteri, `null` per predefinito, salvato in
@@ -416,8 +416,9 @@ i campi `origin`, `kind`, `broadcast`, `broadcasted`, `hidden`, `logos`; date: `
 cambiata a mano, altrimenti l'ufficiale), `movedByLeague` (pura: la Lega ha spostato la partita dopo la modifica a mano),
 `FixtureDateRequestSchema` (`{ startsAt }` ISO o `null`; `PUT /api/admin/calendar/fixtures/:id/date`) e in `ClubFixtureSchema`
 `startsAt` (ora la data **effettiva**), `officialStartsAt`, `dateOverridden`, `dateOverriddenAt`, `movedByLeague`
-(`docs/server.md`, `docs/portale.md`); loghi: `chooseTeamLogo` (pura: logo della partita
-→ logo del profilo, solo per la nostra squadra → logo pubblico della Lega → nessuno), `teamLogoShown`, `shownTeamLogo`
+(`docs/server.md`, `docs/portale.md`); loghi: `chooseTeamLogo` (pura, unico punto della scelta, usata da `fixtureLogos`, `matchLogoInfo` e dalla classifica: per la nostra
+squadra il logo del club (profilo) vince su quello della partita e su quello della Lega → logo della partita → logo della Lega;
+l'avversario: logo della partita → logo della Lega → nessuno; il logo del club è `logoMark`, altrimenti `logoMain`, `clubLookOf`), `teamLogoShown`, `shownTeamLogo`
 (l'impostazione `teamLogos` decide se mostrarlo) e `matchTeamLogos` (i loghi dei due lati del `.dvw`: il lato nostro è la
 «nostra squadra» riconosciuta nel file, altrimenti il lato del club nel calendario; ignoto: nessun logo). `StateMessage` ha
 il campo facoltativo `logos` (`TeamLogoPairSchema`, `home` e `away`).

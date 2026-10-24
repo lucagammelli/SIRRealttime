@@ -85,6 +85,7 @@ describe('brandingWithClub', () => {
       logoUrl: null,
       displayName: 'Sir',
       logoMark: LOGO,
+      ourLogoSize: 'medium',
       ourTeam: { code: 'PER', name: null },
       profile: club().profile,
       leagues: [],

@@ -455,7 +455,7 @@ describe('isolation between clients', () => {
   it('shows another client nothing of the club and its calendar', async () => {
     const club = (await call({ url: '/api/admin/club' }, cookieB, HOST_B)).json<ClubResponse>();
     expect(club.leagues).toEqual([]);
-    expect(await calendar(cookieB, HOST_B)).toEqual({ fixtures: [], pending: [] });
+    expect(await calendar(cookieB, HOST_B)).toEqual({ fixtures: [], pending: [], clubLogo: false });
   });
 
   it('never links a .dvw of a client to a match of another client', async () => {

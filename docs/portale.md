@@ -526,7 +526,7 @@ Il viewer non vede la voce e `/admin/simulazione` lo riporta a `/admin/live`. Te
 Server, abbinamento e rotte in `docs/server.md`, «Club, calendario e abbinamento»; contratti in `docs/architettura.md`.
 
 **«Club»** (`/admin/club`): a sinistra la scheda del **profilo** (`ProfileForm`, «Salva profilo»; contratto
-`UpdateClubProfileRequest`): «Logo quadrato del club» (`LogoPicker`), «Nome», «Genere» (solo «Maschile»; «Femminile» è
+`UpdateClubProfileRequest`): «Logo quadrato del club» (`LogoPicker`), «Dimensione del logo del club» (`ourLogoSize`: «Piccolo», «Medio», «Grande»; «Medio» è l'aspetto di prima; classi in `lib/clubLogo.ts`, `clubLogoClass`, applicate solo alla nostra squadra: tabellone su telefono, tablet e TV, «Prossima partita», blocchi del calendario e `BrandMark`; classifica e banner compatto cambiano logo ma non dimensione; l'avversario resta medio), «Nome», «Genere» (solo «Maschile»; «Femminile» è
 disattivato, «presto disponibile») e «Serie» a tendina dal catalogo (SuperLega, Serie A2, Serie A3; `SeriesFields`):
 scegliere la serie fa partire `POST /api/admin/club/league`, mostra «Sto scaricando il calendario…» (si rilegge ogni 3 s,
 `SERIES_POLL_MS`) e poi «Calendario pronto: scegli la squadra del club in «Campionati».». Un club con la serie scritta a mano
@@ -585,7 +585,9 @@ coppa dal superadmin) non toglie quello della serie né la sua squadra. La compe
 «Modifica» e «Cancella» (con «Conferma cancellazione»). Una partita scaricata dal calendario si può solo «Nascondere»
 («Mostra» la rimette; le nascoste stanno in una scheda a parte, `Partite nascoste`). «Impostazioni» di ogni partita:
 «Trasmissione della partita» («Come il profilo», «Trasmessa», «Non trasmessa») e due `LogoPicker` («Logo della nostra
-squadra» e «Logo di …»; predefiniti: logo quadrato del profilo per la nostra squadra, logo della Lega per gli avversari).
+squadra» e «Logo di …»; predefiniti: logo del club (quadrato, altrimenti orizzontale) per la nostra squadra, logo della Lega per gli avversari). Se il club ha un logo
+(`clubLogo` di `GET /api/admin/calendar`) il logo per partita della nostra squadra è disattivato con «Il logo del club ha sempre la
+precedenza.»; se il club toglie il suo, torna in uso.
 Una partita non trasmessa ha il link non attivo e il `.dvw` non le viene abbinato. Il viewer vede tutto in sola lettura.
 
 **Data e ora di una partita scaricata**: «Cambia data e ora» (poi «Chiudi data e ora») apre il modulo «Data e ora della

@@ -146,9 +146,16 @@ describe('branding', () => {
       ourTeam: { code: null, name: null },
       logoMain: null,
       logoMark: null,
+      ourLogoSize: 'medium',
       sponsorLogo: null,
     });
     expect(defaultBranding()).toEqual(empty);
+  });
+
+  it('keeps the size of the logo of the club and refuses an unknown one', () => {
+    expect(TenantBrandingSchema.parse({ ourLogoSize: 'large' }).ourLogoSize).toBe('large');
+    expect(TenantBrandingSchema.parse({ logoMark: null }).ourLogoSize).toBe('medium');
+    expect(TenantBrandingSchema.safeParse({ ourLogoSize: 'huge' }).success).toBe(false);
   });
 
   it('keeps the colours given, lower case, and the image ids', () => {

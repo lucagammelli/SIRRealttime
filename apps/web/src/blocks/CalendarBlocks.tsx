@@ -1,6 +1,7 @@
 import type { BlockOptions, ScheduleFixture, ScheduleStandings, ScheduleStandingRow } from '@arenalive/shared';
 import { standingsRowsToShow } from '@arenalive/shared';
 import { useState } from 'react';
+import { clubLogoClass, useOurLogoSize } from '../lib/clubLogo.ts';
 import { useTouch } from '../lib/useLayout.ts';
 import { teamInitials } from '../components/NextMatch.tsx';
 import { BreakableName, Card } from '../components/ui.tsx';
@@ -112,6 +113,8 @@ export function NextMatchView({
   const phone = env.device === 'phone';
   // Without touch the name is plain text.
   const touch = useTouch();
+  // Our logo (the logo of the club) follows «Dimensione del logo del club»; the opponent keeps the medium size.
+  const ourLogoSize = useOurLogoSize();
   const dateText = `${upper(when.date)} · ore ${when.time}`;
 
   if (size === 'compact') {
@@ -162,13 +165,11 @@ export function NextMatchView({
                 name={team.name}
                 logoUrl={team.logoUrl}
                 role={sideRole(fixture, side)}
-                className={
-                  big
-                    ? 'size-28 p-2 text-5xl [@media(min-height:900px)]:size-44'
-                    : tv
-                      ? 'size-24 text-3xl'
-                      : 'size-16 text-xl'
-                }
+                className={`${clubLogoClass(
+                  big ? 'nextMatchBlockFull' : tv ? 'nextMatchBlockTv' : 'nextMatchBlock',
+                  ourLogoSize,
+                  fixture.ourSide === side,
+                )} ${big ? 'p-2 text-5xl' : tv ? 'text-3xl' : 'text-xl'}`}
               />
               <p
                 className={`min-w-0 max-w-full break-words font-display font-bold uppercase leading-tight tracking-wide ${INK[sideRole(fixture, side)]} ${

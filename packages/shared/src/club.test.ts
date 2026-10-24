@@ -16,6 +16,7 @@ import {
   standingsRowsToShow,
   suggestedOurTeamName,
   teamLogoShown,
+  UpdateClubProfileRequestSchema,
   UpdateClubRequestSchema,
 } from './club.js';
 import { ServerMessageSchema } from './messages.js';
@@ -114,9 +115,11 @@ describe('rows of the standings of a block', () => {
 
 describe('logos of the teams', () => {
   const base = { matchLogo: null, profileLogo: '/p.png', leagueLogo: '/lega.png' };
-  it('chooses the logo of the match, then the profile (our team only), then the league, then none', () => {
-    expect(chooseTeamLogo({ ...base, ours: true, matchLogo: '/m.png' })).toBe('/m.png');
+  it('chooses for our team the profile, then the match, then the league; for the opponent the match, then the league', () => {
+    expect(chooseTeamLogo({ ...base, ours: true, matchLogo: '/m.png' })).toBe('/p.png');
     expect(chooseTeamLogo({ ...base, ours: true })).toBe('/p.png');
+    expect(chooseTeamLogo({ ...base, ours: true, profileLogo: null, matchLogo: '/m.png' })).toBe('/m.png');
+    expect(chooseTeamLogo({ ...base, ours: false, matchLogo: '/m.png' })).toBe('/m.png');
     expect(chooseTeamLogo({ ...base, ours: false })).toBe('/lega.png');
     expect(chooseTeamLogo({ ...base, ours: true, profileLogo: null })).toBe('/lega.png');
     expect(chooseTeamLogo({ ours: false, matchLogo: null, profileLogo: null, leagueLogo: null })).toBeNull();
@@ -160,6 +163,18 @@ describe('profile and broadcast of the matches', () => {
     expect(resolveClubProfile({})).toEqual(defaults);
     expect(resolveClubProfile({ coverage: 'boh' })).toEqual(defaults);
     expect(resolveClubProfile({ coverage: 'homeOnly' }).coverage).toBe('homeOnly');
+  });
+
+  it('takes the size of the logo of the club as optional in the request of the profile', () => {
+    const request = {
+      displayName: null,
+      logoMark: null,
+      ourTeam: { code: null, name: null },
+      profile: { coverage: 'homeAndAway', teamLogos: 'all' },
+    };
+    expect(UpdateClubProfileRequestSchema.parse(request).ourLogoSize).toBeUndefined();
+    expect(UpdateClubProfileRequestSchema.parse({ ...request, ourLogoSize: 'small' }).ourLogoSize).toBe('small');
+    expect(UpdateClubProfileRequestSchema.safeParse({ ...request, ourLogoSize: 'xl' }).success).toBe(false);
   });
 
   it('broadcasts as the coverage says, unless the match says otherwise; never a hidden one', () => {

@@ -22,15 +22,18 @@ export interface OverlayMedia {
   fit?: OverlayVideoFit;
   /** `video`: the video plays once and the overlay lasts as long as it (missing: in a loop, for the seconds). */
   duration?: OverlayVideoDuration;
+  /** The photo or video of a player: shown as the original file (no veil); `showText` false hides the text. */
+  player?: { showText: boolean };
 }
 
 /** Pure: the media of `background` at `url`, with the options of a video. */
-export const mediaOf = (background: OverlayBackground, url: string): OverlayMedia => ({
+export const mediaOf = (background: OverlayBackground, url: string, player?: { showText: boolean }): OverlayMedia => ({
   kind: background.kind,
   url,
   audio: background.audio,
   fit: background.fit,
   duration: background.duration,
+  ...(player ? { player } : {}),
 });
 
 /** The players of our team whose photos and videos are kept ready: the roster media of the public page and their shirt numbers. */

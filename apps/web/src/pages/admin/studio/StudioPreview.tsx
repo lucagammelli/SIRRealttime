@@ -267,7 +267,7 @@ function Stage({
               media={
                 previewBackground
                   ? {
-                      ...mediaOf(previewBackground, adminAssetPath(previewBackground.assetId)),
+                      ...mediaOf(previewBackground, adminAssetPath(previewBackground.assetId), preview.player),
                       // The sound only in a «Prova»: the preview always in view stays silent.
                       audio: previewBackground.audio && trial !== null,
                       // Always in view (no «Prova»): the video loops; in a «Prova» it plays once and ends the test.

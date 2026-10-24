@@ -348,9 +348,12 @@ per i suoi secondi, con l'animazione; la scena passa ad «Avviso»), e in «Avan
 predefinito» (solo di quell'evento). «Posizione e dimensione» è il riquadro «Posizione e dimensione di tutti gli avvisi»
 (impostazioni generali). Per i tre avvisi di un giocatore (ACE!, Muro, Cambio: `OVERLAY_PLAYER_KINDS`) l'avviso aperto ha
 anche il riquadro «Giocatore della nostra squadra» (`PlayerMediaSetting`): «Sfondo fisso dell'avviso» (nessun `playerMedia`),
-«Foto del giocatore» o «Video del giocatore»; «Quale» («Principale» / «Casuale», `pick`); con il video «Audio», «Posizione del
-video» e «Durata» (come lo sfondo video, senza «Video per»: è sempre la nostra squadra) e la nota «Se il giocatore non ha foto
+«Foto del giocatore» o «Video del giocatore»; «Quale» («Principale» / «Casuale», `pick`); «Mostra il testo sopra il video» (o «la foto»,
+`showText`, acceso se manca nei documenti salvati); «Posizione» (del video o della foto: `fit`, anche la foto del giocatore può stare a tutto schermo), con il video «Audio» e «Durata» (come lo sfondo video, senza «Video per»: è sempre la nostra squadra) e la nota «Se il giocatore non ha foto
 né video si usa lo sfondo dell'avviso, altrimenti solo il testo. Solo per la nostra squadra.» con il rimando a «Squadra».
+La foto o il video del giocatore si vedono come il file originale: `OverlayBanner` non mette la velatura del colore della squadra
+(`VEIL`, che resta per lo sfondo fisso) quando il media ha `player` (`QueuedOverlay.player`, `overlayPreview().player`); con il testo
+acceso c'è solo una fascia leggera dietro le parole (`TEXT_BAND`), spento il testo resta solo per gli screen reader.
 L'anteprima e «Prova» usano il primo giocatore della rosa con foto o video (`rosterSample`, `overlayPreview` in
 `studio/model.ts`; la rosa è letta da `GET /api/admin/roster`, se non si legge lo Studio funziona senza) e, per «Casuale», una
 scelta diversa a ogni «Prova». «Salva» è disattivato con un testo non valido. Logica pura: `lib/overlay.ts` (`overlayValues`,

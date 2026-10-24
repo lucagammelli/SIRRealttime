@@ -2,8 +2,17 @@ import type { CourtOptions } from '@arenalive/shared';
 import { COURT_TRICOLOR_DEFAULT, CourtOptionsSchema } from '@arenalive/shared';
 import type { MatchState, Side } from '@arenalive/volley-stats';
 import { useId, useMemo, useState } from 'react';
-import type { ZoneArrow, ZoneSkill } from '../charts/zones.ts';
-import { COURT, EVALUATION_NAMES, ZONES, zoneCenter, zonePlayers, zoneRect, zoneView } from '../charts/zones.ts';
+import type { CourtHalf, ZoneArrow, ZoneSkill } from '../charts/zones.ts';
+import {
+  COURT,
+  EVALUATION_NAMES,
+  ZONES,
+  courtLayout,
+  zoneCenter,
+  zonePlayers,
+  zoneRect,
+  zoneView,
+} from '../charts/zones.ts';
 import { useOurSide, useTemplate } from '../lib/branding.ts';
 import { courtSteps, useCourtStep } from '../lib/courtCycle.ts';
 import { formatPct, playerName, teamName, teamShort } from '../lib/format.ts';
@@ -96,8 +105,9 @@ export function CourtMap({
   const roster = new Map(state.players[side].map((p) => [p.number, p]));
   const names = EVALUATION_NAMES[skill];
   const opponent: Side = side === 'home' ? 'away' : 'home';
-  // The shown team is on the left half.
-  const leftIsOurs = side === ours;
+  // As the scoreboard (home on the left) or the shown team on the left; each half in the colours of its team.
+  const halves = courtLayout(side, options.orientation);
+  const leftIsOurs = halves.left === ours;
   const left = leftIsOurs
     ? { field: options.fieldOurs, lines: options.linesOurs }
     : { field: options.fieldOpponent, lines: options.linesOpponent };
@@ -120,7 +130,7 @@ export function CourtMap({
     right.lines ??= ink;
   }
   const netColor = options.linesOurs ?? options.linesOpponent ?? ink;
-  const arrowColor = leftIsOurs ? options.arrowsOurs : options.arrowsOpponent;
+  const arrowColor = side === ours ? options.arrowsOurs : options.arrowsOpponent;
   // One colour chosen for these arrows: thin-arrow style (one colour), also with the standard template.
   const teamArrows = templateTeamArrows || arrowColor !== undefined;
   const lw = options.lineWidth;
@@ -281,7 +291,7 @@ export function CourtMap({
           </>
         )}
         {ZONES.map((z) => {
-          const r = zoneRect(z, 'opponent');
+          const r = zoneRect(z, halves.to);
           const n = view.byTarget[z] ?? 0;
           if (!r) return null;
           return (
@@ -354,11 +364,26 @@ export function CourtMap({
           {...lineProps(netColor)}
           strokeWidth={1.8 * lw}
         />
-        <text x={COURT.x0} y="7" className="fill-court-line" fontSize="4.5" fontWeight="700">
-          {teamShort(state.teams, side)}
+        <text
+          x={COURT.x0}
+          y="7"
+          className="fill-court-line"
+          fontSize="4.5"
+          fontWeight="700"
+          data-court-left={halves.left}
+        >
+          {teamShort(state.teams, halves.left)}
         </text>
-        <text x={COURT.x1} y="7" textAnchor="end" className="fill-court-line" fontSize="4.5" fontWeight="700">
-          {teamShort(state.teams, opponent)}
+        <text
+          x={COURT.x1}
+          y="7"
+          textAnchor="end"
+          className="fill-court-line"
+          fontSize="4.5"
+          fontWeight="700"
+          data-court-right={halves.right}
+        >
+          {teamShort(state.teams, halves.right)}
         </text>
 
         {shown.map((a) => (
@@ -371,11 +396,13 @@ export function CourtMap({
             team={teamArrows ? side : null}
             color={arrowColor}
             thin={TEAM_ARROW_PX * options.arrowWidth}
+            from={halves.from}
+            to={halves.to}
           />
         ))}
         {ZONES.map((z) => {
           const n = view.byTarget[z] ?? 0;
-          const c = zoneCenter(z, 'opponent');
+          const c = zoneCenter(z, halves.to);
           if (!c || n === 0) return null;
           return (
             <g key={`n${z}`}>
@@ -393,9 +420,13 @@ export function CourtMap({
           );
         })}
         {view.total === 0 && (
-          <text x="100" y="58" textAnchor="middle" className="fill-court-text" fontSize="6" fontWeight="600">
-            Nessuna azione con zone per questo filtro
-          </text>
+          // On a band of the background colour above net and cells, so that it reads on any field.
+          <g data-court-empty="">
+            <rect x="30" y="48" width="140" height="14" rx="3" className="fill-surface" fillOpacity="0.92" />
+            <text x="100" y="57" textAnchor="middle" className="fill-text" fontSize="6" fontWeight="600">
+              Nessuna azione con zone per questo filtro
+            </text>
+          </g>
         )}
       </svg>
 
@@ -441,6 +472,8 @@ function Arrow({
   team,
   color,
   thin,
+  from,
+  to,
 }: {
   arrow: ZoneArrow;
   width: number;
@@ -452,9 +485,12 @@ function Arrow({
   color: string | undefined;
   /** Width (px) of a thin team arrow. */
   thin: number;
+  /** Half of the starting zone and half of the arrival zone. */
+  from: CourtHalf;
+  to: CourtHalf;
 }) {
-  const start = zoneCenter(arrow.from, 'own');
-  const end = zoneCenter(arrow.to, 'opponent');
+  const start = zoneCenter(arrow.from, from);
+  const end = zoneCenter(arrow.to, to);
   if (!start || !end) return null;
   // Slight curve so that arrows between the same rows do not overlap.
   const mx = (start.x + end.x) / 2;

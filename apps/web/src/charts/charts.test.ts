@@ -7,7 +7,7 @@ import { momentumOption, rotationOption } from './options.ts';
 import { playerRows, sortPlayerRows, statSets } from './players.ts';
 import { rotationExtremes, rotationSeries } from './rotations.ts';
 import { DEFAULT_PALETTE, buildEchartsTheme, richSafe } from './theme.ts';
-import { zoneCenter, zonePlayers, zoneRect, zoneView } from './zones.ts';
+import { courtLayout, zoneCenter, zonePlayers, zoneRect, zoneView } from './zones.ts';
 
 const final = stateAfter();
 const mid = midMatchState();
@@ -138,6 +138,23 @@ describe('zones', () => {
     expect(zoneRect('1', 'opponent')).toEqual({ x: 160, y: 10, w: 30, h: 30 });
     expect(zoneCenter('8', 'opponent')).toEqual({ x: 145, y: 55 });
     expect(zoneRect('0', 'own')).toBeNull();
+  });
+
+  it('as the scoreboard: home on the left, the away arrows start on the right and arrive on the left', () => {
+    expect(courtLayout('home', 'scoreboard')).toEqual({ left: 'home', right: 'away', from: 'own', to: 'opponent' });
+    expect(courtLayout('away', 'scoreboard')).toEqual({ left: 'home', right: 'away', from: 'opponent', to: 'own' });
+    // Away attack from its zone 4 (right half, bottom next to the net) to zone 1 of home (left half, bottom far).
+    const away = courtLayout('away', 'scoreboard');
+    const start = zoneCenter('4', away.from);
+    const end = zoneCenter('1', away.to);
+    expect(start).toEqual({ x: 115, y: 85 });
+    expect(end).toEqual({ x: 25, y: 85 });
+    expect((end?.x ?? 0) < (start?.x ?? 0)).toBe(true);
+  });
+
+  it('shown team on the left: both teams attack from left to right', () => {
+    expect(courtLayout('home', 'shown')).toEqual({ left: 'home', right: 'away', from: 'own', to: 'opponent' });
+    expect(courtLayout('away', 'shown')).toEqual({ left: 'away', right: 'home', from: 'own', to: 'opponent' });
   });
 });
 

@@ -103,9 +103,9 @@ describe('MatchView', () => {
     expect(heading('Andamento del set')).toBeTruthy();
   });
 
-  it('big screen: a block taller than its cell is measured, the groups are made again with its real height', () => {
+  it('big screen: the screens come from the layout, a content taller than its cell does not make them again', () => {
     stubReducedMotion(false);
-    // Area under the scoreboard 800 px = 50 rem; the comparison needs 500 px more than its cell of 300 px.
+    // Area under the scoreboard 800 px = 50 rem; the comparison has 500 px more content than its cell of 300 px.
     const proto = HTMLElement.prototype;
     const rect = vi.spyOn(proto, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
       return { height: this.hasAttribute('data-tv-area') ? 800 : 0 } as DOMRect;
@@ -118,14 +118,14 @@ describe('MatchView', () => {
     const scroll = size('scrollHeight', 800);
     try {
       const { container } = render(<MatchView state={midMatchState()} device="tv" />);
-      // Estimates: 18 + 1 + 22 rem fit 50 rem; measured: 50.25 + 1 + 22 do not (not even scaled down to 85 %), the players go to the next screen
-      // (with the court and the rotations: 22 + 1 + 22).
+      // 18 + 1 + 36 rem fit 50 rem scaled down: trend, comparison and players in the first screen, court and rotations in
+      // the second.
       expect(screen.getByRole('heading', { name: 'Confronto squadre' })).toBeTruthy();
-      expect(screen.queryByRole('heading', { name: 'Statistiche giocatori' })).toBeNull();
+      expect(screen.getByRole('heading', { name: 'Statistiche giocatori' })).toBeTruthy();
       expect(screen.getByRole('img', { name: 'Schermata 1 di 2' })).toBeTruthy();
-      // Rows grow in proportion to the height they need, not in equal shares.
+      // Rows grow in proportion to the height of their types, not in equal shares.
       const row = container.querySelector('[data-tv-block="comparison"]')?.parentElement;
-      expect(row?.style.flex).toMatch(/^50\.25 1 0%$/);
+      expect(row?.style.flex).toBe('18 1 0%');
     } finally {
       rect.mockRestore();
       client.mockRestore();
@@ -135,50 +135,57 @@ describe('MatchView', () => {
 
   it('big screen: two rows a little taller than the area stay in one screen, scaled down (zoom)', () => {
     stubReducedMotion(false);
-    // Area 600 px = 37.5 rem (1 rem = 16 px in jsdom); the comparison needs 18 rem and the players 22: 18 + 1 + 22 = 41 rem
-    // are more than 37.5 but less than 37.5 / 0.85 = 44.1: one screen at zoom 37.5 / 41.
+    // Area 800 px = 50 rem (1 rem = 16 px in jsdom); trend and comparison need 18 rem and the players of a team 36:
+    // 18 + 1 + 36 = 55 rem are more than 50 but less than 50 / 0.85 = 58.8: one screen at zoom 50 / 55.
     const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
       this: HTMLElement,
     ) {
-      return { height: this.hasAttribute('data-tv-area') ? 600 : 0 } as DOMRect;
+      return { height: this.hasAttribute('data-tv-area') ? 800 : 0 } as DOMRect;
     });
     try {
       const { container } = render(<MatchView state={midMatchState()} device="tv" />);
       expect(screen.getByRole('heading', { name: 'Confronto squadre' })).toBeTruthy();
       expect(screen.getByRole('heading', { name: 'Statistiche giocatori' })).toBeTruthy();
       const shown = container.querySelector<HTMLElement>('[data-tv-area]')?.firstElementChild as HTMLElement;
-      expect(Number(shown.style.zoom)).toBeCloseTo(37.5 / 41, 2);
+      expect(Number(shown.style.zoom)).toBeCloseTo(50 / 55, 2);
     } finally {
       rect.mockRestore();
     }
   });
 
-  it('big screen: the measured heights are forgotten at the next set (the lists start empty again)', () => {
+  it('big screen: same screens and same cells at the start of the match (empty blocks) and with the data', () => {
     stubReducedMotion(false);
-    const proto = HTMLElement.prototype;
-    const rect = vi.spyOn(proto, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-      return { height: this.hasAttribute('data-tv-area') ? 1200 : 0 } as DOMRect;
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return { height: this.hasAttribute('data-tv-area') ? 800 : 0 } as DOMRect;
     });
-    const client = vi.spyOn(proto, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
-      return this.dataset.tvBlock === 'comparison' ? 300 : 0;
+    // Empty blocks are short, blocks with the data overflow their cell: neither counts.
+    let full = false;
+    const scroll = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.dataset.tvBlock && full ? 2000 : 0;
     });
-    // The comparison overflows its cell only in the first set.
-    let tall = true;
-    const scroll = vi.spyOn(proto, 'scrollHeight', 'get').mockImplementation(function (this: HTMLElement) {
-      return this.dataset.tvBlock === 'comparison' ? (tall ? 1000 : 300) : 0;
+    const screens = (c: HTMLElement) => ({
+      label: screen.queryByRole('img', { name: /^Schermata/ })?.getAttribute('aria-label') ?? null,
+      cells: [...c.querySelectorAll<HTMLElement>('[data-tv-block]')].map(
+        (cell) => `${cell.dataset.tvBlock}:${cell.parentElement?.style.flex ?? ''}`,
+      ),
+      zoom: c.querySelector<HTMLElement>('[data-tv-area]')?.firstElementChild?.getAttribute('style') ?? '',
     });
     try {
-      const state = midMatchState();
-      const { rerender } = render(<MatchView state={state} device="tv" />);
-      expect(screen.getByRole('img', { name: /^Schermata 1 di/ })).toBeTruthy();
-      tall = false;
-      const next = { ...state, setsWon: { home: state.setsWon.home + 1, away: state.setsWon.away } };
-      rerender(<MatchView state={next} device="tv" />);
-      expect(screen.queryByRole('img', { name: /Schermata/ })).toBeNull();
-      expect(screen.getByRole('heading', { name: 'Statistiche giocatori' })).toBeTruthy();
+      const { container, rerender } = render(<MatchView state={stateAfter(0)} device="tv" />);
+      const empty = screens(container);
+      expect(empty.label).toBe('Schermata 1 di 2');
+      full = true;
+      rerender(<MatchView state={midMatchState()} device="tv" />);
+      expect(screens(container)).toEqual(empty);
+      // Every card fills its cell, also while empty.
+      for (const cell of container.querySelectorAll('[data-tv-block]'))
+        expect(cell.firstElementChild?.className).toContain('h-full');
     } finally {
       rect.mockRestore();
-      client.mockRestore();
       scroll.mockRestore();
     }
   });

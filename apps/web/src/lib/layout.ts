@@ -4,7 +4,14 @@
  * client chooses them in the page «Pagina pubblica» of the reserved area.
  */
 import type { BlockType, LayoutBlock, LayoutDevice, TemplateId, TenantLayout } from '@arenalive/shared';
-import { defaultDeviceBlocks, LAYOUT_COLUMNS, TEMPLATE_IDS, TEMPLATES } from '@arenalive/shared';
+import {
+  defaultDeviceBlocks,
+  LAYOUT_COLUMNS,
+  STANDINGS_AROUND,
+  STANDINGS_MAX_ROWS,
+  TEMPLATE_IDS,
+  TEMPLATES,
+} from '@arenalive/shared';
 
 export type { BlockType, LayoutBlock };
 
@@ -137,8 +144,10 @@ export function tabletSpan(width: number): string {
 export const TABLET_GRID_FLOW = '@min-[856px]:grid-flow-row-dense @min-[1150px]:grid-flow-row';
 
 /**
- * Smallest height of a block on the big screen, in rem (the TV text scales with the screen, so do these). Below it the
- * block is not readable and goes to another group.
+ * Smallest height of a block on the big screen, in rem (the TV text scales with the screen, so do these); the blocks
+ * with lists need more, from their options (`blockMinRem`). The screens are made only from these heights and from the
+ * layout, never from the content of the moment: an empty block takes the cell it will have with the data, and the
+ * screens do not change when the first data arrive.
  */
 export const TV_BLOCK_MIN_REM: Record<BlockType, number> = {
   scoreboard: 0,
@@ -194,37 +203,91 @@ export function packRows(blocks: readonly LayoutBlock[]): LayoutRow[] {
   return rows;
 }
 
-/**
- * Heights measured on the big screen (rem, by block id): what a block really needs when its content is taller than
- * its smallest height (long lists, long names). They only raise the smallest height of the type.
- */
-export type MeasuredRem = Readonly<Record<string, number>>;
+/** «Rotazioni» with the charts one above the other: they need about the height of two. */
+export const TV_ROTATIONS_VERTICAL_REM = 22;
 
-/** Smallest height of a block: the one of its type, or the measured one when taller. */
+/**
+ * Heights (rem) of the parts of the blocks with lists, measured on the big screen (1920 × 1080): with them the height of
+ * a block comes from its options (rows chosen), the most it can show, and never from the data of the moment.
+ * - player lists of «Parziale e marcatori» and «Attacco» (`PlayerList`): a row, and what stays above the lists;
+ *   the two lists are side by side from `TV_LISTS_SIDE_BY_SIDE_REM` of content, one under the other below;
+ * - «Migliori giocatori» and «Classifica»: a row of the table and the rest of the card;
+ * - «Statistiche giocatori»: a row, the rest of the card and the rows of a team (`TV_PLAYERS_ROWS`, the 14 players of a
+ *   match sheet), whatever height the template gives the table.
+ */
+export const TV_LIST_ROW_REM = 2.55;
+export const TV_LISTS_SIDE_BY_SIDE_REM = 28;
+const TV_SCORERS_BASE_REM = 8.5;
+const TV_ATTACK_BASE_REM = 14;
+const TV_TABLE_BASE_REM = 7;
+const TV_TOP_PLAYERS_ROW_REM = 2.5;
+const TV_STANDINGS_ROW_REM = 2;
+const TV_PLAYERS_BASE_REM = 8;
+const TV_PLAYERS_ROW_REM = 2;
+export const TV_PLAYERS_ROWS = 14;
+/** Horizontal padding of a card and gap between the columns of the grid of the big screen (rem). */
+const TV_CARD_PADDING_REM = 2.5;
+const TV_COLUMN_GAP_REM = 1;
+
+/** Width of the content of a card of `columns` columns in an area `widthRem` wide (Infinity: not known). */
+export function tvContentRem(columns: number, widthRem: number): number {
+  if (!Number.isFinite(widthRem) || widthRem <= 0) return Number.POSITIVE_INFINITY;
+  const column = (widthRem - (LAYOUT_COLUMNS - 1) * TV_COLUMN_GAP_REM) / LAYOUT_COLUMNS;
+  return columns * column + (columns - 1) * TV_COLUMN_GAP_REM - TV_CARD_PADDING_REM;
+}
+
+/** The two player lists of a block: `rows` each, side by side or one under the other (with their gap). */
+const listsRem = (rows: number, sideBySide: boolean): number =>
+  sideBySide ? rows * TV_LIST_ROW_REM : 2 * rows * TV_LIST_ROW_REM + 1;
+
+/** Height a block needs for what its options let it show (0 for the blocks without lists). */
+function contentRem(block: LayoutBlock, widthRem: number): number {
+  const sideBySide = tvContentRem(block.width, widthRem) >= TV_LISTS_SIDE_BY_SIDE_REM;
+  switch (block.type) {
+    case 'rotations':
+      return block.options.orientation === 'vertical' ? TV_ROTATIONS_VERTICAL_REM : 0;
+    case 'setScorers':
+      return TV_SCORERS_BASE_REM + listsRem(block.options.limit, sideBySide);
+    case 'attack':
+      return TV_ATTACK_BASE_REM + listsRem(block.options.limit, sideBySide);
+    case 'topPlayers':
+      return TV_TABLE_BASE_REM + block.options.count * TV_TOP_PLAYERS_ROW_REM;
+    case 'standings': {
+      const rows =
+        block.options.scope === 'top'
+          ? block.options.count
+          : block.options.scope === 'around'
+            ? 2 * STANDINGS_AROUND + 1
+            : STANDINGS_MAX_ROWS;
+      return TV_TABLE_BASE_REM + rows * TV_STANDINGS_ROW_REM;
+    }
+    case 'players':
+      return TV_PLAYERS_BASE_REM + TV_PLAYERS_ROWS * TV_PLAYERS_ROW_REM;
+    default:
+      return 0;
+  }
+}
+
+/**
+ * Height of a block on the big screen: the one of its type, or more when its options let it show more rows (lists of
+ * scorers and attackers, best players, standings, the players of a team, «Rotazioni» in vertical). `widthRem`: width of
+ * the area of the blocks (the two lists of a narrow card go one under the other).
+ */
 export function blockMinRem(
   block: LayoutBlock,
   minRem: Record<BlockType, number> = TV_BLOCK_MIN_REM,
-  measured: MeasuredRem = {},
+  widthRem = Number.POSITIVE_INFINITY,
 ): number {
-  return Math.max(minRem[block.type], measured[block.id] ?? 0);
+  return Math.max(minRem[block.type], contentRem(block, widthRem));
 }
 
 /** Height of a row: the tallest of its blocks. */
 export function rowMinRem(
   row: LayoutRow,
   minRem: Record<BlockType, number> = TV_BLOCK_MIN_REM,
-  measured: MeasuredRem = {},
+  widthRem = Number.POSITIVE_INFINITY,
 ): number {
-  return Math.max(0, ...row.map((b) => blockMinRem(b, minRem, measured)));
-}
-
-/**
- * Pure: the measures of a screen added to the known ones, only where a block needs more (by more than 0.1 rem); the
- * same object when nothing changes (no new render).
- */
-export function raiseMeasured(known: MeasuredRem, found: MeasuredRem): MeasuredRem {
-  const raised = Object.entries(found).filter(([id, rem]) => rem > (known[id] ?? 0) + 0.1);
-  return raised.length === 0 ? known : { ...known, ...Object.fromEntries(raised) };
+  return Math.max(0, ...row.map((b) => blockMinRem(b, minRem, widthRem)));
 }
 
 /**
@@ -238,9 +301,9 @@ export function groupMinRem(
   group: LayoutGroup,
   gapRem = 1,
   minRem: Record<BlockType, number> = TV_BLOCK_MIN_REM,
-  measured: MeasuredRem = {},
+  widthRem = Number.POSITIVE_INFINITY,
 ): number {
-  return group.reduce((sum, row, i) => sum + (i > 0 ? gapRem : 0) + rowMinRem(row, minRem, measured), 0);
+  return group.reduce((sum, row, i) => sum + (i > 0 ? gapRem : 0) + rowMinRem(row, minRem, widthRem), 0);
 }
 
 /** Pure: scale of a group of `neededRem` in `availableRem`: 1 when it fits, never below `maxShrink`. */
@@ -252,24 +315,25 @@ export function tvZoom(neededRem: number, availableRem: number, maxShrink = TV_M
 /**
  * Groups of the big screen: the blocks under the scoreboard in rows, and the rows in groups that fit `availableRem`
  * (height under the scoreboard, `gapRem` between rows). A row taller than the space is a group on its own; the first
- * group holds the most important blocks (shown fixed with reduced motion). `measured`: heights measured on the
- * screen, taller than the smallest of the type (see `MeasuredRem`). `maxShrink` (default 1: none): a group may need up
- * to `availableRem / maxShrink`, the screen then shows it scaled down (`tvZoom`).
+ * group holds the most important blocks (shown fixed with reduced motion). Only the layout and the heights of the
+ * types count, never the content of the moment (see `TV_BLOCK_MIN_REM`). `maxShrink` (default 1: none): a group may need up
+ * to `availableRem / maxShrink`, the screen then shows it scaled down (`tvZoom`). `widthRem`: width of the area (see
+ * `blockMinRem`).
  */
 export function tvGroups(
   blocks: readonly LayoutBlock[],
   availableRem: number,
   gapRem = 1,
   minRem: Record<BlockType, number> = TV_BLOCK_MIN_REM,
-  measured: MeasuredRem = {},
   maxShrink = 1,
+  widthRem = Number.POSITIVE_INFINITY,
 ): LayoutGroup[] {
   const groups: LayoutGroup[] = [];
   let group: LayoutGroup = [];
   let used = 0;
   const room = availableRem / Math.min(1, Math.max(0.1, maxShrink));
   for (const row of packRows(blocks.filter((b) => b.type !== 'scoreboard'))) {
-    const height = rowMinRem(row, minRem, measured);
+    const height = rowMinRem(row, minRem, widthRem);
     const needed = group.length === 0 ? height : used + gapRem + height;
     if (group.length > 0 && needed > room) {
       groups.push(group);

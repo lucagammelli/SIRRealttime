@@ -323,7 +323,7 @@ export const shareTokens = pgTable(
   ],
 );
 
-export const assetKind = pgEnum('asset_kind', ['logo', 'sponsor', 'overlay']);
+export const assetKind = pgEnum('asset_kind', ['logo', 'sponsor', 'overlay', 'player']);
 
 /**
  * Images uploaded by a client. The file is `<ASSETS_DIR>/<tenant_id>/<sha256>` (no name chosen by the user); the
@@ -377,6 +377,75 @@ export const assets = pgTable(
     // 120: ASSET_NAME_MAX of @arenalive/shared (a literal: drizzle-kit reads this file without the workspace).
     check('assets_name_check', sql`${t.name} is null or char_length(${t.name}) between 1 and 120`),
   ],
+);
+
+export const playerRole = pgEnum('player_role', ['setter', 'outside', 'middle', 'opposite', 'libero']);
+export const playerSource = pgEnum('player_source', ['league', 'manual']);
+
+/**
+ * Roster of the team of a client in a season («Squadra»): imported from the site of the league (`external_key`, the
+ * key of the player there) or added by hand. `edited_fields`: the fields changed by hand, never overwritten by a new
+ * import. A removed imported player keeps its row (`removed_at`) so that a new import does not bring it back.
+ */
+export const players = pgTable(
+  'players',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: tenantId(),
+    season: integer('season').notNull(),
+    number: integer('number').notNull(),
+    firstName: text('first_name').notNull(),
+    lastName: text('last_name').notNull(),
+    role: playerRole('role'),
+    birthYear: integer('birth_year'),
+    heightCm: integer('height_cm'),
+    birthplace: text('birthplace'),
+    nationality: text('nationality'),
+    externalKey: text('external_key'),
+    source: playerSource('source').notNull(),
+    editedFields: jsonb('edited_fields')
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    /** Main photo: an image of the client (kind `player`); null when none or deleted. */
+    photoAssetId: uuid('photo_asset_id').references((): AnyPgColumn => assets.id, { onDelete: 'set null' }),
+    removedAt: timestamp('removed_at', { withTimezone: true }),
+    position: integer('position').notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('players_tenant_season_idx').on(t.tenantId, t.season),
+    uniqueIndex('players_tenant_season_key_idx')
+      .on(t.tenantId, t.season, t.externalKey)
+      .where(sql`${t.externalKey} is not null`),
+    // One shirt number per player of the roster (a removed player leaves its number free).
+    uniqueIndex('players_tenant_season_number_idx')
+      .on(t.tenantId, t.season, t.number)
+      .where(sql`${t.removedAt} is null`),
+    index('players_photo_idx').on(t.photoAssetId),
+    check('players_number_check', sql`${t.number} between 0 and 99`),
+    check('players_first_name_check', sql`char_length(${t.firstName}) between 1 and 60`),
+    check('players_last_name_check', sql`char_length(${t.lastName}) between 1 and 60`),
+    check('players_height_check', sql`${t.heightCm} is null or ${t.heightCm} between 120 and 250`),
+    check('players_nationality_check', sql`${t.nationality} is null or char_length(${t.nationality}) <= 3`),
+  ],
+);
+
+/** Other photos and videos of a player (files of the library of its client), in order. */
+export const playerMedia = pgTable(
+  'player_media',
+  {
+    tenantId: tenantId(),
+    playerId: uuid('player_id')
+      .notNull()
+      .references((): AnyPgColumn => players.id, { onDelete: 'cascade' }),
+    assetId: uuid('asset_id')
+      .notNull()
+      .references((): AnyPgColumn => assets.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.playerId, t.assetId] }), index('player_media_asset_idx').on(t.assetId)],
 );
 
 // --- Championships (common to every client: public data of the official sites) ---------------------------------
@@ -725,6 +794,10 @@ export const schema = {
   assetKind,
   sponsors,
   assets,
+  playerRole,
+  playerSource,
+  players,
+  playerMedia,
   leagueProvider,
   leagueSyncStatus,
   fixtureStatus,

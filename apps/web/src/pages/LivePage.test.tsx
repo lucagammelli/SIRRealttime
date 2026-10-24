@@ -204,6 +204,7 @@ describe('LivePage layout of the client', () => {
           intermissions: defaultIntermissions(),
           overlays: defaultOverlays(),
           sponsors: [],
+          players: [],
         }),
       ),
     );
@@ -237,6 +238,7 @@ describe('LivePage pauses of the client', () => {
             intermissions: defaultIntermissions(),
             overlays: defaultOverlays(),
             sponsors: [],
+            players: [],
           }),
         ),
       );
@@ -424,6 +426,7 @@ describe('LivePage of a simulated match', () => {
           intermissions: defaultIntermissions(),
           overlays: defaultOverlays(),
           sponsors: [],
+          players: [],
         }),
       ),
     );
@@ -559,6 +562,7 @@ describe('LivePage «Dopo la partita»', () => {
           intermissions: { ...defaultIntermissions(), afterMatch: { enabled: true, image: IMAGE, delayMinutes: 30 } },
           overlays: defaultOverlays(),
           sponsors: [],
+          players: [],
         }),
       ),
     );

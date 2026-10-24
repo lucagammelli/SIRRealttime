@@ -9,10 +9,14 @@ import { rejectedUrlReason } from './legavolley.js';
 
 export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 
-/** Page HTML (2 MB) or team logo (300 KB). */
-export type DownloadKind = 'page' | 'logo';
+/** Page HTML (2 MB), team logo or photo of a player (300 KB). */
+export type DownloadKind = 'page' | 'logo' | 'photo';
 
-export const DOWNLOAD_LIMITS: Record<DownloadKind, number> = { page: 2 * 1024 * 1024, logo: 300 * 1024 };
+export const DOWNLOAD_LIMITS: Record<DownloadKind, number> = {
+  page: 2 * 1024 * 1024,
+  logo: 300 * 1024,
+  photo: 300 * 1024,
+};
 export const DOWNLOAD_TIMEOUT_MS = 15_000;
 export const MIN_REQUEST_INTERVAL_MS = 1000;
 const MAX_REDIRECTS = 3;

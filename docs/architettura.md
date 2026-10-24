@@ -171,7 +171,7 @@ se mancante, quindi `version` resta 1): solo gli sponsor scelti da pagina e paus
 coerenza (nessuno sponsor scelto mancante o in più, nessuna immagine di due sponsor); `remapGraphicsSponsorIds` riscrive gli
 id all'importazione; `GraphicsImportResponseSchema` ha anche `sponsors` (numero).
 
-Immagini e video (`assets.ts`): `AssetKindSchema` (`logo` | `sponsor` | `overlay`, quest'ultimo per gli sfondi degli avvisi),
+Immagini e video (`assets.ts`): `AssetKindSchema` (`logo` | `sponsor` | `overlay`, quest'ultimo per gli sfondi degli avvisi, | `player`, foto e video dei giocatori della rosa), `VideoUploadQuerySchema` (query `?kind=overlay|player` di `VIDEO_UPLOAD_PATH`, predefinito `overlay`),
 `AssetMimeSchema`, `VideoMimeSchema` (`video/mp4`, `video/webm`), `AssetFileMimeSchema` (immagini e video), `isVideoMime`,
 `VIDEO_MAX_BYTES` (15 MB), `VIDEO_UPLOAD_PATH` (`/api/admin/assets/video`, corpo binario), `ASSET_MAX_BYTES` (2 MB),
 `ASSET_MAX_BASE64_LENGTH`, `UploadAssetRequestSchema` (`kind`, `data` in base64 e `sponsorId` facoltativo, solo per
@@ -338,8 +338,27 @@ trasferta). `backgroundForTeam(sfondo, squadra, latoNostro)` (pura): per un even
 il video è tolto (resta il testo); immagini, eventi senza squadra e lato del cliente ignoto (video per entrambe) invariati.
 Funzioni pure `overlayBackgrounds(config)` (gli sfondi in uso) e
 `withoutOverlayBackgrounds(config)` (copia senza sfondi, usata da esportazione e importazione della grafica: i pacchetti non
-portano video). Un documento salvato prima resta valido. `OverlaysResponseSchema`
+portano video). Un documento salvato prima resta valido. Foto o video del giocatore: gli avvisi di `OVERLAY_PLAYER_KINDS`
+(`ace`, `block`, `substitution`) possono avere `playerMedia` (`OverlayPlayerMediaSchema`: `source` `photo` | `video`, `pick`
+`default` | `random`, `audio`, `fit`, `duration` come lo sfondo video; facoltativo, senza vale lo sfondo fisso). `playerBackground(overlay,
+evento, latoNostro, giocatori, { videos })` (pura) dà lo sfondo solo per un'azione di un giocatore della **nostra squadra**
+con quel numero di maglia nella rosa; il video solo se `videos` (non sul telefono né con meno animazioni) e il giocatore ne
+ha uno, altrimenti la foto; `random` sceglie con un seme dall'id dell'evento (stesso evento, stessa scelta); senza nulla →
+sfondo fisso o solo testo. `OverlaysResponseSchema`
 (`GET`/`PUT /api/admin/overlays`); `PublicTenantResponseSchema` contiene anche `overlays`. `TENANT_CONFIG_VERSION` resta 1.
+
+Rosa (`players.ts`): la squadra del cliente in una stagione, abbinata ai giocatori del file di scout **per numero di maglia**.
+`PLAYER_ROLES` (`setter`, `outside`, `middle`, `opposite`, `libero`), `PLAYER_ROLE_LABELS` (Palleggiatore, Schiacciatore, Centrale,
+Opposto, Libero), `roleFromLeague` (pura: ruolo dal testo del sito), `PLAYER_SOURCES` (`league` | `manual`),
+`PLAYER_EDITABLE_FIELDS` (campi modificati a mano, che un'importazione non sovrascrive; `photo` = foto principale), limiti
+`PLAYERS_MAX` 40, `PLAYER_MEDIA_MAX` 12 (foto e video oltre la principale), `PLAYER_VIDEOS_MAX` 3, nome 60, altezza 120-250,
+anno di nascita 1900-2100, numero 0-99. Schemi: `PlayerSchema` (con `photo`, `media`, `editedFields`, `removed`), `PlayerMediaItemSchema`,
+`RosterResponseSchema` (`GET /api/admin/roster?season=`, `RosterQuerySchema`: stagione, stagioni con rosa, squadra, giocatori,
+`import` = `RosterImportStateSchema`), `CreatePlayerRequestSchema`, `UpdatePlayerRequestSchema` (solo i campi inviati; `removed: false`
+rimette in rosa), `PlayerMediaRequestSchema` (`photoAssetId` e `mediaIds`), `ImportRosterResponseSchema` (`added`, `updated`,
+`unchanged`, `skipped` = `SkippedPlayerSchema`, `notOnSite`, `photosQueued`). `PublicPlayerMediaSchema` (`number`, `photo`,
+`images`, `videos`: solo id dei file): `PublicTenantResponseSchema` contiene anche `players`, solo della stagione corrente e
+solo i giocatori con almeno un file; vuoto se manca. Server in `docs/server.md` («Rosa della squadra»).
 Server in `docs/server.md` («Avvisi sugli eventi»), portale ed editor in `docs/portale.md`.
 
 Agente scaricabile (`agentDownload.ts`): `AgentReleaseSchema` (`arenalive-agent.json`: `version`, `builtAt`, `sha256`,

@@ -389,6 +389,11 @@ ce l'hanno). Struttura del sito: una tabella per giornata con colonne `#`, data 
 arbitri, impianto, note; l'id della squadra è nell'`onclick` (`/team/N`); la classifica ha 18 colonne e nessun id squadra
 (si abbina alle squadre del calendario per nome, senza maiuscole, spazi e accenti: `teamNameKey`). L'id stabile di una
 partita (`fixtures.external_id`) è il **numero ufficiale** (`n<numero>`; senza numero, fase, giornata e squadre).
+Per la rosa si leggono anche la tabella «Roster» della pagina della squadra (`parseRoster`, `ParsedRosterPlayer`; solo i
+giocatori, niente staff) e la foto (`/Foto.aspx`, ammessa fra i percorsi consentiti; `playerPhotoUrl(chiave, squadra)` accetta
+solo una chiave validata da `PLAYER_KEY_PATTERN` e id numerici, mai un URL preso dalla pagina; `heightImg=600`). Il download
+`photo` del fetcher ha il limite di 300 KB. Sono saltati i segnaposto e le foto troppo piccole (`fetchPlayerPhoto` dà `null`).
+`fetchRoster` rilegge sempre la pagina (mai dalla cache).
 
 **Regole di buona educazione e sicurezza** (`legavolley.ts`, `fetcher.ts`):
 
@@ -504,6 +509,36 @@ della stagione in corso.
 - **Primo accesso**: `GET /api/admin/onboarding` (viewer) e `POST /api/admin/onboarding/complete` (admin, «Fine»; imposta
   `tenants.onboarded_at` una volta sola) rispondono con `OnboardingStatus` (`src/routes/onboarding.ts`). Colonna e
   migrazione in «Database».
+
+### Rosa della squadra (`src/roster.ts`, `src/rosterImport.ts`, `src/routes/roster.ts`)
+La rosa del cliente per stagione (`players`, `player_media`; contratti in `packages/shared/src/players.ts`, `docs/architettura.md`),
+importata dal sito della Lega e ritoccabile a mano. La pagina del portale arriva a parte.
+
+- **Squadra e stagione** (`rosterContext`): la squadra della serie del club (`seriesTeamOf`) e la sua stagione; il primo
+  campionato scelto solo se il club non ha una serie. Senza squadra: nessuna importazione (409).
+- **Rotte** (`src/routes/roster.ts`): `GET /api/admin/roster?season=` (viewer; senza `season`
+  la stagione della serie); `POST /api/admin/roster/players` (admin, 201; 409 senza stagione, numero già usato o `PLAYERS_MAX`
+  giocatori attivi: i rimossi non contano); `PATCH` e `DELETE /api/admin/roster/players/:id` (un giocatore a mano si cancella,
+  uno importato si segna rimosso e un'importazione non lo riporta; `PATCH removed: false` lo rimette, 409 se il numero è
+  occupato); `PUT /api/admin/roster/players/:id/media` (foto principale e altri file: solo file del cliente di `kind` `player`, la
+  principale un'immagine, al massimo `PLAYER_MEDIA_MAX` e `PLAYER_VIDEOS_MAX`, 400 altrimenti); `POST /api/admin/roster/import`
+  (admin, limite per minuto `RATE_LIMIT_ROSTER_IMPORT`, predefinito 3; 409 senza squadra o con un'importazione già in corso,
+  502 `LEAGUE_UNAVAILABLE`/`LEAGUE_FORMAT` se il sito non risponde o è cambiato). I campi inviati con `PATCH` e la foto principale
+  scelta a mano finiscono in `edited_fields`.
+- **Unione** (`mergeRoster`, pura): il giocatore è lo stesso per la chiave del sito (`external_key`); un giocatore a mano con
+  stesso numero e cognome (senza maiuscole né accenti) viene adottato (prende la chiave, i suoi dati restano come a mano). Si
+  aggiornano solo i campi non in `edited_fields`; chi è rimosso resta rimosso. I numeri finali si decidono insieme (due
+  giocatori possono scambiarsi il numero); un cambio verso un numero che un altro tiene, o un nuovo giocatore con numero già
+  usato, restano invariati e sono segnalati fra i `skipped` con il motivo. Chi non è più sul sito non si cancella (`notOnSite`).
+- **Foto in sottofondo** (`RosterPhotoJobs`): dopo l'unione, un lavoro per cliente alla volta scarica le foto mancanti
+  (giocatori importati senza foto principale e senza `photo` fra i campi modificati), le controlla dai byte e le salva nella
+  libreria come file `player` con nome «Cognome Nome.jpg»; poi diventano la foto principale se nel frattempo non ne è stata scelta
+  una. Lo stato (`RosterImportState`) sta solo in memoria e si perde al riavvio. Se la quota del cliente è superata il lavoro si
+  ferma (`lastError`); le foto non scaricate sono contate nel messaggio.
+- **File dei giocatori**: `POST /api/admin/assets/video?kind=player` (`VideoUploadQuerySchema`) e `POST /api/admin/assets` con
+  `kind: 'player'`; un file usato da un giocatore non si elimina (409 «File in uso da … della rosa»).
+- **Pagina pubblica**: `players` di `GET /api/public/tenant` (`publicPlayerMedia`): solo la stagione corrente, solo i giocatori
+  con almeno un file, solo gli id dei file (non i dati personali). Ogni modifica avvisa le pagine (`tenantConfigChanged`).
 
 ### Club, calendario e abbinamento (`src/club.ts`, `src/leagues/match.ts`, `src/matchLock.ts`, `src/routes/club.ts`)
 Ogni cliente sceglie uno o più campionati già noti (al massimo `CLUB_MAX_LEAGUES` = 8) e in ognuno la sua squadra
@@ -1029,6 +1064,12 @@ server scrive `dist/build-info.json` (`version` e `commit` corto, da `ARENALIVE_
 | POST | `/api/admin/onboarding/complete` | sessione | admin |
 | GET | `/api/admin/club/competitions` | sessione | admin |
 | POST | `/api/admin/club/competitions` | sessione, limite proprio `RATE_LIMIT_LEAGUE_SYNC` | admin |
+| GET | `/api/admin/roster` | sessione | viewer |
+| POST | `/api/admin/roster/players` | sessione | admin |
+| PATCH | `/api/admin/roster/players/:id` | sessione | admin |
+| DELETE | `/api/admin/roster/players/:id` | sessione | admin |
+| PUT | `/api/admin/roster/players/:id/media` | sessione | admin |
+| POST | `/api/admin/roster/import` | sessione, limite proprio `RATE_LIMIT_ROSTER_IMPORT` | admin |
 | GET | `/api/admin/club/leagues/:id/teams` | sessione | viewer |
 | POST | `/api/admin/club/sync` | sessione, limite proprio `RATE_LIMIT_LEAGUE_SYNC` | admin |
 | GET | `/api/admin/calendar` | sessione | viewer |
@@ -1208,6 +1249,7 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `RATE_LIMIT_AGENT_DOWNLOAD` | `10` | richieste al minuto per IP su `GET /api/admin/agent/download` (intero da 1 a 100000) |
 | `AGENT_DOWNLOAD_DIR` | `data/downloads` (container: `/data/downloads`) | cartella con `arenalive-agent.exe` e `arenalive-agent.json` (da `scripts/costruisci-agente.sh`); relativa alla cartella di avvio; vuota: il portale dice che l'agente non è pubblicato |
 | `RATE_LIMIT_LEAGUE_SYNC` | `6` | «Aggiorna ora» dei campionati al minuto per IP su `POST /api/admin/leagues/:id/sync` (intero da 1 a 100000) |
+| `RATE_LIMIT_ROSTER_IMPORT` | `3` | importazioni della rosa dal sito della Lega al minuto per IP su `POST /api/admin/roster/import` (intero da 1 a 100000) |
 | `RATE_LIMIT_PASSWORD_RESET` | `10` | richieste al minuto per IP su `/api/auth/links/:token`, `/api/auth/invite/accept`, `/api/auth/password-reset/request` e `/confirm` (intero da 1 a 100000) |
 | `SETTINGS_ENCRYPTION_KEY` | assente | chiave di 32 byte in base64 che cifra la password del server di posta in `mail_settings`. Senza, la pagina «Posta» funziona ma non salva la password (409). Se non è di 32 byte l'avvio fallisce. Se cambia, la password salvata non si legge più: va reinserita in «Posta» |
 | `LEAGUE_SYNC` | `on` | `on`/`off`: aggiornamento automatico dei campionati (notte e giorni di partita). `off` in sviluppo, nei test e nelle scansioni DAST: resta il pulsante «Aggiorna ora» |
@@ -1250,6 +1292,8 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `client_fixtures` | copia delle partite del club dal calendario (migrazione `0006_club.sql`; `0007_ruoli_calendario.sql` aggiunge `origin` `league`/`manual`, `manual_kind` `friendly`/`cup`/`other`, `broadcast` `auto`/`on`/`off`, `hidden`, `our_logo_asset_id` e `opponent_logo_asset_id` → `assets` `ON DELETE SET NULL`, e rende `league_id` nullo; vincolo: `league_id` nullo se e solo se `origin` è `manual`): `tenant_id`, `league_id`, `fixture_external_id` (unica con cliente e campionato), `fixture_id`, `removed_at` (la partita non è più nel calendario, il link resta), `starts_at`, `our_side` (`club_side`: `home`/`away`), nomi, città e loghi delle due squadre, impianto, `round_label`, `league_name`, `status`, `home_sets`, `away_sets` |
 | `share_tokens` | `tenant_id`, `token_hash`, `match_id` (null: segue la live), `client_fixture_id` (link di una partita del calendario, `ON DELETE CASCADE`; unico quando non nullo e non revocato: indice parziale dalla migrazione `0014_link_partita.sql`), `label`, `expires_at`, `revoked`, `short_code_hash` (unica, null finché non assegnato), `short_code_salt` (migrazioni `0004_short_codes.sql`, `0006_club.sql`) |
 | `assets` | `tenant_id`, `kind` (enum `asset_kind`: `logo`/`sponsor`/`overlay`), `sha256`, `mime` (immagini e `video/mp4`/`video/webm`), `width`, `height`, `bytes`, `name` (nullable, nome del file al caricamento o dopo «Rinomina»; CHECK di lunghezza 1-120, `assets_name_check`; migrazione `0020_nomi_file.sql`, reversibile: le istruzioni sono in testa al file), `created_at`; indice univoco `assets_tenant_sha256_kind_idx` su cliente + `sha256` + `kind` (migrazione `0003_assets.sql`; `overlay` aggiunto dalla `0018_sfondi_avvisi.sql`, `ALTER TYPE … ADD VALUE`, **non reversibile**: Postgres non toglie un valore da un enum) |
+| `players` | rosa (migrazione `0022_rosa.sql`; enum `player_role` e `player_source`): `tenant_id`, `season`, `number` (CHECK 0-99), `first_name`/`last_name` (CHECK 1-60), `role`, `birth_year`, `height_cm` (CHECK 120-250), `birthplace`, `nationality` (CHECK ≤3), `external_key`, `source`, `edited_fields` (jsonb), `photo_asset_id` (→ `assets`, `ON DELETE SET NULL`), `removed_at`, `position`, `created_at`, `updated_at`. Indici unici parziali: `players_tenant_season_key_idx` (cliente, stagione, `external_key` se non nulla) e `players_tenant_season_number_idx` (cliente, stagione, `number` fra i non rimossi) |
+| `player_media` | altre foto e video di un giocatore: `tenant_id`, `player_id` (→ `players`, `ON DELETE CASCADE`), `asset_id` (→ `assets`, `ON DELETE CASCADE`), `position`; chiave primaria `(player_id, asset_id)`. `asset_kind` ha anche `player` (migrazione `0021_foto_giocatori.sql`, `ALTER TYPE … ADD VALUE`, **non reversibile**: Postgres non toglie un valore da un enum) |
 | `sponsors` | anagrafica degli sponsor (migrazione `0015_sponsor.sql`): `tenant_id`, `name` (1-80, CHECK; unico per cliente: `sponsors_tenant_name_idx`), `website` (nullo o `https://…`, CHECK), `position`, `created_at`; `assets.sponsor_id` (→ `sponsors`, `ON DELETE SET NULL`, indice `assets_sponsor_idx`) |
 | `agent_registrations` | `tenant_id`, `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at`, `agent_expires_at` (validità scelta all'approvazione; migrazioni `0001_agent_registrations.sql`, `0007_ruoli_calendario.sql`) |
 | `agents`, `tenants` (colonne di `0007_ruoli_calendario.sql`) | `agents.expires_at` (nulla = senza scadenza); `tenants.club_profile` (jsonb, predefinito `{}`) e `tenants.agent_quota` (intero, predefinito 1; la migrazione la porta a max(1, agenti non revocati) per i clienti esistenti) |

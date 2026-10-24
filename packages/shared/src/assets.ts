@@ -3,8 +3,11 @@ import { z } from 'zod';
 /** Id of an uploaded image (row of `assets`). */
 export const AssetIdSchema = z.uuid();
 
-/** Use of a file: logos of the branding, sponsor images, backgrounds of the overlays (image or video). */
-export const AssetKindSchema = z.enum(['logo', 'sponsor', 'overlay']);
+/**
+ * Use of a file: logos of the branding, sponsor images, backgrounds of the overlays (image or video), photos and videos
+ * of the players of the roster.
+ */
+export const AssetKindSchema = z.enum(['logo', 'sponsor', 'overlay', 'player']);
 export type AssetKind = z.infer<typeof AssetKindSchema>;
 
 /** Longest name of an uploaded file (characters). */
@@ -71,6 +74,10 @@ export const VIDEO_MAX_BYTES = 15 * 1024 * 1024;
  * base64): a background of the overlays (kind `overlay`).
  */
 export const VIDEO_UPLOAD_PATH = '/api/admin/assets/video';
+
+/** Query of `POST VIDEO_UPLOAD_PATH`: the use of the video (missing: a background of the overlays). */
+export const VideoUploadQuerySchema = z.strictObject({ kind: z.enum(['overlay', 'player']).default('overlay') });
+export type VideoUploadQuery = z.infer<typeof VideoUploadQuerySchema>;
 
 /** Largest image accepted (decoded bytes). */
 export const ASSET_MAX_BYTES = 2 * 1024 * 1024;

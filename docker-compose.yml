@@ -69,6 +69,7 @@ services:
       LEAGUE_SYNC: ${LEAGUE_SYNC:-on}
       LEAGUE_CONTACT: ${LEAGUE_CONTACT:-}
       RATE_LIMIT_LEAGUE_SYNC: ${RATE_LIMIT_LEAGUE_SYNC:-6}
+      RATE_LIMIT_ROSTER_IMPORT: ${RATE_LIMIT_ROSTER_IMPORT:-3}
       RATE_LIMIT_PASSWORD_RESET: ${RATE_LIMIT_PASSWORD_RESET:-10}
       # Chiave che cifra nel database la password del server di posta (pagina «Posta» del superadmin).
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:-}

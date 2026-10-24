@@ -58,6 +58,7 @@ const EnvSchema = z
     RATE_LIMIT_SHORT_CODE_INVALID: perMinute(DEFAULT_RATE_LIMITS.shortCodeInvalidTotal),
     RATE_LIMIT_AGENT_DOWNLOAD: perMinute(DEFAULT_RATE_LIMITS.agentDownload),
     RATE_LIMIT_LEAGUE_SYNC: perMinute(DEFAULT_RATE_LIMITS.leagueSync),
+    RATE_LIMIT_ROSTER_IMPORT: perMinute(DEFAULT_RATE_LIMITS.rosterImport),
     RATE_LIMIT_PASSWORD_RESET: perMinute(DEFAULT_RATE_LIMITS.passwordReset),
     SETTINGS_ENCRYPTION_KEY: z
       .string()
@@ -163,6 +164,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       shortCodeInvalidTotal: e.RATE_LIMIT_SHORT_CODE_INVALID,
       agentDownload: e.RATE_LIMIT_AGENT_DOWNLOAD,
       leagueSync: e.RATE_LIMIT_LEAGUE_SYNC,
+      rosterImport: e.RATE_LIMIT_ROSTER_IMPORT,
       passwordReset: e.RATE_LIMIT_PASSWORD_RESET,
     },
     socketLimits: { perIp: e.WS_MAX_PER_IP, total: e.WS_MAX_TOTAL },

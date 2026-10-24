@@ -8,6 +8,7 @@ import { TenantIntermissionsSchema } from './intermissions.js';
 import { TenantLayoutSchema } from './layout.js';
 import { OurTeamSchema } from './ourTeam.js';
 import { TenantOverlaysSchema } from './overlays.js';
+import { PublicPlayerMediaSchema } from './players.js';
 import { PublicSponsorSchema } from './sponsors.js';
 import { plainText } from './strings.js';
 import { DEFAULT_TEMPLATE, TemplateIdSchema } from './templates.js';
@@ -145,6 +146,11 @@ export const PublicTenantResponseSchema = z.object({
    * an older answer: none).
    */
   sponsors: z.array(PublicSponsorSchema).default([]),
+  /**
+   * Photos and videos of the players of the roster of the current season, by shirt number (only the ones with at least
+   * one; missing in an older answer: none).
+   */
+  players: z.array(PublicPlayerMediaSchema).default([]),
 });
 export type PublicTenantResponse = z.infer<typeof PublicTenantResponseSchema>;
 

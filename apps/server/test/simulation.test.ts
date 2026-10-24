@@ -1,9 +1,9 @@
 import { generateMatch, planPlayback, renderDvw } from '@arenalive/dvw-simulator';
-import type { SimulationResponse, StartSimulationRequest } from '@arenalive/shared';
-import { SIMULATION_RETENTION_MS, SimulationResponseSchema } from '@arenalive/shared';
+import type { ServerMessage, SimulationResponse, StartSimulationRequest, StateMessage } from '@arenalive/shared';
+import { publicTeamLogoPath, SIMULATION_RETENTION_MS, SimulationResponseSchema } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { matches, shareTokens } from '../src/db/index.js';
+import { leagues, leagueTeams, matches, players, shareTokens, teamLogos, tenantLeagues } from '../src/db/index.js';
 import { LiveHub } from '../src/hub.js';
 import { generateToken, hashToken } from '../src/lib/tokens.js';
 import { insertShareToken } from '../src/shareCodes.js';
@@ -95,12 +95,12 @@ beforeEach(async () => {
 });
 afterEach(() => server.close());
 
-const call = (method: 'GET' | 'POST' | 'DELETE', url: string, cookie: string = admin, payload?: unknown) =>
+const call = (method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, cookie: string = admin, payload?: unknown) =>
   server.app.inject({
     method,
     url,
     headers: { cookie, origin: ORIGIN },
-    ...(method === 'POST' ? { payload: payload ?? {} } : {}),
+    ...(method === 'POST' || method === 'PUT' ? { payload: payload ?? {} } : {}),
   });
 
 async function simulation(cookie: string = admin): Promise<SimulationResponse> {
@@ -519,5 +519,189 @@ describe('simulation of a match', () => {
     expect(timers.count).toBe(1);
     await server.app.simulations.close();
     expect(timers.count).toBe(0);
+  });
+});
+
+describe('simulation with the club of the client', () => {
+  const ROSTER = [
+    { number: 6, lastName: 'Giannelli', firstName: 'Simone', role: 'setter' },
+    { number: 14, lastName: 'Ben Tara', firstName: 'Wassim', role: 'opposite' },
+    { number: 9, lastName: 'Plotnytskyi', firstName: 'Oleh', role: 'outside' },
+    { number: 11, lastName: 'Semeniuk', firstName: 'Kamil', role: 'outside' },
+    { number: 22, lastName: 'Russo', firstName: 'Roberto', role: 'middle' },
+    { number: 17, lastName: 'Solé', firstName: 'Sebastián', role: 'middle' },
+    { number: 2, lastName: 'Colaci', firstName: 'Massimo', role: 'libero' },
+    { number: 33, lastName: 'Ishikawa', firstName: 'Yuki', role: null },
+  ] as const;
+
+  /** The club plays a championship of 2026 with a team that has a league logo, and its roster (one player removed). */
+  async function clubWithRoster(): Promise<string> {
+    const db = server.database.db;
+    const [logo] = await db
+      .insert(teamLogos)
+      .values({ sha256: 'a'.repeat(64), mime: 'image/png', width: 64, height: 64, bytes: 100 })
+      .returning();
+    const [league] = await db
+      .insert(leagues)
+      .values({ provider: 'legavolley', externalId: 999, season: 2026, name: 'SuperLega', lastStatus: 'ok' })
+      .returning();
+    if (!logo || !league) throw new Error('setup');
+    const [team] = await db
+      .insert(leagueTeams)
+      .values({ leagueId: league.id, externalId: 6865, name: 'Sir Susa Scai Perugia', logoId: logo.id })
+      .returning();
+    await db.insert(tenantLeagues).values({ tenantId: server.tenantId, leagueId: league.id, leagueTeamId: team?.id });
+    await db.insert(players).values([
+      ...ROSTER.map((p, i) => ({
+        tenantId: server.tenantId,
+        season: 2026,
+        source: 'manual' as const,
+        position: i,
+        ...p,
+      })),
+      {
+        tenantId: server.tenantId,
+        season: 2026,
+        source: 'manual' as const,
+        number: 44,
+        lastName: 'Mariani',
+        firstName: 'Ex',
+        role: 'outside' as const,
+        removedAt: START,
+      },
+    ]);
+    return publicTeamLogoPath(logo.id);
+  }
+
+  const profile = (ourTeam: { code: string | null; name: string | null }, teamLogos: 'all' | 'none' = 'all') =>
+    call('PUT', '/api/admin/club/profile', admin, {
+      displayName: null,
+      logoMark: null,
+      ourTeam,
+      profile: { coverage: 'homeAndAway', teamLogos },
+    }).then((res) => {
+      expect(res.statusCode, res.body).toBe(200);
+    });
+
+  async function stateOf(code: string): Promise<StateMessage> {
+    const res = await server.app.inject({ url: `/api/public/${code}/state` });
+    expect(res.statusCode).toBe(200);
+    return res.json<StateMessage>();
+  }
+
+  it('our team plays with the roster of the club, on its side, recognized also without «nostra squadra»', async () => {
+    const logo = await clubWithRoster();
+    const sim = (await start()).simulation;
+    const code = sim?.link?.shortCode ?? '';
+    const [row] = await server.database.db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, sim?.matchId ?? ''));
+    expect(row?.ourSide).toBe('home');
+    await timers.advance(81_000);
+    const state = await stateOf(code);
+    expect(state).toMatchObject({ ourSide: 'home', logos: { home: logo, away: null } });
+    const ours = state.state.players.home;
+    for (const p of ROSTER) expect(ours.find((q) => q.number === p.number)?.lastName).toBe(p.lastName);
+    // The removed player is not in the match; the generated ones take numbers not used.
+    expect(ours.some((p) => p.number === 44 || p.lastName === 'Mariani')).toBe(false);
+    expect(new Set(ours.map((p) => p.number)).size).toBe(ours.length);
+    for (const e of state.state.events.filter((x) => x.kind === 'ace' && x.team === 'home'))
+      expect(ours.some((p) => p.number === e.player?.number)).toBe(true);
+
+    // «Nostra squadra» matching the opponent: the side of the simulation still wins.
+    await profile({ code: null, name: 'Volley Club Lugo' });
+    expect(await stateOf(code)).toMatchObject({ ourSide: 'home', logos: { home: logo, away: null } });
+  });
+
+  it('with the teams of the club our team takes its side of the next match (away)', async () => {
+    const logo = await clubWithRoster();
+    const fixture = await call('POST', '/api/admin/calendar/fixtures', admin, {
+      kind: 'friendly',
+      startsAt: '2030-01-12T16:00:00.000Z',
+      opponent: 'Suntory Sunbirds Osaka',
+      opponentLogo: null,
+      ourSide: 'away',
+      venue: 'Arena',
+      venueCity: 'Osaka',
+    });
+    expect(fixture.statusCode).toBe(201);
+    const sim = (await start({ ...GENERATED, source: { kind: 'generated', sets: 3, seed: 4, clubTeams: true } }))
+      .simulation;
+    await timers.advance(5_000);
+    const state = await stateOf(sim?.link?.shortCode ?? '');
+    expect(state).toMatchObject({ ourSide: 'away', logos: { home: null, away: logo } });
+    expect(state.state.players.away.find((p) => p.number === 6)?.lastName).toBe('Giannelli');
+  });
+
+  it('a save of the graphics sends again the logos of a paused simulation, once, without touching its lines', async () => {
+    const logo = await clubWithRoster();
+    const sim = (await start()).simulation;
+    const code = sim?.link?.shortCode ?? '';
+    await timers.advance(10_000);
+    expect((await command('pause')).statusCode).toBe(200);
+    const messages: ServerMessage[] = [];
+    const ws = await server.app.injectWS(
+      `/ws/public/${code}`,
+      {},
+      {
+        onInit: (socket) =>
+          socket.on('message', (data: Buffer) => messages.push(JSON.parse(data.toString()) as ServerMessage)),
+      },
+    );
+    await vi.waitFor(() => expect(messages.some((m) => m.type === 'state')).toBe(true));
+    const first = messages.find((m): m is StateMessage => m.type === 'state');
+    expect(first?.logos).toEqual({ home: logo, away: null });
+    const [before] = await server.database.db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, sim?.matchId ?? ''));
+
+    await profile({ code: null, name: null }, 'none');
+    await vi.waitFor(() => expect(messages.filter((m) => m.type === 'state')).toHaveLength(2));
+    const again = messages.filter((m): m is StateMessage => m.type === 'state')[1];
+    expect(again).toMatchObject({ version: (first?.version ?? 0) + 1, logos: { home: null, away: null } });
+    expect(again?.state).toEqual(first?.state);
+    const [after] = await server.database.db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, sim?.matchId ?? ''));
+    expect(after).toMatchObject({
+      version: (before?.version ?? 0) + 1,
+      lastSeq: before?.lastSeq,
+      contentHash: before?.contentHash,
+      lineCount: before?.lineCount,
+      updatedAt: before?.updatedAt,
+    });
+
+    // The same graphics again: nothing new is sent.
+    await profile({ code: null, name: null }, 'none');
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(messages.filter((m) => m.type === 'state')).toHaveLength(2);
+    // The simulation goes on from there, with the new logos.
+    expect((await command('resume')).statusCode).toBe(200);
+    await timers.advance(2_000);
+    await vi.waitFor(() => expect(messages.filter((m) => m.type !== 'config').length).toBeGreaterThan(2));
+    ws.terminate();
+  });
+
+  it('with a speed, the «Fine set» pause is read again at the end of every set', async () => {
+    const pace = { kind: 'speed', speed: 10 } as const;
+    const body = { source: { kind: 'generated', sets: 3, seed: 5 }, pace };
+    const timing = generatedMatch({ sets: 3, seed: 5 }).timing;
+    const before = planPlayback(timing, pace, { minBreakSeconds: (set) => setBreakSeconds({}, set) });
+    expect((await start(body)).simulation?.totalMs).toBe(before.totalMs);
+    // The pause changed during the first set: the break after it (and after the next ones) follows it.
+    const res = await call('PUT', '/api/admin/intermissions', admin, { setBreak: { enabled: false } });
+    expect(res.statusCode, res.body).toBe(200);
+    const saved: unknown = res.json<{ intermissions: unknown }>().intermissions;
+    expect((await simulation()).simulation?.totalMs).toBe(before.totalMs);
+    const end = timing.findIndex((l) => l.kind === 'setEnd');
+    await timers.advance((before.offsetsMs[end] ?? 0) + 300);
+    const after = planPlayback(timing, pace, { minBreakSeconds: (set) => setBreakSeconds(saved, set) });
+    expect(after.totalMs).toBeLessThan(before.totalMs);
+    const now = (await simulation()).simulation;
+    expect(now?.totalMs).toBe(after.totalMs);
+    expect((after.offsetsMs[end + 1] ?? 0) - (after.offsetsMs[end] ?? 0)).toBeLessThan(89_000);
   });
 });

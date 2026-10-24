@@ -76,7 +76,7 @@ Ingest (`ingest.ts`):
 Messaggi (`messages.ts`):
 
 - `StateMessageSchema` / `StateMessage` (`type: 'state'`, `matchId`, `version`, `state`, `finishedAt` facoltativo: ISO UTC
-  dell'ora di fine partita, vedi «Dopo la partita» sotto),
+  dell'ora di fine partita, vedi «Dopo la partita» sotto; `ourSide` facoltativo, lato della nostra squadra, vedi la parte sui loghi più sotto),
   `NoMatchMessageSchema` / `NoMatchMessage`, `ScheduledMessageSchema` / `ScheduledMessage` (`type: 'scheduled'`,
   `fixture`: la «Prossima partita» di un link del calendario prima che arrivi il `.dvw`), `ErrorMessageSchema` / `ErrorMessage`,
   `ConfigMessageSchema` / `ConfigMessage` (`type: 'config'`, senza dati: «la grafica del cliente è cambiata, rileggila»;
@@ -438,9 +438,14 @@ cambiata a mano, altrimenti l'ufficiale), `movedByLeague` (pura: la Lega ha spos
 (`docs/server.md`, `docs/portale.md`); loghi: `chooseTeamLogo` (pura, unico punto della scelta, usata da `fixtureLogos`, `matchLogoInfo` e dalla classifica: per la nostra
 squadra il logo del club (profilo) vince su quello della partita e su quello della Lega → logo della partita → logo della Lega;
 l'avversario: logo della partita → logo della Lega → nessuno; il logo del club è `logoMark`, altrimenti `logoMain`, `clubLookOf`), `teamLogoShown`, `shownTeamLogo`
-(l'impostazione `teamLogos` decide se mostrarlo) e `matchTeamLogos` (i loghi dei due lati del `.dvw`: il lato nostro è la
-«nostra squadra» riconosciuta nel file, altrimenti il lato del club nel calendario; ignoto: nessun logo). `StateMessage` ha
-il campo facoltativo `logos` (`TeamLogoPairSchema`, `home` e `away`).
+(l'impostazione `teamLogos` decide se mostrarlo) e `matchTeamLogos` (i loghi dei due lati del `.dvw`: il lato nostro è
+quello di `matchOurSide`; ignoto: nessun logo). `matchOurSide` (pura, `club.ts`) sceglie il lato della nostra squadra: prima
+il lato salvato della simulazione (`matches.our_side`), poi la «nostra squadra» riconosciuta nel file (`ourTeam`), poi il lato
+del club nel calendario; `null` se ignoto. `StateMessage` ha i campi facoltativi `logos` (`TeamLogoPairSchema`, `home` e `away`)
+e `ourSide` (`ClubSideSchema`): il lato calcolato dal server con `matchOurSide`, assente se ignoto o da server più vecchi; la
+pagina lo usa per colori e foto dei nostri giocatori, e una patch lo conserva. Dopo un cambio di configurazione il server
+ricalcola loghi e `ourSide` della partita (`refreshMatchLogos`, `apps/server/src/state.ts`) e ripubblica lo stato
+(`LiveHub.republish`); dettagli in `docs/server.md`.
 
 Validità e quota degli agenti, canale, manifest: `admin.ts` ha `AgentSummary.expiresAt`, `AgentValidityRequestSchema`
 (`expiresAt` nulla = senza scadenza; corpo di `approve` e di `PATCH /api/admin/agents/:id`), `AgentQuotaResponseSchema`

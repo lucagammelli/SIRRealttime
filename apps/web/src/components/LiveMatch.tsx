@@ -114,6 +114,7 @@ export function LiveMatch({
           layout={layout}
           look={look}
           {...(data.logos ? { logos: data.logos } : {})}
+          {...(data.ourSide ? { ourSide: data.ourSide } : {})}
         />
       </div>
     </div>

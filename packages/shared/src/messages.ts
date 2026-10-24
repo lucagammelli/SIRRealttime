@@ -1,6 +1,6 @@
 import type { MatchState } from '@arenalive/volley-stats';
 import { z } from 'zod';
-import { TeamLogoPairSchema, UpcomingFixtureSchema } from './club.js';
+import { ClubSideSchema, TeamLogoPairSchema, UpcomingFixtureSchema } from './club.js';
 import { PatchOpsSchema } from './patch.js';
 import { HelloMessageSchema } from './stats.js';
 
@@ -20,6 +20,12 @@ export const StateMessageSchema = z.object({
    * «Loghi delle squadre»; missing: no logos (older servers). A patch keeps the logos of the state it applies to.
    */
   logos: TeamLogoPairSchema.optional(),
+  /**
+   * Side of our team as the server chose it with the logos (`matchOurSide`: the side of the simulation, «nostra
+   * squadra» in the file, the side in the calendar); missing: unknown (and from older servers). The page uses it for
+   * the colours and the photos of our players before recognizing «nostra squadra» by itself. A patch keeps it.
+   */
+  ourSide: ClubSideSchema.optional(),
   /**
    * true: a match played by the simulation of the server (page «Simulazione»): the public page shows the label
    * «Simulazione». Missing for the real matches.

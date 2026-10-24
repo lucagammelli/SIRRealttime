@@ -113,6 +113,16 @@ interface Snapshot {
 }
 
 /** WebSocket clients and the push of state updates (full state or patch, text or gzip). */
+/** Pure: what a patch does not carry is the same in two states of a match (end, logos, side of our team). */
+export function sameExtras(a: StateMessage, b: StateMessage): boolean {
+  return (
+    a.finishedAt === b.finishedAt &&
+    a.ourSide === b.ourSide &&
+    (a.logos?.home ?? null) === (b.logos?.home ?? null) &&
+    (a.logos?.away ?? null) === (b.logos?.away ?? null)
+  );
+}
+
 export class LiveHub implements StatePublisher {
   private readonly entries = new Map<WebSocket, Entry>();
   private readonly snapshots = new Map<string, Snapshot>();
@@ -319,9 +329,9 @@ export class LiveHub implements StatePublisher {
       this.scheduled.delete(route.clientFixtureId);
     }
     let patch: { baseVersion: number; frame: Frame } | null = null;
-    // A patch carries only the state: when `finishedAt` changes (the match ends or a correction reopens it), the full
-    // message goes to every client.
-    if (previous && previous.tenantId === tenantId && previous.message.finishedAt === message.finishedAt) {
+    // A patch carries only the state: when `finishedAt` changes (the match ends or a correction reopens it), or the
+    // logos or the side of our team change, the full message goes to every client.
+    if (previous && previous.tenantId === tenantId && sameExtras(previous.message, message)) {
       const ops = diffJson(previous.state, snap.state);
       const body: PatchMessage = {
         type: 'patch',
@@ -341,6 +351,27 @@ export class LiveHub implements StatePublisher {
       if (route.isolated && entry.target.kind !== 'match') continue;
       if (this.matchOf(entry.target) === message.matchId) this.deliver(entry, message, snap.frame, patch);
     }
+  }
+
+  /** States of the matches of a client kept here (published by this process or read from the database). */
+  statesOf(tenantId: string): StateMessage[] {
+    return [...this.snapshots.values()].filter((s) => s.tenantId === tenantId).map((s) => s.message);
+  }
+
+  /**
+   * The same state of a match with other logos or side of our team (`refreshMatchLogos`, a newer `version`): kept
+   * and sent in full to the clients that show that match now, whatever their link; what the live link, the channel
+   * and the matches of the calendar follow does not change. false: a state as new is already here (nothing sent).
+   */
+  republish(tenantId: string, message: StateMessage): boolean {
+    const previous = this.snapshots.get(message.matchId);
+    if (!previous || previous.tenantId !== tenantId || previous.message.version >= message.version) return false;
+    const snap = this.store(tenantId, message, JSON.stringify(message));
+    for (const entry of this.entries.values()) {
+      if (entry.target.tenantId !== tenantId) continue;
+      if (this.matchOf(entry.target) === message.matchId) this.deliver(entry, message, snap.frame, null);
+    }
+    return true;
   }
 
   /**

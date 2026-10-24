@@ -1,4 +1,4 @@
-import type { ScheduleResponse, TeamLogoPair, TenantLayout } from '@arenalive/shared';
+import type { ClubSide, ScheduleResponse, TeamLogoPair, TenantLayout } from '@arenalive/shared';
 import type { MatchState } from '@arenalive/volley-stats';
 import type { ReactNode } from 'react';
 import type { BlockBrand } from '../blocks/env.ts';
@@ -29,6 +29,7 @@ export function MatchView({
   rotationPaused = false,
   schedule,
   logos,
+  ourSide,
 }: {
   state: MatchState;
   status?: ReactNode;
@@ -45,11 +46,13 @@ export function MatchView({
   schedule?: ScheduleResponse | null;
   /** Logos of the teams for the scoreboard (public messages); missing: none. */
   logos?: TeamLogoPair;
+  /** Side of our team chosen by the server (public messages): it comes before «nostra squadra»; missing: unknown. */
+  ourSide?: ClubSide;
 }) {
   const auto = useDevice();
   const used: Device = device ?? (auto === 'tv' ? 'tablet' : auto);
   const template = useTemplate();
-  useOurTeamColors(state.teams);
+  useOurTeamColors(state.teams, ourSide ?? null);
   const all = blocksFor(layout, used, template.id);
   // The schedule is asked for only by a page that has «Prossima partita» or «Classifica»; read again at every set.
   const fetched = useSchedule(

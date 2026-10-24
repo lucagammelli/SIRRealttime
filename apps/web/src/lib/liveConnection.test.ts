@@ -144,10 +144,10 @@ describe('applyMessage', () => {
     expect(applyMessage(null, stateMsg(MATCH_A, 1))).not.toHaveProperty('simulated');
   });
 
-  it('keeps the logos of the full state across the patches', () => {
+  it('keeps the logos and the side of our team of the full state across the patches', () => {
     const logos = { home: '/api/public/assets/a', away: null };
-    const full = applyMessage(null, { ...stateMsg(MATCH_A, 1), logos });
-    expect(full).toMatchObject({ kind: 'state', logos });
+    const full = applyMessage(null, { ...stateMsg(MATCH_A, 1), logos, ourSide: 'away' });
+    expect(full).toMatchObject({ kind: 'state', logos, ourSide: 'away' });
     const patched = applyPatchMessage(full, {
       type: 'patch',
       matchId: MATCH_A,
@@ -155,8 +155,9 @@ describe('applyMessage', () => {
       version: 2,
       ops: [],
     });
-    expect(patched).toMatchObject({ kind: 'state', version: 2, logos });
+    expect(patched).toMatchObject({ kind: 'state', version: 2, logos, ourSide: 'away' });
     expect(applyMessage(null, stateMsg(MATCH_A, 1))).not.toHaveProperty('logos');
+    expect(applyMessage(null, stateMsg(MATCH_A, 1))).not.toHaveProperty('ourSide');
   });
 
   it('keeps the end of the match (finishedAt) across the patches, only while the match is finished', () => {

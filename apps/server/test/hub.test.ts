@@ -258,6 +258,39 @@ describe('LiveHub', () => {
     expect(client.messages()[1]).toMatchObject({ type: 'state', version: 2, finishedAt: at });
   });
 
+  it('sends the full state when the logos or the side of our team change (a patch carries only the state)', () => {
+    const client = add(share);
+    const logos = { home: '/a.png', away: null };
+    hub.publish(TENANT, { ...big(1, 0), logos });
+    hub.publish(TENANT, { ...big(2, 1), logos });
+    hub.publish(TENANT, { ...big(3, 2), logos: { home: null, away: null } });
+    hub.publish(TENANT, { ...big(4, 3), logos: { home: null, away: null }, ourSide: 'home' });
+    expect(client.messages().map((m) => m.type)).toEqual(['state', 'patch', 'state', 'state']);
+  });
+
+  it('republishes a state with new logos to the clients of its match only, never an older version', () => {
+    const live = add(share);
+    const fixed = add(share, null, { kind: 'match', tenantId: TENANT, matchId: MATCH });
+    const other = add(share, null, { kind: 'match', tenantId: 't-b', matchId: MATCH });
+    hub.publish(TENANT, big(1, 0));
+    expect(hub.statesOf(TENANT).map((m) => m.version)).toEqual([1]);
+    expect(hub.statesOf('t-b')).toEqual([]);
+    expect(hub.republish(TENANT, { ...big(2, 0), logos: { home: '/b.png', away: null } })).toBe(true);
+    expect(hub.republish(TENANT, { ...big(2, 0), logos: { home: '/c.png', away: null } })).toBe(false);
+    expect(hub.republish('t-b', big(3, 0))).toBe(false);
+    for (const client of [live, fixed]) {
+      expect(client.messages()).toMatchObject([
+        { type: 'state', version: 1 },
+        { type: 'state', version: 2, logos: { home: '/b.png', away: null } },
+      ]);
+    }
+    expect(other.messages()).toEqual([]);
+    expect(hub.current({ kind: 'match', tenantId: TENANT, matchId: MATCH })?.logos).toEqual({
+      home: '/b.png',
+      away: null,
+    });
+  });
+
   it('sends the full state again after forget (resync)', () => {
     const client = add(share);
     hub.publish(TENANT, big(1, 0));

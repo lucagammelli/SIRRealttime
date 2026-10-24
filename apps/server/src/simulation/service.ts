@@ -2,6 +2,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import type { PlaybackPlan } from '@arenalive/dvw-simulator';
 import { DEFAULT_AWAY_NAME, planPlayback } from '@arenalive/dvw-simulator';
 import type {
+  ClubSide,
   IngestRequest,
   SimulationCommand,
   SimulationPace,
@@ -29,6 +30,7 @@ import { applyIngest } from '../ingest.js';
 import { conflict, notFound } from '../lib/errors.js';
 import { generateToken, hashToken } from '../lib/tokens.js';
 import { currentShortCode, insertShareToken } from '../shareCodes.js';
+import { simulationRoster } from '../roster.js';
 import { forgetShareToken } from '../state.js';
 import { findTenant, publicBaseUrlFor, tenantScope } from '../tenancy.js';
 import { setBreakSeconds } from './breaks.js';
@@ -70,6 +72,8 @@ interface Session {
   pace: SimulationPace;
   match: LoadedMatch;
   plan: PlaybackPlan;
+  /** Seconds of the break after each set as planned (`planOf`): kept for the sets already ended. */
+  breaks: Map<number, number>;
   status: SimulationStatus;
   /** Lines the server has (sent and accepted). */
   sent: number;
@@ -105,6 +109,17 @@ function scoreOf(
     score: { home: state?.live.homeScore ?? 0, away: state?.live.awayScore ?? 0 },
     setsWon: { home: state?.setsWon.home ?? 0, away: state?.setsWon.away ?? 0 },
   };
+}
+
+/** Pure: the first set (1-based) whose end line is among the lines `from`..`to` (excluded) of a match; null: none. */
+export function endedSet(match: Pick<LoadedMatch, 'timing'>, from: number, to: number): number | null {
+  let set = 0;
+  for (let i = 0; i < Math.min(to, match.timing.length); i++) {
+    if (match.timing[i]?.kind !== 'setEnd') continue;
+    set++;
+    if (i >= from) return set;
+  }
+  return null;
 }
 
 /**
@@ -182,12 +197,8 @@ export class SimulationService {
     this.starting.add(tenantId);
     try {
       const match = await this.load(tenantId, request.source);
-      // With a speed the break between two sets lasts the «Fine set» pause of the client (the points never cut it).
-      const stored =
-        request.pace.kind === 'speed' ? (await findTenant(this.ctx, { id: tenantId }))?.intermissions : null;
-      const plan = planPlayback(match.timing, request.pace, {
-        minBreakSeconds: (set) => setBreakSeconds(stored, set),
-      });
+      const breaks = new Map<number, number>();
+      const plan = await this.planOf(tenantId, match, request.pace, breaks, 1);
       // The match of the previous simulation of the client is used again: a screen left on its link goes on.
       const reused = current ?? (await this.storedMatch(tenantId));
       const now = this.ctx.now();
@@ -200,6 +211,7 @@ export class SimulationService {
         pace: request.pace,
         match,
         plan,
+        breaks,
         status: 'running',
         sent: 0,
         seq: reused ? reused.seq : 0,
@@ -267,6 +279,8 @@ export class SimulationService {
         pausedAt: null,
         notice: null,
       });
+      // From the start again: the breaks follow the «Fine set» pause of the client as it is now.
+      s.plan = await this.planOf(tenantId, s.match, s.pace, s.breaks, 1);
       await this.enqueue(s, () => this.snapshot(s, this.dueCount(s)));
       this.schedule(s);
     }
@@ -350,22 +364,31 @@ export class SimulationService {
     const maxLines = this.ctx.config.matchMaxLines;
     if (source.kind === 'upload')
       return fileMatch(Buffer.from(source.data, 'base64'), `File: ${source.fileName}`, maxLines);
-    const teams = source.clubTeams ? await this.clubTeams(tenantId) : null;
+    const teams = source.clubTeams ? await this.clubMatch(tenantId) : null;
+    // Our team plays with the roster of the club, on its side of the next match (home without the teams of the club).
     return generatedMatch({
       sets: source.sets,
       seed: source.seed ?? randomInt(1, 2_147_483_647),
       homeName: teams?.home,
       awayName: teams?.away,
       profile: source.profile,
+      ourSide: teams?.ourSide ?? 'home',
+      roster: await simulationRoster(this.ctx.db, tenantId),
     });
   }
 
   /** Our team and the opponent of the next match of the club (home and away as in the calendar). */
   private async clubTeams(tenantId: string): Promise<SimulationResponse['clubTeams']> {
+    const { home, away } = await this.clubMatch(tenantId);
+    return { home, away };
+  }
+
+  /** The next match of the club with the side of our team (without one: our team at home, a generated opponent). */
+  private async clubMatch(tenantId: string): Promise<{ home: string; away: string; ourSide: ClubSide }> {
     const next = (await comingFixtures(this.ctx.db, tenantId, this.ctx.now())).rows[0];
-    if (next) return { home: next.homeName, away: next.awayName };
+    if (next) return { home: next.homeName, away: next.awayName, ourSide: next.ourSide };
     const our = await ourTeamForManual(this.ctx.db, tenantId);
-    return { home: our.name, away: DEFAULT_AWAY_NAME };
+    return { home: our.name, away: DEFAULT_AWAY_NAME, ourSide: 'home' };
   }
 
   /** The simulated match of the client in the database (after a restart), with its next `seq`. */
@@ -511,7 +534,13 @@ export class SimulationService {
       if (generation !== s.generation || s.status !== 'running') return;
       void this.enqueue(s, async () => {
         if (generation !== s.generation || s.status !== 'running') return;
+        const before = s.sent;
         await this.append(s, Math.max(this.dueCount(s), s.sent + 1));
+        const ended = endedSet(s.match, before, s.sent);
+        // A set has just ended: its break takes the «Fine set» pause of the client as saved now (also changed after
+        // the start); the lines already sent keep their times.
+        if (ended !== null && generation === s.generation)
+          s.plan = await this.planOf(s.tenantId, s.match, s.pace, s.breaks, ended);
       }).then(
         () => {
           if (generation === s.generation) this.schedule(s);
@@ -519,6 +548,31 @@ export class SimulationService {
         () => undefined,
       );
     }, wait);
+  }
+
+  /**
+   * Plan of the replay (`planPlayback`). With a speed the break after a set lasts the «Fine set» pause of the client
+   * (the points never cut it), read now for the sets from `fromSet` on; the sets before it keep the break in `breaks`
+   * (already played: the times of their lines do not move).
+   */
+  private async planOf(
+    tenantId: string,
+    match: LoadedMatch,
+    pace: SimulationPace,
+    breaks: Map<number, number>,
+    fromSet: number,
+  ): Promise<PlaybackPlan> {
+    if (pace.kind !== 'speed') return planPlayback(match.timing, pace);
+    const stored = (await findTenant(this.ctx, { id: tenantId }))?.intermissions;
+    return planPlayback(match.timing, pace, {
+      minBreakSeconds: (set) => {
+        const kept = set < fromSet ? breaks.get(set) : undefined;
+        if (kept !== undefined) return kept;
+        const seconds = setBreakSeconds(stored, set);
+        breaks.set(set, seconds);
+        return seconds;
+      },
+    });
   }
 
   /** Runs a send after the ones before it; an error stops the simulation (logged, never a crash). */
@@ -550,7 +604,7 @@ export class SimulationService {
     part: Pick<IngestRequest, 'kind' | 'fromIndex' | 'lines' | 'header'>,
     all: string[],
   ): Promise<void> {
-    const source: IngestSource = { tenantId: s.tenantId, agentId: null, simulated: true };
+    const source: IngestSource = { tenantId: s.tenantId, agentId: null, simulated: true, ourSide: s.match.ourSide };
     const contentHash = await hashScoutLines(all);
     const request = (p: typeof part): IngestRequest =>
       IngestRequestSchema.parse({ protocol: INGEST_PROTOCOL, matchKey: s.matchKey, seq: s.seq++, ...p, contentHash });

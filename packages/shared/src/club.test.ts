@@ -9,6 +9,7 @@ import {
   isFixtureBroadcast,
   ManualFixtureRequestSchema,
   movedByLeague,
+  matchOurSide,
   matchTeamLogos,
   resolveClubProfile,
   ScheduleResponseSchema,
@@ -145,6 +146,17 @@ describe('logos of the teams', () => {
     const unknown = { home: { name: 'A', code: null }, away: { name: 'B', code: null } };
     expect(matchTeamLogos(info, unknown)).toEqual({ home: '/our.png', away: '/opp.png' });
     expect(matchTeamLogos({ ...info, calendarSide: null }, unknown)).toEqual({ home: null, away: null });
+  });
+
+  it('the side fixed by the server (simulation) comes before «nostra squadra» and the calendar', () => {
+    const info = { our: '/our.png', opponent: '/opp.png', calendarSide: null, ourTeam: { code: null, name: null } };
+    const teams = { home: { name: 'Pallavolo Città', code: 'PAL' }, away: { name: 'Volley Club Lugo', code: 'VOL' } };
+    expect(matchOurSide(info, teams)).toBeNull();
+    expect(matchOurSide(info, teams, 'away')).toBe('away');
+    expect(matchTeamLogos(info, teams, 'away')).toEqual({ home: '/opp.png', away: '/our.png' });
+    const perugia = { ...info, ourTeam: { code: null, name: 'Lugo' }, calendarSide: 'away' as const };
+    expect(matchOurSide(perugia, teams)).toBe('away');
+    expect(matchOurSide(perugia, teams, 'home')).toBe('home');
   });
 });
 

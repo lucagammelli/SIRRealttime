@@ -186,14 +186,28 @@ export interface MatchLogoInfo {
 }
 
 /**
- * Pure: the logos of the two sides of a `.dvw`. Our side: «nostra squadra» recognized in the file, otherwise the
- * side of the club in the calendar; unknown: no logos (never one on the wrong team).
+ * Pure: the side of our team in a `.dvw`: `fixed` when the server knows it by itself (the side chosen by the
+ * simulation of the server), otherwise «nostra squadra» recognized in the file, otherwise the side of the club in the
+ * calendar; null: unknown.
+ */
+export function matchOurSide(
+  info: Pick<MatchLogoInfo, 'calendarSide' | 'ourTeam'>,
+  teams: Record<Side, { name: string | null; code: string | null }>,
+  fixed: ClubSide | null = null,
+): ClubSide | null {
+  return fixed ?? ourTeamSide(teams, info.ourTeam) ?? info.calendarSide;
+}
+
+/**
+ * Pure: the logos of the two sides of a `.dvw`, with our side chosen by `matchOurSide`; unknown: no logos (never one
+ * on the wrong team).
  */
 export function matchTeamLogos(
   info: MatchLogoInfo,
   teams: Record<Side, { name: string | null; code: string | null }>,
+  fixed: ClubSide | null = null,
 ): TeamLogoPair {
-  const ours = ourTeamSide(teams, info.ourTeam) ?? info.calendarSide;
+  const ours = matchOurSide(info, teams, fixed);
   if (ours === 'home') return { home: info.our, away: info.opponent };
   if (ours === 'away') return { home: info.opponent, away: info.our };
   return { home: null, away: null };

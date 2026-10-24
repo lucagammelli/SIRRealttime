@@ -1,5 +1,5 @@
 import { parseDvw } from '@arenalive/dvw-parser';
-import type { IngestRequest, IngestResponse, StateMessage } from '@arenalive/shared';
+import type { ClubSide, IngestRequest, IngestResponse, StateMessage } from '@arenalive/shared';
 import { buildDvwText, hashScoutLines } from '@arenalive/shared';
 import { computeMatchState } from '@arenalive/volley-stats';
 import { and, asc, eq, gte } from 'drizzle-orm';
@@ -32,6 +32,8 @@ export interface IngestSource {
   tenantId: string;
   agentId: string | null;
   simulated: boolean;
+  /** Simulation: the side of our team it chose (`matches.our_side`); never read for an agent. */
+  ourSide?: ClubSide | null;
 }
 
 export interface IngestOutcome {
@@ -89,13 +91,14 @@ export class IngestService {
    */
   async ingest(source: IngestSource, req: IngestRequest): Promise<IngestOutcome> {
     const { tenantId, agentId, simulated } = source;
+    const ourSide = simulated ? { ourSide: source.ourSide ?? null } : {};
     let result: { outcome: IngestOutcome; cache?: CacheEntry };
     try {
       result = await this.db.transaction(async (tx): Promise<{ outcome: IngestOutcome; cache?: CacheEntry }> => {
         await lockTenantMatches(tx, tenantId);
         await tx
           .insert(matches)
-          .values({ tenantId, matchKey: req.matchKey, simulated })
+          .values({ tenantId, matchKey: req.matchKey, simulated, ...ourSide })
           .onConflictDoNothing({ target: [matches.tenantId, matches.matchKey] });
         const [row] = await tx
           .select()
@@ -120,7 +123,10 @@ export class IngestService {
         const unchanged =
           contentHash === row.contentHash && header === row.header && (row.live || simulated) && row.state !== null;
         if (unchanged) {
-          await tx.update(matches).set({ lastSeq: req.seq, agentId }).where(eq(matches.id, row.id));
+          await tx
+            .update(matches)
+            .set({ lastSeq: req.seq, agentId, ...ourSide })
+            .where(eq(matches.id, row.id));
           const response: IngestResponse = { status: 'ok', seq: req.seq, lineCount: lines.length, contentHash };
           return { outcome: { response, published: null } };
         }
@@ -155,6 +161,7 @@ export class IngestService {
             state,
             version,
             ...link,
+            ...ourSide,
             finishedAt,
             updatedAt: now,
           })
@@ -239,7 +246,8 @@ export async function applyIngest(ctx: AppContext, source: IngestSource, req: In
   const { published, route } = outcome;
   if (published) {
     const fixtureId = route?.clientFixtureId ?? null;
-    const message = await withLogos(ctx, source.tenantId, published, fixtureId);
+    const fixed = source.simulated ? (source.ourSide ?? null) : null;
+    const message = await withLogos(ctx, source.tenantId, published, fixtureId, fixed);
     const channel = source.simulated ? false : await channelAllowed(ctx, source.tenantId, fixtureId);
     ctx.publisher.publish(source.tenantId, message, route ? { ...route, channel } : route);
     if (!source.simulated && (route?.becameLive || published.state.status === 'finished'))

@@ -310,7 +310,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
     blocks: [
       {
         kind: 'text',
-        text: 'Con «Simulazione» vedi una partita finta sulla pagina pubblica, senza aspettare una gara vera. Non finisce nel calendario, nelle partite o nelle statistiche.',
+        text: 'Con «Simulazione» vedi una partita finta sulla pagina pubblica, senza aspettare una gara vera. Non finisce nel calendario, nelle partite o nelle statistiche. Una partita casuale si gioca con i giocatori della rosa della pagina «Squadra» sul lato della tua squadra; l’avversario è generato.',
       },
       {
         kind: 'steps',

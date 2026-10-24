@@ -1,4 +1,11 @@
-import type { JsonValue, PatchMessage, ServerMessage, TeamLogoPair, UpcomingFixture } from '@arenalive/shared';
+import type {
+  ClubSide,
+  JsonValue,
+  PatchMessage,
+  ServerMessage,
+  TeamLogoPair,
+  UpcomingFixture,
+} from '@arenalive/shared';
 import { applyPatch } from '@arenalive/shared';
 import type { MatchState } from '@arenalive/volley-stats';
 import { gunzipFrame, supportsGzip, withGzip } from './frames.ts';
@@ -23,6 +30,8 @@ export type LiveData =
       live?: boolean;
       /** Logos of the two sides, as chosen by the server («Loghi delle squadre»); missing: none. */
       logos?: TeamLogoPair;
+      /** Side of our team as chosen by the server with the logos (e.g. the simulation); missing: unknown. */
+      ourSide?: ClubSide;
       /** A match of the simulation of the server: the page shows «Simulazione». */
       simulated?: boolean;
       /** When the match ended (ISO UTC), while it is finished: «Dopo la partita» starts from it. */
@@ -114,6 +123,7 @@ export function applyMessage(current: LiveData | null, message: ServerMessage): 
     version: message.version,
     state: message.state,
     ...(message.logos ? { logos: message.logos } : {}),
+    ...(message.ourSide ? { ourSide: message.ourSide } : {}),
     ...(message.simulated ? { simulated: true } : {}),
     ...(message.finishedAt ? { finishedAt: message.finishedAt } : {}),
   };
@@ -134,7 +144,7 @@ export function applyPatchMessage(current: LiveData | null, message: PatchMessag
     return 'resync';
   }
   if (!looksLikeMatchState(next)) return 'resync';
-  // A patch changes only the state: the logos (and the end of the match, which the server sends with a full state
+  // A patch changes only the state: the logos, the side of our team (and the end of the match, which the server sends with a full state
   // when it changes) stay those of the full state it applies to.
   return {
     kind: 'state',
@@ -142,6 +152,7 @@ export function applyPatchMessage(current: LiveData | null, message: PatchMessag
     version: message.version,
     state: next,
     ...(current.logos ? { logos: current.logos } : {}),
+    ...(current.ourSide ? { ourSide: current.ourSide } : {}),
     ...(current.simulated ? { simulated: true } : {}),
     ...(current.finishedAt && next.status === 'finished' ? { finishedAt: current.finishedAt } : {}),
   };

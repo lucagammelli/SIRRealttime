@@ -4,6 +4,11 @@ Le versioni seguono il versionamento semantico (`vX.Y.Z`); la fonte della versio
 `package.json` alla radice. Le sezioni nuove le aggiunge `scripts/rilascia.sh` con i titoli dei commit dal tag
 precedente; le note della release su GitHub sono la sezione della versione (`docs/regole/test-job-rilasci.md`).
 
+## [2.6.1] - 2026-10-24
+
+- Libreria: video QuickTime (.mov) accettati, anche con tipo non riconosciuto dal browser
+- Avvisi: foto e video del giocatore senza velo, testo sì/no, foto anche a tutto schermo
+
 ## [2.6.0] - 2026-10-24
 
 - Test Tabellone: rosa nel tenant pubblico dopo l'allineamento

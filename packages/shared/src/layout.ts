@@ -240,6 +240,12 @@ export type CourtSideMode = (typeof COURT_SIDE_MODES)[number];
 /** Skill shown without the touch filters: attacks, serves, or both in turn. */
 export const COURT_SKILL_MODES = ['attack', 'serve', 'cycle'] as const;
 export type CourtSkillMode = (typeof COURT_SKILL_MODES)[number];
+/**
+ * Halves of the map: `scoreboard` as the scoreboard, home always on the left and away on the right (the arrows of the
+ * away team go from right to left); `shown` the team shown always on the left, attacking to the right.
+ */
+export const COURT_ORIENTATIONS = ['scoreboard', 'shown'] as const;
+export type CourtOrientation = (typeof COURT_ORIENTATIONS)[number];
 /** Seconds of each view of the map when it goes in turn. */
 export const COURT_CYCLE_SECONDS_MIN = 5;
 export const COURT_CYCLE_SECONDS_MAX = 60;
@@ -255,6 +261,8 @@ export const CourtOptionsSchema = z.strictObject({
   side: z.enum(COURT_SIDE_MODES).default('cycle'),
   skill: z.enum(COURT_SKILL_MODES).default('attack'),
   cycleSeconds: z.int().min(COURT_CYCLE_SECONDS_MIN).max(COURT_CYCLE_SECONDS_MAX).default(COURT_CYCLE_SECONDS_DEFAULT),
+  /** Which team plays in which half; saved layouts without it take the scoreboard one (home on the left). */
+  orientation: z.enum(COURT_ORIENTATIONS).default('scoreboard'),
   /**
    * `single`: both halves in `fieldColor`; `tricolor`: the whole court in three bands of two columns of zones, with
    * the colours of `tricolor` (default: green, white, red; the white band straddles the net). Missing: the halves

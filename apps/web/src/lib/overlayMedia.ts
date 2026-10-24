@@ -24,6 +24,8 @@ export interface OverlayMedia {
   duration?: OverlayVideoDuration;
   /** The photo or video of a player: shown as the original file (no veil); `showText` false hides the text. */
   player?: { showText: boolean };
+  /** A fixed background: false hides the text (no veil, the text stays for screen readers); missing: shown. */
+  showText?: boolean;
 }
 
 /** Pure: the media of `background` at `url`, with the options of a video. */
@@ -33,7 +35,7 @@ export const mediaOf = (background: OverlayBackground, url: string, player?: { s
   audio: background.audio,
   fit: background.fit,
   duration: background.duration,
-  ...(player ? { player } : {}),
+  ...(player ? { player } : { showText: background.showText }),
 });
 
 /** The players of our team whose photos and videos are kept ready: the roster media of the public page and their shirt numbers. */
@@ -83,7 +85,7 @@ export function wantedBackgrounds(
       const some = (ids: readonly string[]): string[] => (pm.pick === 'random' ? [...ids] : ids.slice(0, 1));
       for (const player of preload.players) {
         if (!preload.numbers.has(player.number)) continue;
-        const common = { audio: pm.audio, fit: pm.fit, teams: 'ours' as const };
+        const common = { audio: pm.audio, fit: pm.fit, teams: 'ours' as const, showText: pm.showText };
         const photos = player.photo ? [player.photo, ...player.images] : player.images;
         for (const assetId of some(photos))
           if (!out.has(assetId)) out.set(assetId, { kind: 'image', assetId, ...common, duration: 'seconds' });

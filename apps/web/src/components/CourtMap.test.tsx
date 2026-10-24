@@ -88,6 +88,60 @@ describe('court map options', () => {
     act(release);
   });
 
+  it('as the scoreboard: home on the left also when the map shows away, the halves keep the colours of their team', () => {
+    const options = CourtOptionsSchema.parse({ side: 'away', fieldOurs: '#112233', fieldOpponent: '#445566' });
+    const state = stateAfter();
+    const { container } = render(<CourtMap state={state} options={options} />);
+    const root = svg(container);
+    expect(root.getAttribute('data-court-side')).toBe('away');
+    expect(root.querySelector('[data-court-left]')?.getAttribute('data-court-left')).toBe('home');
+    expect(root.querySelector('[data-court-right]')?.getAttribute('data-court-right')).toBe('away');
+    // home (ours when none is known) keeps its colour on the left
+    expect(root.querySelector('rect[x="10"][y="10"]')?.getAttribute('fill')).toBe('#112233');
+    // the away arrows start in the right half and end in the left one
+    const arrows = [...root.querySelectorAll('path[marker-end]')];
+    expect(arrows.length).toBeGreaterThan(0);
+    for (const a of arrows) {
+      const [x1, , , , x2] = (a.getAttribute('d') ?? '').replace(/[MQ]/g, '').trim().split(/\s+/).map(Number);
+      expect(x1).toBeGreaterThan(100);
+      expect(x2).toBeLessThan(100);
+    }
+    expect(container.textContent).toContain(`${state.teams.away.name} → ${state.teams.home.name}`);
+  });
+
+  it('as the scoreboard the home arrows go from left to right', () => {
+    const { container } = render(<CourtMap state={stateAfter()} />);
+    const arrows = [...svg(container).querySelectorAll('path[marker-end]')];
+    expect(arrows.length).toBeGreaterThan(0);
+    for (const a of arrows) {
+      const [x1, , , , x2] = (a.getAttribute('d') ?? '').replace(/[MQ]/g, '').trim().split(/\s+/).map(Number);
+      expect(x1).toBeLessThan(100);
+      expect(x2).toBeGreaterThan(100);
+    }
+  });
+
+  it('«Squadra mostrata sempre a sinistra»: the away team on the left, attacking to the right', () => {
+    const options = CourtOptionsSchema.parse({ side: 'away', orientation: 'shown', fieldOurs: '#112233' });
+    const { container } = render(<CourtMap state={stateAfter()} options={options} />);
+    const root = svg(container);
+    expect(root.querySelector('[data-court-left]')?.getAttribute('data-court-left')).toBe('away');
+    expect(root.querySelector('rect[x="100"][y="10"]')?.getAttribute('fill')).toBe('#112233');
+    for (const a of root.querySelectorAll('path[marker-end]')) {
+      const [x1, , , , x2] = (a.getAttribute('d') ?? '').replace(/[MQ]/g, '').trim().split(/\s+/).map(Number);
+      expect(x1).toBeLessThan(100);
+      expect(x2).toBeGreaterThan(100);
+    }
+  });
+
+  it('no action: the message stands on a band above the field', () => {
+    const { container } = render(<CourtMap state={stateAfter(0)} />);
+    const empty = svg(container).querySelector('[data-court-empty]');
+    expect(empty?.querySelector('rect.fill-surface')).toBeTruthy();
+    expect(empty?.textContent).toBe('Nessuna azione con zone per questo filtro');
+    // drawn last, above net and cells
+    expect(svg(container).lastElementChild).toBe(empty);
+  });
+
   it('on the big screen fits the field to the height of the card instead of scrolling', () => {
     const { container } = render(<CourtMap state={stateAfter()} fit />);
     expect(container.querySelector('.sir-card-body')?.className).toContain('flex-col');

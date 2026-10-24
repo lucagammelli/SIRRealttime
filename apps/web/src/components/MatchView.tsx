@@ -78,13 +78,7 @@ export function MatchView({
 
   return (
     <TouchContext.Provider value={layout?.touch[used] ?? true}>
-      <BlockLayout
-        blocks={blocks}
-        device={used}
-        renderBlock={renderBlock}
-        rotationPaused={rotationPaused}
-        measureReset={`${state.status}:${state.setsWon.home}-${state.setsWon.away}`}
-      />
+      <BlockLayout blocks={blocks} device={used} renderBlock={renderBlock} rotationPaused={rotationPaused} />
     </TouchContext.Provider>
   );
 }

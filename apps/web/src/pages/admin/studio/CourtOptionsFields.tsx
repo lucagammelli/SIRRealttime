@@ -1,7 +1,8 @@
-import type { CourtOptions, CourtSideMode, CourtSkillMode, LayoutBlock } from '@arenalive/shared';
+import type { CourtOptions, CourtOrientation, CourtSideMode, CourtSkillMode, LayoutBlock } from '@arenalive/shared';
 import {
   COURT_CYCLE_SECONDS_MAX,
   COURT_CYCLE_SECONDS_MIN,
+  COURT_ORIENTATIONS,
   COURT_SIDE_MODES,
   COURT_SKILL_MODES,
   COURT_TRICOLOR_DEFAULT,
@@ -28,6 +29,12 @@ export const COURT_SKILL_LABELS: Record<CourtSkillMode, string> = {
   serve: 'Battuta',
   cycle: 'A turno',
 };
+/** Labels of the orientation of the halves. */
+export const COURT_ORIENTATION_LABELS: Record<CourtOrientation, string> = {
+  scoreboard: 'Come il tabellone (casa a sinistra)',
+  shown: 'Squadra mostrata sempre a sinistra',
+};
+const isOrientation = (v: string): v is CourtOrientation => (COURT_ORIENTATIONS as readonly string[]).includes(v);
 const CYCLE_SECONDS = [5, 10, 15, 20, 30, 45, 60].filter(
   (n) => n >= COURT_CYCLE_SECONDS_MIN && n <= COURT_CYCLE_SECONDS_MAX,
 );
@@ -202,6 +209,31 @@ export function CourtOptionsFields({
             vede la squadra di casa.
           </p>
         )}
+      </fieldset>
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium text-text">Metà del campo</legend>
+        <label className="flex flex-wrap items-center gap-2 text-sm text-text">
+          Orientamento
+          <select
+            className={selectClass}
+            value={options.orientation}
+            onChange={(e) => {
+              if (isOrientation(e.target.value))
+                onChange({ ...block, options: { ...options, orientation: e.target.value } });
+            }}
+          >
+            {COURT_ORIENTATIONS.map((o) => (
+              <option key={o} value={o}>
+                {COURT_ORIENTATION_LABELS[o]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="text-xs text-muted">
+          {options.orientation === 'scoreboard'
+            ? 'Casa sempre nella metà sinistra e ospite nella destra, come sul tabellone: le traiettorie dell’ospite vanno da destra a sinistra.'
+            : 'La squadra di cui si vedono attacchi e battute sta sempre a sinistra e attacca verso destra.'}
+        </p>
       </fieldset>
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium text-text">Fondo del campo</legend>

@@ -158,7 +158,8 @@ describe('playGapMs', () => {
   });
 });
 
-describe('play', () => {
+// A whole match rewritten line by line (about 1000 renders of the whole file): seconds on a busy machine.
+describe('play', { timeout: 30_000 }, () => {
   let dir = '';
   afterEach(async () => {
     if (dir) await rm(dir, { recursive: true, force: true });

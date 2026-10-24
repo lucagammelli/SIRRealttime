@@ -316,7 +316,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
         kind: 'steps',
         items: [
           'Apri «Simulazione».',
-          'In «Nuova simulazione» scegli la partita, i set da giocare e la velocità.',
+          'In «Nuova simulazione» scegli la partita, i set da giocare e la velocità. Per una partita casuale, in «Andamento della partita» puoi cambiare la forza della squadra di casa, la variabilità e quanti ace, errori al servizio, muri punto, cambi e time-out ci sono in media per set (con «Valori predefiniti» torni a quelli di una partita tipica).',
           'Premi «Avvia».',
           'In «Link della simulazione» apri il link, o inquadra il QR con il telefono.',
         ],

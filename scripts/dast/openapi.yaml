@@ -1234,7 +1234,7 @@ paths:
               type: object
               required: [source, pace]
               properties:
-                source: { type: object, example: { kind: generated, sets: 3 } }
+                source: { type: object, example: { kind: generated, sets: 3, profile: { homeStrength: 50, variability: 50, acesPerSet: 1.5, serveErrorsPerSet: 3.5, blocksPerSet: 2, substitutionsPerSet: 2, timeoutsPerSet: 1.5 } } }
                 pace: { type: object, example: { kind: duration, setSeconds: 60 } }
       responses:
         '200': { description: simulazione avviata }

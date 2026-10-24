@@ -1,4 +1,5 @@
 export { generateMatch, DEFAULT_START_TIME, DEFAULT_HOME_NAME, DEFAULT_AWAY_NAME } from './generate.js';
+export { DEFAULT_PROFILE, PROFILE_LIMITS, resolveProfile } from './profile.js';
 export { renderDvw, scoutLineText } from './render.js';
 export type { RenderOptions } from './render.js';
 export { applyCorrection } from './correction.js';

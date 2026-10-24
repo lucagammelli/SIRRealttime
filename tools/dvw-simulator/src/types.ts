@@ -56,6 +56,25 @@ export interface GeneratedMatch {
   lines: ScoutLine[];
 }
 
+/**
+ * How the match goes. Targets on average, not exact counts: every set is played rally by rally.
+ * The counts are per team and per set.
+ */
+export interface MatchProfile {
+  /** Strength of the home team against the away team, 0-100: 50 on a par, 100 home far stronger. */
+  homeStrength: number;
+  /** How much the level of the teams changes from set to set and within a set, 0-100 (0: always the same). */
+  variability: number;
+  acesPerSet: number;
+  serveErrorsPerSet: number;
+  /** Block points. */
+  blocksPerSet: number;
+  /** Substitutions (at most 6 per team and set, as in the rules). */
+  substitutionsPerSet: number;
+  /** Time-outs (at most 2 per team and set). */
+  timeoutsPerSet: number;
+}
+
 export interface GenerateOptions {
   seed: number;
   /** Total number of sets played (3, 4 or 5). Default 3. */
@@ -64,4 +83,6 @@ export interface GenerateOptions {
   awayName?: string;
   /** ISO UTC start, fixed default so that output is deterministic. */
   startTime?: string;
+  /** How the match goes; missing fields take `DEFAULT_PROFILE`. */
+  profile?: Partial<MatchProfile>;
 }

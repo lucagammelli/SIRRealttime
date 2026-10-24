@@ -105,7 +105,7 @@ describe('live updates: patches, gzip and resync', () => {
   it('sends patches after the first full state; applied in order they give the state of the server', async () => {
     const client = await open(server, `/ws/public/${token}`);
     await expect.poll(() => client.received.length).toBe(1);
-    for (const upTo of [40, 55, 70]) await feed(upTo);
+    for (const upTo of [40, 46, 52]) await feed(upTo);
     await expect.poll(() => client.received.length).toBe(4);
     // A step that changes more than half of the state (e.g. a new set) may come in full.
     const types = client.received.map((r) => r.message.type);

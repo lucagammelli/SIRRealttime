@@ -814,7 +814,10 @@ come l'agente), così il comportamento è quello vero; la partita però è **iso
 - **Sorgenti** (`source.ts`, `LoadedMatch`): solo due. `generated` («Casuale»: `generatedMatch`, una partita del
   simulatore con 3, 4 o 5 set, `seed` facoltativo, altrimenti uno a caso; `clubTeams` per usare nostra squadra e
   avversario della prossima partita del calendario, altrimenti la squadra di `ourTeamForManual` contro
-  `DEFAULT_AWAY_NAME`) e `upload` (un `.dvw` caricato dall'admin, in base64, `fileName` fino a 120 caratteri). Non ci sono
+  `DEFAULT_AWAY_NAME`; `profile` facoltativo, l'«Andamento della partita» (`SimulationProfileSchema`: `homeStrength`
+  e `variability` da 0 a 100, `acesPerSet` 0-8, `serveErrorsPerSet` 0-10, `blocksPerSet` 0-8, `substitutionsPerSet` 0-6,
+  `timeoutsPerSet` 0-2, ognuno facoltativo; un valore fuori dai limiti è **400**; i campi mancanti, o tutto `profile`
+  assente come nelle richieste di prima, prendono i default del simulatore, `DEFAULT_PROFILE` in `docs/simulatore.md`) e `upload` (un `.dvw` caricato dall'admin, in base64, `fileName` fino a 120 caratteri). Non ci sono
   partite di esempio già pronte. `fileMatch` legge il file come l'agente (Windows-1252 o UTF-8), lo valida con lo schema
   dell'ingest e al massimo `MATCH_MAX_LINES` righe; una riga malformata resta (il parser ne fa un'azione `unknown`).
   Errori: file oltre `SIMULATION_UPLOAD_MAX_BYTES` (2 MB; la rotta lo controlla già sul testo base64) **413**

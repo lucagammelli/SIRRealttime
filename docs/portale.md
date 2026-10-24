@@ -503,6 +503,14 @@ per riga, come farebbe l'agente (`docs/server.md`, «Simulazione di una partita�
     default; sotto, «squadra di casa – avversario» della prossima partita del calendario, se c'è) e «Seme (facoltativo)»
     («Stesso seme, stessa partita; vuoto: una partita a caso.»). *Importa file .dvw*: campo «File .dvw» («Un file di
     DataVolley, al massimo 2 MB. Le righe non riconosciute restano, come con l'agente.»);
+  - gruppo **«Andamento della partita»**, solo con «Casuale», con la nota «Ace, errori, muri, cambi e time-out sono medie
+    per squadra e per set: la partita le segue in media, non alla lettera.» e i campi precompilati con i valori di una
+    partita tipica (`SIMULATION_PROFILE` di `packages/shared`): «Forza della squadra di casa (%)» (da 0 a 100, 50; «50:
+    squadre alla pari; più alto, più forte la squadra di casa.»), «Variabilità (%)» (da 0 a 100, 50; «Quanto cambia il
+    livello delle squadre da un set all'altro e durante il set.»), «Ace» (da 0 a 8, 1,5), «Errori al servizio» (da 0 a
+    10, 3,5), «Muri punto» (da 0 a 8, 2), «Cambi» (da 0 a 6, 2), «Time-out» (da 0 a 2, 1,5), a passi di 0,5; il pulsante
+    **«Valori predefiniti»** li rimette tutti. Sono sempre inviati con «Avvia» (`source.profile`); un campo vuoto o fuori
+    dai limiti dà ««Nome del campo»: un numero da N a M.» senza chiamare il server;
   - gruppo **«Tempi»**, scelta tra «Durata» e «Velocità». «Durata»: «Durata di un set (s)» (da 10 a 3600, predefinito 120)
     e «Pausa tra i set (s)» (da 0 a 1800, predefinito 20). «Velocità»: «1×», «2×», «5×» (predefinita), «10×», con la nota
     «Sul ritmo reale delle righe (gli orari del file); senza orari, un ritmo medio realistico.» (calcolo in
@@ -1539,7 +1547,7 @@ API del server: il portale non è scansionato.
 - Agente scaricabile: `apps/web/src/pages/admin/AgentsPage.tsx` (`AgentDownload`, `AGENT_DOWNLOAD_PATH`), test
   `AgentsPage.test.tsx`; `AgentDownloadInfoSchema` in `packages/shared/src/agentDownload.ts`; server in `docs/server.md`
 - Simulazione: `apps/web/src/pages/admin/SimulationPage.tsx` (`SimulationPage`, `formatClock`, `paceText`,
-  `SIMULATION_POLL_MS`), `components/LiveMatch.tsx` (`SimulationLabel`, `SIMULATION_LABEL`), `lib/liveConnection.ts`;
+  `SIMULATION_POLL_MS`, `PROFILE_FIELDS`), `components/LiveMatch.tsx` (`SimulationLabel`, `SIMULATION_LABEL`), `lib/liveConnection.ts`;
   contratto in `packages/shared/src/simulation.ts` (`docs/architettura.md`), API in `docs/server.md`
 - Club e «Prossima partita»: `apps/web/src/pages/admin/ClubPage.tsx` (`ClubPage`, `leagueName`, `syncText`),
   `pages/admin/CalendarPage.tsx` (`CalendarPage`, `STATE_TEXT`, `fixtureChoiceText`), `pages/admin/AdminSidebar.tsx`

@@ -286,6 +286,20 @@ describe('simulation of a match', () => {
     expect(sim?.awayName).toBe(before.clubTeams?.away);
   });
 
+  it('plays a generated match with the «Andamento della partita» chosen; a value out of its limits is a 400', async () => {
+    const profile = { homeStrength: 80, acesPerSet: 3, substitutionsPerSet: 4, timeoutsPerSet: 2 };
+    const sim = (await start({ ...GENERATED, source: { kind: 'generated', sets: 4, seed: 21, profile } })).simulation;
+    const match = generateMatch({ seed: 21, sets: 4, profile });
+    expect(sim?.linesTotal).toBe(match.lines.length);
+    expect(sim?.linesTotal).not.toBe(generateMatch({ seed: 21, sets: 4 }).lines.length);
+    expect((await command('stop')).statusCode).toBe(200);
+    const bad = await call('POST', '/api/admin/simulation', admin, {
+      ...GENERATED,
+      source: { kind: 'generated', sets: 3, profile: { substitutionsPerSet: 9 } },
+    });
+    expect(bad.statusCode).toBe(400);
+  });
+
   it('is one per client and at most a few in the whole server', async () => {
     await start();
     const again = await call('POST', '/api/admin/simulation', admin, GENERATED);

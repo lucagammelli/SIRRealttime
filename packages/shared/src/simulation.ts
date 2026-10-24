@@ -42,8 +42,42 @@ export const SimulationPaceSchema = z.discriminatedUnion('kind', [
 export type SimulationPace = z.infer<typeof SimulationPaceSchema>;
 
 /**
+ * How a generated match goes («Andamento della partita»): limits, default and step of every field, the same as
+ * `PROFILE_LIMITS` and `DEFAULT_PROFILE` of `tools/dvw-simulator` (checked by a test). Averages per team and per set,
+ * except the strength of the home team (50: on a par) and the variability (0: the level of the teams never changes).
+ */
+export const SIMULATION_PROFILE = {
+  homeStrength: { min: 0, max: 100, default: 50, step: 1 },
+  variability: { min: 0, max: 100, default: 50, step: 1 },
+  acesPerSet: { min: 0, max: 8, default: 1.5, step: 0.5 },
+  serveErrorsPerSet: { min: 0, max: 10, default: 3.5, step: 0.5 },
+  blocksPerSet: { min: 0, max: 8, default: 2, step: 0.5 },
+  substitutionsPerSet: { min: 0, max: 6, default: 2, step: 0.5 },
+  timeoutsPerSet: { min: 0, max: 2, default: 1.5, step: 0.5 },
+} as const;
+export type SimulationProfileField = keyof typeof SIMULATION_PROFILE;
+
+const profileField = (field: SimulationProfileField) => {
+  const { min, max } = SIMULATION_PROFILE[field];
+  return z.number().min(min).max(max).optional();
+};
+
+/** Every field optional: a missing one takes the default of the simulator. */
+export const SimulationProfileSchema = z.object({
+  homeStrength: profileField('homeStrength'),
+  variability: profileField('variability'),
+  acesPerSet: profileField('acesPerSet'),
+  serveErrorsPerSet: profileField('serveErrorsPerSet'),
+  blocksPerSet: profileField('blocksPerSet'),
+  substitutionsPerSet: profileField('substitutionsPerSet'),
+  timeoutsPerSet: profileField('timeoutsPerSet'),
+});
+export type SimulationProfile = z.infer<typeof SimulationProfileSchema>;
+
+/**
  * `generated`: a match of `tools/dvw-simulator` with 3, 4 or 5 sets (`seed` for the same match again, otherwise a
- * random one; `clubTeams`: our team and the opponent of the next match, when there is one).
+ * random one; `clubTeams`: our team and the opponent of the next match, when there is one; `profile`: how it goes,
+ * the defaults of the simulator without it).
  * `upload`: a `.dvw` of the admin, as base64 (at most SIMULATION_UPLOAD_MAX_BYTES).
  */
 export const SimulationSourceSchema = z.discriminatedUnion('kind', [
@@ -52,6 +86,7 @@ export const SimulationSourceSchema = z.discriminatedUnion('kind', [
     sets: z.union([z.literal(3), z.literal(4), z.literal(5)]),
     seed: z.int().min(1).max(2_147_483_647).optional(),
     clubTeams: z.boolean().default(false),
+    profile: SimulationProfileSchema.optional(),
   }),
   z.object({
     kind: z.literal('upload'),

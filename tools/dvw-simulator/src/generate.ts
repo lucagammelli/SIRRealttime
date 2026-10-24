@@ -1,9 +1,11 @@
 import { COACHES, FIRST_NAMES, LAST_NAMES } from './names.js';
+import { resolveProfile } from './profile.js';
 import { Rng } from './rng.js';
 import type {
   GenerateOptions,
   GeneratedMatch,
   LineKind,
+  MatchProfile,
   Role,
   ScoutLine,
   SimPlayer,
@@ -58,6 +60,10 @@ interface TeamState {
   subs: number;
   timeouts: number;
   libero: number | null;
+  /** Substitute on court -> the player he replaced (on the bench): only he can come back, only for him. */
+  pairs: Map<number, number>;
+  /** Players who already came back or went out for good: no other substitution in the set. */
+  locked: Set<number>;
 }
 
 function newTeamState(team: SimTeam, rng: Rng): TeamState {
@@ -72,7 +78,7 @@ function newTeamState(team: SimTeam, rng: Rng): TeamState {
   const lineup = [...base.slice(turns), ...base.slice(0, turns)];
   const libero = byRole('L')[0] ?? null;
   const bench = team.players.map((p) => p.number).filter((n) => !base.includes(n) && n !== libero);
-  return { team, roles, lineup, bench, subs: 0, timeouts: 0, libero };
+  return { team, roles, lineup, bench, subs: 0, timeouts: 0, libero, pairs: new Map(), locked: new Set() };
 }
 
 const role = (ts: TeamState, n: number): Role => ts.roles.get(n) as Role;
@@ -92,53 +98,112 @@ function rotate(ts: TeamState): void {
 
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 
-const EVAL_AFTER: Record<string, ReadonlyArray<readonly [string, number]>> = {
+type Weights = ReadonlyArray<readonly [string, number]>;
+
+/** Reception after a serve in play (an ace is `#` on the serve and `=` on the reception, never here). */
+const RECEPTION_AFTER: Record<string, Weights> = {
   '+': [
-    ['#', 0.12],
-    ['+', 0.3],
-    ['!', 0.25],
-    ['-', 0.23],
-    ['=', 0.1],
+    ['#', 0.14],
+    ['+', 0.32],
+    ['!', 0.28],
+    ['-', 0.2],
+    ['/', 0.06],
   ],
   '!': [
-    ['#', 0.22],
+    ['#', 0.24],
     ['+', 0.38],
-    ['!', 0.2],
-    ['-', 0.14],
-    ['=', 0.06],
+    ['!', 0.22],
+    ['-', 0.13],
+    ['/', 0.03],
   ],
   '-': [
-    ['#', 0.3],
+    ['#', 0.34],
     ['+', 0.4],
-    ['!', 0.18],
-    ['-', 0.1],
-    ['=', 0.02],
+    ['!', 0.17],
+    ['-', 0.09],
   ],
   '/': [
-    ['+', 0.15],
-    ['!', 0.25],
+    ['#', 0.1],
+    ['+', 0.3],
+    ['!', 0.3],
     ['-', 0.3],
-    ['=', 0.3],
   ],
 };
 
-const KILL_BY_QUALITY: Record<string, number> = { '#': 0.55, '+': 0.5, '!': 0.4, '-': 0.28, '/': 0.2 };
+/** Kill probability of an attack by the quality of the ball before it (reception or dig), teams on a par. */
+const KILL_BY_QUALITY: Record<string, number> = { '#': 0.56, '+': 0.52, '!': 0.43, '-': 0.32, '/': 0.25 };
+/** Serves of a team in a set, on average (a set of about 46 rallies): turns the targets per set into rates. */
+const SERVES_PER_SET = 22.5;
+/** Attacks of a team in a set, on average: turns the block points per set into a rate. */
+const ATTACKS_PER_SET = 28;
+/** Kill probability added to the stronger team at 100 (and taken from the other one). */
+const STRENGTH_EDGE = 0.12;
+/** Largest change of level of a team from set to set, and within a set, at variability 100. */
+const SET_FORM = 0.1;
+const SPELL_FORM = 0.05;
+/** Points between two changes of level within a set. */
+const SPELL_POINTS = 6;
+
+/** Count of events in a set: binomial on `max` tries, so its mean is `mean` and it never goes over `max`. */
+function plannedCount(rng: Rng, mean: number, max: number): number {
+  let n = 0;
+  for (let i = 0; i < max; i++) if (rng.chance(mean / max)) n++;
+  return n;
+}
+
+/** Sorted points of the set (total of both teams) after which the planned events are called. */
+function plannedAt(rng: Rng, count: number, from: number, to: number): number[] {
+  return Array.from({ length: count }, () => rng.int(from, to)).sort((a, b) => a - b);
+}
 
 class SetPlayer {
   readonly lines: ScoutLine[] = [];
   readonly score: [number, number] = [0, 0];
   second: number;
   private server = 0;
+  private readonly form: [number, number];
+  private spell: [number, number] = [0, 0];
+  private readonly subsAt: [number[], number[]];
+  private readonly timeoutsAt: [number[], number[]];
+  private readonly aceRate: number;
+  private readonly serveErrorRate: number;
+  private readonly blockRate: number;
 
   constructor(
     private readonly rng: Rng,
     private readonly teams: [TeamState, TeamState],
     private readonly setNo: number,
     private readonly target: number,
+    private readonly profile: MatchProfile,
+    /** Extra kill probability per team (only after many sets not won by the team wanted). */
     private readonly bias: [number, number],
     startSecond: number,
   ) {
     this.second = startSecond;
+    const v = profile.variability / 100;
+    this.form = [(rng.next() * 2 - 1) * SET_FORM * v, (rng.next() * 2 - 1) * SET_FORM * v];
+    const scale = target / 25;
+    const at = (from: number, to: number) => [Math.round(from * scale), Math.round(to * scale)] as const;
+    const [subFrom, subTo] = at(6, 40);
+    const [toFrom, toTo] = at(5, 34);
+    const subs = () => plannedAt(rng, plannedCount(rng, profile.substitutionsPerSet, 6), subFrom, subTo);
+    const timeouts = () => plannedAt(rng, plannedCount(rng, profile.timeoutsPerSet, 2), toFrom, toTo);
+    this.subsAt = [subs(), subs()];
+    this.timeoutsAt = [timeouts(), timeouts()];
+    this.aceRate = profile.acesPerSet / SERVES_PER_SET;
+    this.serveErrorRate = profile.serveErrorsPerSet / SERVES_PER_SET;
+    const sum = this.aceRate + this.serveErrorRate;
+    if (sum > 0.8) {
+      this.aceRate *= 0.8 / sum;
+      this.serveErrorRate *= 0.8 / sum;
+    }
+    this.blockRate = Math.min(0.4, profile.blocksPerSet / ATTACKS_PER_SET);
+  }
+
+  /** Level of team `t` now: strength, form of the set, spell within the set (kill probability added). */
+  private edge(t: number): number {
+    const strength = ((this.profile.homeStrength - 50) / 50) * STRENGTH_EDGE;
+    return (t === 0 ? strength : -strength) + (this.form[t] ?? 0) + (this.spell[t] ?? 0) + (this.bias[t] ?? 0);
   }
 
   private emit(kind: LineKind, code: string, score?: [number, number]): void {
@@ -177,6 +242,10 @@ class SetPlayer {
     return role(this.teams[t] as TeamState, n);
   }
 
+  private blocker(t: number): number {
+    return this.actor(t, (n, p) => (p >= 2 && p <= 4 && this.roleOf(t, n) !== 'L' ? 1 : 0));
+  }
+
   /** Plays the rally; returns the winning team index. */
   private rally(server: number): number {
     const rng = this.rng;
@@ -185,9 +254,9 @@ class SetPlayer {
     const serverNum = display(this.teams[server] as TeamState)[0] as number;
     const u = rng.next();
     const serveEval =
-      u < 0.07
+      u < this.aceRate
         ? '#'
-        : u < 0.16
+        : u < this.aceRate + this.serveErrorRate
           ? '='
           : rng.weighted([
               ['+', 0.2],
@@ -204,9 +273,8 @@ class SetPlayer {
       this.action(recv, receiverNum, 'R', 'H', '=');
       return server;
     }
-    let quality = rng.weighted(EVAL_AFTER[serveEval] as ReadonlyArray<readonly [string, number]>);
+    let quality = rng.weighted(RECEPTION_AFTER[serveEval] as Weights);
     this.action(recv, receiverNum, 'R', 'H', quality);
-    if (quality === '=') return server;
 
     let att = recv;
     for (let step = 0; ; step++) {
@@ -243,15 +311,14 @@ class SetPlayer {
         return r === 'M' ? 0 : 0.2;
       });
       const pos = display(ts).indexOf(attacker) + 1;
-      const startZone = pos === 1 ? 1 : pos === 2 ? 2 : pos === 3 ? 3 : pos === 4 ? 4 : pos === 5 ? 5 : 6;
       const combo = pos === 3 ? rng.pick(['X1', 'X2']) : pos === 4 ? 'V5' : pos === 2 ? rng.pick(['V6', 'X7']) : 'PP';
       const attType = pos === 3 ? 'Q' : pos === 1 || pos >= 5 ? 'T' : rng.pick(['H', 'M']);
-      const ext = `${combo}~${startZone}${rng.int(1, 9)}${rng.pick(['A', 'B', 'C', 'D'])}`;
+      const ext = `${combo}~${pos}${rng.int(1, 9)}${rng.pick(['A', 'B', 'C', 'D'])}`;
 
-      const bias = this.bias[att] as number;
-      const kill = (KILL_BY_QUALITY[quality] as number) + bias;
-      const err = Math.max(0.02, 0.07 - bias / 2);
-      const block = 0.1;
+      const edge = this.edge(att);
+      const block = this.blockRate;
+      const err = Math.max(0.02, 0.07 - edge / 2);
+      const kill = Math.min(0.95 - block - err, Math.max(0.05, (KILL_BY_QUALITY[quality] as number) + edge));
       const x = rng.next();
       if (step >= 14 || x < kill) {
         this.action(att, attacker, 'A', attType, '#', ext);
@@ -263,15 +330,11 @@ class SetPlayer {
       }
       if (x < kill + err + block) {
         this.action(att, attacker, 'A', attType, '/', ext);
-        const blocker = this.actor(other, (n, p) => (p >= 2 && p <= 4 && this.roleOf(other, n) !== 'L' ? 1 : 0));
-        this.action(other, blocker, 'B', 'H', '#');
+        this.action(other, this.blocker(other), 'B', 'H', '#');
         return other;
       }
       this.action(att, attacker, 'A', attType, '+', ext);
-      if (rng.chance(0.12)) {
-        const blocker = this.actor(other, (n, p) => (p >= 2 && p <= 4 && this.roleOf(other, n) !== 'L' ? 1 : 0));
-        this.action(other, blocker, 'B', 'H', '+');
-      }
+      if (rng.chance(0.12)) this.action(other, this.blocker(other), 'B', 'H', '+');
       const digger = this.actor(
         other,
         (n, p) => ({ L: 3, H: 2, O: 1, M: 0.3, S: 0.5 })[this.roleOf(other, n)] * (p === 1 || p >= 5 ? 1 : 0.3),
@@ -286,18 +349,56 @@ class SetPlayer {
     }
   }
 
-  private maybeSubstitute(t: number): void {
+  /**
+   * A substitution of team `t` (6 at most in a set): a substitute coming back out for the player he replaced, or a
+   * player of the court replaced by one of the bench with the same role (the libero never).
+   */
+  private substitute(t: number): void {
     const ts = this.teams[t] as TeamState;
-    if (ts.subs >= 4 || !this.rng.chance(0.03)) return;
-    const candidates = ts.lineup.filter((n) => role(ts, n) !== 'S');
-    const out = this.rng.pick(candidates);
-    const ins = ts.bench.filter((n) => role(ts, n) === role(ts, out));
-    if (ins.length === 0) return;
-    const inn = this.rng.pick(ins);
+    if (ts.subs >= 6) return;
+    const back = [...ts.pairs.entries()].filter(([sub]) => ts.lineup.includes(sub));
+    let out: number;
+    let inn: number;
+    if (back.length > 0 && this.rng.chance(0.5)) {
+      [out, inn] = this.rng.pick(back);
+      ts.pairs.delete(out);
+      ts.locked.add(out).add(inn);
+    } else {
+      const free = (n: number) => !ts.locked.has(n) && !ts.pairs.has(n) && ![...ts.pairs.values()].includes(n);
+      const outs = ts.lineup.filter((n) => free(n) && role(ts, n) !== 'L');
+      if (outs.length === 0) return;
+      out = this.rng.pick(outs);
+      const ins = ts.bench.filter((n) => free(n) && role(ts, n) === role(ts, out));
+      if (ins.length === 0) return;
+      inn = this.rng.pick(ins);
+      ts.pairs.set(inn, out);
+    }
     ts.lineup = ts.lineup.map((n) => (n === out ? inn : n));
     ts.bench = ts.bench.map((n) => (n === inn ? out : n));
     ts.subs++;
     this.emit('substitution', `${this.prefix(t)}c${pad2(out)}:${pad2(inn)}`);
+  }
+
+  /** Time-outs and substitutions planned for this moment of the set (a dead ball after the point). */
+  private calls(winner: number, streak: number): void {
+    const played = this.score[0] + this.score[1];
+    const loser = 1 - winner;
+    const lt = this.teams[loser] as TeamState;
+    const next = this.timeoutsAt[loser]?.[0];
+    // A time-out is called by the team that lost the point, during a run of the other team or a bit later anyway.
+    if (next !== undefined && lt.timeouts < 2 && played >= next && (streak >= 2 || played >= next + 4)) {
+      this.timeoutsAt[loser]?.shift();
+      lt.timeouts++;
+      this.second += 60;
+      this.emit('timeout', `${this.prefix(loser)}T`);
+    }
+    for (const t of [0, 1]) {
+      const at = this.subsAt[t] as number[];
+      while (at.length > 0 && (at[0] as number) <= played) {
+        at.shift();
+        this.substitute(t);
+      }
+    }
   }
 
   /** Plays the set; returns the index of the winner. */
@@ -307,9 +408,14 @@ class SetPlayer {
     this.emit('setter', `aP${pad2(a.lineup.find((n) => role(a, n) === 'S') as number)}`);
     this.emit('rotation', `*z${setterPos(h)}`);
     this.emit('rotation', `az${setterPos(a)}`);
+    const v = this.profile.variability / 100;
     let server = firstServer;
     const streak = [0, 0];
     for (;;) {
+      const played = this.score[0] + this.score[1];
+      if (played % SPELL_POINTS === 0) {
+        this.spell = [(this.rng.next() * 2 - 1) * SPELL_FORM * v, (this.rng.next() * 2 - 1) * SPELL_FORM * v];
+      }
       this.second += this.rng.int(15, 25);
       const winner = this.rally(server);
       this.score[winner] = (this.score[winner] as number) + 1;
@@ -332,28 +438,33 @@ class SetPlayer {
         this.emit('rotation', `${this.prefix(winner)}z${setterPos(this.teams[winner] as TeamState)}`);
         server = winner;
       }
-      const loser = 1 - winner;
-      const lt = this.teams[loser] as TeamState;
-      if ((streak[winner] ?? 0) >= 3 && lt.timeouts < 2 && this.rng.chance(0.3)) {
-        lt.timeouts++;
-        this.second += 60;
-        this.emit('timeout', `${this.prefix(loser)}T`);
-      }
-      this.maybeSubstitute(0);
-      this.maybeSubstitute(1);
+      this.calls(winner, streak[winner] ?? 0);
     }
   }
 }
 
-/** Generates a deterministic synthetic match. Same options, same result. */
+/** Probability that the home team wins the match, from its strength (50: one in two). */
+function homeWinChance(homeStrength: number): number {
+  return 1 / (1 + Math.exp(-(homeStrength - 50) / 15));
+}
+
+/** Sets played again (with other rallies) before the team wanted gets a little help to win the set. */
+const FREE_ATTEMPTS = 40;
+
+/**
+ * Generates a deterministic synthetic match. Same options, same result. The number of sets is chosen (`sets`); the
+ * winner of the match comes from the strength of the teams, and each set is played rally by rally until it is won by
+ * the team it has to go to (so its score stays the one of a real set).
+ */
 export function generateMatch(options: GenerateOptions): GeneratedMatch {
   const rng = new Rng(options.seed);
   const totalSets = options.sets ?? 3;
+  const profile = resolveProfile(options.profile);
   const home = makeTeam(rng, options.homeName ?? DEFAULT_HOME_NAME, 1000);
   const away = makeTeam(rng, options.awayName ?? DEFAULT_AWAY_NAME, 2000);
   const startTime = options.startTime ?? DEFAULT_START_TIME;
 
-  const matchWinner = rng.int(0, 1);
+  const matchWinner = rng.chance(homeWinChance(profile.homeStrength)) ? 0 : 1;
   const loserWins = totalSets - 3;
   const loserSets = new Set(rng.shuffle(Array.from({ length: totalSets - 1 }, (_, i) => i)).slice(0, loserWins));
 
@@ -365,12 +476,11 @@ export function generateMatch(options: GenerateOptions): GeneratedMatch {
     const setNo = i + 1;
     const wanted = loserSets.has(i) ? 1 - matchWinner : matchWinner;
     const target = totalSets === 5 && setNo === 5 ? 15 : 25;
-    let attempt = 0;
-    for (;;) {
+    for (let attempt = 0; ; attempt++) {
       const bias: [number, number] = [0, 0];
-      bias[wanted] = 0.06 + 0.02 * attempt;
+      bias[wanted] = Math.max(0, attempt - FREE_ATTEMPTS) * 0.01;
       const s: [TeamState, TeamState] = [newTeamState(home, rng), newTeamState(away, rng)];
-      const player = new SetPlayer(rng, s, setNo, target, bias, second);
+      const player = new SetPlayer(rng, s, setNo, target, profile, bias, second);
       const winner = player.run(firstServer);
       if (winner === wanted) {
         lines.push(...player.lines);
@@ -384,7 +494,6 @@ export function generateMatch(options: GenerateOptions): GeneratedMatch {
         second = player.second + 300;
         break;
       }
-      attempt++;
     }
     firstServer = 1 - firstServer;
   }

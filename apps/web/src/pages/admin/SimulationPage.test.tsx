@@ -29,6 +29,17 @@ const summary = (over: Partial<SimulationSummary> = {}): SimulationSummary => ({
   ...over,
 });
 
+/** «Andamento della partita» with the values prefilled on the page. */
+const DEFAULT_PROFILE = {
+  homeStrength: 50,
+  variability: 50,
+  acesPerSet: 1.5,
+  serveErrorsPerSet: 3.5,
+  blocksPerSet: 2,
+  substitutionsPerSet: 2,
+  timeoutsPerSet: 1.5,
+};
+
 const response = (simulation: SimulationSummary | null): SimulationResponse => ({
   simulation,
   clubTeams: { home: 'Sir Susa Perugia', away: 'Volley Club Lugo' },
@@ -61,7 +72,7 @@ describe('«Simulazione» page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Avvia' }));
     await screen.findByTestId('simulation');
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
-      source: { kind: 'generated', sets: 5, clubTeams: true },
+      source: { kind: 'generated', sets: 5, clubTeams: true, profile: DEFAULT_PROFILE },
       pace: { kind: 'duration', setSeconds: 20, breakSeconds: 10 },
     });
     expect(screen.getByText('In corso')).toBeTruthy();
@@ -82,9 +93,46 @@ describe('«Simulazione» page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Avvia' }));
     await screen.findByTestId('simulation');
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
-      source: { kind: 'generated', sets: 3, clubTeams: true, seed: 14 },
+      source: { kind: 'generated', sets: 3, clubTeams: true, seed: 14, profile: DEFAULT_PROFILE },
       pace: { kind: 'speed', speed: 10 },
     });
+  });
+
+  it('sends the «Andamento della partita» chosen, refuses a value out of its limits, goes back to the defaults', async () => {
+    const calls = mockApi((call) =>
+      call.method === 'POST' ? { body: response(summary()), status: 201 } : { body: response(null) },
+    );
+    renderAs('admin', <SimulationPage />);
+    const field = (name: string | RegExp) => screen.findByLabelText<HTMLInputElement>(name);
+    expect((await field('Ace')).value).toBe('1.5');
+    expect((await field(/^Forza della squadra di casa/)).value).toBe('50');
+    fireEvent.change(await field('Cambi'), { target: { value: '8' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Avvia' }));
+    expect((await screen.findByRole('alert')).textContent).toBe('«Cambi»: un numero da 0 a 6.');
+    fireEvent.change(await field('Ace'), { target: { value: '' } });
+    fireEvent.change(await field('Cambi'), { target: { value: '4' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Avvia' }));
+    expect((await screen.findByRole('alert')).textContent).toBe('«Ace»: un numero da 0 a 8.');
+    fireEvent.click(screen.getByRole('button', { name: 'Valori predefiniti' }));
+    expect((await field('Ace')).value).toBe('1.5');
+    expect(calls.filter((c) => c.method === 'POST')).toEqual([]);
+    fireEvent.change(await field(/^Forza della squadra di casa/), { target: { value: '70' } });
+    fireEvent.change(await field('Muri punto'), { target: { value: '3.5' } });
+    fireEvent.change(await field('Time-out'), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Avvia' }));
+    await screen.findByTestId('simulation');
+    expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({
+      source: { profile: { ...DEFAULT_PROFILE, homeStrength: 70, blocksPerSet: 3.5, timeoutsPerSet: 0 } },
+    });
+  });
+
+  it('shows «Andamento della partita» only for a random match', async () => {
+    mockApi(() => ({ body: response(null) }));
+    renderAs('admin', <SimulationPage />);
+    expect(await screen.findByText('Andamento della partita')).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: 'Importa file .dvw' }));
+    expect(screen.queryByText('Andamento della partita')).toBeNull();
+    expect(screen.queryByLabelText('Ace')).toBeNull();
   });
 
   it('refuses a duration out of the limits and a missing file before calling the server', async () => {

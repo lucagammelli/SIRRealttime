@@ -1,5 +1,7 @@
+import { DEFAULT_PROFILE, PROFILE_LIMITS } from '@arenalive/dvw-simulator';
 import { describe, expect, it } from 'vitest';
 import {
+  SIMULATION_PROFILE,
   SIMULATION_UPLOAD_MAX_BASE64_LENGTH,
   SimulationCommandParamSchema,
   SimulationResponseSchema,
@@ -38,6 +40,36 @@ describe('simulation contracts', () => {
     expect(bad({ source: { kind: 'upload', fileName: 'a\u0001.dvw', data: 'QUJD' }, pace: ok })).toBe(false);
     const huge = 'A'.repeat(SIMULATION_UPLOAD_MAX_BASE64_LENGTH + 4);
     expect(bad({ source: { kind: 'upload', fileName: 'a.dvw', data: huge }, pace: ok })).toBe(false);
+  });
+
+  it('takes how a generated match goes, every field optional and inside its limits', () => {
+    const pace = { kind: 'speed', speed: 10 } as const;
+    const parse = (profile: unknown) =>
+      StartSimulationRequestSchema.safeParse({ source: { kind: 'generated', sets: 3, profile }, pace });
+    expect(parse({}).success).toBe(true);
+    const full = parse({
+      homeStrength: 70,
+      variability: 0,
+      acesPerSet: 2.5,
+      serveErrorsPerSet: 4,
+      blocksPerSet: 3,
+      substitutionsPerSet: 6,
+      timeoutsPerSet: 2,
+    });
+    expect(full.success && full.data.source.kind === 'generated' && full.data.source.profile?.acesPerSet).toBe(2.5);
+    expect(parse({ homeStrength: 101 }).success).toBe(false);
+    expect(parse({ substitutionsPerSet: 7 }).success).toBe(false);
+    expect(parse({ timeoutsPerSet: 2.5 }).success).toBe(false);
+    expect(parse({ acesPerSet: -1 }).success).toBe(false);
+    expect(parse({ blocksPerSet: '2' }).success).toBe(false);
+  });
+
+  it('has the limits and the defaults of the simulator', () => {
+    for (const [field, { min, max, default: value }] of Object.entries(SIMULATION_PROFILE)) {
+      expect(PROFILE_LIMITS[field as keyof typeof PROFILE_LIMITS]).toEqual({ min, max });
+      expect(DEFAULT_PROFILE[field as keyof typeof DEFAULT_PROFILE]).toBe(value);
+    }
+    expect(Object.keys(SIMULATION_PROFILE).sort()).toEqual(Object.keys(DEFAULT_PROFILE).sort());
   });
 
   it('knows only the commands of the page', () => {

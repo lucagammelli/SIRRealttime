@@ -356,6 +356,7 @@ export class SimulationService {
       seed: source.seed ?? randomInt(1, 2_147_483_647),
       homeName: teams?.home,
       awayName: teams?.away,
+      profile: source.profile,
     });
   }
 

@@ -8,6 +8,7 @@ import type {
   OverlayVideoDuration,
   OverlayVideoTeams,
   OverlayKind,
+  OverlayPlayerMedia,
   OverlayPosition,
   OverlaySize,
   TenantOverlays,
@@ -23,10 +24,13 @@ import {
   OVERLAY_MIN_PRIORITY,
   OVERLAY_MIN_SECONDS,
   OVERLAY_PLACEHOLDERS,
+  OVERLAY_PLAYER_PICKS,
   OVERLAY_POSITIONS,
   OVERLAY_SIZES,
   OVERLAY_TEXT_MAX,
+  isOverlayPlayerKind,
   OverlayBackgroundSchema,
+  OverlayPlayerMediaSchema,
   OverlayTextSchema,
   OVERLAY_VIDEO_FITS,
   OVERLAY_VIDEO_DURATIONS,
@@ -35,6 +39,7 @@ import {
 } from '@arenalive/shared';
 import type { MatchState } from '@arenalive/volley-stats';
 import { useId, useState } from 'react';
+import { Link } from 'react-router';
 import { Button } from '../../../components/ui.tsx';
 import { overlayText, sampleEvent } from '../../../lib/overlay.ts';
 import { inputClass } from '../forms.tsx';
@@ -233,6 +238,152 @@ function BackgroundSetting({
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+/** What the overlay of an action of a player of our team shows: the fixed background, or the photo or video of the player. */
+type PlayerMode = 'fixed' | OverlayPlayerMedia['source'];
+export const PLAYER_MODE_LABELS: Record<PlayerMode, string> = {
+  fixed: 'Sfondo fisso dell’avviso',
+  photo: 'Foto del giocatore',
+  video: 'Video del giocatore',
+};
+export const PLAYER_PICK_LABELS: Record<OverlayPlayerMedia['pick'], string> = {
+  default: 'Principale',
+  random: 'Casuale',
+};
+
+/** Pure: the mode of an overlay (no `playerMedia`: the fixed background). */
+export const playerModeOf = (overlay: Pick<Overlay, 'playerMedia'>): PlayerMode =>
+  overlay.playerMedia?.source ?? 'fixed';
+
+/** Pure: the overlay showing the fixed background (`fixed`) or the photo / video of the player, keeping the options chosen before. */
+export function withPlayerMode(overlay: Overlay, mode: PlayerMode): Overlay {
+  const { playerMedia: old, ...rest } = overlay;
+  if (mode === 'fixed') return rest;
+  return { ...rest, playerMedia: old ? { ...old, source: mode } : OverlayPlayerMediaSchema.parse({ source: mode }) };
+}
+
+/** Pure: the overlay with some options of the player media changed (none set: unchanged). */
+export function withPlayerOptions(
+  overlay: Overlay,
+  options: Partial<Pick<OverlayPlayerMedia, 'pick' | 'audio' | 'fit' | 'duration'>>,
+): Overlay {
+  return overlay.playerMedia ? { ...overlay, playerMedia: { ...overlay.playerMedia, ...options } } : overlay;
+}
+
+const isPick = (v: string): v is OverlayPlayerMedia['pick'] => (OVERLAY_PLAYER_PICKS as readonly string[]).includes(v);
+
+/**
+ * «Giocatore della nostra squadra» (ACE!, Muro, Cambio): the fixed background of the overlay, or the photo or video of
+ * the player of our team who made the action, taken from the roster («Squadra»): the main one or one at random. The
+ * options of a video are the ones of a video background.
+ */
+function PlayerMediaSetting({
+  label,
+  overlay,
+  onChange,
+}: {
+  label: string;
+  overlay: Overlay;
+  onChange: (overlay: Overlay) => void;
+}) {
+  const name = useId();
+  const mode = playerModeOf(overlay);
+  const pm = overlay.playerMedia;
+  return (
+    <div className="space-y-2 text-sm text-text">
+      <fieldset className="flex flex-wrap items-center gap-3">
+        <legend className="pb-1">Giocatore della nostra squadra</legend>
+        {(['fixed', 'photo', 'video'] as const).map((m) => (
+          <label key={m} className="flex items-center gap-1.5">
+            <input
+              type="radio"
+              name={name}
+              checked={mode === m}
+              onChange={() => onChange(withPlayerMode(overlay, m))}
+            />
+            {PLAYER_MODE_LABELS[m]}
+          </label>
+        ))}
+      </fieldset>
+      {pm && (
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-1.5">
+            Quale
+            <select
+              className={selectClass}
+              aria-label={`Quale foto o video: ${label}`}
+              value={pm.pick}
+              onChange={(e) => {
+                if (isPick(e.target.value)) onChange(withPlayerOptions(overlay, { pick: e.target.value }));
+              }}
+            >
+              {OVERLAY_PLAYER_PICKS.map((p) => (
+                <option key={p} value={p}>
+                  {PLAYER_PICK_LABELS[p]}
+                </option>
+              ))}
+            </select>
+          </label>
+          {pm.source === 'video' && (
+            <>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={pm.audio}
+                  aria-label={`Audio del video del giocatore: ${label}`}
+                  onChange={(e) => onChange(withPlayerOptions(overlay, { audio: e.target.checked }))}
+                />
+                Audio
+              </label>
+              <label className="flex items-center gap-1.5">
+                Posizione del video
+                <select
+                  className={selectClass}
+                  aria-label={`Posizione del video del giocatore: ${label}`}
+                  value={pm.fit}
+                  onChange={(e) => {
+                    if (isFit(e.target.value)) onChange(withPlayerOptions(overlay, { fit: e.target.value }));
+                  }}
+                >
+                  {OVERLAY_VIDEO_FITS.map((f) => (
+                    <option key={f} value={f}>
+                      {VIDEO_FIT_LABELS[f]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex items-center gap-1.5">
+                Durata
+                <select
+                  className={selectClass}
+                  aria-label={`Durata del video del giocatore: ${label}`}
+                  value={pm.duration}
+                  onChange={(e) => {
+                    if (isDuration(e.target.value)) onChange(withPlayerOptions(overlay, { duration: e.target.value }));
+                  }}
+                >
+                  {OVERLAY_VIDEO_DURATIONS.map((d) => (
+                    <option key={d} value={d}>
+                      {VIDEO_DURATION_LABELS[d]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+        </div>
+      )}
+      <p className="text-xs text-muted">
+        Se il giocatore non ha foto né video si usa lo sfondo dell’avviso, altrimenti solo il testo. Solo per la nostra
+        squadra. Foto e video si scelgono in{' '}
+        <Link to="/admin/squadra" className="font-medium text-primary underline">
+          Squadra
+        </Link>
+        {pm?.source === 'video' && '; sul telefono e con movimento ridotto si mostra la foto'}.
+      </p>
     </div>
   );
 }
@@ -450,6 +601,11 @@ function OverlayDetail({
       <Setting id={`${overlaySettingId(kind)}-background`} where={where} scene="overlay" targets={['overlay']}>
         <BackgroundSetting label={label} overlay={overlay} assets={assets} onChange={onChange} />
       </Setting>
+      {isOverlayPlayerKind(kind) && (
+        <Setting id={`${overlaySettingId(kind)}-player`} where={where} scene="overlay" targets={['overlay']}>
+          <PlayerMediaSetting label={label} overlay={overlay} onChange={onChange} />
+        </Setting>
+      )}
       <div className="flex flex-wrap items-center gap-2 py-1">
         <Button variant="primary" disabled={problem !== null || !state} onClick={onTry} aria-label={`Prova ${label}`}>
           Prova

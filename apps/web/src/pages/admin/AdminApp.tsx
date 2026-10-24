@@ -28,6 +28,7 @@ import { MailSettingsPage } from './MailSettingsPage.tsx';
 import { SystemLogosPage } from './SystemLogosPage.tsx';
 import { MatchesPage } from './MatchesPage.tsx';
 import { OnboardingHost } from './onboarding/OnboardingHost.tsx';
+import { RosterPage } from './RosterPage.tsx';
 import { ShareLinksPage } from './ShareLinksPage.tsx';
 import { SimulationPage } from './SimulationPage.tsx';
 import { MediaPage } from './MediaPage.tsx';
@@ -202,6 +203,7 @@ function AdminLayout() {
                 {/* Read-only for a viewer: the pages hide or disable their commands (useCanEdit), the server refuses them. */}
                 <Route path="calendario" element={ofTenant(<CalendarPage />)} />
                 <Route path="club" element={ofTenant(<ClubPage />)} />
+                <Route path="squadra" element={ofTenant(<RosterPage />)} />
                 <Route path="link" element={ofTenant(<ShareLinksPage />)} />
                 <Route path="agenti" element={ofTenant(<AgentsPage />)} />
                 {/* Read-only: a viewer sees them too. */}

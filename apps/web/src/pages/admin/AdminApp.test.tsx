@@ -166,7 +166,7 @@ describe('admin navigation', () => {
         .getAllByRole('link')
         .map((l) => l.textContent ?? '');
     expect(names('Partite')).toEqual(['Partita live', 'Partite', 'Calendario']);
-    expect(names('Club')).toEqual(['Club']);
+    expect(names('Club')).toEqual(['Club', 'Squadra']);
     expect(names('Pagina pubblica')).toEqual([
       'Studio grafico',
       'Sponsor',
@@ -270,6 +270,7 @@ describe('admin navigation', () => {
       'Calendario',
       'Visualizzazioni',
       'Club',
+      'Squadra',
       'Link pubblici',
       'Agenti',
       'Il mio account',

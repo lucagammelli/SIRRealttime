@@ -9,7 +9,7 @@ import {
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderAs } from '../../test/adminPage.tsx';
-import { MediaPage } from './MediaPage.tsx';
+import { assetUseText, MediaPage, playersByAsset, UPLOAD_USES } from './MediaPage.tsx';
 
 const LOGO = '8a2d4e6f-1b3c-4d5e-8f7a-9b0c1d2e3f4a';
 const BACKGROUND = '1b2c3d4e-5f60-4718-9a2b-3c4d5e6f7a8b';
@@ -173,5 +173,102 @@ describe('page «Immagini e video»', () => {
     mockApi(() => ({ status: 500, body: { error: 'Errore del server' } }));
     renderAs('admin', <MediaPage />);
     expect(await screen.findByText(/Errore del server|errore/i)).toBeTruthy();
+  });
+});
+
+describe('page «Immagini e video»: photos and videos of the players', () => {
+  const CLIP = '3d4e5f60-7182-4930-8c4d-5e6f7a8b9cad';
+  const SHOT = '4e5f6071-8293-4a41-8d5e-6f7a8b9cadbe';
+  const PLAYER_ID = '5f607182-93a4-4b52-8e6f-7a8b9cadbecf';
+  const rosterBody = {
+    season: 2026,
+    seasons: [2026],
+    team: null,
+    import: { running: false, photosDone: 0, photosTotal: 0, lastAt: null, lastError: null },
+    players: [
+      {
+        id: PLAYER_ID,
+        season: 2026,
+        number: 8,
+        firstName: 'Mario',
+        lastName: 'Rossi',
+        role: null,
+        birthYear: null,
+        heightCm: null,
+        birthplace: null,
+        nationality: null,
+        source: 'manual',
+        externalKey: null,
+        editedFields: [],
+        photo: { assetId: SHOT, url: `/api/admin/assets/${SHOT}/file`, video: false, name: null },
+        media: [{ assetId: CLIP, url: `/api/admin/assets/${CLIP}/file`, video: true, name: null }],
+        removed: false,
+        position: 0,
+      },
+    ],
+  };
+  const files: AssetListResponse = {
+    ...ASSETS,
+    assets: [
+      { ...asset(SHOT, 'player', 'Rossi in posa') },
+      { ...asset(CLIP, 'player', 'Rossi muro'), mime: 'video/mp4' },
+      { ...asset(SPARE, 'player', 'Foto libera') },
+    ],
+  };
+
+  it('shows «Giocatore: Cognome» for the files a player uses, and «in uso» only for them', async () => {
+    mockApi((call) => {
+      if (call.url === '/api/admin/roster') return { body: rosterBody };
+      if (call.url === '/api/admin/assets') return { body: files };
+      if (call.url === '/api/admin/sponsors') return { body: { sponsors: [] } };
+      if (call.url === '/api/admin/branding') return { body: { tenantName: 'Sir', branding: defaultBranding() } };
+      if (call.url === '/api/admin/layout') return { body: { tenantName: 'Sir', layout: defaultLayout() } };
+      if (call.url === '/api/admin/intermissions')
+        return { body: { tenantName: 'Sir', intermissions: defaultIntermissions() } };
+      return { body: { tenantName: 'Sir', overlays: defaultOverlays() } };
+    });
+    renderAs('admin', <MediaPage />);
+    const list = (await screen.findByRole('heading', { name: 'Immagini e video caricati' })).closest(
+      'section',
+    ) as HTMLElement;
+    const row = (name: string) => within(list).getByText(name).closest('li') as HTMLElement;
+    await waitFor(() => expect(row('Rossi in posa').textContent).toContain('Giocatore: Rossi'));
+    expect(row('Rossi in posa').textContent).toContain('in uso');
+    expect(row('Rossi muro').textContent).toContain('Giocatore: Rossi');
+    expect(row('Foto libera').textContent).toContain('Foto di un giocatore');
+    expect(row('Foto libera').textContent).not.toContain('in uso');
+  });
+
+  it('pure texts: the use of a player file, and the players by file (removed ones left out)', () => {
+    const photo = asset(SHOT, 'player', null);
+    expect(assetUseText(photo, new Map())).toBe('Foto di un giocatore');
+    expect(assetUseText({ ...photo, mime: 'video/webm' }, new Map())).toBe('Video di un giocatore');
+    expect(assetUseText(photo, new Map(), ['Rossi', 'Bianchi'])).toBe('Giocatore: Rossi, Bianchi');
+    const [rossi] = rosterBody.players;
+    if (!rossi) throw new Error('giocatore mancante');
+    const byAsset = playersByAsset([rossi, { ...rossi, lastName: 'Bianchi', removed: true }]);
+    expect(byAsset.get(SHOT)).toEqual(['Rossi']);
+    expect(byAsset.get(CLIP)).toEqual(['Rossi']);
+  });
+
+  it('«Foto e video dei giocatori» is a use: the image goes as kind player and the video with ?kind=player', async () => {
+    expect(UPLOAD_USES.map((u) => u.label)).toContain('Foto e video dei giocatori');
+    const calls = serve();
+    renderAs('admin', <MediaPage />);
+    await screen.findByRole('heading', { name: 'Immagini e video caricati' });
+    fireEvent.change(screen.getByLabelText('Uso dell’immagine'), { target: { value: 'player' } });
+    fireEvent.change(screen.getByLabelText('Carica immagine nella libreria'), {
+      target: { files: [new File([new Uint8Array([1, 2, 3, 4])], 'rossi.png', { type: 'image/png' })] },
+    });
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/admin/assets' && c.method === 'POST')).toBe(true));
+    expect(calls.find((c) => c.url === '/api/admin/assets' && c.method === 'POST')?.body).toMatchObject({
+      kind: 'player',
+    });
+    fireEvent.change(screen.getByLabelText('Carica video nella libreria'), {
+      target: { files: [new File(['v'], 'rossi.mp4', { type: 'video/mp4' })] },
+    });
+    await waitFor(() =>
+      expect(calls.some((c) => c.url === '/api/admin/assets/video?kind=player' && c.method === 'POST')).toBe(true),
+    );
   });
 });

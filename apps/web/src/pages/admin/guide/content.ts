@@ -95,7 +95,10 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
     title: 'Club e calendario',
     needsWrite: true,
     blocks: [
-      { kind: 'text', text: 'Nella pagina «Club» dici chi siete. Nella pagina «Calendario» vedi le partite.' },
+      {
+        kind: 'text',
+        text: 'Nella pagina «Club» dici chi siete. Nella pagina «Calendario» vedi le partite. Nella pagina «Squadra» (menu «Club») c’è la rosa dei giocatori.',
+      },
       { kind: 'text', text: 'Per impostare la squadra:' },
       {
         kind: 'steps',
@@ -130,9 +133,21 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
           'Se un file .dvw si è abbinato alla partita sbagliata (per esempio una prova fatta prima della partita vera), accanto a «File .dvw» premi «Scollega» e poi «Conferma: scollega il file»: la partita torna «Programmata» e il file non viene più abbinato da solo.',
         ],
       },
+      { kind: 'text', text: 'Nella pagina «Squadra»:' },
+      {
+        kind: 'list',
+        items: [
+          'Premi «Importa dal sito della Lega» (serve prima la squadra scelta in «Club»): arrivano i giocatori con numero, ruolo, anno, altezza e nazionalità. Sotto vedi quanti ne sono stati «Aggiunti», «aggiornati» e «invariati», quelli saltati con il motivo e quelli «Non più sul sito» (restano nella rosa: decidi tu). Le foto si scaricano dopo, una alla volta: vedi «Foto scaricate: 3 di 12» finché non finiscono.',
+          'Con «Modifica» cambi i dati di un giocatore, con «Aggiungi giocatore» ne scrivi uno nuovo. Ogni campo cambiato a mano porta il segno ✎ («modificato a mano»): una nuova importazione non lo sovrascrive.',
+          'Con «Rimuovi» (e «Conferma rimozione») un giocatore esce dalla rosa; con «Mostra rimossi» li vedi e con «Ripristina» li rimetti. Un giocatore aggiunto a mano si elimina del tutto.',
+          'Con «Foto e video» scegli la foto principale e altre foto e video (fino a 12 file, di cui al massimo 3 video), solo tra i file già nella libreria: si caricano in «Immagini e video» con l’uso «Foto e video dei giocatori» (il collegamento «Carica nella libreria» ti ci porta). Gli avvisi usano questi file: vedi «Avvisi».',
+          'Chi ha «Sola lettura» vede la rosa ma non la cambia.',
+        ],
+      },
     ],
     links: [
       { label: 'Vai a Club', to: '/admin/club' },
+      { label: 'Vai a Squadra', to: '/admin/squadra' },
       { label: 'Vai a Calendario', to: '/admin/calendario' },
     ],
   },
@@ -200,7 +215,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'In «Avvisi», con «Modifica» su un avviso (per esempio «Ace»), alla voce «Sfondo» scegli «Nessuno», «Immagine» o «Video». I file si caricano nella pagina «Immagini e video» del menu (con «Carica immagine», PNG, JPEG, WebP o SVG, al massimo 2 MB, oppure «Carica video», MP4 o WebM, al massimo 15 MB; da «Avvisi» il collegamento «Carica nella libreria» ti ci porta); poi lo scegli dal menu dei file della libreria, dove ogni file compare con il suo nome, anche per altri avvisi. Per un video scegli anche «Audio» (spento di solito: se lo accendi si sente il sonoro, ma se il browser blocca l’audio il video parte muto), «Posizione del video» («Al centro», nel riquadro dell’avviso, oppure «A tutto schermo»), «Durata» (con «Secondi impostati», la scelta iniziale, l’avviso dura i secondi dell’avviso e il video riparte in ciclo; con «Quanto il video» l’avviso resta finché il video finisce, al massimo 30 secondi, e se la durata non si legge o il video non si vede dura i secondi impostati) e «Video per»: con «Solo la nostra squadra» (la scelta iniziale) gli avvisi della squadra avversaria escono senza video, con il solo testo, sia in casa sia in trasferta; con «Entrambe le squadre» il video compare per tutte e due. La nostra squadra è quella scelta in «Colori e loghi», scheda «Squadra»: se in una partita non la si riconosce, il video compare per entrambe. Un’immagine compare sempre, per entrambe le squadre. L’avviso diventa più grande, con lo sfondo dietro al testo e una velatura del colore della squadra. La pagina live scarica gli sfondi appena si apre, così il video parte subito; se non è ancora pronto l’avviso esce con il solo testo. Sul telefono il video non si mostra, e nemmeno a chi ha chiesto meno animazioni: lì l’avviso esce con il solo testo (o con lo sfondo immagine). Con «Prova» vedi l’avviso con lo sfondo nell’anteprima (l’audio si sente solo durante la prova). Un file usato come sfondo non si può eliminare: prima toglilo dall’avviso. Nella pagina «Immagini e video» (menu «Pagina pubblica»), dove carichi tutti i file, trovi tutte le immagini e i video caricati con nome, uso, misure e peso, e se sono «in uso» (loghi, sponsor, pause, sfondi degli avvisi): con «Rinomina» cambi il nome con cui compaiono negli elenchi e con «Elimina» togli quelli che non usi. I file caricati prima che si salvasse il nome compaiono con il giorno del caricamento e le misure, per esempio «Video del 23/10/2026 · 1920×1080».',
+        text: 'In «Avvisi», con «Modifica» su un avviso (per esempio «Ace»), alla voce «Sfondo» scegli «Nessuno», «Immagine» o «Video». I file si caricano nella pagina «Immagini e video» del menu (con «Carica immagine», PNG, JPEG, WebP o SVG, al massimo 2 MB, oppure «Carica video», MP4 o WebM, al massimo 15 MB; con «Uso dell’immagine» scegli «Sfondo degli avvisi» o «Foto e video dei giocatori» (anche il video segue questo uso); da «Avvisi» il collegamento «Carica nella libreria» ti ci porta); poi lo scegli dal menu dei file della libreria, dove ogni file compare con il suo nome, anche per altri avvisi. Per un video scegli anche «Audio» (spento di solito: se lo accendi si sente il sonoro, ma se il browser blocca l’audio il video parte muto), «Posizione del video» («Al centro», nel riquadro dell’avviso, oppure «A tutto schermo»), «Durata» (con «Secondi impostati», la scelta iniziale, l’avviso dura i secondi dell’avviso e il video riparte in ciclo; con «Quanto il video» l’avviso resta finché il video finisce, al massimo 30 secondi, e se la durata non si legge o il video non si vede dura i secondi impostati) e «Video per»: con «Solo la nostra squadra» (la scelta iniziale) gli avvisi della squadra avversaria escono senza video, con il solo testo, sia in casa sia in trasferta; con «Entrambe le squadre» il video compare per tutte e due. La nostra squadra è quella scelta in «Colori e loghi», scheda «Squadra»: se in una partita non la si riconosce, il video compare per entrambe. Un’immagine compare sempre, per entrambe le squadre. L’avviso diventa più grande, con lo sfondo dietro al testo e una velatura del colore della squadra. La pagina live scarica gli sfondi appena si apre, così il video parte subito; se non è ancora pronto l’avviso esce con il solo testo. Sul telefono il video non si mostra, e nemmeno a chi ha chiesto meno animazioni: lì l’avviso esce con il solo testo (o con lo sfondo immagine). Con «Prova» vedi l’avviso con lo sfondo nell’anteprima (l’audio si sente solo durante la prova). Per «ACE!», «Muro» e «Cambio» c’è anche «Giocatore della nostra squadra»: «Sfondo fisso dell’avviso» (come sopra), «Foto del giocatore» o «Video del giocatore», presi dalla pagina «Squadra». Con «Quale» scegli «Principale» (la foto principale o il primo video) oppure «Casuale»; con il video valgono anche «Audio», «Posizione del video» e «Durata». Se il giocatore non ha foto né video si usa lo sfondo dell’avviso, altrimenti solo il testo. Vale solo per la nostra squadra, e sul telefono o con movimento ridotto al posto del video si mostra la foto. «Prova» usa il primo giocatore della squadra che ha foto o video. Un file usato come sfondo non si può eliminare: prima toglilo dall’avviso. Nella pagina «Immagini e video» (menu «Pagina pubblica»), dove carichi tutti i file, trovi tutte le immagini e i video caricati con nome, uso, misure e peso, e se sono «in uso» (loghi, sponsor, pause, sfondi degli avvisi; per i giocatori compare «Giocatore: Cognome»): con «Rinomina» cambi il nome con cui compaiono negli elenchi e con «Elimina» togli quelli che non usi. I file caricati prima che si salvasse il nome compaiono con il giorno del caricamento e le misure, per esempio «Video del 23/10/2026 · 1920×1080».',
       },
     ],
     links: [
@@ -348,7 +363,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
         kind: 'list',
         items: [
           '«Lettura e scrittura»: gestisce tutto il club.',
-          '«Sola lettura»: guarda partite, calendario, «Visualizzazioni», link, club e agenti, ma non cambia nulla.',
+          '«Sola lettura»: guarda partite, calendario, «Visualizzazioni», link, club, squadra e agenti, ma non cambia nulla.',
         ],
       },
       {

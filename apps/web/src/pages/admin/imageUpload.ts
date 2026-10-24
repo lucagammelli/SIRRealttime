@@ -52,15 +52,15 @@ export function videoProblem(file: Pick<File, 'size' | 'type'>): string | null {
 }
 
 /**
- * Uploads a video for the backgrounds of the overlays as bytes (never base64), with the name of the file (cleaned) in
- * FILE_NAME_HEADER; throws an Error with the text of
+ * Uploads a video as bytes (never base64), for the backgrounds of the overlays (`overlay`) or for the players of the
+ * roster (`player`), with the name of the file (cleaned) in FILE_NAME_HEADER; throws an Error with the text of
  * `videoProblem` when it is refused before sending.
  */
-export async function uploadVideo(file: File): Promise<AssetSummary> {
+export async function uploadVideo(file: File, kind: 'overlay' | 'player' = 'overlay'): Promise<AssetSummary> {
   const problem = videoProblem(file);
   if (problem) throw new Error(problem);
   const name = cleanAssetName(file.name);
-  return apiRequest(VIDEO_UPLOAD_PATH, AssetSummarySchema, {
+  return apiRequest(kind === 'player' ? `${VIDEO_UPLOAD_PATH}?kind=player` : VIDEO_UPLOAD_PATH, AssetSummarySchema, {
     method: 'POST',
     file,
     ...(name ? { headers: { [FILE_NAME_HEADER]: encodeURIComponent(name) } } : {}),

@@ -49,6 +49,8 @@ export interface TenantLook {
   overlays: TenantOverlays;
   /** Sponsors chosen by the page or the pauses, with their images. */
   sponsors: PublicTenantResponse['sponsors'];
+  /** Photos and videos of the players of our team by shirt number (behind the overlays of their actions). */
+  players: PublicTenantResponse['players'];
 }
 
 let look: TenantLook | null = null;
@@ -224,6 +226,7 @@ export function tenantLookOf(tenant: PublicTenantResponse): TenantLook {
     intermissions: tenant.intermissions,
     overlays: tenant.overlays,
     sponsors: tenant.sponsors,
+    players: tenant.players,
   };
 }
 

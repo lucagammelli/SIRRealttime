@@ -4,9 +4,11 @@ import type {
   OverlayBackgroundKind,
   OverlayVideoDuration,
   OverlayVideoFit,
+  PublicPlayerMedia,
   TenantOverlays,
 } from '@arenalive/shared';
-import { OVERLAY_KINDS, publicAssetPath } from '@arenalive/shared';
+import { OVERLAY_KINDS, OVERLAY_PLAYER_KINDS, publicAssetPath } from '@arenalive/shared';
+import type { MatchState, Side } from '@arenalive/volley-stats';
 import { useEffect, useRef, useState } from 'react';
 
 /**
@@ -31,18 +33,63 @@ export const mediaOf = (background: OverlayBackground, url: string): OverlayMedi
   duration: background.duration,
 });
 
+/** The players of our team whose photos and videos are kept ready: the roster media of the public page and their shirt numbers. */
+export interface PlayerPreload {
+  players: readonly PublicPlayerMedia[];
+  numbers: ReadonlySet<number>;
+}
+
+/**
+ * Pure: the shirt numbers of our team whose files are worth keeping ready: the players on court and, when the overlay of
+ * the substitution shows the player, the whole bench (the one who comes in is not on court yet). None when our team is
+ * not known in the match.
+ */
+export function playerNumbersInPlay(
+  state: Pick<MatchState, 'live' | 'players'>,
+  ourSide: Side | null,
+  config: TenantOverlays | null,
+): Set<number> {
+  const numbers = new Set<number>();
+  if (ourSide === null) return numbers;
+  for (const n of state.live.lineups[ourSide]) if (n !== null) numbers.add(n);
+  if (config?.substitution.enabled && config.substitution.playerMedia)
+    for (const p of state.players[ourSide]) numbers.add(p.number);
+  return numbers;
+}
+
 /**
  * Pure: the backgrounds to keep ready on this device: of the overlays on and shown on `device`, each file once; no
  * videos on the phone (data and memory of a mobile connection) nor with reduced motion: the overlay then shows its
- * text only.
+ * text only. With `preload`, also the photos (always) and videos (when allowed) of the players of our team in play for the
+ * overlays that show the player (the main one, or all of them with «Casuale»).
  */
 export function wantedBackgrounds(
   config: TenantOverlays | null,
   device: LayoutDevice,
   reducedMotion: boolean,
+  preload?: PlayerPreload,
 ): OverlayBackground[] {
   if (!config) return [];
   const out = new Map<string, OverlayBackground>();
+  const videosAllowed = !reducedMotion && device !== 'phone';
+  if (preload && preload.numbers.size > 0) {
+    for (const kind of OVERLAY_PLAYER_KINDS) {
+      const overlay = config[kind];
+      const pm = overlay.playerMedia;
+      if (!pm || !overlay.enabled || !overlay.devices[device]) continue;
+      const some = (ids: readonly string[]): string[] => (pm.pick === 'random' ? [...ids] : ids.slice(0, 1));
+      for (const player of preload.players) {
+        if (!preload.numbers.has(player.number)) continue;
+        const common = { audio: pm.audio, fit: pm.fit, teams: 'ours' as const };
+        const photos = player.photo ? [player.photo, ...player.images] : player.images;
+        for (const assetId of some(photos))
+          if (!out.has(assetId)) out.set(assetId, { kind: 'image', assetId, ...common, duration: 'seconds' });
+        if (pm.source === 'video' && videosAllowed)
+          for (const assetId of some(player.videos))
+            if (!out.has(assetId)) out.set(assetId, { kind: 'video', assetId, ...common, duration: pm.duration });
+      }
+    }
+  }
   for (const kind of OVERLAY_KINDS) {
     const overlay = config[kind];
     const background = overlay.background;
@@ -72,8 +119,10 @@ export function useOverlayMedia(
   device: LayoutDevice,
   reducedMotion: boolean,
   load: MediaLoader = fetchObjectUrl,
+  /** The players of our team in play: their photos and videos are kept ready for the overlays that show them. */
+  preload?: PlayerPreload,
 ): ReadonlyMap<string, OverlayMedia> {
-  const wanted = wantedBackgrounds(config, device, reducedMotion);
+  const wanted = wantedBackgrounds(config, device, reducedMotion, preload);
   const key = wanted.map((b) => `${b.kind}:${b.assetId}`).join(',');
   const [ready, setReady] = useState<ReadonlyMap<string, OverlayMedia>>(() => new Map());
   /** Object URLs made here, by asset id (also the ones still loading: their controller). */

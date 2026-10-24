@@ -198,7 +198,7 @@ ridotto alle icone). Dati e rotte del server non cambiano
   il mouse (o il focus della tastiera) su un'impostazione, i suoi elementi sono evidenziati nell'anteprima; sotto ogni
   impostazione compare dove e quando si vede.
 - **Anteprima** (a destra, grande, sempre in vista): barra «Dispositivo» (TV, Tablet, Telefono), barra «Scena» (In gioco,
-  Fine set, Time-out, Ogni N punti, Fine partita, Avviso «<nome dell'avviso>»), il pulsante «Allarga anteprima» (stringe le
+  Fine set, Time-out, Ogni N punti, Fine partita, Dopo la partita, Avviso «<nome dell'avviso>»), il pulsante «Allarga anteprima» (stringe le
   sezioni a una colonna di nomi corti e le impostazioni; la scelta resta in `localStorage` con chiave
   `sir-studio-anteprima-larga`; non sul telefono) e «Anteprima a tutto schermo». Sotto: «Dati della partita live.»
   oppure «Partita d'esempio: nessuna partita live in questo momento.».
@@ -327,9 +327,8 @@ disattivate: la pausa non compare.»). Sotto «Opzioni» «Secondi sullo schermo
 lo sponsor sceglie gli sponsor e «Come mostrarli» come il blocco); in fondo «Tipo di diapositiva» con «Aggiungi diapositiva» (al massimo 12). In «Avanzate»: «Ritardo prima della
 pausa (secondi)» e «Ripristina predefinito» (solo della pausa aperta). «Salva» è disattivato se una pausa attiva non ha
 diapositive o un testo è vuoto. Nella scheda «Fine partita» c'è anche la card «Dopo la partita» (`AfterMatchEditor`):
-«Mostra la foto dopo la partita» (interruttore), «Foto a tutto schermo» scelta da «Scegli dalla libreria…» (immagini di tipo sponsor; «Carica nella libreria» apre `/admin/media`) e «Togli foto», «Oppure
-scegli un’immagine già caricata», «Minuti dopo la fine della partita» (0-240) e l'anteprima TV con la prossima partita
-d'esempio. I «Modelli pronti» non la toccano. Logica pura in `intermissionEditor.ts` (`moveSlide`, `addSlide`, `removeSlide`,
+«Mostra la foto dopo la partita» (interruttore), «Foto a tutto schermo» scelta da «Scegli dalla libreria…» (immagini di tipo sponsor; «Carica nella libreria» apre `/admin/media`) e «Togli foto» (un'unica scelta: niente seconda lista delle stesse immagini), «Minuti dopo la fine della partita» (0-240), l'anteprima TV con la prossima partita
+d'esempio e «Vedi nell’anteprima grande», che apre nell'anteprima la scena «Dopo la partita» (`StudioScene` `afterMatch`: `AfterMatchScreen` con la foto della bozza, anche se spenta, e la prossima partita d'esempio; l'avviso «scegli una foto e accendi…» se manca la foto, «Dopo la partita è spento…» se è spento). I «Modelli pronti» non la toccano. Logica pura in `intermissionEditor.ts` (`moveSlide`, `addSlide`, `removeSlide`,
 `updateSlide`, `setOwnPause`, `resetPause`, `pauseProblems`); le opzioni delle statistiche in `StatOptionsFields.tsx`.
 Nell'anteprima la pausa è mostrata subito con le bozze (`previewState` mette nello stato la fase della pausa aperta).
 
@@ -1130,7 +1129,12 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   `state`, conservato da `liveConnection.ts` nei patch finché la partita è finita), calcolati con l'**orologio del
   dispositivo** e **un solo `setTimeout`** (`afterMatchDueAt`, `useAfterMatchImage`; niente polling; attese più lunghe di 24 ore
   si riarmano). Sostituisce la pausa di fine partita e blocca gli avvisi; resta finché la partita non è più finita (una
-  correzione) o il link passa a un'altra partita. Il calendario si legge solo mentre è a video.
+  correzione) o il link passa a un'altra partita. Il calendario si legge solo mentre è a video. Una partita **simulata**
+  (`data.simulated`) non aspetta i minuti veri: la schermata compare dopo `SIMULATED_AFTER_MATCH_MS` = 15 s dalla fine (o
+  dopo i minuti scelti, se meno), così si vede provando con la simulazione. Le modifiche salvate in «Pause» (anche foto e
+  minuti) arrivano alle pagine già aperte senza ricaricare: il salvataggio manda il messaggio `config` al WebSocket del
+  cliente (`tenantConfigChanged`) e la pagina rilegge la grafica (`useTenantIntermissions`). Se «Dopo la partita» è spento
+  o senza foto resta la schermata di «Fine partita» (nessun cambio: è voluto).
 - **Chiusura a mano**: una pausa chiusa a mano non si riapre; la pausa successiva (`describePause` dà una chiave per ogni
   pausa: set, squadra e numero del time-out) sì.
 - **Tutto schermo**: finestra di dialogo (`role="dialog"`, `aria-modal`) sopra la pagina con i pulsanti «Torna alla

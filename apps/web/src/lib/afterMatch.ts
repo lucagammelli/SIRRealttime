@@ -8,7 +8,11 @@ import type { LiveData } from './liveConnection.ts';
  * the photo chosen by the client goes full screen, with the countdown to the next match of the club over it. One timer
  * waits for that moment (no polling); the screen stays until the match is no longer finished (a correction) or the
  * link shows another match.
+ * A simulated match (`data.simulated`) does not wait the real minutes of the client: after SIMULATED_AFTER_MATCH_MS (or
+ * the minutes, if shorter) the screen shows, so a test of the simulation sees it.
  */
+/** Wait of the screen after a simulated match ends (ms): short, to be seen in a test. */
+export const SIMULATED_AFTER_MATCH_MS = 15_000;
 
 /** Longest single wait of the timer (a `setTimeout` beyond about 24.8 days fires at once): it is armed again. */
 const MAX_WAIT_MS = 24 * 3_600_000;
@@ -21,7 +25,9 @@ export function afterMatchDueAt(data: LiveData | null, config: AfterMatch | null
   if (!config || afterMatchImage(config) === null) return null;
   if (data?.kind !== 'state' || data.state.status !== 'finished' || !data.finishedAt) return null;
   const end = Date.parse(data.finishedAt);
-  return Number.isFinite(end) ? end + config.delayMinutes * 60_000 : null;
+  if (!Number.isFinite(end)) return null;
+  const wait = config.delayMinutes * 60_000;
+  return end + (data.simulated ? Math.min(wait, SIMULATED_AFTER_MATCH_MS) : wait);
 }
 
 /**

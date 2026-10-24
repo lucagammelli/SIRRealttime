@@ -874,9 +874,12 @@ describe('Pause', () => {
     fireEvent.click(within(card).getByRole('switch', { name: 'Mostra la foto dopo la partita' }));
     expect(within(card).getByText(/senza foto la schermata non compare/)).toBeTruthy();
     expect(within(card).queryByTestId('anteprima-dopo-partita')).toBeNull();
-    // Only the sponsor images are offered (not the logos).
-    expect(within(card).getAllByRole('radio')).toHaveLength(1);
-    fireEvent.click(within(card).getByRole('radio', { name: /Immagine 1/ }));
+    // The photo is chosen once, from the library (no second list of the same images under it).
+    expect(within(card).queryByText(/Oppure scegli/)).toBeNull();
+    expect(within(card).queryAllByRole('radio')).toHaveLength(0);
+    const choose = within(card).getByLabelText('Scegli dalla libreria: Foto a tutto schermo');
+    await waitFor(() => expect(within(choose).getAllByRole('option').length).toBeGreaterThan(1));
+    fireEvent.change(choose, { target: { value: SPONSOR } });
     fireEvent.change(within(card).getByRole('spinbutton', { name: /Minuti dopo la fine della partita/ }), {
       target: { value: '500' },
     });
@@ -903,6 +906,36 @@ describe('Pause', () => {
         `/api/admin/assets/${SPONSOR}/file`,
       ),
     );
+  });
+
+  it('«Dopo la partita» has its own scene in the big preview, reachable from the card: the draft photo and the next match', async () => {
+    mockServer();
+    renderAt('/admin/studio/pause');
+    await studio();
+    fireEvent.click(screen.getByRole('tab', { name: 'Fine partita' }));
+    const card = screen.getByRole('region', { name: 'Dopo la partita' });
+    expect(scene('Dopo la partita')).toBeTruthy();
+    // Without photo: a notice, no screen.
+    fireEvent.click(within(card).getByRole('button', { name: 'Vedi nell’anteprima grande' }));
+    expect(checkedScene()).toBe('Dopo la partita');
+    expect(scope().querySelector('[data-testid="dopo-partita"]')).toBeNull();
+    expect(screen.getByText(/scegli una foto e accendi/)).toBeTruthy();
+    // With the photo of the draft (not saved yet): the screen with the photo and the countdown.
+    fireEvent.click(within(card).getByRole('switch', { name: 'Mostra la foto dopo la partita' }));
+    const choose = within(card).getByLabelText('Scegli dalla libreria: Foto a tutto schermo');
+    await waitFor(() => expect(within(choose).getAllByRole('option').length).toBeGreaterThan(1));
+    fireEvent.change(choose, { target: { value: SPONSOR } });
+    fireEvent.click(within(card).getByRole('button', { name: 'Vedi nell’anteprima grande' }));
+    const screenOfPhoto = await waitFor(() => {
+      const el = scope().querySelector('[data-testid="dopo-partita"]');
+      if (!el) throw new Error('screen missing');
+      return el;
+    });
+    expect(screenOfPhoto.querySelector('img')?.getAttribute('src')).toBe(`/api/admin/assets/${SPONSOR}/file`);
+    expect(within(screenOfPhoto as HTMLElement).getByRole('heading', { name: 'Prossima partita' })).toBeTruthy();
+    // Off: the screen is still shown to the editor, with the reason.
+    fireEvent.click(within(card).getByRole('switch', { name: 'Mostra la foto dopo la partita' }));
+    expect(screen.getByText(/Dopo la partita è spento/)).toBeTruthy();
   });
 
   it('own end of set of the 3rd set, a pause turned off, the rule of the «ogni N punti»', async () => {

@@ -536,6 +536,10 @@ function Studio({
         }}
         assets={assets}
         sponsors={sponsors}
+        onShowAfterMatch={() => {
+          setScene('afterMatch');
+          if (phone) setStep('anteprima');
+        }}
       />
     );
   else if (section === 'esporta')

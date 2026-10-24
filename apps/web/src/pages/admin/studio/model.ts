@@ -85,7 +85,7 @@ export const LEGACY_PAGES: Record<'grafica' | 'pagina' | 'pause' | 'avvisi', Stu
 export const studioPath = (section: StudioSection): string => `/admin/studio/${section}`;
 
 /** Moments of the match the preview can show. */
-export type StudioScene = 'play' | 'setBreak' | 'timeout' | 'milestone' | 'matchEnd' | 'overlay';
+export type StudioScene = 'play' | 'setBreak' | 'timeout' | 'milestone' | 'matchEnd' | 'afterMatch' | 'overlay';
 
 export const SCENES: readonly { id: StudioScene; label: string }[] = [
   { id: 'play', label: 'In gioco' },
@@ -93,6 +93,7 @@ export const SCENES: readonly { id: StudioScene; label: string }[] = [
   { id: 'timeout', label: 'Time-out' },
   { id: 'milestone', label: 'Ogni N punti' },
   { id: 'matchEnd', label: 'Fine partita' },
+  { id: 'afterMatch', label: 'Dopo la partita' },
   { id: 'overlay', label: 'Avviso' },
 ];
 
@@ -102,7 +103,7 @@ export const SCENE_LABELS: Record<StudioScene, string> = Object.fromEntries(
 
 /** Pause shown by a scene (null: in play or an overlay). */
 export function pauseKindOf(scene: StudioScene): IntermissionKind | null {
-  return scene === 'play' || scene === 'overlay' ? null : scene;
+  return scene === 'play' || scene === 'overlay' || scene === 'afterMatch' ? null : scene;
 }
 
 /**

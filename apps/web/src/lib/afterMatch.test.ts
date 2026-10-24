@@ -2,7 +2,7 @@ import type { AfterMatch } from '@arenalive/shared';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { stateAfter } from '../test/fixtures.ts';
-import { afterMatchDueAt, useAfterMatchImage } from './afterMatch.ts';
+import { afterMatchDueAt, SIMULATED_AFTER_MATCH_MS, useAfterMatchImage } from './afterMatch.ts';
 import type { LiveData } from './liveConnection.ts';
 
 const IMAGE = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
@@ -27,6 +27,14 @@ describe('afterMatchDueAt', () => {
     expect(afterMatchDueAt(data(), { ...on, delayMinutes: 0 })).toBe(Date.parse(END));
   });
 
+  it('a simulated match does not wait the real minutes: 15 s, or less if the client chose less', () => {
+    expect(SIMULATED_AFTER_MATCH_MS).toBe(15_000);
+    expect(afterMatchDueAt(data({ simulated: true }), on)).toBe(Date.parse(END) + 15_000);
+    expect(afterMatchDueAt(data({ simulated: true }), { ...on, delayMinutes: 0 })).toBe(Date.parse(END));
+    expect(afterMatchDueAt(data({ simulated: true }), { ...on, enabled: false })).toBeNull();
+    expect(afterMatchDueAt(data({ simulated: false }), on)).toBe(Date.parse(END) + 30 * 60_000);
+  });
+
   it('is null without a finished match with its end, or with the screen off or without a photo', () => {
     expect(afterMatchDueAt(data({ state: stateAfter(200) }), on)).toBeNull();
     const { finishedAt: _end, ...noEnd } = data() as Extract<LiveData, { kind: 'state' }>;
@@ -41,6 +49,16 @@ describe('afterMatchDueAt', () => {
 });
 
 describe('useAfterMatchImage', () => {
+  it('a simulated match shows the photo 15 s after its end', () => {
+    vi.useFakeTimers({ now: new Date(Date.parse(END) + 1000) });
+    const { result } = renderHook(() => useAfterMatchImage(data({ simulated: true }), on));
+    expect(result.current).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(14_000);
+    });
+    expect(result.current).toBe(IMAGE);
+  });
+
   it('gives the photo only once the minutes have passed, with one timer', () => {
     vi.useFakeTimers({ now: new Date('2026-10-23T19:10:00.000Z') });
     const { result, rerender } = renderHook(({ d }) => useAfterMatchImage(d, on), {

@@ -36,6 +36,7 @@ import {
   LAYOUT_DEVICES,
   newBlock,
   OVERLAY_KINDS,
+  backgroundForTeam,
   playerBackground,
   SET_BREAK_SETS,
   TEMPLATES,
@@ -715,10 +716,12 @@ export function overlayPreview(
   device: LayoutDevice,
 ): { event: MatchEvent; background: OverlayBackground | undefined; player?: { showText: boolean } } {
   const base = sampleEvent(kind, state, side);
-  if (!sample || !overlay.playerMedia) return { event: base, background: overlay.background };
+  // The fixed background only for our team (the event of the preview is always of `side`, our team).
+  const fixed = backgroundForTeam(overlay.background, base.team, side);
+  if (!sample || !overlay.playerMedia) return { event: base, background: fixed };
   const event: MatchEvent = { ...base, id: `${base.id}-${key}`, player: sample.player };
   const background = playerBackground(overlay, event, side, [sample.media], { videos: device !== 'phone' });
   return background
     ? { event, background, player: { showText: overlay.playerMedia.showText } }
-    : { event, background: overlay.background };
+    : { event, background: fixed };
 }

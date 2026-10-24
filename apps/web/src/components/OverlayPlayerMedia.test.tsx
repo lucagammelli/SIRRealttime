@@ -86,13 +86,12 @@ describe('overlayFor: photo or video of the player', () => {
     expect(again).toEqual(first);
   });
 
-  it('the opponent gets no photo of ours: its fixed background, or the text only', () => {
+  it('the opponent gets no photo of ours: the text only', () => {
     const c = config({
       ace: { playerMedia: { source: 'photo' }, background: { kind: 'image', assetId: FIXED } },
     });
-    expect(overlayFor(ace({ team: 'away' }), state([]), c, 'tv', 0, 'home', roster(true))?.background).toMatchObject({
-      assetId: FIXED,
-    });
+    // The fixed background is for our team only too: the opponent gets the text only.
+    expect(overlayFor(ace({ team: 'away' }), state([]), c, 'tv', 0, 'home', roster(true))?.background).toBeUndefined();
     const textOnly = config({ ace: { playerMedia: { source: 'photo' } } });
     expect(
       overlayFor(ace({ team: 'away' }), state([]), textOnly, 'tv', 0, 'home', roster(true))?.background,
@@ -135,16 +134,16 @@ describe('photo or video of the player: clean, with or without text', () => {
 
   it('no veil over the video of a player; the text is hidden (readable by screen readers only) or on a band of its own', () => {
     const hidden = box({ showText: false });
-    expect(hidden.querySelector('div[aria-hidden="true"].absolute.inset-0')).toBeNull();
+    expect(hidden.querySelector('div[aria-hidden="true"].absolute.inset-0:not([data-fill])')).toBeNull();
     expect(hidden.querySelector('[data-player-text="hidden"]')?.className).toBe('sr-only');
     cleanup();
     const shown = box({ showText: true });
-    expect(shown.querySelector('div[aria-hidden="true"].absolute.inset-0')).toBeNull();
+    expect(shown.querySelector('div[aria-hidden="true"].absolute.inset-0:not([data-fill])')).toBeNull();
     expect(shown.querySelector('[data-player-text="shown"]')?.textContent).toBe('ACE! Rossi');
     expect(shown.querySelector('video')?.className).not.toMatch(/opacity|blur|filter/);
   });
 
-  it('the photo of a player fills the screen like a video; a fixed image stays in the box', () => {
+  it('the photo of a player fills the screen like a video; a fixed image with «A tutto schermo» does the same', () => {
     const at = (player?: { showText: boolean }) =>
       render(
         <OverlayBanner
@@ -155,13 +154,17 @@ describe('photo or video of the player: clean, with or without text', () => {
         />,
       ).container;
     expect(at({ showText: true }).querySelector('[data-fit="fullscreen"]')).not.toBeNull();
-    expect(at({ showText: true }).querySelector('div[aria-hidden="true"].absolute.inset-0')).toBeNull();
+    expect(
+      at({ showText: true }).querySelector('div[aria-hidden="true"].absolute.inset-0:not([data-fill])'),
+    ).toBeNull();
     cleanup();
-    expect(at().querySelector('[data-fit="center"]')).not.toBeNull();
+    // A fixed image with «A tutto schermo» fills the screen too, whole (contain).
+    expect(at().querySelector('[data-fit="fullscreen"] img.object-contain')).not.toBeNull();
   });
 
-  it('a fixed background keeps its veil', () => {
-    expect(box().querySelector('div[aria-hidden="true"].absolute.inset-0')).not.toBeNull();
+  it('a fixed background has no veil either: a band behind the text', () => {
+    expect(box().querySelector('div[aria-hidden="true"].absolute.inset-0:not([data-fill])')).toBeNull();
+    expect(box().querySelector('[data-player-text="shown"]')?.className).toContain('bg-home/60');
   });
 });
 

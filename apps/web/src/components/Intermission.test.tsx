@@ -8,6 +8,7 @@ import { activePause, duelRoles, previewState, visibleSlides } from '../lib/inte
 import type { Device } from '../lib/layout.ts';
 import { midMatchState, scoreAt, stateAfter } from '../test/fixtures.ts';
 import { ROLE_LABELS } from '../blocks/StatSlides.tsx';
+import { TouchContext } from '../lib/useLayout.ts';
 import { Intermission } from './Intermission.tsx';
 
 const SPONSOR = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
@@ -209,6 +210,37 @@ describe('Intermission: full screen and banner', () => {
     expect(screen.getByRole('dialog', { name: 'Fine partita' })).toBeTruthy();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(dialog()).toBeNull();
+  });
+
+  it('without «Touch» (device without touch) no button: neither «Torna alla partita», «Chiudi» nor the pause of the rotation; with touch they are there', () => {
+    const draw = (touch: boolean, device: Device) =>
+      render(
+        <TouchContext.Provider value={touch}>
+          <Intermission
+            state={setBreak}
+            config={TenantIntermissionsSchema.parse({})}
+            device={device}
+            paused={false}
+            onTogglePaused={vi.fn()}
+          />
+        </TouchContext.Provider>,
+      );
+    for (const device of ['tablet', 'phone'] as const) {
+      draw(true, device);
+      expect(screen.queryAllByRole('button').length).toBeGreaterThan(0);
+      expect(screen.queryByRole('button', { name: 'Ferma rotazione' })).not.toBeNull();
+      expect(
+        screen.queryByRole('button', { name: device === 'tablet' ? 'Torna alla partita' : 'Chiudi' }),
+      ).not.toBeNull();
+      cleanup();
+      draw(false, device);
+      expect(dialog() ?? banner()).not.toBeNull();
+      expect(screen.queryAllByRole('button')).toEqual([]);
+      // Esc still closes it (a keyboard or remote control).
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(dialog() ?? banner()).toBeNull();
+      cleanup();
+    }
   });
 
   it('the banner closes with «Chiudi» and Esc', () => {

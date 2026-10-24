@@ -184,7 +184,7 @@ describe('overlays: background', () => {
       block: { background: { kind: 'image', assetId: ID2 } },
     });
     // A background saved before the options of the video: muted, in the box, our team only.
-    const plainOptions = { audio: false, fit: 'center', teams: 'ours', duration: 'seconds' } as const;
+    const plainOptions = { audio: false, fit: 'center', teams: 'ours', duration: 'seconds', showText: true } as const;
     expect(doc.ace.background).toEqual({ kind: 'video', assetId: ID, ...plainOptions });
     expect(overlayBackgrounds(doc)).toEqual([
       { kind: 'video', assetId: ID, ...plainOptions },
@@ -222,6 +222,7 @@ describe('overlays: background', () => {
       fit: 'fullscreen',
       teams: 'both',
       duration: 'seconds',
+      showText: true,
     });
   });
 
@@ -237,7 +238,7 @@ describe('overlays: background', () => {
     expect(TenantOverlaysSchema.parse(JSON.parse(JSON.stringify(doc))).ace.background?.duration).toBe('video');
   });
 
-  it('a video for our team only is dropped for an event of the opponent, at home or away; an image always stays', () => {
+  it('a background for our team only is dropped for an event of the opponent, at home or away, and with our side unknown', () => {
     const video = OverlayBackgroundSchema.parse({ kind: 'video', assetId: ID });
     const both = OverlayBackgroundSchema.parse({ kind: 'video', assetId: ID, teams: 'both' });
     const image = OverlayBackgroundSchema.parse({ kind: 'image', assetId: ID2 });
@@ -247,12 +248,26 @@ describe('overlays: background', () => {
     // Our team away: the video goes with the away side.
     expect(backgroundForTeam(video, 'away', 'away')).toBe(video);
     expect(backgroundForTeam(video, 'home', 'away')).toBeUndefined();
-    // An event of no team, or our side unknown: the video stays (as for both teams).
+    // An event of no team stays; our side unknown: no background for our team only.
     expect(backgroundForTeam(video, null, 'home')).toBe(video);
-    expect(backgroundForTeam(video, 'away', null)).toBe(video);
+    expect(backgroundForTeam(video, 'away', null)).toBeUndefined();
     expect(backgroundForTeam(both, 'away', 'home')).toBe(both);
-    expect(backgroundForTeam(image, 'away', 'home')).toBe(image);
+    expect(backgroundForTeam(both, 'away', null)).toBe(both);
+    // The same for an image (default, also for the documents saved before `teams`).
+    expect(backgroundForTeam(image, 'home', 'home')).toBe(image);
+    expect(backgroundForTeam(image, 'away', 'home')).toBeUndefined();
+    expect(backgroundForTeam(image, 'home', null)).toBeUndefined();
+    const imageBoth = OverlayBackgroundSchema.parse({ kind: 'image', assetId: ID2, teams: 'both' });
+    expect(backgroundForTeam(imageBoth, 'away', 'home')).toBe(imageBoth);
     expect(backgroundForTeam(undefined, 'home', 'home')).toBeUndefined();
+  });
+
+  it('showText: shown by default (documents saved before), kept in the round trip and in the export', () => {
+    expect(OverlayBackgroundSchema.parse({ kind: 'image', assetId: ID }).showText).toBe(true);
+    const doc = TenantOverlaysSchema.parse({ ace: { background: { kind: 'image', assetId: ID, showText: false } } });
+    const back = TenantOverlaysSchema.parse(JSON.parse(JSON.stringify(doc)));
+    expect(back.ace.background).toMatchObject({ showText: false, teams: 'ours' });
+    expect(OverlayBackgroundSchema.safeParse({ kind: 'image', assetId: ID, showText: 'no' }).success).toBe(false);
   });
 
   it('assets: kind overlay and video types in the summary', () => {

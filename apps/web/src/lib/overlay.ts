@@ -98,7 +98,7 @@ export function overlayFor(
   config: TenantOverlays,
   device: LayoutDevice,
   now: number,
-  /** Side of our team in the match (null: unknown, a video for our team only is then shown for both). */
+  /** Side of our team in the match (null: unknown, a background for our team only is then dropped). */
   ourSide: Side | null = null,
   /** Photos and videos of the players of our team (public answer) and whether a video may be shown (not the phone, not reduced motion). */
   roster: { players: readonly PublicPlayerMedia[]; videos: boolean } = { players: [], videos: false },
@@ -108,7 +108,7 @@ export function overlayFor(
   const text = overlayText(event, state, overlay);
   if (text === '') return null;
   const { position, size } = overlayPlacement(config, overlay);
-  // A video for our team only: none for an event of the opponent (text only, as without background).
+  // A background for our team only: none for an event of the opponent or with our side unknown (text only).
   // The photo or video of the player of our team first (ace, block, substitution), else the fixed background.
   const ofPlayer = playerBackground(overlay, event, ourSide, roster.players, { videos: roster.videos });
   const background = ofPlayer ?? backgroundForTeam(overlay.background, event.team, ourSide);

@@ -109,18 +109,19 @@ export type OverlayVideoDuration = (typeof OVERLAY_VIDEO_DURATIONS)[number];
 export const OVERLAY_VIDEO_MAX_SECONDS = 30;
 
 /**
- * Events whose overlay shows the video: only those of our team (the team of the client, at home or away; also the
- * ones of no team, as a tie), or those of both teams. For an event of the opponent with `ours` the overlay comes out
- * without the video (text only).
+ * Events whose overlay shows the background (image or video): only those of our team (the team of the client, at home
+ * or away; also the ones of no team, as a tie), or those of both teams. For an event of the opponent with `ours` the
+ * overlay comes out without the background (text only); with our side unknown, too.
  */
 export const OVERLAY_VIDEO_TEAMS = ['ours', 'both'] as const;
 export type OverlayVideoTeams = (typeof OVERLAY_VIDEO_TEAMS)[number];
 
 /**
  * Background of an overlay, shown behind its text: an uploaded image or video of the client (the server checks that
- * the asset is of the client and that its type is the one of `kind`). `audio`, `fit`, `teams` and `duration` are the
- * options of a video (an image ignores them); missing in a document saved before them: muted, in the box, our team only,
- * for the seconds of the overlay.
+ * the asset is of the client and that its type is the one of `kind`). `audio`, `fit` and `duration` are the options of a
+ * video (an image ignores them); `teams` (for which team) and `showText` (the text is written over the background; false:
+ * the background only, clean, the text stays for screen readers) are for both. Missing in a document saved before them:
+ * muted, in the box, our team only, text shown, for the seconds of the overlay.
  */
 export const OverlayBackgroundSchema = z.strictObject({
   kind: z.enum(OVERLAY_BACKGROUND_KINDS),
@@ -130,14 +131,15 @@ export const OverlayBackgroundSchema = z.strictObject({
   fit: z.enum(OVERLAY_VIDEO_FITS).default('center'),
   teams: z.enum(OVERLAY_VIDEO_TEAMS).default('ours'),
   duration: z.enum(OVERLAY_VIDEO_DURATIONS).default('seconds'),
+  showText: z.boolean().default(true),
 });
 export type OverlayBackground = z.output<typeof OverlayBackgroundSchema>;
 export type OverlayBackgroundInput = z.input<typeof OverlayBackgroundSchema>;
 
 /**
  * Pure: the background of an overlay for an event of `team` (null: of no team) when our team plays on `ourSide`: a
- * video set for our team only is dropped for an event of the opponent (undefined: text only). With `ourSide` unknown
- * (null: no team of the client in the match) the video stays, as for both teams; an image always stays.
+ * background (image or video) set for our team only is dropped for an event of the opponent and when `ourSide` is
+ * unknown (null: no team of the client in the match): undefined, text only. For both teams it always stays.
  */
 export function backgroundForTeam(
   background: OverlayBackground | undefined,
@@ -145,9 +147,9 @@ export function backgroundForTeam(
   ourSide: Side | null,
 ): OverlayBackground | undefined {
   if (!background) return undefined;
-  const opponent = team !== null && ourSide !== null && team !== ourSide;
-  if (background.kind === 'video' && background.teams === 'ours' && opponent) return undefined;
-  return background;
+  if (background.teams === 'both') return background;
+  if (ourSide === null) return undefined;
+  return team !== null && team !== ourSide ? undefined : background;
 }
 
 /** Overlays of an action of one player (ace, block, substitution: who comes in): they can show its photo or video. */
@@ -209,7 +211,7 @@ export function playerBackground(
   if (!player) return undefined;
   const pick = (ids: readonly string[]): string | undefined =>
     pm.pick === 'random' ? ids[seededIndex(event.id, ids.length)] : ids[0];
-  const common = { audio: pm.audio, fit: pm.fit, teams: 'ours' as const };
+  const common = { audio: pm.audio, fit: pm.fit, teams: 'ours' as const, showText: pm.showText };
   if (pm.source === 'video' && options.videos) {
     const video = pick(player.videos);
     if (video) return { kind: 'video', assetId: video, ...common, duration: pm.duration };

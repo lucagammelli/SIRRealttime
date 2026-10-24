@@ -117,14 +117,15 @@ describe('backgrounds to preload', () => {
 });
 
 describe('drawing an overlay with a background', () => {
-  it('image: larger box, the image behind the text under a veil of the team colour', () => {
+  it('image: larger box, the image behind the text, no veil, a band behind the text', () => {
     render(<OverlayBanner text="MURO" team="away" device="tv" media={{ kind: 'image', url: 'blob:img' }} />);
     const box = document.querySelector('[data-overlay="away"]');
     expect(box?.getAttribute('data-background')).toBe('image');
     expect(box?.className).toContain('aspect-video');
     expect(box?.querySelector('img')?.getAttribute('src')).toBe('blob:img');
     expect(box?.querySelector('img')?.getAttribute('alt')).toBe('');
-    expect(box?.querySelector('.bg-away\\/65')).not.toBeNull();
+    expect(box?.querySelector('.bg-away\\/65')).toBeNull();
+    expect(box?.querySelector('[data-player-text="shown"]')?.className).toContain('bg-away/60');
     expect(box?.textContent).toBe('MURO');
   });
 
@@ -179,6 +180,7 @@ describe('drawing an overlay with a background', () => {
     const element = (s: MatchState, live: boolean) => (
       <Overlay state={s} live={live} config={WITH_BACKGROUNDS} device="tv" />
     );
+    const release = claimOurSide('home');
     const view = render(element(withEvents([]), false));
     // Read at once, before any event.
     expect(fetchMock.mock.calls.map((c) => c[0])).toContain(publicAssetPath(VIDEO));
@@ -193,6 +195,7 @@ describe('drawing an overlay with a background', () => {
     await act(() => Promise.resolve());
     again.rerender(element(withEvents([event('block')]), true));
     expect(document.querySelector('[data-background="image"] img')?.getAttribute('src')).toBe('blob:ready');
+    release();
   });
 });
 
@@ -260,7 +263,7 @@ describe('options of a video background', () => {
     expect(second?.getAttribute('src')).toBe('/api/admin/assets/b/file');
   });
 
-  it('a video for our team only: an event of the opponent shows the text only, at home or away; unknown side: the video', async () => {
+  it('a video for our team only: an event of the opponent shows the text only, at home or away; unknown side: text only', async () => {
     vi.stubGlobal('fetch', () => Promise.resolve(new Response(new Blob(['v'], { type: 'video/mp4' }))));
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:video' }));
     const run = async (teams: 'ours' | 'both', ourSide: 'home' | 'away' | null, team: 'home' | 'away') => {
@@ -283,9 +286,68 @@ describe('options of a video background', () => {
     expect(await run('ours', 'home', 'home')).toEqual(withVideo);
     expect(await run('ours', 'away', 'home')).toEqual(textOnly);
     expect(await run('ours', 'away', 'away')).toEqual(withVideo);
-    // Our team not recognized in the match: as for both teams.
-    expect(await run('ours', null, 'away')).toEqual(withVideo);
+    // Our team not recognized in the match: no video for our team only.
+    expect(await run('ours', null, 'away')).toEqual(textOnly);
     expect(await run('both', 'home', 'away')).toEqual(withVideo);
+  });
+
+  it('fixed image: only for our team, text only for the opponent and with our side unknown', async () => {
+    vi.stubGlobal('fetch', () => Promise.resolve(new Response(new Blob(['i'], { type: 'image/png' }))));
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:img' }));
+    const run = async (ourSide: 'home' | 'away' | null, team: 'home' | 'away') => {
+      const release = claimOurSide(ourSide);
+      const c = config({ ace: { background: { kind: 'image', assetId: VIDEO } } });
+      const view = render(<Overlay state={withEvents([])} live={false} config={c} device="tv" />);
+      await act(() => Promise.resolve());
+      await act(() => Promise.resolve());
+      view.rerender(<Overlay state={withEvents([event('ace', team)])} live config={c} device="tv" />);
+      const box = document.querySelector(`[data-overlay="${team}"]`);
+      const result = box?.querySelector('img')?.getAttribute('src') ?? null;
+      view.unmount();
+      release();
+      return result;
+    };
+    expect(await run('home', 'home')).toBe('blob:img');
+    expect(await run('home', 'away')).toBeNull();
+    expect(await run('away', 'away')).toBe('blob:img');
+    expect(await run(null, 'home')).toBeNull();
+  });
+
+  it('fixed background: never a veil; without text clean (screen readers only), with text a band behind it', () => {
+    const hidden = render(
+      <OverlayBanner text="ACE" team="home" device="tv" media={{ kind: 'image', url: 'blob:i', showText: false }} />,
+    );
+    expect(document.querySelector('[data-overlay] .bg-home\\/65')).toBeNull();
+    expect(document.querySelector('[data-player-text="hidden"]')?.className).toContain('sr-only');
+    expect(document.querySelector('[data-overlay]')?.textContent).toBe('ACE');
+    hidden.unmount();
+    render(<OverlayBanner text="ACE" team="home" device="tv" media={{ kind: 'image', url: 'blob:i' }} />);
+    expect(document.querySelector('[data-overlay] .bg-home\\/65')).toBeNull();
+    expect(document.querySelector('[data-player-text="shown"]')?.className).toContain('bg-home/60');
+  });
+
+  it('full screen: the picture fits whole (contain) over a fill, never cropped; in the box it covers', () => {
+    const image = render(
+      <OverlayBanner
+        text="ACE"
+        team="home"
+        device="tv"
+        media={{ kind: 'image', url: 'blob:i', fit: 'fullscreen', player: { showText: true } }}
+      />,
+    );
+    const imgs = [...document.querySelectorAll('[data-fit="fullscreen"] img')];
+    expect(imgs.map((i) => i.className.includes('object-contain'))).toEqual([false, true]);
+    expect(document.querySelector('[data-fill="blur"] img')?.className).toContain('blur');
+    image.unmount();
+    const video = render(
+      <OverlayBanner text="ACE" team="home" device="tv" media={{ kind: 'video', url: 'blob:v', fit: 'fullscreen' }} />,
+    );
+    expect(document.querySelector('video')?.className).toContain('object-contain');
+    expect(document.querySelector('[data-fill="color"]')?.className).toContain('bg-bg');
+    video.unmount();
+    render(<OverlayBanner text="ACE" team="home" device="tv" media={{ kind: 'video', url: 'blob:v' }} />);
+    expect(document.querySelector('video')?.className).toContain('object-cover');
+    expect(document.querySelector('[data-fill]')).toBeNull();
   });
 
   it('«Quanto il video»: the video plays once and reports its length and its end; otherwise it loops', () => {
@@ -340,7 +402,7 @@ describe('options of a video background', () => {
       vi.stubGlobal('fetch', () => Promise.resolve(new Response(new Blob(['v'], { type: 'video/mp4' }))));
       vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:video' }));
       vi.useFakeTimers();
-      const release = claimOurSide(null);
+      const release = claimOurSide('home');
       const c = config({ ace: { seconds: SECONDS, background: { kind: 'video', assetId: VIDEO, ...background } } });
       const view = render(<Overlay state={withEvents([])} live={false} config={c} device={device} />);
       await act(() => Promise.resolve());

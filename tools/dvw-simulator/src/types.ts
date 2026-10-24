@@ -9,6 +9,17 @@ export interface SimPlayer {
   role: Role;
 }
 
+/**
+ * A player of a real roster given to the generator (the club of the client): shirt number 0-99, names, role (null:
+ * not known, the generator gives it the role the team needs).
+ */
+export interface RosterPlayer {
+  number: number;
+  lastName: string;
+  firstName: string;
+  role: Role | null;
+}
+
 export interface SimTeam {
   name: string;
   code: string;
@@ -81,6 +92,15 @@ export interface GenerateOptions {
   sets?: 3 | 4 | 5;
   homeName?: string;
   awayName?: string;
+  /** Team codes of `[3TEAMS]`; missing: the first three letters of the name. */
+  homeCode?: string;
+  awayCode?: string;
+  /**
+   * Real roster of the home or away team (`rosterPlayers`): its players with their numbers, completed by generated
+   * players (numbers not used) when roles or players are missing. Missing: every player generated.
+   */
+  homeRoster?: readonly RosterPlayer[];
+  awayRoster?: readonly RosterPlayer[];
   /** ISO UTC start, fixed default so that output is deterministic. */
   startTime?: string;
   /** How the match goes; missing fields take `DEFAULT_PROFILE`. */

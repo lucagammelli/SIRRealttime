@@ -1,4 +1,5 @@
 import type { MatchLogoInfo, ScheduleResponse, UserRole } from '@arenalive/shared';
+import type { FastifyBaseLogger } from 'fastify';
 import type { Config } from './config.js';
 import type { Db } from './db/index.js';
 import type { LiveHub, StatePublisher } from './hub.js';
@@ -114,6 +115,8 @@ export interface AppContext {
   /** Championships of the season in course on the official site (series chosen by the clubs). */
   catalog: LeagueCatalog;
   now: () => Date;
+  /** Log of the server for the work in the background (missing in the tests that build a context by hand). */
+  log?: FastifyBaseLogger;
 }
 
 export const SESSION_COOKIE = 'arenalive_session';

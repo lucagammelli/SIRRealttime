@@ -41,6 +41,17 @@ scout. Il formato scritto è quello letto da `docs/dvw-parser.md`.
     e dopo quel rientro i due restano fermi per il set. `resolveProfile` completa i campi mancanti con i default e porta
     dentro i limiti un valore fuori. I test (`src/profile.test.ts`) controllano su molte partite punteggi, cambio palla,
     medie dei parametri entro un quinto, regole di cambi e time-out, righe tutte lette dal parser e il determinismo.
+  - **Rosa vera** (`homeRoster` / `awayRoster`, tipo `RosterPlayer`: numero, cognome, nome, ruolo `S O H M L` o `null`;
+    `rosterPlayers` in `src/roster.ts`): la squadra usa i giocatori della rosa con i loro numeri, nomi e ruoli (al massimo
+    `ROSTER_MAX_PLAYERS` = 30, numeri 0-99; un numero ripetuto o fuori limite è scartato; `;` e caratteri di controllo dei
+    nomi tolti con `dvwField`). Un giocatore senza ruolo prende il primo ruolo che manca: prima quelli per scendere in
+    campo (1 palleggiatore, 1 opposto, 2 schiacciatori, 2 centrali, 1 libero), poi quelli di una squadra completa (2, 2,
+    4, 4, 2), poi schiacciatore. Se mancano ancora ruoli o la squadra ha meno di `ROSTER_MIN_PLAYERS` (12) giocatori, si
+    aggiungono giocatori generati su numeri non usati dalla rosa (prima 1-20 mescolati, poi 21-99) e con cognomi diversi
+    da quelli della rosa: mai due giocatori con lo stesso numero. Titolari: il primo giocatore di ogni ruolo nell'ordine
+    della rosa. Stesso seme e stessa rosa, stessa partita; senza rosa la partita è quella di prima (stesso seme, stessi
+    giocatori generati). `homeCode` / `awayCode` sostituiscono il codice squadra di `[3TEAMS]` (default: le prime tre
+    lettere del nome, `teamCode`).
 - **Scrittura** (`renderDvw`): produce l'intero file con le sezioni `[3DATAVOLLEYSCOUT]`, `[3MATCH]`, `[3TEAMS]`,
   `[3MORE]`, `[3SET]`, `[3PLAYERS-H]`, `[3PLAYERS-V]`, `[3ATTACKCOMBINATION]`, `[3SETTERCALL]`, `[3SCOUT]`, fine riga CRLF,
   Windows-1252 per default. Con `upToLine` righe di scout visibili, parziali e set vinti sono ricavati solo da quelle righe.
@@ -74,8 +85,8 @@ scout. Il formato scritto è quello letto da `docs/dvw-parser.md`.
   precedente: 3 s dopo un tocco (`action`), 20 s dopo un punto (`point`), 60 s dopo un time-out (`timeout`), 300 s dopo la
   fine di un set (`setEnd`). Lo usa il server (`apps/server/src/simulation/`, `docs/server.md`) come dipendenza
   `@arenalive/dvw-simulator`: `planPlayback` per i tempi di ogni partita (anche di un `.dvw` caricato) e, per la sorgente
-  «Casuale» della pagina «Simulazione», `generateMatch` (con l'«Andamento della partita» scelto nella pagina),
-  `renderDvw` e `DEFAULT_AWAY_NAME`. Non ci sono partite di
+  «Casuale» della pagina «Simulazione», `generateMatch` (con l'«Andamento della partita» scelto nella pagina e la rosa
+  del club per la nostra squadra), `renderDvw` e `DEFAULT_AWAY_NAME`. Non ci sono partite di
   esempio già pronte: le sorgenti sono solo «Casuale» e il file `.dvw` caricato.
 - Il test di andata e ritorno (`src/roundtrip.test.ts`) genera partite con 3, 4 e 5 set, le scrive, le rilegge con
   `parseDvw` e verifica: nessun avviso né `unknown`, righe e codici identici, punteggi, set, squadre e giocatori.
@@ -89,9 +100,12 @@ sempre: niente altre righe, la partita simulata e il suo link restano con il pun
 vincitore inventato, mai «live») fino all'eliminazione automatica a 6 ore o a «Elimina». Poi si può «Ricomincia» o avviarne un'altra.
 
 ## API (`tools/dvw-simulator/src/index.ts`)
-- `generateMatch({ seed, sets?, homeName?, awayName?, startTime?, profile? }): GeneratedMatch`. `sets` è 3, 4 o 5
-  (default 3); `startTime` è ISO UTC (default `2025-01-18T18:00:00Z`, `DEFAULT_START_TIME`); nomi di default
-  `DEFAULT_HOME_NAME` e `DEFAULT_AWAY_NAME`; `profile` è un `Partial<MatchProfile>` (vedi «Andamento della partita»).
+- `generateMatch({ seed, sets?, homeName?, awayName?, homeCode?, awayCode?, homeRoster?, awayRoster?, startTime?,
+  profile? }): GeneratedMatch`. `sets` è 3, 4 o 5 (default 3); `startTime` è ISO UTC (default `2025-01-18T18:00:00Z`,
+  `DEFAULT_START_TIME`); nomi di default `DEFAULT_HOME_NAME` e `DEFAULT_AWAY_NAME`; `profile` è un `Partial<MatchProfile>`
+  (vedi «Andamento della partita»); `homeRoster` / `awayRoster` e i codici: vedi «Rosa vera».
+- `rosterPlayers(rng, rosa, idBase)`, `dvwField(testo)`, `teamCode(nome)`, `ROSTER_MIN_PLAYERS`, `ROSTER_MAX_PLAYERS`
+  (`src/roster.ts`, `src/generate.ts`).
 - `DEFAULT_PROFILE`, `PROFILE_LIMITS`, `resolveProfile(parziale?): MatchProfile` (`src/profile.ts`).
 - `renderDvw(match, upToLine, { encoding }): Uint8Array`. `encoding` è `'win1252'` (default) o `'utf8'`.
 - `applyCorrection(match, lineIndex, seed, visible?): GeneratedMatch`: restituisce una nuova partita con una sola riga
@@ -151,10 +165,11 @@ Test: `pnpm --filter @arenalive/dvw-simulator test`.
 ## Riferimenti
 - `tools/dvw-simulator/src/generate.ts` (`generateMatch`), `render.ts` (`renderDvw`, `scoutLineText`),
   `correction.ts` (`applyCorrection`), `play.ts` (`play`), `rng.ts` (`Rng`), `cli.ts`, `types.ts` (`MatchProfile`),
-  `profile.ts` (`DEFAULT_PROFILE`, `PROFILE_LIMITS`, `resolveProfile`), `names.ts`,
+  `profile.ts` (`DEFAULT_PROFILE`, `PROFILE_LIMITS`, `resolveProfile`), `roster.ts` (`rosterPlayers`), `names.ts`,
   `schedule.ts` (`planPlayback`)
 - Simulazione nel server: `docs/server.md` («Simulazione di una partita»), pagina `docs/portale.md` («Simulazione»)
-- Test: `src/simulator.test.ts`, `src/roundtrip.test.ts`, `src/schedule.test.ts`, `src/profile.test.ts`; statistiche di
-  `volley-stats` sulla partita della simulazione: `apps/server/test/simulationSource.test.ts`
+- Test: `src/simulator.test.ts`, `src/roundtrip.test.ts`, `src/schedule.test.ts`, `src/profile.test.ts`,
+  `src/roster.test.ts`; statistiche di `volley-stats` sulla partita della simulazione (anche ace e muri dei giocatori
+  della rosa sul numero giusto): `apps/server/test/simulationSource.test.ts`
 - Campione: `samples/partita-sintetica.dvw`
 - Parser: `docs/dvw-parser.md`; regole del formato: `docs/regole/dvw.md`; strumenti: `docs/infrastruttura.md`

@@ -1,7 +1,20 @@
-import type { ClubCoverage, MatchLogoInfo, ServerMessage, ShareAccess, StateMessage } from '@arenalive/shared';
+import type {
+  ClubCoverage,
+  ClubSide,
+  MatchLogoInfo,
+  ServerMessage,
+  ShareAccess,
+  StateMessage,
+} from '@arenalive/shared';
 import type { MatchState } from '@arenalive/volley-stats';
-import { ClientMessageSchema, effectiveStartsAt, LiveSocketQuerySchema, matchTeamLogos } from '@arenalive/shared';
-import { and, desc, eq, gt, isNull, or, sql } from 'drizzle-orm';
+import {
+  ClientMessageSchema,
+  effectiveStartsAt,
+  LiveSocketQuerySchema,
+  matchOurSide,
+  matchTeamLogos,
+} from '@arenalive/shared';
+import { and, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
 import {
   broadcastOf,
   clubLook,
@@ -16,6 +29,7 @@ import type { AppContext, ResolvedShareToken } from './context.js';
 import { clientFixtures, matches, shareTokens, tenants } from './db/index.js';
 import { romeDayAt } from './leagues/romeTime.js';
 import type { FrameEncoding, Subscriber, Target } from './hub.js';
+import { sameExtras } from './hub.js';
 import { shortCodeLookupHash } from './lib/shortCode.js';
 import { hashToken } from './lib/tokens.js';
 import { tenantScope } from './tenancy.js';
@@ -27,12 +41,16 @@ const whereOf = (target: Exclude<Target, { kind: 'channel' }>) =>
       ? eq(matches.id, target.matchId)
       : eq(matches.clientFixtureId, target.clientFixtureId);
 
-/** Logos of a state for the public messages (`matchTeamLogos`), cached 60 s by client and match of the calendar. */
+/**
+ * Logos and side of our team of a state for the public messages (`matchTeamLogos`, `matchOurSide`), cached 60 s by
+ * client and match of the calendar. `fixedSide`: the side of our team chosen by the simulation (`matches.our_side`).
+ */
 export async function withLogos(
   ctx: AppContext,
   tenantId: string,
   message: StateMessage,
   clientFixtureId: string | null,
+  fixedSide: ClubSide | null = null,
 ): Promise<StateMessage> {
   const key = `${tenantId}:${clientFixtureId ?? ''}`;
   let info: MatchLogoInfo | undefined = ctx.caches.logos.get(key);
@@ -40,7 +58,59 @@ export async function withLogos(
     info = await matchLogoInfo(ctx.db, tenantId, clientFixtureId);
     ctx.caches.logos.set(key, info);
   }
-  return { ...message, logos: matchTeamLogos(info, message.state.teams) };
+  const { ourSide: _previous, ...rest } = message;
+  const ourSide = matchOurSide(info, message.state.teams, fixedSide);
+  return {
+    ...rest,
+    logos: matchTeamLogos(info, message.state.teams, fixedSide),
+    ...(ourSide ? { ourSide } : {}),
+  };
+}
+
+/**
+ * After a save of the graphics of a client (`tenantConfigChanged`): the logos and the side of our team of the states
+ * of its matches kept by the hub (the ones on screen: real and simulated, also paused or finished) are chosen again
+ * and, when they changed, sent again to their clients with the next `version` of the match (written in the database
+ * only if the match has not changed meanwhile). The lines, `seq` and `contentHash` of the match stay as they are and
+ * nothing of the history is sent again; a second call with the same graphics sends nothing. Returns the states sent.
+ */
+export async function refreshMatchLogos(ctx: AppContext, tenantId: string): Promise<number> {
+  const shown = ctx.hub.statesOf(tenantId);
+  if (shown.length === 0) return 0;
+  const rows = await ctx.db
+    .select({
+      id: matches.id,
+      version: matches.version,
+      clientFixtureId: matches.clientFixtureId,
+      ourSide: matches.ourSide,
+    })
+    .from(matches)
+    .where(
+      tenantScope(
+        matches,
+        tenantId,
+        inArray(
+          matches.id,
+          shown.map((m) => m.matchId),
+        ),
+      ),
+    );
+  let sent = 0;
+  for (const message of shown) {
+    const row = rows.find((r) => r.id === message.matchId);
+    // Deleted, or a newer state is on its way (it gets the new logos by itself).
+    if (row?.version !== message.version) continue;
+    const fresh = await withLogos(ctx, tenantId, message, row.clientFixtureId, row.ourSide);
+    if (sameExtras(fresh, message)) continue;
+    const [bumped] = await ctx.db
+      .update(matches)
+      .set({ version: row.version + 1 })
+      .where(and(eq(matches.id, row.id), eq(matches.version, row.version)))
+      .returning({ version: matches.version });
+    if (!bumped) continue;
+    if (ctx.hub.republish(tenantId, { ...fresh, version: bumped.version })) sent++;
+  }
+  return sent;
 }
 
 /**
@@ -163,6 +233,7 @@ export async function currentMessage(ctx: AppContext, target: Target): Promise<S
       live: matches.live,
       clientFixtureId: matches.clientFixtureId,
       simulated: matches.simulated,
+      ourSide: matches.ourSide,
       updatedAt: matches.updatedAt,
       finishedAt: matches.finishedAt,
     })
@@ -185,7 +256,7 @@ export async function currentMessage(ctx: AppContext, target: Target): Promise<S
     ...(row.simulated ? { simulated: true as const } : {}),
     ...finishedAtField(row.state, row.finishedAt, row.updatedAt),
   };
-  const message = await withLogos(ctx, target.tenantId, state, row.clientFixtureId);
+  const message = await withLogos(ctx, target.tenantId, state, row.clientFixtureId, row.ourSide);
   ctx.hub.remember(target.tenantId, message, row.live, row.clientFixtureId);
   return message;
 }

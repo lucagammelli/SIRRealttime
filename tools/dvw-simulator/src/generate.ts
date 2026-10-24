@@ -1,8 +1,10 @@
 import { COACHES, FIRST_NAMES, LAST_NAMES } from './names.js';
 import { resolveProfile } from './profile.js';
 import { Rng } from './rng.js';
+import { dvwField, rosterPlayers } from './roster.js';
 import type {
   GenerateOptions,
+  RosterPlayer,
   GeneratedMatch,
   LineKind,
   MatchProfile,
@@ -19,7 +21,8 @@ export const DEFAULT_AWAY_NAME = 'Volley Club Lugo';
 
 const ROLE_ORDER: Role[] = ['S', 'S', 'O', 'O', 'H', 'H', 'H', 'M', 'M', 'M', 'L', 'H', 'L', 'M'];
 
-function teamCode(name: string): string {
+/** Pure: team code of `[3TEAMS]` for a name: its first three letters (accents removed), upper case. */
+export function teamCode(name: string): string {
   const letters = name
     .normalize('NFD')
     .replace(/[^A-Za-z]/g, '')
@@ -27,7 +30,19 @@ function teamCode(name: string): string {
   return letters.slice(0, 3).padEnd(3, 'X');
 }
 
-function makeTeam(rng: Rng, name: string, idBase: number): SimTeam {
+interface TeamOptions {
+  name: string;
+  code?: string | undefined;
+  roster?: readonly RosterPlayer[] | undefined;
+}
+
+function makeTeam(rng: Rng, options: TeamOptions, idBase: number): SimTeam {
+  const name = dvwField(options.name) || 'Squadra';
+  const code = (options.code ? dvwField(options.code) : '') || teamCode(name);
+  if (options.roster) {
+    const players = rosterPlayers(rng, options.roster, idBase);
+    return { name, code, coach: rng.pick(COACHES), players };
+  }
   const size = rng.int(12, 14);
   const numbers = rng.shuffle(Array.from({ length: 20 }, (_, i) => i + 1)).slice(0, size);
   const usedNames = new Set<string>();
@@ -48,7 +63,7 @@ function makeTeam(rng: Rng, name: string, idBase: number): SimTeam {
       role: ROLE_ORDER[i] as Role,
     });
   }
-  return { name, code: teamCode(name), coach: rng.pick(COACHES), players };
+  return { name, code, coach: rng.pick(COACHES), players };
 }
 
 interface TeamState {
@@ -460,8 +475,16 @@ export function generateMatch(options: GenerateOptions): GeneratedMatch {
   const rng = new Rng(options.seed);
   const totalSets = options.sets ?? 3;
   const profile = resolveProfile(options.profile);
-  const home = makeTeam(rng, options.homeName ?? DEFAULT_HOME_NAME, 1000);
-  const away = makeTeam(rng, options.awayName ?? DEFAULT_AWAY_NAME, 2000);
+  const home = makeTeam(
+    rng,
+    { name: options.homeName ?? DEFAULT_HOME_NAME, code: options.homeCode, roster: options.homeRoster },
+    1000,
+  );
+  const away = makeTeam(
+    rng,
+    { name: options.awayName ?? DEFAULT_AWAY_NAME, code: options.awayCode, roster: options.awayRoster },
+    2000,
+  );
   const startTime = options.startTime ?? DEFAULT_START_TIME;
 
   const matchWinner = rng.chance(homeWinChance(profile.homeStrength)) ? 0 : 1;

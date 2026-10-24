@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { currentOurSide } from '../lib/branding.ts';
 import type { LiveSnapshot } from '../lib/liveConnection.ts';
 import { midMatchState, stateAfter } from '../test/fixtures.ts';
 import { LiveMatch } from './LiveMatch.tsx';
@@ -52,6 +53,15 @@ describe('MatchView', () => {
       expect(screen.getByRole('heading', { name: title })).toBeTruthy();
     }
     expect(screen.getAllByRole('img').length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('takes the side of our team chosen by the server (simulation) without «nostra squadra»', () => {
+    const { unmount } = render(<MatchView state={midMatchState()} ourSide="away" />);
+    expect(currentOurSide()).toBe('away');
+    unmount();
+    expect(currentOurSide()).toBeNull();
+    render(<MatchView state={midMatchState()} />);
+    expect(currentOurSide()).toBeNull();
   });
 
   it('sorts the player table and switches team and filters', () => {

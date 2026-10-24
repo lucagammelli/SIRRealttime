@@ -1,3 +1,4 @@
+import type { Role, RosterPlayer } from '@arenalive/dvw-simulator';
 import type {
   Player,
   PlayerEditableField,
@@ -191,6 +192,30 @@ export async function publicPlayerMedia(db: Db, tenantId: string): Promise<Publi
     if (!photo && images.length === 0 && videos.length === 0) return [];
     return [{ number: r.number, photo: photo && !isVideoMime(photo.mime) ? photo.id : null, images, videos }];
   });
+}
+
+/** Role of the simulator (`tools/dvw-simulator`) of each role of the roster. */
+const SIMULATOR_ROLE: Record<PlayerRole, Role> = {
+  setter: 'S',
+  opposite: 'O',
+  outside: 'H',
+  middle: 'M',
+  libero: 'L',
+};
+
+/**
+ * The roster of the current season of a client for a generated match of the simulation: the players not removed, in
+ * the order of «Squadra», with number, names and role (null: not known, the simulator chooses it).
+ */
+export async function simulationRoster(db: Db | Tx, tenantId: string): Promise<RosterPlayer[]> {
+  const { season } = await rosterContext(db, tenantId);
+  if (season === null) return [];
+  const rows = await db
+    .select({ number: players.number, lastName: players.lastName, firstName: players.firstName, role: players.role })
+    .from(players)
+    .where(tenantScope(players, tenantId, eq(players.season, season), isNull(players.removedAt)))
+    .orderBy(...ORDER);
+  return rows.map((r) => ({ ...r, role: r.role ? SIMULATOR_ROLE[r.role] : null }));
 }
 
 /** Ids of the players of a client that use a file (main photo or other media). */

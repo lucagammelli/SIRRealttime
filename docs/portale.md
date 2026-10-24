@@ -501,7 +501,8 @@ per riga, come farebbe l'agente (`docs/server.md`, «Simulazione di una partita�
   - gruppo **«Partita»**, scelta tra due sorgenti: «Casuale» e «Importa file .dvw» (non ci sono partite di esempio già
     pronte). *Casuale*: «Set da giocare» («3 set», «4 set», «5 set»), la casella «Usa le squadre del club» (acceso di
     default; sotto, «squadra di casa – avversario» della prossima partita del calendario, se c'è) e «Seme (facoltativo)»
-    («Stesso seme, stessa partita; vuoto: una partita a caso.»). *Importa file .dvw*: campo «File .dvw» («Un file di
+    («Stesso seme, stessa partita; vuoto: una partita a caso.»). La partita casuale gioca con la rosa della pagina «Squadra»
+    (giocatori veri sul lato nostro, avversario generato; `docs/server.md`, «Simulazione»). *Importa file .dvw*: campo «File .dvw» («Un file di
     DataVolley, al massimo 2 MB. Le righe non riconosciute restano, come con l'agente.»);
   - gruppo **«Andamento della partita»**, solo con «Casuale», con la nota «Ace, errori, muri, cambi e time-out sono medie
     per squadra e per set: la partita le segue in media, non alla lettera.» e i campi precompilati con i valori di una
@@ -619,7 +620,8 @@ gestiscono l'ora legale). Le partite a mano si cambiano con «Modifica». Rotta 
 
 **Loghi nella pagina pubblica**: il messaggio di stato porta `logos` (casa e ospite); `Scoreboard` li mostra accanto ai nomi
 (`TeamLogo`, prop `logos`) e «Prossima partita», classifica e calendario usano gli stessi
-(ordine e regole in `docs/server.md`). **Manifest dell'app**: `index.html` punta a `/api/public/manifest.webmanifest`, con
+(ordine e regole in `docs/server.md`). Dopo un salvataggio (Club, Colori e loghi) il server ripubblica lo stato con
+i loghi aggiornati: il tabellone li cambia subito, senza aspettare un nuovo punto. **Manifest dell'app**: `index.html` punta a `/api/public/manifest.webmanifest`, con
 nome, colori e logo quadrato del cliente (rotta del server, `docs/server.md`).
 
 ### Prossima partita (`components/NextMatch.tsx`)
@@ -912,7 +914,10 @@ ciclo e mostra l'avviso.
   nel nome scelti in «Colori e loghi» (scheda «Squadra»; `ourTeamSide`, `docs/architettura.md`) i colori «casa» e «ospite» del portale sono puntati
   sulla **nostra** squadra (colore di casa nello standard, colore di risalto in SIR VOLLEY) e sull'avversaria (colore ospite)
   anche quando giochiamo in trasferta; vale per punteggio, grafici, mappe, tabelle, avvisi e pause. Senza corrispondenza
-  (o con due) restano i colori casa/ospite del file.
+  (o con due) restano i colori casa/ospite del file. Il lato è quello mandato dal server nel campo `ourSide` dello stato
+  (`useOurTeamColors(teams, fixed)`, `MatchView` prop `ourSide`): vale anche per il lato del calendario nelle partite vere,
+  anche con «nostra squadra» vuota, e per la simulazione; senza `ourSide` si riconosce da «nostra squadra». Con lo stesso lato
+  (`useOurSide`) la foto o il video dei nostri giocatori negli avvisi e le mappe di campo. Vedi `docs/architettura.md`.
 - **Mappe di campo** (`CourtMap`): con SIR VOLLEY le frecce hanno il colore della squadra che attacca, spessore 1,5 px e
   opacità 85%; nello standard restano colorate per valutazione.
   Sulla TV il campo si adatta all'altezza che resta nella card dopo filtri e legenda (prop `fit`, proporzioni

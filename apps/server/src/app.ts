@@ -205,6 +205,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     leagues,
     catalog,
     now,
+    log: app.log,
   };
 
   const simulations = new SimulationService(ctx, app.log, options.simulationTimers);

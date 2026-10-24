@@ -203,12 +203,13 @@ export function useOurSide(): Side | null {
 }
 
 /**
- * Side of the team of the client in a match (`ourTeamSide` of @arenalive/shared with the team chosen in «Grafica»), claimed
- * while the component is mounted: every view of the page follows the colours of our team.
+ * Side of the team of the client in a match, claimed while the component is mounted: every view of the page follows
+ * the colours of our team. `fixed`: the side chosen by the server (`ourSide` of the state: the simulation, the
+ * calendar); otherwise `ourTeamSide` of @arenalive/shared with the team chosen in «Grafica».
  */
-export function useOurTeamColors(teams: Record<Side, TeamRef>): Side | null {
+export function useOurTeamColors(teams: Record<Side, TeamRef>, fixed: Side | null = null): Side | null {
   const ourTeam = useTenantLook()?.ourTeam ?? null;
-  const side = ourTeamSide(teams, ourTeam);
+  const side = fixed ?? ourTeamSide(teams, ourTeam);
   useEffect(() => claimOurSide(side), [side]);
   return side;
 }

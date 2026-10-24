@@ -714,9 +714,20 @@ automatico del `.dvw` non la considera (`evaluateFixtureLink`). In `GET /api/adm
 
 **Loghi nello stato** (`withLogos` in `state.ts`): ogni `StateMessage` ha `logos` (`TeamLogoPair`, lato casa e ospite). Per
 ogni squadra vale `shownTeamLogo`: prima il logo scelto per la partita, poi (solo per la nostra squadra) quello del profilo,
-poi il logo pubblico della Lega, altrimenti nessuno; l'impostazione `teamLogos` può nasconderlo. Il lato «nostro» è la
-«nostra squadra» riconosciuta nel `.dvw`, altrimenti il lato del club nel calendario; se ignoto, nessun logo
-(`matchTeamLogos`). Le informazioni sono tenute in `ctx.caches.logos`.
+poi il logo pubblico della Lega, altrimenti nessuno; l'impostazione `teamLogos` può nasconderlo. Il lato «nostro»
+(`matchOurSide` di `packages/shared`) è, per una partita simulata, il lato scelto dalla simulazione (colonna
+`matches.our_side`); altrimenti la «nostra squadra» riconosciuta nel `.dvw`, poi il lato del club nel calendario; se
+ignoto, nessun logo (`matchTeamLogos`). Lo stesso lato viaggia nel campo facoltativo `ourSide` di `StateMessage` (assente
+se ignoto): il portale lo usa per i colori «nostra squadra» e per foto e video dei nostri giocatori negli avvisi, prima
+del proprio confronto con «nostra squadra». Le informazioni sono tenute in `ctx.caches.logos`.
+
+**Loghi dopo un salvataggio** (`refreshMatchLogos` in `state.ts`, lanciato in sottofondo da `tenantConfigChanged`): per
+ogni stato di quel cliente tenuto dall'hub (`LiveHub.statesOf`: le partite a schermo, vere e simulate, anche in pausa o
+finite) si ricalcolano loghi e `ourSide`; se cambiano, la `version` della partita sale di 1 nel database (solo se non è
+cambiata nel frattempo: altrimenti lo stato nuovo in arrivo li ha già) e lo stato intero va ai client di quella partita
+(`LiveHub.republish`, senza spostare link live, canale o partite del calendario). Righe, `last_seq`, `content_hash` e
+`updated_at` restano come sono e lo storico non si rimanda; un secondo salvataggio uguale non manda nulla. Un errore è
+nel log («loghi delle partite non aggiornati») e il salvataggio resta valido.
 
 **Canale «tutte le partite del calendario»** (bersaglio `channel`; `channelMessage`, `channelChoice`, `ChannelWatcher` in
 `state.ts`, `LiveHub.showChannel`): è il link creato con `matchId` nullo da `POST /api/admin/share-tokens`. Mostra:
@@ -768,7 +779,7 @@ Esiti (`IngestResponse`: `status`, `seq`, `lineCount`, `contentHash` facoltativo
 
 La pipeline è `applyIngest` (`apps/server/src/ingest.ts`), **una sola** per l'agente (`POST /api/ingest`) e per la
 simulazione del server (vedi «Simulazione di una partita»): chiama `IngestService.ingest(source, req)` con
-`IngestSource` (`tenantId`, `agentId`, `simulated`) e poi spinge lo stato ai client. Passi di `IngestService.ingest`, tutti
+`IngestSource` (`tenantId`, `agentId`, `simulated`, e per la simulazione `ourSide`, salvato in `matches.our_side`) e poi spinge lo stato ai client. Passi di `IngestService.ingest`, tutti
 in una transazione:
 
 1. lock avvisorio `pg_advisory_xact_lock` (`lockTenantMatches`: le ingest e ogni altra modifica alle partite live di un
@@ -814,7 +825,15 @@ come l'agente), così il comportamento è quello vero; la partita però è **iso
 - **Sorgenti** (`source.ts`, `LoadedMatch`): solo due. `generated` («Casuale»: `generatedMatch`, una partita del
   simulatore con 3, 4 o 5 set, `seed` facoltativo, altrimenti uno a caso; `clubTeams` per usare nostra squadra e
   avversario della prossima partita del calendario, altrimenti la squadra di `ourTeamForManual` contro
-  `DEFAULT_AWAY_NAME`; `profile` facoltativo, l'«Andamento della partita» (`SimulationProfileSchema`: `homeStrength`
+  `DEFAULT_AWAY_NAME`; la **nostra squadra** gioca con la rosa del club (`simulationRoster` in `src/roster.ts`: giocatori
+  della stagione corrente di «Squadra», non rimossi, nell'ordine della rosa, con numero, cognome, nome e ruolo:
+  palleggiatore `S`, opposto `O`, schiacciatore `H`, centrale `M`, libero `L`), completata dal simulatore con giocatori
+  generati su numeri non usati se mancano giocatori o ruoli (`docs/simulatore.md`, «Rosa vera»), sul suo lato della
+  prossima partita con `clubTeams`, altrimenti in casa; l'avversario è generato. Senza rosa entrambe le squadre sono
+  generate come prima. Il lato scelto (`LoadedMatch.ourSide`) è salvato nella partita (`matches.our_side`, migrazione
+  `drizzle/0023_lato_simulazione.sql`) e vale prima di «nostra squadra» per loghi e `ourSide` (sopra, «Loghi nello
+  stato»): la nostra squadra è riconosciuta anche con «nostra squadra» vuota o diversa dai nomi scelti. Con un `.dvw`
+  caricato restano squadre e giocatori del file (`ourSide` nullo); `profile` facoltativo, l'«Andamento della partita» (`SimulationProfileSchema`: `homeStrength`
   e `variability` da 0 a 100, `acesPerSet` 0-8, `serveErrorsPerSet` 0-10, `blocksPerSet` 0-8, `substitutionsPerSet` 0-6,
   `timeoutsPerSet` 0-2, ognuno facoltativo; un valore fuori dai limiti è **400**; i campi mancanti, o tutto `profile`
   assente come nelle richieste di prima, prendono i default del simulatore, `DEFAULT_PROFILE` in `docs/simulatore.md`) e `upload` (un `.dvw` caricato dall'admin, in base64, `fileName` fino a 120 caratteri). Non ci sono
@@ -831,8 +850,10 @@ come l'agente), così il comportamento è quello vero; la partita però è **iso
   `snapshot` con l'header; se l'ingest risponde `needSnapshot` o `duplicate` il servizio manda uno `snapshot` di tutte le
   righe, come l'agente. In modo «velocità» la pausa fra due set è almeno la pausa «Fine set» del cliente per quel set
   (`simulation/breaks.ts`, `setBreakSeconds`: ritardo (5 s) più secondi delle diapositive accese, scelta per set come
-  `intermissionFor`; 20 s se la pausa è spenta), letta dal documento `tenants.intermissions` all'avvio: i punti del set
-  dopo non la troncano. In modo «durata» vale la pausa scelta dall'admin. Un errore ferma la simulazione con l'avviso «La simulazione si è interrotta per un errore del
+  `intermissionFor`; 20 s se la pausa è spenta), letta dal documento `tenants.intermissions` all'avvio, a «Ricomincia» e
+  di nuovo **alla fine di ogni set** (`planOf`, `endedSet`): una pausa cambiata durante la partita vale dal set appena
+  finito in poi, i set già passati tengono la loro e le righe già inviate non cambiano orario. I punti del set dopo non la
+  troncano. In modo «durata» vale la pausa scelta dall'admin. Un errore ferma la simulazione con l'avviso «La simulazione si è interrotta per un errore del
   server.» (mai un crash). `SimulationTimers` permette ai test un orologio finto.
 - **Pulizia**: ogni `SIMULATION_SWEEP_MS` = 60 s (`sweep`) si cancellano partita e link delle simulazioni ferme o finite da
   almeno `SIMULATION_RETENTION_MS` = 6 ore, di quelle in pausa da 6 ore, e delle partite simulate rimaste orfane dopo un
@@ -1139,7 +1160,9 @@ Messaggi server→client (`ServerMessage`):
   (`LiveHub`, `src/hub.ts`) tramite `tenantConfigChanged(ctx, tenantId)` (`src/tenancy.ts`), chiamato dopo i salvataggi di
   grafica, pagina, pause, avvisi (`routes/branding.ts`), sponsor (`routes/sponsors.ts`), importazione della grafica
   (`routes/graphicsTransfer.ts`), profilo del club e salvataggi della grafica del club (`routes/club.ts`) e modifica del cliente da
-  parte del superadmin (`routes/tenants.ts`). Non cambia la versione dello stato.
+  parte del superadmin (`routes/tenants.ts`). Il segnale non cambia la versione dello stato; se cambiano i loghi o il
+  lato «nostro» delle partite a schermo, subito dopo arriva il loro stato con la versione successiva (sopra, «Loghi dopo
+  un salvataggio»).
 - `error`: `{ type, message }`, ad esempio se lo stato iniziale non è leggibile.
 
 Messaggi client→server (`ClientMessage`): `resync` (`{ "type": "resync" }`): il client ha perso il filo delle
@@ -1156,7 +1179,7 @@ Payload massimo 4 KB.
   `resync`; dopo un riavvio lo rilegge dal database alla prima richiesta (`remember`).
 - A ogni `publish` il patch si calcola **una volta** con `diffJson`; se il suo testo supera il 50% dello stato intero
   (`PATCH_MAX_RATIO`) si manda lo stato intero, e lo si manda anche quando `finishedAt` cambia (la partita finisce o una
-  correzione la riapre), perché un patch porta solo lo `state`. Un publish con `version` non maggiore di quella nota è scartato.
+  correzione la riapre) o cambiano `logos` o `ourSide` (`sameExtras`), perché un patch porta solo lo `state`. Un publish con `version` non maggiore di quella nota è scartato.
 - Ogni frame è serializzato **una volta** e, per chi ha aperto il socket con `?enc=gzip`, compresso **una volta** con
   gzip livello 6 (`GZIP_LEVEL`) e inviato come frame binario; senza `enc=gzip` i frame sono testo JSON
   (`LiveSocketQuerySchema`, `encodingOf` in `src/state.ts`). Scelta documentata in `docs/decisioni.md`.

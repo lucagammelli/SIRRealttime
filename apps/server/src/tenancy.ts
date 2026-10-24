@@ -7,6 +7,7 @@ import type { FastifyRequest } from 'fastify';
 import type { AppContext } from './context.js';
 import { tenants } from './db/index.js';
 import { HttpError } from './lib/errors.js';
+import { refreshMatchLogos } from './state.js';
 
 /** Client as needed by the routes (hostname resolution, Origin check, links). */
 export interface Tenant {
@@ -134,11 +135,16 @@ export function forgetTenants(ctx: AppContext): void {
 
 /**
  * The graphics of the client `tenantId` (branding, page, pauses, overlays, sponsors, profile) were saved: empties the
- * caches (`forgetTenants`) and sends `config` to the open pages of that client only, which read them again at once.
+ * caches (`forgetTenants`) and sends `config` to the open pages of that client only, which read them again at once;
+ * then, in the background, the logos of the matches on screen are chosen again (`refreshMatchLogos`: an error is
+ * logged, the save stays good).
  */
 export function tenantConfigChanged(ctx: AppContext, tenantId: string): void {
   forgetTenants(ctx);
   ctx.hub.notifyConfig(tenantId);
+  void refreshMatchLogos(ctx, tenantId).catch((err: unknown) =>
+    ctx.log?.error({ err, tenantId }, 'loghi delle partite non aggiornati'),
+  );
 }
 
 /**

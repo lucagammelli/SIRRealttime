@@ -214,6 +214,8 @@ export const agentRegistrations = pgTable(
 );
 
 export const fixtureLink = pgEnum('fixture_link', ['auto', 'manual', 'pending', 'none']);
+/** Side of the club in a match (calendar), and of our team in a simulated match. */
+export const clubSide = pgEnum('club_side', ['home', 'away']);
 
 export const matches = pgTable(
   'matches',
@@ -247,6 +249,11 @@ export const matches = pgTable(
      * channel and of the lists; deleted 6 hours after its end.
      */
     simulated: boolean('simulated').notNull().default(false),
+    /**
+     * Side of our team chosen by the simulation (the side with the roster of the club): it comes before «nostra
+     * squadra» and the calendar for the logos and the `ourSide` of the public messages. Null for the real matches.
+     */
+    ourSide: clubSide('our_side'),
     /**
      * When the state became `finished` (kept by the later updates, cleared when a correction takes it out of
      * `finished`); null: not finished, or finished before the column existed (`updated_at` is used then).
@@ -638,7 +645,6 @@ export const tenantLeagues = pgTable(
   ],
 );
 
-export const clubSide = pgEnum('club_side', ['home', 'away']);
 export const fixtureOrigin = pgEnum('fixture_origin', ['league', 'manual']);
 export const manualFixtureKind = pgEnum('manual_fixture_kind', ['friendly', 'cup', 'other']);
 export const fixtureBroadcast = pgEnum('fixture_broadcast', ['auto', 'on', 'off']);

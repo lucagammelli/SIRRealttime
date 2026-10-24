@@ -284,7 +284,9 @@ setBreak, setBreakBySet, matchEnd, milestone }`. Quattro tipi di pausa (`INTERMI
 Ogni pausa ha `enabled`, `modes` (per `tv`, `tablet`, `phone`:
 `fullscreen` o `banner`, `INTERMISSION_MODES`), `fullscreenSize` (`normal` | `large` | `fill`,
 `INTERMISSION_FULLSCREEN_SIZES`, predefinito `normal`: quanto è grande la diapositiva a tutto schermo; i documenti salvati
-prima restano validi), `delaySeconds` (0-`INTERMISSION_MAX_DELAY_SECONDS` = 60) e `slides`
+prima restano validi), `title` (titolo della pausa, testo fino a `PAUSE_TITLE_MAX_LENGTH` = 60 caratteri, spazi ai lati
+tolti; predefinito vuoto = titolo automatico del portale, anche per i documenti salvati prima), `delaySeconds`
+(0-`INTERMISSION_MAX_DELAY_SECONDS` = 60) e `slides`
 (al massimo `INTERMISSION_MAX_SLIDES` = 12, id unici). Una pausa attiva ha almeno una diapositiva. Tipi di diapositiva
 (`SLIDE_TYPES`): `setSummary`, `finalResult`, `mvp`, `setScores` (senza opzioni) e `setScorers`, `aces`, `blocks`,
 `attack`, `roleDuel`, `teamDuel`, `nextMatch`, `standings`, `sponsor`, `message`, `qr`, `logo` (le stesse opzioni dei blocchi omonimi,

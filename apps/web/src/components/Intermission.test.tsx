@@ -243,6 +243,38 @@ describe('Intermission: full screen and banner', () => {
     }
   });
 
+  it('without «Touch» a full screen slide never scrolls: «Normale» and «Grande» fit the screen too; with touch as before', () => {
+    for (const size of ['normal', 'large', 'fill'] as const) {
+      render(
+        <TouchContext.Provider value={false}>
+          <Intermission
+            state={setBreak}
+            config={TenantIntermissionsSchema.parse({ setBreak: { fullscreenSize: size } })}
+            device="tablet"
+            paused={false}
+          />
+        </TouchContext.Provider>,
+      );
+      const slide = dialog()?.querySelector('[data-studio-slide]');
+      expect(slide?.getAttribute('data-slide-fit')).toBe(size);
+      expect(dialog()?.querySelector('.overflow-y-auto, .overflow-auto, .overflow-scroll')).toBeNull();
+      cleanup();
+    }
+    setup(setBreak, { device: 'tablet' });
+    expect(dialog()?.querySelector('[data-studio-slide]')?.className).toContain('overflow-y-auto');
+  });
+
+  it('own title of the pause (Studio «Titolo») on full screen and in the banner; empty: the automatic one', () => {
+    setup(setBreak, { device: 'tablet', config: { setBreak: { title: 'Intervallo tecnico' } } });
+    expect(screen.getByRole('dialog', { name: 'Intervallo tecnico' })).toBeTruthy();
+    cleanup();
+    setup(setBreak, { device: 'phone', config: { setBreak: { title: 'Intervallo tecnico' } } });
+    expect(banner()?.textContent).toContain('Intervallo tecnico');
+    cleanup();
+    setup(setBreak, { device: 'tablet', config: { setBreak: { title: '   ' } } });
+    expect(screen.getByRole('dialog', { name: 'Fine 1° set' })).toBeTruthy();
+  });
+
   it('the banner closes with «Chiudi» and Esc', () => {
     setup(setBreak, { device: 'phone' });
     fireEvent.click(screen.getByRole('button', { name: 'Chiudi' }));
@@ -373,7 +405,7 @@ describe('Intermission: «ogni N punti»', () => {
     page.update(scoreAt(4, 4));
     expect(shown()).toBeNull();
     wait(3000);
-    expect(banner()?.textContent).toContain(`${mid.live.set}° set: 4-4`);
+    expect(banner()?.textContent).toContain(`Statistiche del set · ${mid.live.set}° set 4-4`);
     expect(banner()?.textContent).toContain('Marcatori · ');
     // the next point does not close it nor restart it
     page.update(scoreAt(5, 4));
@@ -390,7 +422,7 @@ describe('Intermission: «ogni N punti»', () => {
     const page = live('tv');
     page.update(scoreAt(4, 4));
     wait(3000);
-    expect(screen.getByRole('dialog', { name: `${mid.live.set}° set: 4-4` })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: `Statistiche del set · ${mid.live.set}° set 4-4` })).toBeTruthy();
   });
 
   it('nothing at the first state, after a reconnection, past «non dopo il punto», or after a correction', () => {

@@ -14,6 +14,7 @@ import type {
 import { periodSummary, roleDuels, scorers, teamDuel } from '@arenalive/volley-stats';
 import type { ReactNode } from 'react';
 import { barShares, leader } from '../charts/compare.ts';
+import { MoreRows, useFitRows } from '../components/FitToBox.tsx';
 import { BreakableName, Card, Empty } from '../components/ui.tsx';
 import { formatCount, formatPct, playerName, teamName, teamShort } from '../lib/format.ts';
 import { duelRoles, periodLabel } from '../lib/intermission.ts';
@@ -280,12 +281,14 @@ function PlayerList({
 }) {
   const enter = useEnter();
   const t = typeOf(size, rows.length > DENSE_ROWS);
+  // In a card that cannot scroll (screen without touch) and does not fit even scaled down: the first rows and «+N».
+  const fit = useFitRows(rows.length);
   if (rows.length === 0) return <p className={`text-center text-muted ${t.note}`}>{empty}</p>;
   // Two lists side by side from 28 rem of the container (`TeamLists`), one under the other below: the away list is
   // mirrored only when side by side. Name on one line with an ellipsis (whole name in `title`), the detail under it.
   return (
-    <ol className={`space-y-1.5 ${enter[side]}`}>
-      {rows.map((r) => {
+    <ol data-fit-list={rows.length} className={`space-y-1.5 ${enter[side]}`}>
+      {rows.slice(0, fit.shown).map((r) => {
         const name = playerName(r.player, r.number);
         return (
           <li
@@ -309,6 +312,11 @@ function PlayerList({
           </li>
         );
       })}
+      {fit.hidden > 0 && (
+        <li className={`flex ${side === 'away' ? '@md:justify-end' : ''}`}>
+          <MoreRows hidden={fit.hidden} className={t.name} />
+        </li>
+      )}
     </ol>
   );
 }

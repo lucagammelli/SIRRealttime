@@ -3,6 +3,7 @@ import { standingsRowsToShow } from '@arenalive/shared';
 import { useState } from 'react';
 import { clubLogoClass, useOurLogoSize } from '../lib/clubLogo.ts';
 import { useTouch } from '../lib/useLayout.ts';
+import { FitRows, MoreRows, rowsAround } from '../components/FitToBox.tsx';
 import { teamInitials } from '../components/NextMatch.tsx';
 import { BreakableName, Card } from '../components/ui.tsx';
 import { formatDay, formatFixtureDate } from '../lib/format.ts';
@@ -315,38 +316,61 @@ export function StandingsView({
           ))}
         </tr>
       </thead>
-      <tbody className="divide-y divide-grid">
-        {rows.map((row) => (
-          <tr
-            key={row.position}
-            className={row.ours ? 'bg-our-soft font-bold text-our-ink' : 'text-text'}
-            aria-current={row.ours ? 'true' : undefined}
-          >
-            <td className="tabular py-1 pr-2 text-right font-display font-bold">{row.position}</td>
-            <td className="py-1">
-              <div className="flex justify-center">
-                <TeamLogo
-                  name={row.teamName}
-                  logoUrl={row.logoUrl}
-                  role={row.ours ? 'our' : null}
-                  className={big ? 'size-9 text-xs' : 'size-6 text-[0.55rem]'}
-                />
-              </div>
-            </td>
-            <th scope="row" className={`truncate py-1 text-left font-medium ${big ? 'px-3' : 'px-1'}`}>
-              {row.teamName}
-            </th>
-            {COLUMNS.map((c) => (
-              <td
-                key={c.key}
-                className={`tabular py-1 text-right ${big ? 'px-2' : 'px-0.5 sm:px-1'} ${c.key === 'points' ? 'font-display font-bold' : ''}`}
-              >
-                {row[c.key]}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
+      {/* In a card that cannot scroll (screen without touch) and does not fit even scaled down: the rows around our
+          team (always visible) and «+N» for the ones left out above and below. */}
+      <FitRows count={rows.length}>
+        {(fit) => {
+          const range = rowsAround(
+            rows.length,
+            fit.shown,
+            rows.findIndex((r) => r.ours),
+          );
+          const more = (hidden: number) =>
+            hidden > 0 && (
+              <tr>
+                <td colSpan={COLUMNS.length + 3} className="py-1 text-center">
+                  <MoreRows hidden={hidden} of="teams" />
+                </td>
+              </tr>
+            );
+          return (
+            <tbody data-fit-list={rows.length} className="divide-y divide-grid">
+              {more(range.above)}
+              {rows.slice(range.start, range.end).map((row) => (
+                <tr
+                  key={row.position}
+                  className={row.ours ? 'bg-our-soft font-bold text-our-ink' : 'text-text'}
+                  aria-current={row.ours ? 'true' : undefined}
+                >
+                  <td className="tabular py-1 pr-2 text-right font-display font-bold">{row.position}</td>
+                  <td className="py-1">
+                    <div className="flex justify-center">
+                      <TeamLogo
+                        name={row.teamName}
+                        logoUrl={row.logoUrl}
+                        role={row.ours ? 'our' : null}
+                        className={big ? 'size-9 text-xs' : 'size-6 text-[0.55rem]'}
+                      />
+                    </div>
+                  </td>
+                  <th scope="row" className={`truncate py-1 text-left font-medium ${big ? 'px-3' : 'px-1'}`}>
+                    {row.teamName}
+                  </th>
+                  {COLUMNS.map((c) => (
+                    <td
+                      key={c.key}
+                      className={`tabular py-1 text-right ${big ? 'px-2' : 'px-0.5 sm:px-1'} ${c.key === 'points' ? 'font-display font-bold' : ''}`}
+                    >
+                      {row[c.key]}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+              {more(range.below)}
+            </tbody>
+          );
+        }}
+      </FitRows>
     </table>
   );
 

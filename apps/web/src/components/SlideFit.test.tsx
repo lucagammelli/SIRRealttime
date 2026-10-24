@@ -1,6 +1,17 @@
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { FIT_LIMITS, largestFit, SlideFit } from './SlideFit.tsx';
+import { FIT_LIMITS, fitLimits, largestFit, SlideFit } from './SlideFit.tsx';
+
+describe('fitLimits', () => {
+  it('with touch as chosen («Normale» not scaled); without touch every size also shrinks, never scrolls', () => {
+    expect(fitLimits('normal', true)).toBeNull();
+    expect(fitLimits('large', true)).toEqual(FIT_LIMITS.large);
+    expect(fitLimits('fill', true)).toEqual(FIT_LIMITS.fill);
+    expect(fitLimits('normal', false)).toEqual({ min: FIT_LIMITS.fill.min, max: 1 });
+    expect(fitLimits('large', false)).toEqual({ min: FIT_LIMITS.fill.min, max: FIT_LIMITS.large.max });
+    expect(fitLimits('fill', false)).toEqual(FIT_LIMITS.fill);
+  });
+});
 
 describe('largestFit', () => {
   it('gives the largest scale that fits, the maximum when all fit and the minimum when none does', () => {

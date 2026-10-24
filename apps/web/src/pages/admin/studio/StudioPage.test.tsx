@@ -848,6 +848,9 @@ describe('Pause', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Time-out' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'Modo su TV' }), { target: { value: 'fullscreen' } });
     fireEvent.change(screen.getByRole('spinbutton', { name: /Ritardo prima della pausa/ }), { target: { value: '3' } });
+    // Own title: empty is the automatic one (placeholder), the text typed is saved.
+    expect(screen.getByRole('textbox', { name: 'Titolo' })).toHaveProperty('placeholder', 'Time-out <squadra>');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Titolo' }), { target: { value: 'Pausa tecnica' } });
     fireEvent.change(screen.getByRole('combobox', { name: 'Tipo di diapositiva' }), { target: { value: 'message' } });
     fireEvent.click(screen.getByRole('button', { name: 'Aggiungi diapositiva' }));
     fireEvent.click(screen.getByRole('button', { name: 'Sposta su Messaggio' }));
@@ -870,6 +873,7 @@ describe('Pause', () => {
     expect(body.timeout).toMatchObject({
       modes: { tv: 'fullscreen', tablet: 'banner', phone: 'banner' },
       delaySeconds: 3,
+      title: 'Pausa tecnica',
       fullscreenSize: 'fill',
       slides: [
         { id: 'message', type: 'message' },
@@ -1077,7 +1081,10 @@ describe('Avvisi', () => {
     ).toBeTruthy();
     // Options of the video: muted, in the box, our team only, for the seconds of the overlay by default.
     expect(within(ace).getByRole('checkbox', { name: 'Audio del video: Ace' })).toHaveProperty('checked', false);
-    expect(within(ace).getByRole('combobox', { name: 'Posizione dello sfondo: Ace' })).toHaveProperty('value', 'center');
+    expect(within(ace).getByRole('combobox', { name: 'Posizione dello sfondo: Ace' })).toHaveProperty(
+      'value',
+      'center',
+    );
     expect(within(ace).getByRole('combobox', { name: 'Sfondo per: Ace' })).toHaveProperty('value', 'ours');
     expect(within(ace).getByRole('combobox', { name: 'Durata: Ace' })).toHaveProperty('value', 'seconds');
     expect(

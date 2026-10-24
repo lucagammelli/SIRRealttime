@@ -230,6 +230,42 @@ describe('LivePage layout of the client', () => {
   });
 });
 
+describe('LivePage without «Touch»', () => {
+  it('tablet and phone without touch are screens without scrolling (fixed height, groups); with touch the page scrolls', () => {
+    const lookWith = (touch: boolean) =>
+      tenantLookOf({
+        name: 'Sir Safety',
+        branding: defaultBranding(),
+        images: { logoMain: null, logoMark: null, sponsorLogo: null },
+        layout: TenantLayoutSchema.parse({ touch: { tv: true, tablet: touch, phone: touch } }),
+        intermissions: defaultIntermissions(),
+        overlays: defaultOverlays(),
+        sponsors: [],
+        players: [],
+      });
+    const SCROLL = '.overflow-y-auto, .overflow-auto, .overflow-scroll, .sir-scroll-x';
+    for (const [width, height] of [
+      [1024, 768],
+      [390, 844],
+    ] as const) {
+      act(() => setTenantLook(lookWith(false)));
+      setWidth(width, height);
+      const off = renderAt();
+      const root = off.container.querySelector('[data-device]');
+      expect(root?.className).toContain('h-dvh');
+      expect(root?.className).toContain('overflow-hidden');
+      expect(off.container.querySelector('[data-layout="screens"]')).toBeTruthy();
+      expect(off.container.querySelector(SCROLL)).toBeNull();
+      off.unmount();
+      act(() => setTenantLook(lookWith(true)));
+      const on = renderAt();
+      expect(on.container.querySelector('[data-device]')?.className).toContain('min-h-dvh');
+      expect(on.container.querySelector('[data-layout="screens"]')).toBeNull();
+      on.unmount();
+    }
+  });
+});
+
 describe('LivePage pauses of the client', () => {
   it('opened during the end of a set: the pause of the client over the page, Esc goes back to the match', () => {
     const data = snapshot.data;

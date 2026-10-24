@@ -175,7 +175,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'In «Pagina live», per ogni dispositivo (TV, Tablet, Telefono), l’interruttore «Touch: Sì/No» decide se la pagina pubblica ha qualcosa da toccare. Con «No» spariscono pulsanti, selettori, ordinamento delle colonne, link degli sponsor e pulsanti di schermo intero, tema e pause, e i grafici restano sulla vista predefinita. Su una TV senza touch la rotazione dei blocchi continua da sola.',
+        text: 'In «Pagina live», per ogni dispositivo (TV, Tablet, Telefono), l’interruttore «Touch: Sì/No» decide se la pagina pubblica ha qualcosa da toccare. Con «No» spariscono pulsanti, selettori, ordinamento delle colonne, link degli sponsor e pulsanti di schermo intero, tema e pause, e i grafici restano sulla vista predefinita. Su una TV senza touch la rotazione dei blocchi continua da sola. Senza touch niente scorre, su nessun dispositivo: anche tablet e telefono diventano schermate che si alternano da sole come sulla TV, e una scheda con più righe di quante ne stanno si rimpicciolisce; se non basta, le ultime righe diventano un segno «+N» (per esempio «+3» giocatori non mostrati).',
       },
       {
         kind: 'text',
@@ -183,7 +183,11 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'In «Pause», sotto «Come si mostra», «Dimensione a tutto schermo» decide quanto sono grandi le diapositive dove la pausa è a «Tutto schermo»: «Normale» (come sono disegnate, scorrono se non ci stanno), «Grande» (più grandi, finché stanno nello schermo) o «Riempi lo schermo» (occupano tutto lo spazio, senza scorrere). La banda in basso non cambia.',
+        text: 'In «Pause», sotto «Come si mostra», «Dimensione a tutto schermo» decide quanto sono grandi le diapositive dove la pausa è a «Tutto schermo»: «Normale» (come sono disegnate, scorrono se non ci stanno), «Grande» (più grandi, finché stanno nello schermo) o «Riempi lo schermo» (occupano tutto lo spazio, senza scorrere). La banda in basso non cambia. Sui dispositivi con «Touch: No» le diapositive non scorrono mai: con «Normale» e «Grande» si rimpiccioliscono quanto serve per stare nello schermo.',
+      },
+      {
+        kind: 'text',
+        text: 'In «Pause», sotto «Quando e come», il campo «Titolo» (facoltativo, fino a 60 caratteri) è la scritta in alto della pausa, a tutto schermo e nella banda in basso. Se lo lasci vuoto il titolo è automatico: «Time-out» con il nome della squadra, «Fine 1° set», «Fine partita» e, per «Ogni N punti», «Statistiche del set · 2° set 16-16» (set e punteggio del momento). Il titolo scritto vale per tutti i dispositivi e lo vedi subito nell’anteprima.',
       },
       {
         kind: 'text',

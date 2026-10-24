@@ -27,7 +27,7 @@ import { MatchView } from '../../../components/MatchView.tsx';
 import { publicSponsorsOf } from '../../../lib/sponsors.ts';
 import { useTemplate } from '../../../lib/branding.ts';
 import { TV_FONT_VAR, tvRemPx } from '../../../lib/tvScreen.ts';
-import { LayoutScaleContext, rootFontPx, useElementSize } from '../../../lib/useLayout.ts';
+import { LayoutScaleContext, rootFontPx, TouchContext, useElementSize } from '../../../lib/useLayout.ts';
 import { CalendarOptionsFields } from '../CalendarOptionsFields.tsx';
 import { inputClass } from '../forms.tsx';
 import { StatOptionsFields, withStatOptions } from '../StatOptionsFields.tsx';
@@ -139,6 +139,9 @@ export function DevicePreview({
       : 0.25;
   const scale = fit ? fitScale : measured > 0 ? measured / size.width : 0.25;
   const tv = device === 'tv';
+  // Without touch also the phone and the tablet are screens without scrolling, as on the public page.
+  const touch = layout?.touch[device] ?? true;
+  const screens = tv || !touch;
   return (
     <figure
       className={fit ? 'flex h-full w-full flex-col' : 'space-y-2'}
@@ -162,12 +165,12 @@ export function DevicePreview({
             inert
             data-studio-page=""
             className={`absolute left-0 top-0 bg-bg text-text ${template === 'standard' ? 'border-t-4 border-accent' : ''} ${
-              tv ? 'flex flex-col overflow-hidden p-5' : 'overflow-y-auto p-3'
+              screens ? `flex flex-col overflow-hidden ${tv ? 'p-5' : 'p-3'}` : 'overflow-y-auto p-3'
             }`}
             style={{ width: size.width, height: size.height, transform: `scale(${scale})`, transformOrigin: '0 0' }}
           >
             <LayoutScaleContext.Provider value={scale}>
-              <div className={tv ? 'min-h-0 flex-1' : ''}>
+              <div className={screens ? 'min-h-0 flex-1' : ''}>
                 <MatchView
                   state={state}
                   device={device}
@@ -178,7 +181,8 @@ export function DevicePreview({
                   schedule={SAMPLE_SCHEDULE}
                 />
               </div>
-              {children}
+              {/* Pauses, overlays: with the «Touch» of the device, as on the public page (no buttons, no scrolling). */}
+              <TouchContext.Provider value={touch}>{children}</TouchContext.Provider>
             </LayoutScaleContext.Provider>
           </div>
         </div>

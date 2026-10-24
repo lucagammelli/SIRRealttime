@@ -4,6 +4,7 @@ import type { BlockBrand } from '../blocks/env.ts';
 import type { Device } from '../lib/layout.ts';
 import type { LiveSnapshot } from '../lib/liveConnection.ts';
 import { ConnectionBadge } from './ConnectionBadge.tsx';
+import { FitToBox } from './FitToBox.tsx';
 import { MatchView } from './MatchView.tsx';
 import { NextMatch } from './NextMatch.tsx';
 import { StatusScreen } from './StatusScreen.tsx';
@@ -33,6 +34,8 @@ export function LiveMatch({
   look?: BlockBrand | null;
 }) {
   const { status, data, error } = snapshot;
+  // Screens without scrolling: the big screen, and every device whose «Touch» is off (`screensFor`).
+  const screens = screensFor(device, layout);
   if (status === 'invalid') {
     return (
       <StatusScreen title="Link non valido o scaduto" tone="error">
@@ -74,8 +77,14 @@ export function LiveMatch({
   }
   if (data.kind === 'scheduled') {
     return (
-      <div className={device === 'tv' ? 'h-full min-h-0' : ''}>
-        <NextMatch fixture={data.fixture} status={badge} {...(device ? { device } : {})} />
+      <div className={screens ? 'h-full min-h-0' : ''}>
+        {screens && layout?.touch[device ?? 'tablet'] === false ? (
+          <FitToBox>
+            <NextMatch fixture={data.fixture} status={badge} {...(device ? { device } : {})} />
+          </FitToBox>
+        ) : (
+          <NextMatch fixture={data.fixture} status={badge} {...(device ? { device } : {})} />
+        )}
       </div>
     );
   }
@@ -86,16 +95,15 @@ export function LiveMatch({
       </StatusScreen>
     );
   }
-  const tv = device === 'tv';
   return (
-    <div className={tv ? 'flex h-full min-h-0 flex-col' : ''}>
+    <div className={screens ? 'flex h-full min-h-0 flex-col' : ''}>
       {error && (
         <p role="alert" className="mb-3 rounded-card border border-warn bg-surface px-4 py-2 text-sm text-warn">
           Aggiornamento non disponibile: {error}
         </p>
       )}
       {data.simulated && <SimulationLabel />}
-      <div className={tv ? 'min-h-0 flex-1' : ''}>
+      <div className={screens ? 'min-h-0 flex-1' : ''}>
         <MatchView
           state={data.state}
           status={
@@ -119,6 +127,16 @@ export function LiveMatch({
       </div>
     </div>
   );
+}
+
+/**
+ * Pure: the page is laid out in screens without scrolling (fixed height, rotation of the groups): on the big screen,
+ * and on a phone or tablet whose «Touch» is off in the layout of the client (nobody could scroll it). Without the
+ * layout (still loading) only the big screen.
+ */
+export function screensFor(device: Device | undefined, layout: TenantLayout | null): boolean {
+  if (device === 'tv') return true;
+  return device !== undefined && layout !== null && !layout.touch[device];
 }
 
 /** Text of the label of a simulated match on the public page. */

@@ -131,6 +131,7 @@ export async function clubResponse(ctx: AppContext, tenantId: string): Promise<C
     logoUrl: logo ? adminAssetPath(logo) : null,
     displayName: branding.displayName,
     logoMark: branding.logoMark,
+    ourLogoSize: branding.ourLogoSize,
     ourTeam: branding.ourTeam,
     profile: resolveClubProfile(tenant.clubProfile),
     leagues: choices.flatMap(({ choice, team }) => {
@@ -255,8 +256,8 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
   );
 
   /**
-   * Profile of the club: name shown, square logo (an image `logo` of the client), «nostra squadra» (all three in the
-   * branding) and series, coverage, team logos (`tenants.club_profile`). The public pages see it at once: the links of
+   * Profile of the club: name shown, square logo (an image `logo` of the client) and its size, «nostra squadra» (all
+   * in the branding) and series, coverage, team logos (`tenants.club_profile`). The public pages see it at once: the links of
    * the matches no longer broadcast stop working and their spectators are disconnected.
    */
   app.put('/api/admin/club/profile', admin, async (request): Promise<ClubResponse> => {
@@ -289,6 +290,8 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
         logoMark: body.logoMark,
         ourTeam: body.ourTeam,
       };
+      // Missing in the request (an older page, the onboarding): the size stays as it was.
+      if (body.ourLogoSize) branding.ourLogoSize = body.ourLogoSize;
       await tx.update(tenants).set({ branding, clubProfile: profile }).where(eq(tenants.id, tenantId));
     });
     tenantConfigChanged(ctx, tenantId);
@@ -412,7 +415,7 @@ export function clubRoutes(app: FastifyInstance, ctx: AppContext): void {
         match,
       };
     });
-    return { fixtures: list, pending };
+    return { fixtures: list, pending, clubLogo: look.profileLogoId !== null };
   });
 
   /**

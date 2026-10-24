@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { AssetIdSchema } from './assets.js';
+import { ClubLogoSizeSchema } from './club.js';
 import { BRAND_COLOR_KEYS, HexColorSchema } from './colors.js';
 import { InvitableUserSchema, InviteDeliverySchema } from './credentials.js';
 import { TENANT_CONFIG_VERSION } from './configVersion.js';
@@ -88,6 +89,8 @@ export const TenantBrandingSchema = z.strictObject({
   logoMain: AssetIdSchema.nullable().default(null),
   /** Square logo (favicon, small spaces). */
   logoMark: AssetIdSchema.nullable().default(null),
+  /** Size of the logo of our team (missing in a stored document: medium, the look before the choice). */
+  ourLogoSize: ClubLogoSizeSchema.default('medium'),
   sponsorLogo: AssetIdSchema.nullable().default(null),
 });
 export type TenantBranding = z.output<typeof TenantBrandingSchema>;

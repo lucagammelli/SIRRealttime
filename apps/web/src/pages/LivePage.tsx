@@ -254,7 +254,7 @@ export function LivePage() {
           <header
             className={`sir-navbar flex items-center justify-between gap-3 ${tv ? 'pb-3' : 'sir-page mx-auto w-full max-w-7xl px-3 pt-3 sm:px-5'}`}
           >
-            {showBrand ? <BrandMark /> : <span />}
+            {showBrand ? <BrandMark clubSize /> : <span />}
             {controls}
           </header>
         )}

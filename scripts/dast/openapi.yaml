@@ -1094,7 +1094,11 @@ paths:
         required: true
         content:
           application/json:
-            schema: { type: object, example: { displayName: null, logoMark: null } }
+            schema:
+              type: object
+              example: { displayName: null, logoMark: null }
+              properties:
+                ourLogoSize: { type: string, enum: [small, medium, large], description: facoltativo; assente = invariato }
       responses:
         '200': { description: profilo salvato }
         '400': { description: richiesta non valida }

@@ -76,6 +76,7 @@ const data: CalendarResponse = {
       candidates: [],
     },
   ],
+  clubLogo: false,
 };
 
 /** Fake server; `matchLinks`: «Link e QR per singola partita» of the client of the admin. */
@@ -138,6 +139,22 @@ describe('page «Calendario»', () => {
     expect(within(items[1] as HTMLElement).getByText('Non più in calendario')).toBeTruthy();
     fireEvent.click(within(first).getByRole('button', { name: 'Scarica QR' }));
     expect(await within(first).findByRole('button', { name: 'Scarica QR (PNG)' })).toBeTruthy();
+  });
+
+  it('the logo of the club wins over the logo of a match for our team: that choice is off, with a note', async () => {
+    mockServer({ ...data, clubLogo: true });
+    renderCalendar();
+    const first = (await screen.findAllByTestId('calendar-fixture'))[0] as HTMLElement;
+    fireEvent.click(within(first).getByRole('button', { name: 'Impostazioni' }));
+    expect(within(first).getByText('Il logo del club ha sempre la precedenza.')).toBeTruthy();
+    const ours = within(first).getByLabelText<HTMLSelectElement>('Scegli dalla libreria: Logo della nostra squadra');
+    expect(ours.disabled).toBe(true);
+    cleanup();
+    mockServer();
+    renderCalendar();
+    const again = (await screen.findAllByTestId('calendar-fixture'))[0] as HTMLElement;
+    fireEvent.click(within(again).getByRole('button', { name: 'Impostazioni' }));
+    expect(within(again).queryByText('Il logo del club ha sempre la precedenza.')).toBeNull();
   });
 
   it('shows no link nor QR of single matches without «Link e QR per singola partita»', async () => {
@@ -275,7 +292,7 @@ describe('competitions of the club', () => {
     roundLabel: 'Amichevole',
     away: { name: 'Suntory Sunbirds Osaka', logoUrl: null },
   });
-  const many: CalendarResponse = { fixtures: [champions, fixture({}), friendly], pending: [] };
+  const many: CalendarResponse = { fixtures: [champions, fixture({}), friendly], pending: [], clubLogo: false };
 
   it('pure: competition of a match, the list (championships first) and the filter', () => {
     expect(fixtureCompetition(fixture({}))).toBe('Regular Season SuperLega');
@@ -314,7 +331,7 @@ describe('competitions of the club', () => {
   });
 
   it('no «Competizione» with one competition only; the form suggests the ones of the club', async () => {
-    mockServer({ fixtures: [fixture({})], pending: [] });
+    mockServer({ fixtures: [fixture({})], pending: [], clubLogo: false });
     renderCalendar();
     await screen.findAllByTestId('calendar-fixture');
     expect(screen.queryByLabelText('Competizione')).toBeNull();

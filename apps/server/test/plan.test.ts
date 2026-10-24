@@ -45,13 +45,17 @@ describe('fixtureLogos', () => {
     expect(fixtureLogos(row, { profileLogo, teamLogos: 'none' })).toEqual({ home: null, away: null });
   });
 
-  it('prefers the logos chosen for the match', () => {
+  it('prefers the logos chosen for the match, but the logo of the club always wins for our team', () => {
     const custom = {
       ...row,
       ourLogoAssetId: '44444444-4444-4444-8444-444444444444',
       opponentLogoAssetId: '55555555-5555-4555-8555-555555555555',
     };
     expect(fixtureLogos(custom, { profileLogo, teamLogos: 'all' })).toEqual({
+      home: '/api/public/assets/55555555-5555-4555-8555-555555555555',
+      away: profileLogo,
+    });
+    expect(fixtureLogos(custom, { profileLogo: null, teamLogos: 'all' })).toEqual({
       home: '/api/public/assets/55555555-5555-4555-8555-555555555555',
       away: '/api/public/assets/44444444-4444-4444-8444-444444444444',
     });

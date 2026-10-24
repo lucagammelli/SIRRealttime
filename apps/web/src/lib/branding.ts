@@ -1,5 +1,6 @@
 import type {
   BrandPalette,
+  ClubLogoSize,
   OurTeam,
   PublicTenantResponse,
   TemplateDefinition,
@@ -36,6 +37,8 @@ export interface TenantLook {
   template: TemplateId;
   /** Team of the client in the `.dvw` files: our colour when it is on court. */
   ourTeam: OurTeam;
+  /** Size of the logo of our team (scoreboard, next match, header): see lib/clubLogo.ts. */
+  ourLogoSize: ClubLogoSize;
   images: PublicTenantResponse['images'];
   palette: BrandPalette;
   /** Blocks of the public page chosen by the client, for every device. */
@@ -214,6 +217,7 @@ export function tenantLookOf(tenant: PublicTenantResponse): TenantLook {
     name: tenant.name,
     template: tenant.branding.template,
     ourTeam: tenant.branding.ourTeam,
+    ourLogoSize: tenant.branding.ourLogoSize,
     images: tenant.images,
     palette: brandPalette(tenant.branding.colors, tenant.branding.template),
     layout: tenant.layout,

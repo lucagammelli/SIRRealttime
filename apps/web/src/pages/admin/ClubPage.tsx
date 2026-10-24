@@ -4,12 +4,14 @@ import type {
   ClubLeagueChoice,
   ClubLeagueOption,
   ClubLeagueStatus,
+  ClubLogoSize,
   ClubResponse,
   TeamLogosMode,
   UpdateClubProfileRequest,
 } from '@arenalive/shared';
 import {
   CLUB_COMPETITIONS_PATH,
+  CLUB_LOGO_SIZES,
   CLUB_MAX_LEAGUES,
   ClubCompetitionsResponseSchema,
   ClubLeagueStatusSchema,
@@ -46,6 +48,12 @@ export const TEAM_LOGOS_TEXT: Record<TeamLogosMode, string> = {
   all: 'Tutti',
   ours: 'Solo il mio',
   none: 'Nessuno',
+};
+
+export const CLUB_LOGO_SIZE_TEXT: Record<ClubLogoSize, string> = {
+  small: 'Piccolo',
+  medium: 'Medio',
+  large: 'Grande',
 };
 
 /** Pure: name of a championship in the lists («Regular Season SuperLega 2026/2027», or its IdCampionato until known). */
@@ -533,6 +541,7 @@ function ProfileForm({
   const canEdit = useCanEdit();
   const [displayName, setDisplayName] = useState(club.displayName ?? '');
   const [logoMark, setLogoMark] = useState<string | null>(club.logoMark);
+  const [ourLogoSize, setOurLogoSize] = useState<ClubLogoSize>(club.ourLogoSize);
   const [code, setCode] = useState(club.ourTeam.code ?? '');
   const [teamName, setTeamName] = useState(club.ourTeam.name ?? '');
   const [coverage, setCoverage] = useState<ClubCoverage>(club.profile.coverage);
@@ -548,6 +557,7 @@ function ProfileForm({
     const body = UpdateClubProfileRequestSchema.safeParse({
       displayName: displayName.trim() || null,
       logoMark,
+      ourLogoSize,
       ourTeam: { code: code.trim() || null, name: teamName.trim() || null },
       profile: { coverage, teamLogos },
     } satisfies UpdateClubProfileRequest);
@@ -585,6 +595,19 @@ function ProfileForm({
               return Promise.resolve();
             }}
           />
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-text">Dimensione del logo del club</p>
+            <Segmented
+              label="Dimensione del logo del club"
+              value={ourLogoSize}
+              onChange={setOurLogoSize}
+              options={CLUB_LOGO_SIZES.map((v) => ({ value: v, label: CLUB_LOGO_SIZE_TEXT[v] }))}
+            />
+            <p className="text-xs text-muted">
+              Il logo del club compare sempre per la nostra squadra, al posto di quello della Lega: nel tabellone, in
+              «Prossima partita» e nell’intestazione ha la dimensione scelta qui.
+            </p>
+          </div>
           <Field label="Nome" hint={`Vuoto: «${club.name}». Compare nelle pagine pubbliche e nell’app installata.`}>
             <input
               value={displayName}

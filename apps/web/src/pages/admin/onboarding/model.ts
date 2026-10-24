@@ -87,5 +87,11 @@ export function writeSession(key: string, value: string): void {
 
 /** Pure: the branding with the fields the profile of the club owns (name, square logo, «nostra squadra») from the club. */
 export function brandingWithClub(branding: TenantBranding, club: ClubResponse): TenantBranding {
-  return { ...branding, displayName: club.displayName, logoMark: club.logoMark, ourTeam: club.ourTeam };
+  return {
+    ...branding,
+    displayName: club.displayName,
+    logoMark: club.logoMark,
+    ourLogoSize: club.ourLogoSize,
+    ourTeam: club.ourTeam,
+  };
 }

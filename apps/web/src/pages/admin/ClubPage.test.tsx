@@ -27,6 +27,7 @@ const club = (over: Partial<ClubResponse> = {}): ClubResponse => ({
   logoUrl: null,
   displayName: null,
   logoMark: null,
+  ourLogoSize: 'medium',
   ourTeam: { code: null, name: null },
   profile: {
     series: null,
@@ -247,10 +248,29 @@ describe('page «Club»', () => {
         body: {
           displayName: 'Sir Perugia',
           logoMark: null,
+          ourLogoSize: 'medium',
           ourTeam: { code: null, name: null },
           profile: { coverage: 'homeOnly', teamLogos: 'ours' },
         },
       }),
+    );
+  });
+
+  it('saves the size of the logo of the club chosen in «Dimensione del logo del club»', async () => {
+    const calls = mockServer('admin', club({ ourLogoSize: 'small' }));
+    renderClub();
+    const group = await screen.findByRole('radiogroup', { name: 'Dimensione del logo del club' });
+    expect(within(group).getByRole('radio', { name: 'Piccolo' }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(within(group).getByRole('radio', { name: 'Grande' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salva profilo' }));
+    await waitFor(() =>
+      expect(calls).toContainEqual(
+        expect.objectContaining({
+          url: '/api/admin/club/profile',
+          method: 'PUT',
+          body: expect.objectContaining({ ourLogoSize: 'large' }) as unknown,
+        }),
+      ),
     );
   });
 

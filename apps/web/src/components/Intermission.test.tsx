@@ -243,7 +243,7 @@ describe('Intermission: full screen and banner', () => {
     }
   });
 
-  it('without «Touch» a full screen slide never scrolls: «Normale» and «Grande» fit the screen too; with touch as before', () => {
+  it('without «Touch» a full screen slide never scrolls: what does not fit is cut, «Normale» never scaled; with touch as before', () => {
     for (const size of ['normal', 'large', 'fill'] as const) {
       render(
         <TouchContext.Provider value={false}>
@@ -256,7 +256,8 @@ describe('Intermission: full screen and banner', () => {
         </TouchContext.Provider>,
       );
       const slide = dialog()?.querySelector('[data-studio-slide]');
-      expect(slide?.getAttribute('data-slide-fit')).toBe(size);
+      expect(slide?.getAttribute('data-slide-fit')).toBe(size === 'normal' ? null : size);
+      expect(slide?.className).toContain('overflow-hidden');
       expect(dialog()?.querySelector('.overflow-y-auto, .overflow-auto, .overflow-scroll')).toBeNull();
       cleanup();
     }

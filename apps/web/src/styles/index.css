@@ -166,7 +166,7 @@
 }
 /*
  * Cell of a screen (big screen, devices without touch): with touch a card taller than its cell scrolls inside its
- * body; without touch the body never scrolls, its content fits it (FitToBox: scaled, then «+N» rows).
+ * body; without touch the body never scrolls: what does not fit is cut.
  */
 [data-tv-block][data-touch='true'] .sir-card-body {
   overflow-x: hidden;
@@ -188,14 +188,12 @@
   padding-top: 0.5rem;
   padding-bottom: 0.625rem;
 }
-[data-tv-block] .sir-card-body > .space-y-3,
-[data-tv-block] .sir-card-body > [data-fit-box] > .sir-fit > .space-y-3 {
+[data-tv-block] .sir-card-body > .space-y-3 {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
-[data-tv-block] .sir-card-body > .space-y-3 > *,
-[data-tv-block] .sir-card-body > [data-fit-box] > .sir-fit > .space-y-3 > * {
+[data-tv-block] .sir-card-body > .space-y-3 > * {
   margin-block: 0;
 }
 /* Horizontal scroll inside its card (wide tables on the phone): the page does not move with it. */

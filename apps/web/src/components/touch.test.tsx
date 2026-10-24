@@ -68,7 +68,7 @@ describe('«Touch: No»: never a scroll bar', () => {
     expect(screensFor(undefined, off)).toBe(false);
   });
 
-  it('every device without touch: screens of cells that fit their cards, no scrolling class; with touch as before', () => {
+  it('every device without touch: screens of full size cards cut by their cell, never scaled nor scrolling; with touch as before', () => {
     const off = TenantLayoutSchema.parse({ touch: { tv: false, tablet: false, phone: false } });
     for (const device of ['tv', 'tablet', 'phone'] as const) {
       const { container, unmount } = render(<MatchView state={stateAfter()} device={device} layout={off} />);
@@ -76,17 +76,19 @@ describe('«Touch: No»: never a scroll bar', () => {
       const cells = [...container.querySelectorAll('[data-tv-block]')];
       expect(cells.length).toBeGreaterThan(0);
       for (const cell of cells) expect(cell.getAttribute('data-touch')).toBe('false');
-      expect(container.querySelectorAll('[data-fit-box]').length).toBeGreaterThan(0);
+      // Full size from the first paint: no scale that starts small and grows (v2.6.4), the excess is cut.
+      expect(container.querySelector('[style*="scale"]')).toBeNull();
+      expect(container.querySelector('.sir-card-body')).toBeTruthy();
       expect(container.querySelector(SCROLL)).toBeNull();
       unmount();
     }
     const on = render(<MatchView state={stateAfter()} device="tablet" layout={TenantLayoutSchema.parse({})} />);
     expect(on.container.querySelector('[data-layout="tablet"]')).toBeTruthy();
-    expect(on.container.querySelector('[data-fit-box]')).toBeNull();
+    expect(on.container.querySelector('[style*="scale"]')).toBeNull();
     expect(on.container.querySelector('.sir-scroll-x')).toBeTruthy();
     on.unmount();
     const tv = render(<MatchView state={stateAfter()} device="tv" layout={TenantLayoutSchema.parse({})} />);
     expect(tv.container.querySelector('[data-tv-block]')?.getAttribute('data-touch')).toBe('true');
-    expect(tv.container.querySelector('[data-fit-box]')).toBeNull();
+    expect(tv.container.querySelector('[style*="scale"]')).toBeNull();
   });
 });

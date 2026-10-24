@@ -4,7 +4,6 @@ import type { PlayerRow, PlayerSortKey, SortDirection } from '../charts/players.
 import { playerRows, sortPlayerRows, statSets } from '../charts/players.ts';
 import { formatCount, formatPct, teamName } from '../lib/format.ts';
 import { useDeviceContext, useTouch } from '../lib/useLayout.ts';
-import { FitRows, MoreRows } from './FitToBox.tsx';
 import { Card, Empty, Segmented } from './ui.tsx';
 
 interface Column {
@@ -136,7 +135,7 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
       ) : (
         // Wide table: it scrolls sideways inside the card (focusable, so also with the keyboard), never the page.
         // Phone: also vertically inside the card, so that the header stays visible (sticky) while scrolling.
-        // Without touch nothing scrolls: the card fits the table to its cell (`FitToBox`), the last rows become «+N».
+        // Without touch nothing scrolls: what does not fit the card is cut by its body (overflow hidden).
         <div
           {...(touch
             ? { role: 'region', 'aria-label': 'Tabella giocatori, scorrevole in orizzontale', tabIndex: 0 }
@@ -193,71 +192,58 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
                 ))}
               </tr>
             </thead>
-            {/* In a card that cannot scroll (screen without touch) and does not fit even scaled down: the first rows
-                and «+N». */}
-            <FitRows count={rows.length}>
-              {(fit) => (
-                <tbody data-fit-list={rows.length}>
-                  {rows.slice(0, fit.shown).map((r) => {
-                    const isSelected = selected === r.number;
-                    return (
-                      <tr
-                        key={r.number}
-                        data-selected={isSelected}
-                        className={`border-b border-table-border last:border-0 hover:bg-hover ${
-                          isSelected ? 'bg-table-selected' : 'even:bg-table-alt'
+            <tbody>
+              {rows.map((r) => {
+                const isSelected = selected === r.number;
+                return (
+                  <tr
+                    key={r.number}
+                    data-selected={isSelected}
+                    className={`border-b border-table-border last:border-0 hover:bg-hover ${
+                      isSelected ? 'bg-table-selected' : 'even:bg-table-alt'
+                    }`}
+                  >
+                    <td
+                      className={`py-1.5 pl-4 font-bold sm:pl-5 ${TEXT[side]} ${
+                        isSelected ? 'shadow-[inset_3px_0_0_var(--sir-table-indicator)]' : ''
+                      }`}
+                    >
+                      {r.number}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-text">
+                      {touch ? (
+                        <button
+                          type="button"
+                          aria-pressed={isSelected}
+                          title={isSelected ? 'Togli la selezione' : 'Evidenzia il giocatore'}
+                          onClick={() => setSelected(isSelected ? null : r.number)}
+                          className="text-left hover:underline pointer-coarse:min-h-11"
+                        >
+                          {r.name}
+                        </button>
+                      ) : (
+                        <span>{r.name}</span>
+                      )}
+                      {r.libero && (
+                        <span className="ml-1.5 rounded bg-surface-2 px-1 text-[10px] font-semibold uppercase text-muted">
+                          Libero
+                        </span>
+                      )}
+                    </td>
+                    {columns.map((c) => (
+                      <td
+                        key={c.key}
+                        className={`px-1.5 py-1.5 text-center text-text ${groupBorder(c.key, !essential)} ${
+                          c.key === 'points' ? 'bg-table-key font-bold' : ''
                         }`}
                       >
-                        <td
-                          className={`py-1.5 pl-4 font-bold sm:pl-5 ${TEXT[side]} ${
-                            isSelected ? 'shadow-[inset_3px_0_0_var(--sir-table-indicator)]' : ''
-                          }`}
-                        >
-                          {r.number}
-                        </td>
-                        <td className="whitespace-nowrap px-2 py-1.5 text-text">
-                          {touch ? (
-                            <button
-                              type="button"
-                              aria-pressed={isSelected}
-                              title={isSelected ? 'Togli la selezione' : 'Evidenzia il giocatore'}
-                              onClick={() => setSelected(isSelected ? null : r.number)}
-                              className="text-left hover:underline pointer-coarse:min-h-11"
-                            >
-                              {r.name}
-                            </button>
-                          ) : (
-                            <span>{r.name}</span>
-                          )}
-                          {r.libero && (
-                            <span className="ml-1.5 rounded bg-surface-2 px-1 text-[10px] font-semibold uppercase text-muted">
-                              Libero
-                            </span>
-                          )}
-                        </td>
-                        {columns.map((c) => (
-                          <td
-                            key={c.key}
-                            className={`px-1.5 py-1.5 text-center text-text ${groupBorder(c.key, !essential)} ${
-                              c.key === 'points' ? 'bg-table-key font-bold' : ''
-                            }`}
-                          >
-                            {cell(r, c)}
-                          </td>
-                        ))}
-                      </tr>
-                    );
-                  })}
-                  {fit.hidden > 0 && (
-                    <tr>
-                      <td colSpan={columns.length + 2} className="py-1.5 pl-4 sm:pl-5">
-                        <MoreRows hidden={fit.hidden} />
+                        {cell(r, c)}
                       </td>
-                    </tr>
-                  )}
-                </tbody>
-              )}
-            </FitRows>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
           </table>
         </div>
       )}

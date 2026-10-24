@@ -637,7 +637,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
   /**
    * Upload of a video for the backgrounds of the overlays, or for the players of the roster with `?kind=player`
    * (VideoUploadQuerySchema): the bytes of the file as the body
-   * (`application/octet-stream`), type recognized from the bytes (MP4 with an ISO brand or WebM, anything else 422),
+   * (`application/octet-stream`), type recognized from the bytes (MP4 with an ISO brand, QuickTime or WebM, anything else 422),
    * at most VIDEO_MAX_BYTES (413, checked before reading when the length is declared), within the quota of the client
    * (409). Session and role are checked before the body is read. Same file again: the video already stored (200).
    * The name of the file comes in the header FILE_NAME_HEADER (encoded, AssetNameSchema: 400 when not valid).

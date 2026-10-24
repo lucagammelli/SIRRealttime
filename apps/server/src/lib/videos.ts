@@ -16,12 +16,27 @@ export class VideoRejected extends Error {
 export const VIDEO_MAX_SIDE = 4096;
 
 /**
- * Brands of an MP4 (`ftyp`) that browsers play in <video>: ISO base media and MP4 (QuickTime `qt  ` is not one of
- * them). At least one among the major and the compatible brands.
+ * Brands of an MP4 or QuickTime (`ftyp`) that browsers play in <video>: ISO base media, MP4 and QuickTime (`qt  `, the
+ * `.mov` of iPhones and Macs: same box structure, a `wide` box before `mdat` is just another top-level box). At least
+ * one among the major and the compatible brands. QuickTime is stored and served as `video/mp4`: browsers play H.264
+ * `.mov` as MP4 and the stored type only has to be one of VideoMime.
  */
-const MP4_BRANDS = new Set(['isom', 'iso2', 'iso3', 'iso4', 'iso5', 'iso6', 'mp41', 'mp42', 'avc1', 'M4V ', 'dash']);
+const MP4_BRANDS = new Set([
+  'isom',
+  'iso2',
+  'iso3',
+  'iso4',
+  'iso5',
+  'iso6',
+  'mp41',
+  'mp42',
+  'avc1',
+  'M4V ',
+  'dash',
+  'qt  ',
+]);
 
-const NOT_A_VIDEO = 'Formato non ammesso: usa un video MP4 o WebM';
+const NOT_A_VIDEO = 'Formato non ammesso: usa un video MP4, MOV o WebM';
 
 const size = (width: number, height: number): { width: number; height: number } => {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1)
@@ -186,7 +201,7 @@ function readWebm(buf: Buffer): VideoInfo {
 }
 
 /**
- * Pure: type and size of a video recognized from its bytes alone: MP4 (ISO brands) or WebM. Throws VideoRejected
+ * Pure: type and size of a video recognized from its bytes alone: MP4 or QuickTime (ISO and `qt  ` brands) or WebM. Throws VideoRejected
  * for anything else (the declared name and type of the upload are never used).
  */
 export function inspectVideo(buf: Buffer): VideoInfo {

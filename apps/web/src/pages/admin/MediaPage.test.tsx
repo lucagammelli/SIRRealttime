@@ -118,7 +118,7 @@ describe('page «Immagini e video»', () => {
     fireEvent.change(screen.getByLabelText('Carica video nella libreria'), {
       target: { files: [new File(['x'], 'doc.pdf', { type: 'application/pdf' })] },
     });
-    expect(await screen.findByText('Formato non ammesso: scegli un video MP4 o WebM.')).toBeTruthy();
+    expect(await screen.findByText('Formato non ammesso: scegli un video MP4, MOV o WebM.')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Carica immagine nella libreria'), {
       target: { files: [new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'grande.png', { type: 'image/png' })] },
     });

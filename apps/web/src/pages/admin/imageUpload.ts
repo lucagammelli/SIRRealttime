@@ -1,4 +1,5 @@
 import type { AssetKind, AssetSummary } from '@arenalive/shared';
+import { z } from 'zod';
 import {
   ASSET_MAX_BYTES,
   AssetSummarySchema,
@@ -37,16 +38,22 @@ export async function uploadImage(file: File, kind: AssetKind, sponsorId?: strin
 }
 
 /** Types of video accepted by the file inputs (the server checks the bytes anyway). */
-export const ACCEPT_VIDEO = VideoMimeSchema.options.join(',');
+export const ACCEPT_VIDEO = [...VideoMimeSchema.options, 'video/quicktime', '.mov'].join(',');
+
+/** Types of video the browser may declare for a chosen file: the stored ones plus QuickTime (`.mov`, stored as MP4). */
+export const VideoPickMimeSchema = z.enum([...VideoMimeSchema.options, 'video/quicktime']);
 
 /** Text shown when a chosen video is over the limit (nothing is sent). */
 export const VIDEO_TOO_LARGE = `Video troppo grande: al massimo ${VIDEO_MAX_BYTES / (1024 * 1024)} MB.`;
 /** Text shown when the chosen file is not declared as MP4 or WebM by the browser (nothing is sent). */
-export const VIDEO_WRONG_TYPE = 'Formato non ammesso: scegli un video MP4 o WebM.';
+export const VIDEO_WRONG_TYPE = 'Formato non ammesso: scegli un video MP4, MOV o WebM.';
 
-/** Pure: why a chosen file cannot be sent as a video (type declared by the browser, size), null when it can. */
-export function videoProblem(file: Pick<File, 'size' | 'type'>): string | null {
-  if (!VideoMimeSchema.safeParse(file.type).success) return VIDEO_WRONG_TYPE;
+/** Pure: why a chosen file cannot be sent as a video (type declared by the browser, name, size), null when it can. */
+export function videoProblem(file: Pick<File, 'size' | 'type' | 'name'>): string | null {
+  // Some browsers declare no type (or a generic one) for .mov: the extension lets it through, the server checks the bytes.
+  const unknownType = file.type === '' || file.type === 'application/octet-stream';
+  const knownExtension = /\.(mp4|m4v|mov|webm)$/i.test(file.name);
+  if (!VideoPickMimeSchema.safeParse(file.type).success && !(unknownType && knownExtension)) return VIDEO_WRONG_TYPE;
   if (file.size > VIDEO_MAX_BYTES) return VIDEO_TOO_LARGE;
   return null;
 }

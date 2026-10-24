@@ -141,7 +141,15 @@ describe('photo or video of the player behind an overlay', () => {
           videos: true,
         },
       ),
-    ).toEqual({ kind: 'video', assetId: V1, audio: true, fit: 'fullscreen', teams: 'ours', duration: 'video' });
+    ).toEqual({
+      kind: 'video',
+      assetId: V1,
+      audio: true,
+      fit: 'fullscreen',
+      teams: 'ours',
+      duration: 'video',
+      showText: true,
+    });
     expect(playerBackground(media({ source: 'photo' }), event(), 'home', players, { videos: true })).toMatchObject({
       kind: 'image',
       assetId: A,

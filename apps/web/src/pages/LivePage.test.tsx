@@ -140,6 +140,15 @@ describe('LivePage devices', () => {
     expect(heading('Statistiche giocatori')).toBeTruthy();
   });
 
+  it('the buttons over the match (pause of the rotation, «Torna alla partita») are not there while the look is null', () => {
+    vi.useFakeTimers();
+    setWidth(1920);
+    renderAt();
+    // Look not loaded: the page controls stay, the context of the match says «no touch».
+    expect(screen.queryByRole('button', { name: 'Torna alla partita' })).toBeNull();
+    expect(document.querySelector('[data-intermission] button')).toBeNull();
+  });
+
   it('phone: no rotation button and full screen does not switch to the big screen', () => {
     setWidth(390, 844);
     const { container } = renderAt();

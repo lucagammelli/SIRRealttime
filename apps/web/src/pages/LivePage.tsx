@@ -177,6 +177,9 @@ export function LivePage() {
 
   // «Touch» of the device chosen by the client: without it nothing on the page can be tapped or clicked.
   const touch = look?.layout.touch[device] ?? true;
+  // Over the match (pauses, tables, maps) nothing can be tapped until the look is known: a device without touch must
+  // never see a button, not even while it loads.
+  const touchReady = look === null ? false : touch;
   const controls = !touch ? null : (
     <div
       className={`flex items-center gap-2 transition-opacity focus-within:opacity-100 motion-reduce:transition-none ${idle ? 'opacity-0' : ''}`}
@@ -241,7 +244,7 @@ export function LivePage() {
   const showBrand = !hasSystemLogo(systemLogos.left) && !hasSystemLogo(systemLogos.right);
 
   return (
-    <TouchContext.Provider value={touch}>
+    <TouchContext.Provider value={touchReady}>
       <div
         className={`${template.id === 'standard' ? 'border-t-4 border-accent' : ''} ${
           tv ? 'flex h-dvh flex-col overflow-hidden p-3 lg:p-5' : 'flex min-h-dvh flex-col'

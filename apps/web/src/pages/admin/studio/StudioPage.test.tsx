@@ -1077,8 +1077,8 @@ describe('Avvisi', () => {
     ).toBeTruthy();
     // Options of the video: muted, in the box, our team only, for the seconds of the overlay by default.
     expect(within(ace).getByRole('checkbox', { name: 'Audio del video: Ace' })).toHaveProperty('checked', false);
-    expect(within(ace).getByRole('combobox', { name: 'Posizione del video: Ace' })).toHaveProperty('value', 'center');
-    expect(within(ace).getByRole('combobox', { name: 'Video per: Ace' })).toHaveProperty('value', 'ours');
+    expect(within(ace).getByRole('combobox', { name: 'Posizione dello sfondo: Ace' })).toHaveProperty('value', 'center');
+    expect(within(ace).getByRole('combobox', { name: 'Sfondo per: Ace' })).toHaveProperty('value', 'ours');
     expect(within(ace).getByRole('combobox', { name: 'Durata: Ace' })).toHaveProperty('value', 'seconds');
     expect(
       within(within(ace).getByRole('combobox', { name: 'Durata: Ace' }))
@@ -1093,10 +1093,10 @@ describe('Avvisi', () => {
     );
     expect(region.querySelector('video')?.loop).toBe(true);
     fireEvent.click(within(ace).getByRole('checkbox', { name: 'Audio del video: Ace' }));
-    fireEvent.change(within(ace).getByRole('combobox', { name: 'Posizione del video: Ace' }), {
+    fireEvent.change(within(ace).getByRole('combobox', { name: 'Posizione dello sfondo: Ace' }), {
       target: { value: 'fullscreen' },
     });
-    fireEvent.change(within(ace).getByRole('combobox', { name: 'Video per: Ace' }), { target: { value: 'both' } });
+    fireEvent.change(within(ace).getByRole('combobox', { name: 'Sfondo per: Ace' }), { target: { value: 'both' } });
     fireEvent.change(within(ace).getByRole('combobox', { name: 'Durata: Ace' }), { target: { value: 'video' } });
     expect(within(ace).getByText(/resta finché il video finisce/)).toBeTruthy();
     expect(region.querySelector('[data-background="video"]')?.getAttribute('data-fit')).toBe('fullscreen');
@@ -1111,6 +1111,7 @@ describe('Avvisi', () => {
       fit: 'fullscreen',
       teams: 'both',
       duration: 'video',
+      showText: true,
     });
     expect(calls.some((c) => c.method === 'POST')).toBe(false);
     // Back to none: the background goes.

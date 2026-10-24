@@ -128,14 +128,16 @@ export function withBackgroundFile(overlay: Overlay, kind: OverlayBackgroundKind
   const old = overlay.background;
   return {
     ...overlay,
-    background: old ? { ...fresh, audio: old.audio, fit: old.fit, teams: old.teams, duration: old.duration } : fresh,
+    background: old
+      ? { ...fresh, audio: old.audio, fit: old.fit, teams: old.teams, duration: old.duration, showText: old.showText }
+      : fresh,
   };
 }
 
 /** Pure: the overlay with some options of its background changed (no background: unchanged). */
 export function withBackgroundOptions(
   overlay: Overlay,
-  options: Partial<Pick<OverlayBackground, 'audio' | 'fit' | 'teams' | 'duration'>>,
+  options: Partial<Pick<OverlayBackground, 'audio' | 'fit' | 'teams' | 'duration' | 'showText'>>,
 ): Overlay {
   return overlay.background ? { ...overlay, background: { ...overlay.background, ...options } } : overlay;
 }
@@ -226,15 +228,65 @@ function BackgroundSetting({
                 className="max-h-32 rounded-card border border-border object-contain"
               />
             ))}
+          {chosen && overlay.background && (
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-1.5">
+                Sfondo per
+                <select
+                  className={selectClass}
+                  aria-label={`Sfondo per: ${label}`}
+                  value={overlay.background.teams}
+                  onChange={(e) => {
+                    if (isTeams(e.target.value)) onChange(withBackgroundOptions(overlay, { teams: e.target.value }));
+                  }}
+                >
+                  {OVERLAY_VIDEO_TEAMS.map((t) => (
+                    <option key={t} value={t}>
+                      {VIDEO_TEAMS_LABELS[t]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex items-center gap-1.5">
+                Posizione dello sfondo
+                <select
+                  className={selectClass}
+                  aria-label={`Posizione dello sfondo: ${label}`}
+                  value={overlay.background.fit}
+                  onChange={(e) => {
+                    if (isFit(e.target.value)) onChange(withBackgroundOptions(overlay, { fit: e.target.value }));
+                  }}
+                >
+                  {OVERLAY_VIDEO_FITS.map((f) => (
+                    <option key={f} value={f}>
+                      {VIDEO_FIT_LABELS[f]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={overlay.background.showText}
+                  aria-label={`Mostra il testo sullo sfondo: ${label}`}
+                  onChange={(e) => onChange(withBackgroundOptions(overlay, { showText: e.target.checked }))}
+                />
+                Mostra il testo
+              </label>
+            </div>
+          )}
           {mode === 'video' && chosen && overlay.background?.kind === 'video' && (
             <VideoOptions label={label} background={overlay.background} overlay={overlay} onChange={onChange} />
           )}
           <p className="text-xs text-muted">
             {mode === 'video'
-              ? 'Video della libreria: parte subito e gira per i secondi dell’avviso su TV e tablet. Con «Audio» acceso si sente anche il sonoro, se il browser lo permette (altrimenti parte senza audio). Con «Solo la nostra squadra» gli avvisi della squadra avversaria escono senza video, in casa e in trasferta (la nostra squadra è quella scelta in «Colori e loghi» › «Squadra»: se non la si riconosce nella partita, il video compare per tutte e due). Sul telefono il video non si mostra, e nemmeno a chi ha chiesto meno animazioni: lì l’avviso esce con il solo testo.'
-              : 'Immagine della libreria: sta dietro al testo, con una velatura del colore della squadra.'}{' '}
-            Il file si scarica all’apertura della pagina (sul telefono solo le immagini, mai il video): se non è ancora
-            pronto l’avviso esce con il solo testo.
+              ? 'Video della libreria: parte subito e gira per i secondi dell’avviso su TV e tablet. Con «Audio» acceso si sente anche il sonoro, se il browser lo permette (altrimenti parte senza audio). Sul telefono il video non si mostra, e nemmeno a chi ha chiesto meno animazioni: lì l’avviso esce con il solo testo.'
+              : 'Immagine della libreria: sta dietro al testo, senza velatura (solo una fascia leggera dietro le parole).'}{' '}
+            Con «Solo la nostra squadra» (predefinito) gli avvisi della squadra avversaria escono con il solo testo, in
+            casa e in trasferta; la nostra squadra è quella scelta in «Colori e loghi» › «Squadra» e, se non la si
+            riconosce nella partita, lo sfondo non compare. Senza «Mostra il testo» lo sfondo esce pulito, senza
+            velatura (il testo resta per chi usa un lettore di schermo). Il file si scarica all’apertura della pagina
+            (sul telefono solo le immagini, mai il video): se non è ancora pronto l’avviso esce con il solo testo.
           </p>
         </div>
       )}
@@ -397,7 +449,7 @@ function PlayerMediaSetting({
   );
 }
 
-/** Options of a video background: sound, where it plays, for which team. */
+/** Options of a video background: sound, how long. */
 function VideoOptions({
   label,
   background,
@@ -419,40 +471,6 @@ function VideoOptions({
           onChange={(e) => onChange(withBackgroundOptions(overlay, { audio: e.target.checked }))}
         />
         Audio
-      </label>
-      <label className="flex items-center gap-1.5">
-        Posizione del video
-        <select
-          className={selectClass}
-          aria-label={`Posizione del video: ${label}`}
-          value={background.fit}
-          onChange={(e) => {
-            if (isFit(e.target.value)) onChange(withBackgroundOptions(overlay, { fit: e.target.value }));
-          }}
-        >
-          {OVERLAY_VIDEO_FITS.map((f) => (
-            <option key={f} value={f}>
-              {VIDEO_FIT_LABELS[f]}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="flex items-center gap-1.5">
-        Video per
-        <select
-          className={selectClass}
-          aria-label={`Video per: ${label}`}
-          value={background.teams}
-          onChange={(e) => {
-            if (isTeams(e.target.value)) onChange(withBackgroundOptions(overlay, { teams: e.target.value }));
-          }}
-        >
-          {OVERLAY_VIDEO_TEAMS.map((t) => (
-            <option key={t} value={t}>
-              {VIDEO_TEAMS_LABELS[t]}
-            </option>
-          ))}
-        </select>
       </label>
       <label className="flex items-center gap-1.5">
         Durata

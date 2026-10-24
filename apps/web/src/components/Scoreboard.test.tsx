@@ -20,6 +20,7 @@ const lookWith = (ourLogoSize: ClubLogoSize) =>
     intermissions: defaultIntermissions(),
     overlays: defaultOverlays(),
     sponsors: [],
+    players: [],
   });
 
 describe('Scoreboard', () => {

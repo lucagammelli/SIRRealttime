@@ -4,6 +4,16 @@ Le versioni seguono il versionamento semantico (`vX.Y.Z`); la fonte della versio
 `package.json` alla radice. Le sezioni nuove le aggiunge `scripts/rilascia.sh` con i titoli dei commit dal tag
 precedente; le note della release su GitHub sono la sezione della versione (`docs/regole/test-job-rilasci.md`).
 
+## [2.6.3] - 2026-10-24
+
+- Test sfondi degli avvisi: campo «Mostra il testo» predefinito
+- Simulazione con la rosa della nostra squadra, lato nostro salvato, loghi ripubblicati dopo un salvataggio, pause rilette a ogni set
+- Mappe di campo come il tabellone (casa a sinistra), grafici che non ripartono da zero, schermate TV stabili dall'inizio della partita
+- Avvisi: sfondo solo per la nostra squadra, testo sì/no, niente velo, immagini intere a tutto schermo; tocco spento finché la grafica non è pronta
+- Confronti: numeri sempre nel colore della propria squadra, vantaggio in grassetto
+- Simulatore: «Arresta» con conferma al posto di «Ferma», arresto idempotente
+- Squadra: miniature di foto e video in tabella, moduli in un pannello laterale
+
 ## [2.6.2] - 2026-10-24
 
 - Simulatore: andamento della partita impostabile (forza, variabilità, ace, errori al servizio, muri, cambi, time-out) e risultati non decisi in anticipo

@@ -7,6 +7,7 @@ import type {
   ClubTeamsResponse,
   LeagueDetailResponse,
   LeagueSummary,
+  PublicTenantResponse,
   ScheduleResponse,
   ServerMessage,
   UpdateClubProfileRequest,
@@ -15,6 +16,7 @@ import { adminAssetPath, publicAssetPath } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { clubLookOf } from '../src/club.js';
 import { matches, tenants } from '../src/db/index.js';
 import type { TestServer } from './helpers.js';
 import {
@@ -74,15 +76,21 @@ const upload = async (kind: 'logo' | 'sponsor', width: number, who = cookie, hos
   ).json<AssetSummary>();
 const settings = (id: string, payload: Record<string, unknown>, who = cookie) =>
   call({ method: 'PATCH', url: `/api/admin/calendar/fixtures/${id}/settings`, payload }, who);
-const putProfile = async (change: Partial<UpdateClubProfileRequest['profile']> & { logoMark?: string | null }) => {
+const putProfile = async (
+  change: Partial<UpdateClubProfileRequest['profile']> & {
+    logoMark?: string | null;
+    ourLogoSize?: UpdateClubProfileRequest['ourLogoSize'];
+  },
+) => {
   const club = (await call({ url: '/api/admin/club' })).json<ClubResponse>();
-  const { logoMark, ...profile } = change;
+  const { logoMark, ourLogoSize, ...profile } = change;
   return call({
     method: 'PUT',
     url: '/api/admin/club/profile',
     payload: {
       displayName: club.displayName,
       logoMark: logoMark === undefined ? club.logoMark : logoMark,
+      ...(ourLogoSize ? { ourLogoSize } : {}),
       ourTeam: club.ourTeam,
       profile: { ...club.profile, ...profile },
     },
@@ -434,6 +442,60 @@ describe('logos of the teams', () => {
     expect((await settings(first.id, {})).statusCode).toBe(400);
     expect((await settings(first.id, { opponentLogo: null })).statusCode).toBe(204);
     expect((await fixture(first.id))[opponentSide].logoUrl).toBe(leagueLogo);
+  });
+
+  it('shows the logo of the club for our team over the logo of a match; the logo of a match only without it', async () => {
+    const club = (await call({ url: '/api/admin/club' })).json<ClubResponse>();
+    const mark = club.logoMark;
+    if (!mark) throw new Error('no logo of the club');
+    const first = (await calendar()).fixtures.find((f) => f.origin === 'league' && f.state === 'scheduled');
+    if (!first) throw new Error('no match');
+    const custom = await upload('logo', 73);
+    expect((await settings(first.id, { ourLogo: custom.id })).statusCode).toBe(204);
+    expect((await calendar()).clubLogo).toBe(true);
+    expect((await fixture(first.id))[first.ourSide].logoUrl).toBe(adminAssetPath(mark));
+    const publicOurs = (await schedule()).fixtures.find((f) => f.startsAt === first.startsAt)?.[first.ourSide];
+    expect(publicOurs?.logoUrl).toBe(publicAssetPath(mark));
+    // Without the logo of the club the logo of the match is the fallback.
+    expect((await putProfile({ logoMark: null })).statusCode).toBe(200);
+    expect((await calendar()).clubLogo).toBe(false);
+    expect((await fixture(first.id))[first.ourSide].logoUrl).toBe(custom.url);
+    expect((await putProfile({ logoMark: mark })).statusCode).toBe(200);
+    expect((await settings(first.id, { ourLogo: null })).statusCode).toBe(204);
+  });
+
+  it('takes the horizontal logo as the logo of the club when there is no square one', () => {
+    const main = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
+    const look = clubLookOf({ branding: { logoMain: main }, clubProfile: {} });
+    expect([look.profileLogo, look.profileLogoId]).toEqual([publicAssetPath(main), main]);
+    const both = clubLookOf({
+      branding: { logoMain: main, logoMark: '4f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c' },
+      clubProfile: {},
+    });
+    expect(both.profileLogoId).toBe('4f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c');
+    expect(clubLookOf({ branding: {}, clubProfile: {} }).profileLogo).toBeNull();
+  });
+
+  it('saves the size of the logo of the club, kept when the request leaves it out', async () => {
+    expect((await call({ url: '/api/admin/club' })).json<ClubResponse>().ourLogoSize).toBe('medium');
+    expect((await putProfile({ ourLogoSize: 'large' })).json<ClubResponse>().ourLogoSize).toBe('large');
+    const tenant = (await call({ url: '/api/public/tenant' }, null)).json<PublicTenantResponse>();
+    expect(tenant.branding.ourLogoSize).toBe('large');
+    expect((await putProfile({ coverage: 'homeAndAway' })).json<ClubResponse>().ourLogoSize).toBe('large');
+    const club = (await call({ url: '/api/admin/club' })).json<ClubResponse>();
+    const wrong = await call({
+      method: 'PUT',
+      url: '/api/admin/club/profile',
+      payload: {
+        displayName: club.displayName,
+        logoMark: club.logoMark,
+        ourLogoSize: 'enorme',
+        ourTeam: club.ourTeam,
+        profile: club.profile,
+      },
+    });
+    expect(wrong.statusCode).toBe(400);
+    expect((await putProfile({ ourLogoSize: 'medium' })).statusCode).toBe(200);
   });
 
   it('sends the logos of the two sides of the .dvw in its public state', async () => {

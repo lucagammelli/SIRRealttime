@@ -70,6 +70,7 @@ const calendar: CalendarResponse = {
     }),
   ],
   pending: [],
+  clubLogo: false,
 };
 
 const club: ClubResponse = {
@@ -77,6 +78,7 @@ const club: ClubResponse = {
   logoUrl: null,
   displayName: null,
   logoMark: null,
+  ourLogoSize: 'medium',
   ourTeam: { code: null, name: 'Perugia' },
   profile: {
     series: null,

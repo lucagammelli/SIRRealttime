@@ -1,6 +1,7 @@
 import type { ClubFixtureTeam, UpcomingFixture } from '@arenalive/shared';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
+import { clubLogoClass, useOurLogoSize } from '../lib/clubLogo.ts';
 import { formatFixtureDate } from '../lib/format.ts';
 import { teamColorVars } from '../lib/teamColors.ts';
 import type { Device } from '../lib/layout.ts';
@@ -47,9 +48,21 @@ export function teamInitials(name: string): string {
     .join('');
 }
 
-function TeamBadge({ team, side, big }: { team: ClubFixtureTeam; side: 'home' | 'away'; big: boolean }) {
+function TeamBadge({
+  team,
+  side,
+  big,
+  ours,
+}: {
+  team: ClubFixtureTeam;
+  side: 'home' | 'away';
+  big: boolean;
+  /** Our team: its logo (the logo of the club) follows «Dimensione del logo del club». */
+  ours: boolean;
+}) {
   const [broken, setBroken] = useState(false);
-  const size = big ? 'size-40 lg:size-56' : 'size-20 sm:size-28';
+  const ourLogoSize = useOurLogoSize();
+  const size = clubLogoClass(big ? 'nextMatchPageBig' : 'nextMatchPage', ourLogoSize, ours);
   return (
     <div className="flex min-w-0 flex-1 flex-col items-center gap-3 text-center">
       {team.logoUrl && !broken ? (
@@ -164,12 +177,12 @@ export function NextMatch({
         Prossima partita
       </h1>
       <div className="flex w-full items-start justify-center gap-3 sm:gap-6">
-        <TeamBadge team={fixture.home} side="home" big={big} />
+        <TeamBadge team={fixture.home} side="home" big={big} ours={fixture.ourSide === 'home'} />
         <span className={`self-center font-display font-bold text-muted ${big ? 'text-5xl' : 'text-xl sm:text-3xl'}`}>
           <span aria-hidden="true">VS</span>
           <span className="sr-only">contro</span>
         </span>
-        <TeamBadge team={fixture.away} side="away" big={big} />
+        <TeamBadge team={fixture.away} side="away" big={big} ours={fixture.ourSide === 'away'} />
       </div>
       <div className="space-y-1">
         <p className={`font-semibold text-text ${big ? 'text-3xl' : 'text-lg sm:text-xl'}`}>

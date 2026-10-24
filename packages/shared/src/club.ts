@@ -125,13 +125,20 @@ export const ClubProfileEditSchema = z.object({
   teamLogos: TeamLogosModeSchema.default('all'),
 });
 
+/** Size of the logo of the club (our team) in the scoreboard, the calendar, the next match and the header. */
+export const CLUB_LOGO_SIZES = ['small', 'medium', 'large'] as const;
+export const ClubLogoSizeSchema = z.enum(CLUB_LOGO_SIZES);
+export type ClubLogoSize = z.infer<typeof ClubLogoSizeSchema>;
+
 /**
  * `PUT /api/admin/club/profile`: name shown (null: the name of the client), square logo (an image `logo` of the
- * client, null: none), «nostra squadra» of the `.dvw` files and the profile.
+ * client, null: none), size of the logo of the club (missing: unchanged), «nostra squadra» of the `.dvw` files and the
+ * profile.
  */
 export const UpdateClubProfileRequestSchema = z.strictObject({
   displayName: plainText(100).nullable(),
   logoMark: AssetIdSchema.nullable(),
+  ourLogoSize: ClubLogoSizeSchema.optional(),
   ourTeam: OurTeamSchema,
   profile: ClubProfileEditSchema,
 });
@@ -142,8 +149,9 @@ export const TeamLogoPairSchema = z.object({ home: z.string().nullable(), away: 
 export type TeamLogoPair = z.infer<typeof TeamLogoPairSchema>;
 
 /**
- * Pure: the logo of a team, in this order: the one chosen for the match → the logo of the profile (only for our team)
- * → the public logo of the league → none (the blocks that have them show the initials).
+ * Pure: the logo of a team. Our team: the logo of the profile (the club's logo always wins) → the one chosen for the
+ * match (fallback for clubs without a logo) → the public logo of the league. Opponent: the one chosen for the match →
+ * the public logo of the league. None: the blocks that have them show the initials.
  */
 export function chooseTeamLogo(input: {
   ours: boolean;
@@ -151,7 +159,8 @@ export function chooseTeamLogo(input: {
   profileLogo: string | null;
   leagueLogo: string | null;
 }): string | null {
-  return input.matchLogo ?? (input.ours ? input.profileLogo : null) ?? input.leagueLogo ?? null;
+  if (input.ours) return input.profileLogo ?? input.matchLogo ?? input.leagueLogo ?? null;
+  return input.matchLogo ?? input.leagueLogo ?? null;
 }
 
 /** Pure: whether the setting «Loghi delle squadre» shows the logo of our team or of the opponent. */
@@ -218,6 +227,8 @@ export const ClubResponseSchema = z.object({
   displayName: z.string().nullable().default(null),
   /** Square logo of the graphics (id of an image of the client), null when none. */
   logoMark: AssetIdSchema.nullable().default(null),
+  /** Size of the logo of the club in the public pages (missing in an older answer: medium). */
+  ourLogoSize: ClubLogoSizeSchema.default('medium'),
   /** «Nostra squadra» of the graphics (filled from the team of the club when it was empty). */
   ourTeam: OurTeamSchema,
   /** Series, coverage of the matches and team logos (missing in an older answer: the defaults). */
@@ -487,6 +498,11 @@ export type PendingMatch = z.infer<typeof PendingMatchSchema>;
 export const CalendarResponseSchema = z.object({
   fixtures: z.array(ClubFixtureSchema),
   pending: z.array(PendingMatchSchema),
+  /**
+   * The club has a logo (square or horizontal): it always wins for our team, so the logo of a match is not used
+   * (missing in an older answer: false).
+   */
+  clubLogo: z.boolean().default(false),
 });
 export type CalendarResponse = z.infer<typeof CalendarResponseSchema>;
 

@@ -1,9 +1,27 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { defaultBranding, defaultIntermissions, defaultLayout, defaultOverlays } from '@arenalive/shared';
+import type { ClubLogoSize } from '@arenalive/shared';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import { claimOurSide, setTenantLook, tenantLookOf } from '../lib/branding.ts';
 import { midMatchState, stateAfter } from '../test/fixtures.ts';
 import { Scoreboard } from './Scoreboard.tsx';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  act(() => setTenantLook(null));
+});
+
+const lookWith = (ourLogoSize: ClubLogoSize) =>
+  tenantLookOf({
+    name: 'Sir Safety',
+    branding: { ...defaultBranding(), ourLogoSize },
+    images: { logoMain: null, logoMark: null, sponsorLogo: null },
+    layout: defaultLayout(),
+    intermissions: defaultIntermissions(),
+    overlays: defaultOverlays(),
+    sponsors: [],
+    players: [],
+  });
 
 describe('Scoreboard', () => {
   it('shows teams, sets won and partials of the finished match', () => {
@@ -51,5 +69,22 @@ describe('Scoreboard', () => {
     }
     render(<Scoreboard state={state} />);
     expect(screen.queryAllByTestId('team-logo')).toHaveLength(0);
+  });
+
+  it('gives the size chosen in «Club» only to the logo of our team', () => {
+    act(() => setTenantLook(lookWith('large')));
+    const release = claimOurSide('away');
+    const logos = { home: '/api/public/assets/casa', away: '/api/public/assets/club' };
+    const { unmount } = render(<Scoreboard state={midMatchState()} device="tablet" logos={logos} />);
+    const [home, away] = screen.getAllByTestId('team-logo');
+    expect(home?.getAttribute('class')).toContain('size-10');
+    expect(away?.getAttribute('class')).toContain('size-14');
+    unmount();
+    render(<Scoreboard state={midMatchState()} device="tv" logos={logos} />);
+    expect(screen.getAllByTestId('team-logo')[1]?.getAttribute('class')).toContain('size-24');
+    act(() => setTenantLook(lookWith('small')));
+    expect(screen.getAllByTestId('team-logo')[1]?.getAttribute('class')).toContain('size-12');
+    expect(screen.getAllByTestId('team-logo')[0]?.getAttribute('class')).toContain('size-16');
+    act(release);
   });
 });

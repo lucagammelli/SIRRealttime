@@ -329,10 +329,13 @@ function FixtureDateForm({ f, onSaved, onCancel }: { f: ClubFixture; onSaved: ()
 function FixtureItem({
   f,
   competitions,
+  clubLogo,
   onChanged,
 }: {
   f: ClubFixture;
   competitions: readonly string[];
+  /** The club has a logo: it always wins for our team, so the logo of the match cannot be chosen. */
+  clubLogo: boolean;
   onChanged: () => void;
 }) {
   const errorMessage = useApiError();
@@ -554,12 +557,16 @@ function FixtureItem({
             options={BROADCAST_OPTIONS}
           />
           <div className="grid gap-3 sm:grid-cols-2">
-            <LogoPicker
-              label="Logo della nostra squadra"
-              url={f[f.ourSide].logoUrl}
-              custom={f.logos.our !== null}
-              onChange={(ourLogo) => change({ ourLogo })}
-            />
+            <div className="space-y-1">
+              <LogoPicker
+                label="Logo della nostra squadra"
+                url={f[f.ourSide].logoUrl}
+                custom={f.logos.our !== null}
+                disabled={clubLogo}
+                onChange={(ourLogo) => change({ ourLogo })}
+              />
+              {clubLogo && <p className="text-xs text-muted">Il logo del club ha sempre la precedenza.</p>}
+            </div>
             <LogoPicker
               label={`Logo di ${f[opponentSide].name}`}
               url={f[opponentSide].logoUrl}
@@ -568,7 +575,7 @@ function FixtureItem({
             />
           </div>
           <p className="text-xs text-muted">
-            Predefiniti: il logo quadrato del profilo per la nostra squadra, quello della Lega per gli avversari.
+            Predefiniti: il logo del club (in «Club») per la nostra squadra, quello della Lega per gli avversari.
           </p>
         </div>
       )}
@@ -699,6 +706,7 @@ export function CalendarPage() {
 
   const data = calendar.data;
   const all = data?.fixtures ?? [];
+  const clubLogo = data?.clubLogo ?? false;
   const competitions = competitionsOf(all);
   const withoutCompetition = all.some((f) => fixtureCompetition(f) === null);
   // «Competizione» only with more than one; a choice no longer there (match deleted) goes back to all.
@@ -813,7 +821,13 @@ export function CalendarPage() {
         {visible.length > 0 && (
           <ul className="divide-y divide-grid">
             {visible.map((f) => (
-              <FixtureItem key={f.id} f={f} competitions={competitions} onChanged={calendar.reload} />
+              <FixtureItem
+                key={f.id}
+                f={f}
+                competitions={competitions}
+                clubLogo={clubLogo}
+                onChanged={calendar.reload}
+              />
             ))}
           </ul>
         )}
@@ -825,7 +839,13 @@ export function CalendarPage() {
             {showHidden && (
               <ul className="divide-y divide-grid" aria-label="Partite nascoste">
                 {hidden.map((f) => (
-                  <FixtureItem key={f.id} f={f} competitions={competitions} onChanged={calendar.reload} />
+                  <FixtureItem
+                    key={f.id}
+                    f={f}
+                    competitions={competitions}
+                    clubLogo={clubLogo}
+                    onChanged={calendar.reload}
+                  />
                 ))}
               </ul>
             )}

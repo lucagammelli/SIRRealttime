@@ -2,7 +2,9 @@ import type { TeamLogoPair } from '@arenalive/shared';
 import type { MatchState, Side } from '@arenalive/volley-stats';
 import type { ReactNode } from 'react';
 import { useRef, useState } from 'react';
-import { useTemplate } from '../lib/branding.ts';
+import { useOurSide, useTemplate } from '../lib/branding.ts';
+import type { ClubLogoPlace } from '../lib/clubLogo.ts';
+import { clubLogoClass, useOurLogoSize } from '../lib/clubLogo.ts';
 import { formatMinutes, SIDE_LABEL, teamName, teamShort } from '../lib/format.ts';
 import type { Device } from '../lib/layout.ts';
 import type { SetPartial } from '../lib/scoreboard.ts';
@@ -29,7 +31,7 @@ const SIZES = {
     sets: 'text-5xl',
     name: 'text-2xl',
     facts: 'text-sm',
-    logo: 'size-10',
+    logo: 'scoreboardTablet',
   },
   tv: {
     score: 'text-[min(20vh,10rem)]',
@@ -37,9 +39,16 @@ const SIZES = {
     sets: 'text-6xl',
     name: 'text-4xl',
     facts: 'text-base',
-    logo: 'size-16',
+    logo: 'scoreboardTv',
   },
-} as const;
+} as const satisfies Record<string, Record<string, string> & { logo: ClubLogoPlace }>;
+
+/** Size classes of the logo of a side in a place of the scoreboard: our team follows «Dimensione del logo del club». */
+function useLogoClass(): (place: ClubLogoPlace, side: Side) => string {
+  const ourSide = useOurSide();
+  const size = useOurLogoSize();
+  return (place, side) => clubLogoClass(place, size, side === ourSide);
+}
 
 function ServeDot({ side, active, small = false }: { side: Side; active: boolean; small?: boolean }) {
   return (
@@ -172,6 +181,7 @@ export function Scoreboard({
   const sticky = useRef<HTMLElement>(null);
   useStickyOffset(sticky, device === 'phone');
   const template = useTemplate();
+  const logoClass = useLogoClass();
   const winner = matchWinner(state);
   const partials = setPartials(state);
   const minutes = matchMinutes(state);
@@ -181,7 +191,7 @@ export function Scoreboard({
   const topBar = (
     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-1.5 sm:px-6 sm:py-2">
       <div className="flex min-w-0 items-center gap-3">
-        {brand && <BrandMark />}
+        {brand && <BrandMark clubSize />}
         <p className={`min-w-0 font-medium text-muted ${device === 'phone' ? 'text-xs' : 'text-sm'}`}>
           <span className="text-text">{statusLabel(state)}</span>
           {minutes !== null && <span> · {formatMinutes(minutes)}</span>}
@@ -214,7 +224,7 @@ export function Scoreboard({
                 >
                   {state.setsWon[side]}
                 </span>
-                <TeamLogo url={logos?.[side]} className="size-7" />
+                <TeamLogo url={logos?.[side]} className={logoClass('scoreboardPhone', side)} />
                 <div className={`min-w-0 ${side === 'home' ? 'text-left' : 'text-right'}`}>
                   <h2
                     className={`truncate font-display text-base font-bold uppercase leading-tight ${INK[side]}`}
@@ -266,14 +276,14 @@ export function Scoreboard({
           >
             <div className={`flex w-full items-center gap-2 ${side === 'home' ? 'justify-start' : 'justify-end'}`}>
               {side === 'home' && <ServeDot side={side} active={serving === side} />}
-              {side === 'home' && <TeamLogo url={logos?.home} className={size.logo} />}
+              {side === 'home' && <TeamLogo url={logos?.home} className={logoClass(size.logo, 'home')} />}
               <h2
                 className={`min-w-0 truncate font-display font-bold uppercase leading-tight ${size.name} ${TEXT[side]}`}
                 title={names[side]}
               >
                 {names[side]}
               </h2>
-              {side === 'away' && <TeamLogo url={logos?.away} className={size.logo} />}
+              {side === 'away' && <TeamLogo url={logos?.away} className={logoClass(size.logo, 'away')} />}
               {side === 'away' && <ServeDot side={side} active={serving === side} />}
             </div>
             <div className={`mt-2 flex items-center gap-3 ${side === 'away' ? 'flex-row-reverse' : ''}`}>
@@ -324,12 +334,13 @@ function TemplateScoreboard({
   const winner = matchWinner(state);
   const minutes = matchMinutes(state);
   const partials = setPartials(state);
+  const logoClass = useLogoClass();
   const team = (side: Side) => (
     <div
       className={`flex min-w-0 items-center gap-3 sm:gap-4 ${side === 'home' ? 'order-1 justify-start' : 'order-3 justify-end'}`}
     >
       <ServeDot side={side} active={serving === side} />
-      <TeamLogo url={logos?.[side]} className="size-12 sm:size-14" />
+      <TeamLogo url={logos?.[side]} className={logoClass('scoreboardTemplate', side)} />
       <h2
         data-long={names[side].length > LONG_NAME}
         className={`sir-team-name line-clamp-3 min-w-0 break-words font-display font-bold uppercase leading-[1.05] text-text ${
@@ -363,7 +374,7 @@ function TemplateScoreboard({
     >
       <div className="sir-card-head flex flex-wrap items-center justify-between gap-2 px-4 pt-3" data-open="true">
         <div className="flex min-w-0 items-center gap-3">
-          {brand && <BrandMark />}
+          {brand && <BrandMark clubSize />}
           <p className="flex min-w-0 items-center gap-2 text-sm text-muted">
             {state.status === 'inProgress' && (
               <span aria-hidden="true" className="inline-block size-2.5 shrink-0 rounded-full bg-accent sir-pulse" />

@@ -667,8 +667,12 @@ Lavoro «ruoli-calendario» (migrazione `0007_ruoli_calendario.sql`). Contratti 
 **Profilo del club** (`tenants.club_profile`, jsonb, `ClubProfileSchema`; `resolveClubProfile` riempie i predefiniti):
 `series` (testo, al massimo `CLUB_SERIES_MAX` = 60), `coverage` (`homeAndAway` predefinita, oppure `homeOnly`) e `teamLogos`
 (`all` predefinita, `ours`, `none`). `PUT /api/admin/club/profile` (`UpdateClubProfileRequest`, admin) salva insieme nome
-mostrato, logo quadrato (un'immagine `logo` del cliente, altrimenti 400), «nostra squadra» (questi tre nella grafica) e il
-profilo; poi svuota la cache dei clienti, rilegge le partite (`refreshClub`) e disconnette gli spettatori dei link che non
+mostrato, logo quadrato (un'immagine `logo` del cliente, altrimenti 400), `ourLogoSize` (`small`/`medium`/`large`, facoltativo:
+se assente resta quello salvato), «nostra squadra» (questi nella grafica) e il profilo. **Logo del club**: per la nostra squadra
+vince su quello per partita e su quello della Lega (`chooseTeamLogo`, usata da `fixtureLogos`, `matchLogoInfo` e dalla
+classifica); è il logo quadrato (`logoMark`), altrimenti l'orizzontale (`logoMain`) (`clubLookOf` in `src/club.ts`); l'avversario
+resta partita → Lega. `GET /api/admin/calendar` risponde anche `clubLogo` (il club ha un logo: la pagina disattiva il logo per
+partita della nostra squadra, che torna in uso se il club toglie il suo); poi svuota la cache dei clienti, rilegge le partite (`refreshClub`) e disconnette gli spettatori dei link che non
 sono più trasmessi (`closeNotBroadcast`). Risponde con `ClubResponse`.
 
 **Partite aggiunte a mano** (`manualFixtureRoutes`, admin, sotto `lockTenantMatches`; i loghi devono essere immagini `logo`

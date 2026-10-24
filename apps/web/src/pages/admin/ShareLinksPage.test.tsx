@@ -57,6 +57,7 @@ const club: ClubResponse = {
   logoUrl: null,
   displayName: 'Perugia',
   logoMark: null,
+  ourLogoSize: 'medium',
   ourTeam: { code: null, name: 'Perugia' },
   profile: {
     series: null,

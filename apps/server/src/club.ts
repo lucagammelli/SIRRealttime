@@ -104,7 +104,7 @@ const assetPath = (id: string | null): string | null => (id ? publicAssetPath(id
  */
 export interface ClubLook {
   profileLogo: string | null;
-  /** Id of the square logo of the profile (the admin pages build its path with adminAssetPath). */
+  /** Id of the logo of the club, square or else horizontal (the admin pages build its path with adminAssetPath). */
   profileLogoId: string | null;
   teamLogos: TeamLogosMode;
   coverage: ClubCoverage;
@@ -115,9 +115,11 @@ export interface ClubLook {
 export function clubLookOf(tenant: { branding: unknown; clubProfile: unknown }): ClubLook {
   const branding = resolveBranding(tenant.branding);
   const profile = resolveClubProfile(tenant.clubProfile);
+  // The logo of the club: the square one, otherwise the horizontal one (the only one some clubs have).
+  const logo = branding.logoMark ?? branding.logoMain;
   return {
-    profileLogo: assetPath(branding.logoMark),
-    profileLogoId: branding.logoMark,
+    profileLogo: assetPath(logo),
+    profileLogoId: logo,
     teamLogos: profile.teamLogos,
     coverage: profile.coverage,
     ourTeam: branding.ourTeam,
@@ -147,8 +149,8 @@ export const adminLogos = (look: Pick<ClubLook, 'profileLogoId'>): LogoLook => (
 });
 
 /**
- * Pure: the logos of the two teams of a match of the club: logo of the match → of the profile (our team) → of the
- * league → none, then «Loghi delle squadre» (`shownTeamLogo`).
+ * Pure: the logos of the two teams of a match of the club (`chooseTeamLogo`: for our team the logo of the club always
+ * wins over the one of the match and the league), then «Loghi delle squadre» (`shownTeamLogo`).
  */
 export function fixtureLogos(
   row: Pick<ClientFixtureRow, 'ourSide' | 'homeLogoId' | 'awayLogoId' | 'ourLogoAssetId' | 'opponentLogoAssetId'>,

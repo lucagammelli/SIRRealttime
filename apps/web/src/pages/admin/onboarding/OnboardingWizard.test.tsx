@@ -69,6 +69,7 @@ function mockServer(
     logoUrl: null,
     displayName: null,
     logoMark: null,
+    ourLogoSize: 'medium',
     ourTeam: { code: null, name: null },
     profile: {
       series: null,

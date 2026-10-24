@@ -116,12 +116,17 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
         kind: 'text',
         text: 'Sempre in «Club», nel campo «Partite trasmesse» scegli «Casa e trasferta» oppure «Solo partite in casa». Con «Solo partite in casa» le trasferte non hanno il link attivo. Nel «Calendario» ogni partita può fare eccezione.',
       },
+      {
+        kind: 'text',
+        text: 'Il logo del club compare sempre per la vostra squadra, al posto di quello della Lega: nel tabellone, in «Prossima partita», nel calendario, nella classifica e nelle pause. In «Dimensione del logo del club» scegli «Piccolo», «Medio» o «Grande»: vale per il tabellone, «Prossima partita» e l’intestazione della pagina pubblica. Con «Loghi delle squadre: Nessuno» non compare nessun logo.',
+      },
       { kind: 'text', text: 'Nel «Calendario»:' },
       {
         kind: 'list',
         items: [
           'Se il tuo club ha i «Link e QR per singola partita», ogni partita ha il suo link e il suo QR. Altrimenti si usa il «Canale del club».',
           'Per aggiungere un’amichevole, una coppa o un’altra gara, premi «Aggiungi partita» e compila tipo, data, ora, avversario e dove si gioca. In «Competizione (facoltativa)» scrivi il nome della competizione, per esempio «Champions League»: il campo suggerisce i campionati del club e i nomi già usati. La competizione compare con la partita nel «Calendario» e nella pagina pubblica.',
+          'Nelle «Impostazioni» di una partita puoi scegliere il logo dell’avversario. Il «Logo della nostra squadra» si sceglie solo se il club non ha un logo: altrimenti il logo del club ha sempre la precedenza.',
           'Ogni partita mostra la sua competizione: il campionato del sito della Lega o il nome scritto a mano. Con più competizioni, in «Competizione» scegli «Tutte» oppure una sola (o «Senza competizione»).',
           'Se la data è sbagliata o è cambiata, apri la partita, premi «Cambia data e ora» e scrivi quelle giuste. La partita mostra «Modificata a mano».',
           'Per rimettere la data del sito della Lega premi «Torna alla data ufficiale».',

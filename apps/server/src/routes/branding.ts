@@ -24,6 +24,7 @@ import {
   overlayBackgrounds,
   VIDEO_MAX_BYTES,
   VIDEO_UPLOAD_PATH,
+  VideoUploadQuerySchema,
   BRANDING_IMAGE_SLOTS,
   IdParamSchema,
   intermissionImageIds,
@@ -55,6 +56,7 @@ import { ImageRejected, inspectImage } from '../lib/images.js';
 import { validate } from '../lib/validate.js';
 import { inspectVideo, VideoRejected } from '../lib/videos.js';
 import { BINARY_BODY, checkRole, requireBinaryBody, requireRole } from '../security.js';
+import { playersUsingAsset, publicPlayerMedia } from '../roster.js';
 import { publicSponsors, requireOwnSponsors, requireSponsorRoom } from '../sponsors.js';
 import {
   adminTenantId,
@@ -263,6 +265,9 @@ export async function assetUse(tx: Tx, tenantId: string, id: string): Promise<st
     return 'Immagine in uso nelle pause: toglila dalla diapositiva sponsor o da «Dopo la partita» prima di eliminarla';
   if (overlayBackgrounds(resolveOverlays(tenant?.overlays)).some((b) => b.assetId === id))
     return 'File in uso come sfondo di un avviso: toglilo dall’avviso prima di eliminarlo';
+  const [player] = await playersUsingAsset(tx, tenantId, id);
+  if (player)
+    return `File in uso da ${player.lastName} ${player.firstName} della rosa: toglilo da «Foto e video» del giocatore prima di eliminarlo`;
   const [fixture] = await tx
     .select({ id: clientFixtures.id })
     .from(clientFixtures)
@@ -389,6 +394,7 @@ export function brandingPublicRoutes(app: FastifyInstance, ctx: AppContext): voi
       intermissions,
       overlays: resolveOverlays(tenant.overlays),
       sponsors: sponsorList,
+      players: await publicPlayerMedia(ctx.db, tenant.id),
     };
   });
 
@@ -629,7 +635,8 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
   const adminBeforeBody = checkRole(ctx, 'admin');
 
   /**
-   * Upload of a video for the backgrounds of the overlays: the bytes of the file as the body
+   * Upload of a video for the backgrounds of the overlays, or for the players of the roster with `?kind=player`
+   * (VideoUploadQuerySchema): the bytes of the file as the body
    * (`application/octet-stream`), type recognized from the bytes (MP4 with an ISO brand or WebM, anything else 422),
    * at most VIDEO_MAX_BYTES (413, checked before reading when the length is declared), within the quota of the client
    * (409). Session and role are checked before the body is read. Same file again: the video already stored (200).
@@ -643,12 +650,15 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       preParsing: async (request, _reply, payload) => {
         await adminBeforeBody(request);
         requireBinaryBody(request);
+        // A use not valid is refused before the bytes are read.
+        validate(VideoUploadQuerySchema, request.query);
         if (Number(request.headers['content-length']) > VIDEO_MAX_BYTES) throw videoTooLarge();
         return payload;
       },
     },
     async (request, reply): Promise<AssetSummary> => {
       const tenantId = adminTenantId(request);
+      const { kind } = validate(VideoUploadQuerySchema, request.query);
       const name = uploadedFileName(request.headers[FILE_NAME_HEADER]);
       const data = request.body;
       if (!Buffer.isBuffer(data) || data.length === 0) throw badRequest('Richiesta non valida: nessun file');
@@ -665,7 +675,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       }
       const { row, created } = await ctx.db.transaction(async (tx) => {
         await lockClientAssets(tx, tenantId);
-        return storeAsset(ctx, tx, tenantId, 'overlay', data, info, name);
+        return storeAsset(ctx, tx, tenantId, kind, data, info, name);
       });
       if (created) request.log.info({ assetId: row.id, mime: row.mime, bytes: row.bytes }, 'video caricato');
       void reply.code(created ? 201 : 200);

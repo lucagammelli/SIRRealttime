@@ -48,6 +48,7 @@ const tenant = (branding: Partial<PublicTenantResponse['branding']>): PublicTena
   intermissions: defaultIntermissions(),
   overlays: defaultOverlays(),
   sponsors: [],
+  players: [],
 });
 
 const rootVar = (name: string): string => document.documentElement.style.getPropertyValue(name);

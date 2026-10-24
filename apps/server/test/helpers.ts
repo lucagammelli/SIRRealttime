@@ -81,6 +81,7 @@ export async function startServer(
       shortCodeInvalidTotal: 10_000,
       agentDownload: 10_000,
       leagueSync: 10_000,
+      rosterImport: 10_000,
       passwordReset: 10_000,
       ...rateLimits,
     },

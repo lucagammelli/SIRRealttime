@@ -20,6 +20,8 @@ import {
   assets,
   matches,
   MIGRATIONS_FOLDER,
+  playerMedia,
+  players,
   shareTokens,
   systemLogos,
   tenants,
@@ -353,6 +355,77 @@ describe('migration 0020: names of the uploaded files', () => {
     const rows = await client.query<{ sha256: string; name?: string }>('select * from assets');
     expect(rows.rows).toHaveLength(1);
     expect(rows.rows[0]?.name).toBeUndefined();
+  });
+});
+
+describe('migrations 0021-0022: roster of the club', () => {
+  it('keeps the files already uploaded, keeps one number per active player and follows the files of the library', async () => {
+    const client = new PGlite();
+    cleanup.push(() => client.close());
+    const db = drizzle({ client, schema });
+    await migrate(db, { migrationsFolder: await migrationsUpTo('0020_nomi_file') });
+    await client.exec(`
+      insert into assets (tenant_id, kind, sha256, mime, width, height, bytes)
+        select id, 'overlay', repeat('a', 64), 'image/png', 10, 10, 100 from tenants;
+    `);
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    expect((await db.select({ kind: assets.kind }).from(assets)).map((a) => a.kind)).toEqual(['overlay']);
+    await client.exec(`
+      insert into assets (tenant_id, kind, sha256, mime, width, height, bytes)
+        select id, 'player', repeat('b', 64), 'image/jpeg', 90, 120, 8000 from tenants;
+    `);
+    const [tenant] = await db.select({ id: tenants.id }).from(tenants);
+    const [photo] = await db.select().from(assets).where(eq(assets.kind, 'player'));
+    if (!tenant || !photo) throw new Error('missing rows');
+    const [p] = await db
+      .insert(players)
+      .values({
+        tenantId: tenant.id,
+        season: 2026,
+        number: 4,
+        firstName: 'Mathis',
+        lastName: 'Henno',
+        externalKey: 'HEN-MAT-05',
+        source: 'league',
+        photoAssetId: photo.id,
+      })
+      .returning();
+    if (!p) throw new Error('no player');
+    expect(p).toMatchObject({ editedFields: [], removedAt: null, role: null, position: 0 });
+    const row = (over: Record<string, unknown>) => ({
+      tenantId: tenant.id,
+      season: 2026,
+      number: 5,
+      firstName: 'A',
+      lastName: 'B',
+      source: 'manual' as const,
+      ...over,
+    });
+    // Same number, same key in the season: refused; another season: fine.
+    await expect(db.insert(players).values(row({ number: 4 }))).rejects.toThrow();
+    await expect(db.insert(players).values(row({ externalKey: 'HEN-MAT-05' }))).rejects.toThrow();
+    await db.insert(players).values(row({ season: 2025, number: 4, externalKey: 'HEN-MAT-05' }));
+    for (const bad of [
+      { number: 100 },
+      { firstName: '' },
+      { lastName: 'x'.repeat(61) },
+      { heightCm: 300 },
+      { nationality: 'ITAL' },
+    ])
+      await expect(db.insert(players).values(row(bad))).rejects.toThrow();
+    await expect(
+      client.exec(`insert into players (tenant_id, season, number, first_name, last_name, source, role)
+      select id, 2026, 6, 'a', 'b', 'manual', 'coach' from tenants`),
+    ).rejects.toThrow();
+    // A removed player leaves its number free.
+    await db.update(players).set({ removedAt: new Date() }).where(eq(players.id, p.id));
+    await db.insert(players).values(row({ number: 4 }));
+    // The files: a player deleted takes its media away, a file deleted leaves the player without it.
+    await db.insert(playerMedia).values({ tenantId: tenant.id, playerId: p.id, assetId: photo.id, position: 0 });
+    await db.delete(assets).where(eq(assets.id, photo.id));
+    const [after] = await db.select().from(players).where(eq(players.id, p.id));
+    expect(after?.photoAssetId).toBeNull();
+    expect(await db.select().from(playerMedia)).toEqual([]);
   });
 });
 

@@ -148,6 +148,20 @@
       "when": 1792784177701,
       "tag": "0020_nomi_file",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792836740120,
+      "tag": "0021_foto_giocatori",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792836757938,
+      "tag": "0022_rosa",
+      "breakpoints": true
     }
   ]
 }

@@ -6,10 +6,11 @@ import type { FastifyBaseLogger } from 'fastify';
 import { writeLeagueLogoFile } from '../assetStore.js';
 import type { Db } from '../db/index.js';
 import { fixtures, leagueHttpCache, leagues, leagueTeams, standings, teamLogos } from '../db/index.js';
+import type { ImageInfo } from '../lib/images.js';
 import { ImageRejected, inspectImage } from '../lib/images.js';
 import type { DownloadKind, LeagueFetcher, Validators } from './fetcher.js';
 import { decodePage, LeagueFetchError } from './fetcher.js';
-import type { ParsedCalendar, ParsedFixture, ParsedStandings } from './legavolley.js';
+import type { ParsedCalendar, ParsedFixture, ParsedRosterPlayer, ParsedStandings } from './legavolley.js';
 import {
   calendarUrl,
   LeagueFormatError,
@@ -18,7 +19,9 @@ import {
   MAX_PHASES,
   parseCalendar,
   parseStandings,
+  parseRoster,
   parseTeam,
+  playerPhotoUrl,
   standingsUrl,
   teamUrl,
 } from './legavolley.js';
@@ -130,6 +133,34 @@ export class LeagueService {
   async syncLeague(leagueId: string, options: SyncOptions = {}): Promise<SyncResult | 'busy'> {
     const run = await this.begin(leagueId, options);
     return run ? run.done : 'busy';
+  }
+
+  /**
+   * The players of the table «Roster» of the page of a team (`parseRoster`), read now (never from the cache: the
+   * import is asked by the club). LeagueFetchError / LeagueFormatError when the site does not answer or changed.
+   */
+  async fetchRoster(teamExternalId: number): Promise<ParsedRosterPlayer[]> {
+    const res = await this.page(teamUrl(teamExternalId), false);
+    if (!res) throw new LeagueFormatError('Risposta inattesa del sito');
+    return parseRoster(res.text);
+  }
+
+  /**
+   * The photo of a player of a team, checked from its bytes (PNG, JPEG, WebP): null when the site has none (it answers
+   * a text, or a tiny placeholder). LeagueFetchError when the site does not answer.
+   */
+  async fetchPlayerPhoto(key: string, teamExternalId: number): Promise<{ data: Buffer; info: ImageInfo } | null> {
+    const res = await this.o.fetcher.get(playerPhotoUrl(key, teamExternalId), 'photo');
+    if (res.status === 'not-modified') return null;
+    let info: ImageInfo;
+    try {
+      info = inspectImage(res.body);
+    } catch (err) {
+      if (err instanceof ImageRejected) return null;
+      throw err;
+    }
+    if (info.width < LOGO_MIN_SIDE || info.height < LOGO_MIN_SIDE) return null;
+    return { data: res.body, info };
   }
 
   /** Resolves when no update started here is running. */

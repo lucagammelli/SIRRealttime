@@ -1,5 +1,15 @@
-import type { FixtureStatus, LeaguePhase } from '@arenalive/shared';
-import { LEAGUE_MAX_EXTERNAL_ID } from '@arenalive/shared';
+import type { FixtureStatus, LeaguePhase, PlayerRole } from '@arenalive/shared';
+import {
+  LEAGUE_MAX_EXTERNAL_ID,
+  PLAYER_BIRTH_YEAR_MAX,
+  PLAYER_BIRTH_YEAR_MIN,
+  PLAYER_BIRTHPLACE_MAX,
+  PLAYER_HEIGHT_MAX,
+  PLAYER_HEIGHT_MIN,
+  PLAYER_NAME_MAX,
+  PLAYERS_MAX,
+  roleFromLeague,
+} from '@arenalive/shared';
 import type { HtmlElement, HtmlTable, TableRow } from './html.js';
 import { byId, byTag, extractTables, findAll, findFirst, parseHtml, selectOptions, textOf } from './html.js';
 import { romeToUtc } from './romeTime.js';
@@ -13,7 +23,13 @@ import { romeToUtc } from './romeTime.js';
 export const LEGAVOLLEY_ORIGIN = 'https://www.legavolley.it';
 
 /** Paths the connector may request (prefixes). */
-export const LEGAVOLLEY_ALLOWED_PATHS = ['/calendario/', '/classifica/', '/team/', '/GetLogo.aspx'] as const;
+export const LEGAVOLLEY_ALLOWED_PATHS = [
+  '/calendario/',
+  '/classifica/',
+  '/team/',
+  '/GetLogo.aspx',
+  '/Foto.aspx',
+] as const;
 
 /** Disallowed by https://www.legavolley.it/robots.txt (checked 2026-10-16): never requested. */
 export const LEGAVOLLEY_ROBOTS_DISALLOWED = [
@@ -104,6 +120,15 @@ export function logoUrl(teamId: number): URL {
     Key: requireId(teamId, 'team'),
     Char: 'False',
   });
+}
+
+/** Key of a player on the site (`HEN-MAT-05`): capital letters and digits in 2 to 4 parts. */
+export const PLAYER_KEY_PATTERN = /^[A-Z0-9]{1,8}(-[A-Z0-9]{1,8}){1,3}$/;
+
+/** Photo of a player of a team (600 px high: a JPEG of about 130 KB). Throws RangeError for a key not valid. */
+export function playerPhotoUrl(key: string, teamId: number): URL {
+  if (!PLAYER_KEY_PATTERN.test(key)) throw new RangeError('invalid player key');
+  return url('/Foto.aspx', { Key: key, sqid: requireId(teamId, 'team'), heightImg: 600 });
 }
 
 /**
@@ -533,4 +558,101 @@ export function parseChampionshipLinkIds(html: string): number[] {
     if (validId(id) && !ids.includes(id)) ids.push(id);
   }
   return ids;
+}
+
+export interface ParsedRosterPlayer {
+  /** Key of the player on the site (`HEN-MAT-05`, PLAYER_KEY_PATTERN). */
+  key: string;
+  number: number;
+  firstName: string;
+  lastName: string;
+  role: PlayerRole | null;
+  birthYear: number | null;
+  heightCm: number | null;
+  birthplace: string | null;
+  nationality: string | null;
+}
+
+const isUpperWord = (w: string): boolean => /\p{Lu}/u.test(w) && w === w.toLocaleUpperCase('it-IT');
+/** «D'AMICO» → «D'Amico», «DE CECCO» → «De Cecco». */
+const titleCase = (w: string): string =>
+  w
+    .toLocaleLowerCase('it-IT')
+    .replace(/(^|['’-])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toLocaleUpperCase('it-IT'));
+const clipName = (text: string): string => [...text].slice(0, PLAYER_NAME_MAX).join('').trim();
+
+/**
+ * Pure: «HENNO Mathis» → surname «Henno», name «Mathis» (the site writes the surname in capitals, first); a single word
+ * is both; null for an empty text.
+ */
+export function splitPlayerName(text: string): { firstName: string; lastName: string } | null {
+  const words = text.replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+  if (words.length === 0) return null;
+  let cut = 0;
+  while (cut < words.length && isUpperWord(words[cut] ?? '')) cut++;
+  let surname: string[];
+  let name: string[];
+  if (cut === 0 && words.length > 1) {
+    // No word in capitals: «Mario Rossi», the last word is the surname.
+    surname = words.slice(-1);
+    name = words.slice(0, -1);
+  } else if (cut === words.length && words.length > 1) {
+    // Every word in capitals: the last one is the name.
+    surname = words.slice(0, -1);
+    name = words.slice(-1);
+  } else {
+    surname = words.slice(0, Math.max(cut, 1));
+    name = words.slice(Math.max(cut, 1));
+  }
+  const lastName = clipName(surname.map(titleCase).join(' '));
+  const firstName = clipName(
+    (name.length > 0 ? name : surname).map((w) => (isUpperWord(w) ? titleCase(w) : w)).join(' '),
+  );
+  return lastName && firstName ? { firstName, lastName } : null;
+}
+
+const intIn = (text: string | undefined, min: number, max: number): number | null => {
+  const t = text?.trim() ?? '';
+  if (!/^\d{1,4}$/.test(t)) return null;
+  const n = Number(t);
+  return n >= min && n <= max ? n : null;
+};
+
+/**
+ * Pure: the players of the table «Roster» of a team page (`/team/<id>`): number, name, role, year and place of birth,
+ * height and sports nationality; only the rows with a link to `/player/<key>` (never the staff), each key once, at
+ * most PLAYERS_MAX. Throws LeagueFormatError when the page has no table «Roster».
+ */
+export function parseRoster(html: string): ParsedRosterPlayer[] {
+  const doc = parseHtml(html);
+  const table = extractTables(doc).find((t) => t.attrs.id === 'roster');
+  if (!table) throw new LeagueFormatError('La pagina della squadra della Lega è cambiata: manca la tabella «Roster»');
+  const out: ParsedRosterPlayer[] = [];
+  for (const row of table.rows) {
+    const cell = (cls: string) => row.cells.find((c) => (c.attrs.class ?? '').split(/\s+/).includes(cls));
+    const nameCell = cell('nome');
+    const link = nameCell
+      ? findFirst(nameCell.element, (el) => el.name === 'a' && (el.attrs.href ?? '').startsWith('/player/'))
+      : null;
+    if (!nameCell || !link) continue;
+    const key = (link.attrs.href ?? '').slice('/player/'.length).trim();
+    if (!PLAYER_KEY_PATTERN.test(key) || out.some((p) => p.key === key)) continue;
+    const number = intIn(cell('num-maglia')?.text, 0, 99);
+    const name = splitPlayerName(textOf(link));
+    if (number === null || !name) continue;
+    const nationality = cell('naz-sportiva')?.text.trim().toUpperCase() ?? '';
+    const birthplace = cell('luogo-nascita')?.text.trim() ?? '';
+    out.push({
+      key,
+      number,
+      ...name,
+      role: roleFromLeague(cell('ruolo')?.text ?? ''),
+      birthYear: intIn(cell('nascita')?.text, PLAYER_BIRTH_YEAR_MIN, PLAYER_BIRTH_YEAR_MAX),
+      heightCm: intIn(cell('altezza')?.text, PLAYER_HEIGHT_MIN, PLAYER_HEIGHT_MAX),
+      birthplace: birthplace ? [...birthplace].slice(0, PLAYER_BIRTHPLACE_MAX).join('') : null,
+      nationality: /^[A-Z]{1,3}$/.test(nationality) ? nationality : null,
+    });
+    if (out.length >= PLAYERS_MAX) break;
+  }
+  return out;
 }

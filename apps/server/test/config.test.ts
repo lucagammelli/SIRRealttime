@@ -25,6 +25,7 @@ describe('loadConfig', () => {
         shortCodeInvalidTotal: 1000,
         agentDownload: 10,
         leagueSync: 6,
+        rosterImport: 3,
         passwordReset: 10,
       },
       socketLimits: { perIp: 2000, total: 6000 },
@@ -81,6 +82,7 @@ describe('loadConfig', () => {
       shortCodeInvalidTotal: 500,
       agentDownload: 3,
       leagueSync: 2,
+      rosterImport: 3,
       passwordReset: 10,
     });
     for (const value of ['0', '-1', '1.5', 'abc', '100001']) {

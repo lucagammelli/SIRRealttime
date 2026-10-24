@@ -1,9 +1,10 @@
-import type { MatchEventKind, Side } from '@arenalive/volley-stats';
+import type { MatchEvent, MatchEventKind, Side } from '@arenalive/volley-stats';
 import { MATCH_EVENT_KINDS, MATCH_EVENT_PRIORITY } from '@arenalive/volley-stats';
 import { z } from 'zod';
 import { AssetIdSchema } from './assets.js';
 import { TENANT_CONFIG_VERSION } from './configVersion.js';
 import type { LayoutDevice } from './layout.js';
+import type { PublicPlayerMedia } from './players.js';
 import { plainText } from './strings.js';
 
 /**
@@ -149,6 +150,73 @@ export function backgroundForTeam(
   return background;
 }
 
+/** Overlays of an action of one player (ace, block, substitution: who comes in): they can show its photo or video. */
+export const OVERLAY_PLAYER_KINDS = ['ace', 'block', 'substitution'] as const satisfies readonly MatchEventKind[];
+export type OverlayPlayerKind = (typeof OVERLAY_PLAYER_KINDS)[number];
+export const isOverlayPlayerKind = (kind: string): kind is OverlayPlayerKind =>
+  (OVERLAY_PLAYER_KINDS as readonly string[]).includes(kind);
+
+/** What the overlay of an action of a player of our team shows: its photo or its video. */
+export const OVERLAY_PLAYER_SOURCES = ['photo', 'video'] as const;
+/** Which one: the main one (main photo, first video) or one at random. */
+export const OVERLAY_PLAYER_PICKS = ['default', 'random'] as const;
+
+/**
+ * Photo or video of the player of our team behind the overlay of its action (OVERLAY_PLAYER_KINDS), from the roster
+ * («Squadra»); `audio`, `fit` and `duration` as for a video background. Missing (the documents saved before): the fixed
+ * background of the overlay.
+ */
+export const OverlayPlayerMediaSchema = z.strictObject({
+  source: z.enum(OVERLAY_PLAYER_SOURCES),
+  pick: z.enum(OVERLAY_PLAYER_PICKS).default('default'),
+  audio: z.boolean().default(false),
+  fit: z.enum(OVERLAY_VIDEO_FITS).default('center'),
+  duration: z.enum(OVERLAY_VIDEO_DURATIONS).default('seconds'),
+});
+export type OverlayPlayerMedia = z.output<typeof OverlayPlayerMediaSchema>;
+
+/** Pure: a number 0..n-1 from a text (FNV-1a), the same for the same text: the «random» pick of an event never changes. */
+function seededIndex(text: string, n: number): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return n > 0 ? h % n : 0;
+}
+
+/**
+ * Pure: the photo or video of the player of an event behind its overlay, as a background: only for the overlays of
+ * OVERLAY_PLAYER_KINDS with `playerMedia`, an event of a player of our team (`ourSide` known) and a player of the roster
+ * with that shirt number. A video only when `videos` (not on the phone nor with reduced motion) and the player has one,
+ * otherwise its photo; `random` picks with a seed from the id of the event. undefined when there is nothing: the fixed
+ * background of the overlay (or the text only) is used.
+ */
+export function playerBackground(
+  overlay: { playerMedia?: OverlayPlayerMedia | undefined },
+  event: Pick<MatchEvent, 'id' | 'kind' | 'team' | 'player'>,
+  ourSide: Side | null,
+  players: readonly PublicPlayerMedia[],
+  options: { videos: boolean },
+): OverlayBackground | undefined {
+  const pm = overlay.playerMedia;
+  if (!pm || !isOverlayPlayerKind(event.kind) || !event.player || ourSide === null || event.team !== ourSide)
+    return undefined;
+  const number = event.player.number;
+  const player = players.find((p) => p.number === number);
+  if (!player) return undefined;
+  const pick = (ids: readonly string[]): string | undefined =>
+    pm.pick === 'random' ? ids[seededIndex(event.id, ids.length)] : ids[0];
+  const common = { audio: pm.audio, fit: pm.fit, teams: 'ours' as const };
+  if (pm.source === 'video' && options.videos) {
+    const video = pick(player.videos);
+    if (video) return { kind: 'video', assetId: video, ...common, duration: pm.duration };
+  }
+  const photos = player.photo ? [player.photo, ...player.images] : player.images;
+  const photo = pick(photos);
+  return photo ? { kind: 'image', assetId: photo, ...common, duration: 'seconds' } : undefined;
+}
+
 interface OverlayDefaults {
   enabled: boolean;
   text: string;
@@ -200,6 +268,11 @@ const overlaySchema = (kind: OverlayKind) => {
     size: z.enum(OVERLAY_SIZES).optional(),
     /** Image or video behind the text; missing: only the text (the documents saved before stay valid). */
     background: OverlayBackgroundSchema.optional(),
+    /**
+     * Photo or video of the player of our team (only OVERLAY_PLAYER_KINDS; ignored by the others); missing: the fixed
+     * background.
+     */
+    playerMedia: OverlayPlayerMediaSchema.optional(),
   });
 };
 export type Overlay = z.output<ReturnType<typeof overlaySchema>>;

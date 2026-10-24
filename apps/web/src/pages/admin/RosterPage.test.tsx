@@ -138,9 +138,76 @@ describe('page «Squadra»', () => {
     expect(rossi.textContent).toContain('Schiacciatore');
     expect(within(rossi).getAllByText('(modificato a mano)')).toHaveLength(2);
     expect(rossi.querySelector('img')?.getAttribute('src')).toBe(`/api/admin/assets/${PHOTO}/file`);
+    expect(rossi.querySelectorAll('img')).toHaveLength(1);
     const other = within(table).getByText('Cognome3').closest('tr') as HTMLElement;
     expect(within(other).queryByText('(modificato a mano)')).toBeNull();
     expect(screen.getByText('Stagione 2026/2027')).toBeTruthy();
+  });
+
+  it('shows small thumbnails of the photos and videos of each player, «Nessuno» when there are none', async () => {
+    mockApi(() => ({
+      body: rosterOf([
+        player(8, {
+          lastName: 'Rossi',
+          photo: item(PHOTO, false, 'Rossi in posa'),
+          media: [item(SHOT, false, 'Rossi in schiacciata'), item(CLIP, true, 'Rossi muro')],
+        }),
+        player(3),
+      ]),
+    }));
+    renderAs('viewer', <RosterPage />);
+    const table = await screen.findByRole('table', { name: 'Giocatori della squadra' });
+    const rossi = within(table).getByText('Rossi').closest('tr') as HTMLElement;
+    const main = within(rossi).getByAltText('Foto principale di Rossi Mario: Rossi in posa');
+    expect(main.getAttribute('loading')).toBe('lazy');
+    expect(main.className).toContain('ring-primary');
+    expect(main.className).toContain('size-10');
+    expect(rossi.querySelectorAll('img')).toHaveLength(2);
+    expect(main.parentElement?.getAttribute('title')).toBe('Foto principale: Rossi in posa');
+    const other = within(rossi).getByAltText('Foto di Rossi Mario: Rossi in schiacciata');
+    expect(other.className).not.toContain('ring-primary');
+    const video = rossi.querySelector('video') as HTMLVideoElement;
+    expect(video.getAttribute('aria-label')).toBe('Video di Rossi Mario: Rossi muro');
+    expect(video.parentElement?.getAttribute('title')).toBe('Rossi muro');
+    expect(video.hasAttribute('autoplay')).toBe(false);
+    expect(video.getAttribute('preload')).toBe('metadata');
+    const empty = within(table).getByText('Cognome3').closest('tr') as HTMLElement;
+    expect(within(empty).getByText('Nessuno')).toBeTruthy();
+  });
+
+  it('the form opens in a side panel (dialog) and closes with Esc, a click outside or «Annulla», focus back', async () => {
+    mockApi(() => ({ body: rosterOf([player(8, { lastName: 'Rossi' })]) }));
+    renderAs('admin', <RosterPage />);
+    const opener = await screen.findByRole('button', { name: 'Modifica Rossi Mario' });
+    opener.focus();
+    fireEvent.click(opener);
+    const dialog = screen.getByRole('dialog', { name: 'Modifica Rossi Mario' });
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    expect(document.activeElement).toBe(screen.getByLabelText('Numero'));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(opener);
+    fireEvent.click(opener);
+    fireEvent.click(screen.getByRole('dialog').parentElement as HTMLElement);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(opener);
+    fireEvent.click(screen.getByRole('button', { name: 'Chiudi' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(opener);
+    fireEvent.click(screen.getByRole('button', { name: 'Annulla' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi giocatore' }));
+    expect(screen.getByRole('dialog', { name: 'Aggiungi giocatore' })).toBeTruthy();
+  });
+
+  it('Tab stays inside the side panel', async () => {
+    mockApi(() => ({ body: rosterOf([player(8, { lastName: 'Rossi' })]) }));
+    renderAs('admin', <RosterPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Modifica Rossi Mario' }));
+    const cancel = screen.getByRole('button', { name: 'Annulla' });
+    cancel.focus();
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Tab' });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Chiudi' }));
   });
 
   it('an error of the server is shown in Italian, with «Riprova»', async () => {

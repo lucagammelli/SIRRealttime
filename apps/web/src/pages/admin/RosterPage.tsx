@@ -4,6 +4,7 @@ import type {
   ImportRosterResponse,
   Player,
   PlayerEditableField,
+  PlayerMediaItem,
   PlayerRole,
   RosterResponse,
   UpdatePlayerRequest,
@@ -26,6 +27,7 @@ import {
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
+import { Drawer } from '../../components/Drawer.tsx';
 import { Button, Card, Empty, ErrorBox, Spinner } from '../../components/ui.tsx';
 import { apiCommand, apiRequest } from '../../lib/api.ts';
 import { useAsync } from '../../lib/useAsync.ts';
@@ -181,81 +183,75 @@ function PlayerForm({
   };
 
   return (
-    <Card title={player ? `Modifica ${playerFullName(player)}` : 'Aggiungi giocatore'}>
-      <form className="space-y-3" onSubmit={(e) => void submit(e)}>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Field label="Numero">
-            <input
-              className={inputClass}
-              inputMode="numeric"
-              value={draft.number}
-              onChange={(e) => set('number', e.target.value)}
-            />
-          </Field>
-          <Field label="Cognome">
-            <input className={inputClass} value={draft.lastName} onChange={(e) => set('lastName', e.target.value)} />
-          </Field>
-          <Field label="Nome">
-            <input className={inputClass} value={draft.firstName} onChange={(e) => set('firstName', e.target.value)} />
-          </Field>
-          <Field label="Ruolo">
-            <select className={inputClass} value={draft.role} onChange={(e) => set('role', e.target.value)}>
-              <option value="">Non indicato</option>
-              {PLAYER_ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {PLAYER_ROLE_LABELS[r]}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Anno di nascita">
-            <input
-              className={inputClass}
-              inputMode="numeric"
-              value={draft.birthYear}
-              onChange={(e) => set('birthYear', e.target.value)}
-            />
-          </Field>
-          <Field label="Altezza (cm)">
-            <input
-              className={inputClass}
-              inputMode="numeric"
-              value={draft.heightCm}
-              onChange={(e) => set('heightCm', e.target.value)}
-            />
-          </Field>
-          <Field label="Luogo di nascita">
-            <input
-              className={inputClass}
-              value={draft.birthplace}
-              onChange={(e) => set('birthplace', e.target.value)}
-            />
-          </Field>
-          <Field label="Nazionalità" hint="Tre lettere, come ITA.">
-            <input
-              className={inputClass}
-              maxLength={3}
-              value={draft.nationality}
-              onChange={(e) => set('nationality', e.target.value)}
-            />
-          </Field>
-        </div>
-        {player && (
-          <p className="text-xs text-muted">
-            I campi che cambi restano come li scrivi: una nuova importazione dal sito della Lega non li sovrascrive.
-          </p>
-        )}
-        {error && <ErrorBox>{error}</ErrorBox>}
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" disabled={busy}>
-            {busy ? 'Salvataggio…' : player ? 'Salva giocatore' : 'Aggiungi'}
-          </Button>
-          <Button onClick={onCancel} disabled={busy}>
-            Annulla
-          </Button>
-        </div>
-      </form>
-    </Card>
+    <form className="space-y-3" onSubmit={(e) => void submit(e)}>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Field label="Numero">
+          <input
+            className={inputClass}
+            inputMode="numeric"
+            value={draft.number}
+            onChange={(e) => set('number', e.target.value)}
+          />
+        </Field>
+        <Field label="Cognome">
+          <input className={inputClass} value={draft.lastName} onChange={(e) => set('lastName', e.target.value)} />
+        </Field>
+        <Field label="Nome">
+          <input className={inputClass} value={draft.firstName} onChange={(e) => set('firstName', e.target.value)} />
+        </Field>
+        <Field label="Ruolo">
+          <select className={inputClass} value={draft.role} onChange={(e) => set('role', e.target.value)}>
+            <option value="">Non indicato</option>
+            {PLAYER_ROLES.map((r) => (
+              <option key={r} value={r}>
+                {PLAYER_ROLE_LABELS[r]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Anno di nascita">
+          <input
+            className={inputClass}
+            inputMode="numeric"
+            value={draft.birthYear}
+            onChange={(e) => set('birthYear', e.target.value)}
+          />
+        </Field>
+        <Field label="Altezza (cm)">
+          <input
+            className={inputClass}
+            inputMode="numeric"
+            value={draft.heightCm}
+            onChange={(e) => set('heightCm', e.target.value)}
+          />
+        </Field>
+        <Field label="Luogo di nascita">
+          <input className={inputClass} value={draft.birthplace} onChange={(e) => set('birthplace', e.target.value)} />
+        </Field>
+        <Field label="Nazionalità" hint="Tre lettere, come ITA.">
+          <input
+            className={inputClass}
+            maxLength={3}
+            value={draft.nationality}
+            onChange={(e) => set('nationality', e.target.value)}
+          />
+        </Field>
+      </div>
+      {player && (
+        <p className="text-xs text-muted">
+          I campi che cambi restano come li scrivi: una nuova importazione dal sito della Lega non li sovrascrive.
+        </p>
+      )}
+      {error && <ErrorBox>{error}</ErrorBox>}
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" variant="primary" disabled={busy}>
+          {busy ? 'Salvataggio…' : player ? 'Salva giocatore' : 'Aggiungi'}
+        </Button>
+        <Button onClick={onCancel} disabled={busy}>
+          Annulla
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -323,10 +319,8 @@ function MediaEditor({
   };
 
   return (
-    <Card
-      title={`Foto e video di ${playerFullName(player)}`}
-      subtitle="Si scelgono tra i file della libreria caricati per i giocatori."
-    >
+    <div className="space-y-3">
+      <p className="text-sm text-muted">Si scelgono tra i file della libreria caricati per i giocatori.</p>
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <LibraryLink />
@@ -391,7 +385,63 @@ function MediaEditor({
           </Button>
         </div>
       </div>
-    </Card>
+    </div>
+  );
+}
+
+/** Pure: the title of the side panel. */
+export const panelTitle = (kind: Panel['kind'], player: Player | undefined): string => {
+  if (kind === 'new' || !player) return 'Aggiungi giocatore';
+  return kind === 'edit' ? `Modifica ${playerFullName(player)}` : `Foto e video di ${playerFullName(player)}`;
+};
+
+/** Small thumbnail of a photo or video of a player (the name of the file on hover); no video is played. */
+function MediaThumb({ item, main, who }: { item: PlayerMediaItem; main: boolean; who: string }) {
+  const name = item.name ?? 'senza nome';
+  const ring = main ? 'ring-2 ring-primary' : 'ring-1 ring-border';
+  const label = `${item.video ? 'Video' : main ? 'Foto principale' : 'Foto'} di ${who}: ${name}`;
+  return (
+    <span className="relative inline-block shrink-0" title={`${main ? 'Foto principale: ' : ''}${name}`}>
+      {item.video ? (
+        <video
+          src={`${item.url}#t=0.1`}
+          muted
+          playsInline
+          preload="metadata"
+          aria-label={label}
+          className={`${main ? 'size-10' : 'size-8'} rounded object-cover ${ring}`}
+        />
+      ) : (
+        <img
+          src={item.url}
+          alt={label}
+          loading="lazy"
+          className={`${main ? 'size-10' : 'size-8'} rounded object-cover ${ring}`}
+        />
+      )}
+      {item.video && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center text-[10px] text-white [text-shadow:0_0_3px_black]"
+        >
+          ▶
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** «Foto e video» of a row: the main photo highlighted, then the others; «Nessuno» when the player has none. */
+function MediaCell({ player }: { player: Player }) {
+  const who = playerFullName(player);
+  if (!player.photo && player.media.length === 0) return <span className="text-xs text-muted">Nessuno</span>;
+  return (
+    <span className="flex max-w-[14rem] flex-wrap items-center gap-1">
+      {player.photo && <MediaThumb item={player.photo} main who={who} />}
+      {player.media.map((m) => (
+        <MediaThumb key={m.assetId} item={m} main={false} who={who} />
+      ))}
+    </span>
   );
 }
 
@@ -447,6 +497,7 @@ export function RosterPage() {
   const [importing, setImporting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const closePanel = useCallback(() => setPanel(null), []);
 
   const loadRoster = useCallback(
     (signal: AbortSignal) =>
@@ -617,13 +668,10 @@ export function RosterPage() {
           </Empty>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-left">
+            <table className="w-full min-w-[48rem] text-left">
               <caption className="sr-only">Giocatori della squadra</caption>
               <thead className="text-xs text-muted">
                 <tr>
-                  <th scope="col" className="px-2 py-1">
-                    <span className="sr-only">Foto</span>
-                  </th>
                   <th scope="col" className="px-2 py-1">
                     N°
                   </th>
@@ -646,6 +694,9 @@ export function RosterPage() {
                     Naz.
                   </th>
                   <th scope="col" className="px-2 py-1">
+                    Foto e video
+                  </th>
+                  <th scope="col" className="px-2 py-1">
                     <span className="sr-only">Azioni</span>
                   </th>
                 </tr>
@@ -653,19 +704,6 @@ export function RosterPage() {
               <tbody className="divide-y divide-grid">
                 {shown.map((p) => (
                   <tr key={p.id} className={p.removed ? 'opacity-60' : ''}>
-                    <td className={cell}>
-                      {p.photo ? (
-                        <img src={p.photo.url} alt="" className="size-10 rounded-full object-cover" />
-                      ) : (
-                        <span
-                          aria-hidden="true"
-                          className="flex size-10 items-center justify-center rounded-full bg-surface-2 text-xs text-muted"
-                        >
-                          {p.number}
-                        </span>
-                      )}
-                      {p.photo && <Edited player={p} field="photo" />}
-                    </td>
                     <td className={`${cell} tabular-nums`}>
                       {p.number}
                       <Edited player={p} field="number" />
@@ -695,6 +733,10 @@ export function RosterPage() {
                     <td className={cell}>
                       {p.nationality ?? '—'}
                       <Edited player={p} field="nationality" />
+                    </td>
+                    <td className={cell}>
+                      <MediaCell player={p} />
+                      <Edited player={p} field="photo" />
                     </td>
                     <td className={cell}>
                       {canEdit &&
@@ -732,9 +774,6 @@ export function RosterPage() {
                             />
                           </span>
                         ))}
-                      {!canEdit && (
-                        <span className="text-xs text-muted">{p.media.length > 0 ? `${p.media.length} file` : ''}</span>
-                      )}
                     </td>
                   </tr>
                 ))}
@@ -747,26 +786,28 @@ export function RosterPage() {
           abbinano a quelli del file di scout dal numero di maglia.
         </p>
       </Card>
-      {canEdit && panel?.kind === 'new' && <PlayerForm player={null} onSaved={saved} onCancel={() => setPanel(null)} />}
-      {canEdit && panel?.kind === 'edit' && editing && (
-        <PlayerForm key={editing.id} player={editing} onSaved={saved} onCancel={() => setPanel(null)} />
-      )}
-      {canEdit && panel?.kind === 'media' && editing && (
-        <>
-          {assets.error !== null && !assets.data ? (
-            <ErrorBox onRetry={assets.reload}>{errorMessage(assets.error)}</ErrorBox>
-          ) : !assets.data ? (
-            <Spinner label="Caricamento dei file della libreria…" />
-          ) : (
-            <MediaEditor
-              key={editing.id}
-              player={editing}
-              assets={assets.data.assets}
-              onSaved={saved}
-              onCancel={() => setPanel(null)}
-            />
+      {canEdit && panel && (panel.kind === 'new' || editing) && (
+        <Drawer title={panelTitle(panel.kind, editing)} onClose={closePanel}>
+          {panel.kind === 'new' && <PlayerForm player={null} onSaved={saved} onCancel={closePanel} />}
+          {panel.kind === 'edit' && editing && (
+            <PlayerForm key={editing.id} player={editing} onSaved={saved} onCancel={closePanel} />
           )}
-        </>
+          {panel.kind === 'media' &&
+            editing &&
+            (assets.error !== null && !assets.data ? (
+              <ErrorBox onRetry={assets.reload}>{errorMessage(assets.error)}</ErrorBox>
+            ) : !assets.data ? (
+              <Spinner label="Caricamento dei file della libreria…" />
+            ) : (
+              <MediaEditor
+                key={editing.id}
+                player={editing}
+                assets={assets.data.assets}
+                onSaved={saved}
+                onCancel={closePanel}
+              />
+            ))}
+        </Drawer>
       )}
     </div>
   );

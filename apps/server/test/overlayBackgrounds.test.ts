@@ -79,10 +79,10 @@ describe('upload of a video', () => {
   });
 
   it('refuses a file that is not a video (422), whatever its type, and one too large (413)', async () => {
-    for (const file of [png(10, 10), Buffer.from('<html><script>alert(1)</script></html>'), mp4(10, 10, 8, ['qt  '])]) {
+    for (const file of [png(10, 10), Buffer.from('<html><script>alert(1)</script></html>'), mp4(10, 10, 8, ['3gp4'])]) {
       const res = await uploadVideo(HOST_A, cookieA, file);
       expect(res.statusCode).toBe(422);
-      expect(res.json<{ error: string }>().error).toContain('MP4 o WebM');
+      expect(res.json<{ error: string }>().error).toContain('MP4, MOV o WebM');
     }
     const big = await uploadVideo(HOST_A, cookieA, mp4(10, 10, VIDEO_MAX_BYTES));
     expect(big.statusCode).toBe(413);

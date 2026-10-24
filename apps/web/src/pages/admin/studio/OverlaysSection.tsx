@@ -151,7 +151,7 @@ export function backgroundFiles(assets: readonly AssetSummary[], mode: OverlayBa
 
 /**
  * «Sfondo»: none, an image or a video behind the text, chosen among the files uploaded for the overlays or uploaded
- * here (an image as the logos, a video MP4 or WebM up to 15 MB: type and size checked before sending).
+ * here (an image as the logos, a video MP4, MOV or WebM up to 15 MB: type and size checked before sending).
  */
 function BackgroundSetting({
   label,

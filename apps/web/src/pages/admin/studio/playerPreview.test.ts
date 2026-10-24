@@ -43,6 +43,7 @@ describe('player media of an overlay (editor)', () => {
       audio: false,
       fit: 'center',
       duration: 'seconds',
+      showText: true,
     });
     const tuned = withPlayerOptions(video, { pick: 'random', audio: true });
     expect(withPlayerMode(tuned, 'photo').playerMedia).toMatchObject({ source: 'photo', pick: 'random', audio: true });

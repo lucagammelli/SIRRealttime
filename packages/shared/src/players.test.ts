@@ -123,7 +123,9 @@ describe('photo or video of the player behind an overlay', () => {
       audio: false,
       fit: 'center',
       duration: 'seconds',
+      showText: true,
     });
+    expect(OverlayPlayerMediaSchema.parse({ source: 'video', showText: false }).showText).toBe(false);
     expect(TenantOverlaysSchema.safeParse({ ace: { playerMedia: { source: 'gif' } } }).success).toBe(false);
     expect(playerBackground({}, event(), 'home', players, { videos: true })).toBeUndefined();
   });

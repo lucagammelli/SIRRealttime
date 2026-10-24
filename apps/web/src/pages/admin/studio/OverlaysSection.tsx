@@ -268,7 +268,7 @@ export function withPlayerMode(overlay: Overlay, mode: PlayerMode): Overlay {
 /** Pure: the overlay with some options of the player media changed (none set: unchanged). */
 export function withPlayerOptions(
   overlay: Overlay,
-  options: Partial<Pick<OverlayPlayerMedia, 'pick' | 'audio' | 'fit' | 'duration'>>,
+  options: Partial<Pick<OverlayPlayerMedia, 'pick' | 'audio' | 'fit' | 'duration' | 'showText'>>,
 ): Overlay {
   return overlay.playerMedia ? { ...overlay, playerMedia: { ...overlay.playerMedia, ...options } } : overlay;
 }
@@ -327,6 +327,32 @@ function PlayerMediaSetting({
               ))}
             </select>
           </label>
+          <label className="flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={pm.showText}
+              aria-label={`Mostra il testo sopra ${pm.source === 'video' ? 'il video' : 'la foto'} del giocatore: ${label}`}
+              onChange={(e) => onChange(withPlayerOptions(overlay, { showText: e.target.checked }))}
+            />
+            Mostra il testo sopra {pm.source === 'video' ? 'il video' : 'la foto'}
+          </label>
+          <label className="flex items-center gap-1.5">
+            Posizione {pm.source === 'video' ? 'del video' : 'della foto'}
+            <select
+              className={selectClass}
+              aria-label={`Posizione ${pm.source === 'video' ? 'del video' : 'della foto'} del giocatore: ${label}`}
+              value={pm.fit}
+              onChange={(e) => {
+                if (isFit(e.target.value)) onChange(withPlayerOptions(overlay, { fit: e.target.value }));
+              }}
+            >
+              {OVERLAY_VIDEO_FITS.map((f) => (
+                <option key={f} value={f}>
+                  {VIDEO_FIT_LABELS[f]}
+                </option>
+              ))}
+            </select>
+          </label>
           {pm.source === 'video' && (
             <>
               <label className="flex items-center gap-1.5">
@@ -337,23 +363,6 @@ function PlayerMediaSetting({
                   onChange={(e) => onChange(withPlayerOptions(overlay, { audio: e.target.checked }))}
                 />
                 Audio
-              </label>
-              <label className="flex items-center gap-1.5">
-                Posizione del video
-                <select
-                  className={selectClass}
-                  aria-label={`Posizione del video del giocatore: ${label}`}
-                  value={pm.fit}
-                  onChange={(e) => {
-                    if (isFit(e.target.value)) onChange(withPlayerOptions(overlay, { fit: e.target.value }));
-                  }}
-                >
-                  {OVERLAY_VIDEO_FITS.map((f) => (
-                    <option key={f} value={f}>
-                      {VIDEO_FIT_LABELS[f]}
-                    </option>
-                  ))}
-                </select>
               </label>
               <label className="flex items-center gap-1.5">
                 Durata

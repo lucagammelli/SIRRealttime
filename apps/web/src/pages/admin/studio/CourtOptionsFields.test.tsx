@@ -7,7 +7,7 @@ import { CourtOptionsFields } from './CourtOptionsFields.tsx';
 afterEach(cleanup);
 
 /** View of a new map: team in turn, attacks, 10 seconds. */
-const VIEW = { side: 'cycle', skill: 'attack', cycleSeconds: 10 };
+const VIEW = { side: 'cycle', skill: 'attack', cycleSeconds: 10, orientation: 'scoreboard' };
 
 const court = (): Extract<LayoutBlock, { type: 'court' }> => {
   const b = newBlock('court', 'court');
@@ -82,5 +82,15 @@ describe('options editor of the court map', () => {
     expect((onChange.mock.calls[0]?.[0] as LayoutBlock).options).toMatchObject({
       tricolor: ['#009246', '#ffffff', '#112233'],
     });
+  });
+
+  it('orientation: as the scoreboard by default, the shown team on the left on request', () => {
+    const onChange = vi.fn();
+    render(<CourtOptionsFields block={court()} onChange={onChange} />);
+    const select = screen.getByLabelText('Orientamento');
+    expect((select as HTMLSelectElement).value).toBe('scoreboard');
+    expect(screen.getByRole('option', { name: 'Come il tabellone (casa a sinistra)' })).toBeTruthy();
+    fireEvent.change(select, { target: { value: 'shown' } });
+    expect((onChange.mock.calls[0]?.[0] as LayoutBlock).options).toMatchObject({ orientation: 'shown' });
   });
 });

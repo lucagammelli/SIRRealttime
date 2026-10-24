@@ -216,7 +216,7 @@ describe('layout of the public page', () => {
 
   it('reads the options of the court map: old layouts keep the defaults, colours and thickness are checked', () => {
     // A saved layout without the view options: team in turn, attacks, 10 seconds.
-    const view = { side: 'cycle', skill: 'attack', cycleSeconds: 10 };
+    const view = { side: 'cycle', skill: 'attack', cycleSeconds: 10, orientation: 'scoreboard' };
     const old = parseBlock({ type: 'court' });
     expect(old.success && old.data.options).toEqual({ ...view, lineWidth: 1, arrowWidth: 1 });
     const empty = parseBlock({ type: 'court', options: {} });
@@ -237,6 +237,16 @@ describe('layout of the public page', () => {
     expect(parseBlock({ type: 'court', options: { lineWidth: 0.1 } }).success).toBe(false);
     expect(parseBlock({ type: 'court', options: { arrowWidth: 9 } }).success).toBe(false);
     expect(parseBlock({ type: 'court', options: { other: 1 } }).success).toBe(false);
+  });
+
+  it('orientation of the court map: as the scoreboard by default (also for saved maps), or the shown team on the left', () => {
+    expect(parseBlock({ type: 'court', options: { side: 'away' } }).data?.options).toMatchObject({
+      orientation: 'scoreboard',
+    });
+    expect(parseBlock({ type: 'court', options: { orientation: 'shown' } }).data?.options).toMatchObject({
+      orientation: 'shown',
+    });
+    expect(parseBlock({ type: 'court', options: { orientation: 'left' } }).success).toBe(false);
   });
 
   it('reads the view of the court map without touch: team, skill and seconds of the turn', () => {

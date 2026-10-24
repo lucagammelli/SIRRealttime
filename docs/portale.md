@@ -74,18 +74,32 @@ Il tabellone del telefono resta fisso in alto e `scroll-padding-top` segue la su
 
 **Modalità TV.** Classe `html.sir-tv`: corpo del testo `clamp(16px, min(1.25vw, 2.2vh), 48px)`, quindi ogni `rem` cresce
 con lo schermo (leggibile a 4-5 m). I blocchi sotto il tabellone sono divisi in gruppi in base all'altezza (`tvGroups`
-con `TV_BLOCK_MIN_REM`, altezze minime in rem **stimate**, da verificare su TV veri) e i gruppi ruotano ogni 12 s
+con `blockMinRem`: l'altezza minima del tipo, `TV_BLOCK_MIN_REM` o i `tvMinRem` del modello, alzata a quella che
+servono le righe che le **opzioni** del blocco permettono di mostrare: «Parziale e marcatori» 8,5 rem + `limit` righe da
+`TV_LIST_ROW_REM` = 2,55 rem, «Attacco» 14 rem + `limit` righe; le due liste stanno affiancate da
+`TV_LISTS_SIDE_BY_SIDE_REM` = 28 rem di contenuto della card (calcolato dalla larghezza dello schermo e dalle colonne del
+blocco, `tvContentRem`), sotto vanno una sotto l'altra e le righe raddoppiano; «Migliori giocatori» 7 + `count` × 2,5 rem;
+«Classifica» 7 + righe × 2 rem (righe: `count` con «I primi», 5 con «Intorno a noi», `STANDINGS_MAX_ROWS` = 16 con
+«Tutte»); «Statistiche giocatori» 8 + `TV_PLAYERS_ROWS` = 14 righe × 2 rem = 36 rem in ogni modello (si usa
+sempre la più alta tra l'altezza del modello e quella dalle opzioni; in SIR VOLLEY il mockup a 1920×1080 diventa quindi
+di 2 schermate: andamento, confronto e mappe; poi giocatori e rotazioni, con la tabella intera); «Rotazioni» con «Uno sopra
+l'altro» almeno `TV_ROTATIONS_VERTICAL_REM` = 22 rem. **Le schermate dipendono solo dal
+layout, dal modello e dall'altezza dello schermo, mai dal contenuto del momento**: a inizio partita i blocchi vuoti
+(«Il 1° set non è ancora iniziato.») hanno la stessa cella che avranno con i dati, la mappa di campo resta alla sua
+dimensione e l'arrivo del primo dato non cambia le schermate. Con queste altezze le righe che le opzioni consentono si
+vedono tutte; solo un contenuto non previsto dalle opzioni (nomi su più righe, rose oltre 14 giocatori) scorre
+dentro il corpo della card. I gruppi ruotano ogni 12 s
 (`TV_ROTATION_MS`, `rotationIndex`) con l'indicatore «Schermata N di M». La rotazione si ferma con
 `prefers-reduced-motion` (resta il primo gruppo) e con il pulsante «Ferma rotazione» (`aria-pressed`; in pausa il
 `title` è «Riprendi rotazione» e riprende dalla schermata corrente), richiesto da WCAG 2.2.2.
 **Una schermata un po' più alta dello spazio non si divide**: `tvGroups` mette insieme le righe finché stanno in
 `spazio / TV_MAX_SHRINK` (0,85) e `BlockLayout` mostra quella schermata rimpicciolita con `zoom = tvZoom(...)` (al
-massimo del 15%: testi e spazi più piccoli, mai tagli); le altezze misurate sono in rem interni, quindi restano
-confrontabili. Le altezze misurate (`raiseMeasured`) si azzerano a ogni set (`measureReset` di `BlockLayout`, passato da
-`MatchView`: le liste di marcatori ripartono vuote) e quando cambiano modello, blocchi o altezza. Sulla TV le schede
+massimo del 15%: testi e spazi più piccoli, mai tagli); le altezze sono in rem interni, quindi restano confrontabili.
+Sulla TV le schede
 sono un po' più strette (`index.css`, `[data-tv-block] .sir-card-*`: meno spazio in testata, corpo e tra le parti).
 Caso verificato nel portale a 1920×1080 col modello SIR VOLLEY: «Ace», «Muri vincenti», «Attacco» (3 giocatori) e
-«Parziale e marcatori» (5) servono 43,5 rem su 40,1 disponibili: prima 3 schermate, ora 2 (zoom ≈ 0,92). Dopo 3 s senza movimenti
+«Parziale e marcatori» (5) servono 43,5 rem su 40,1 disponibili; con le altezze dalle opzioni (21,65 + 1 + 21,25 = 43,9 rem)
+sono 2 schermate (zoom ≈ 0,91), uguali prima e dopo il primo punto. Dopo 3 s senza movimenti
 (`IDLE_CURSOR_MS`) cursore e pulsanti si nascondono, ma restano raggiungibili da tastiera. Lo schermo resta acceso con
 Screen Wake Lock (`useWakeLock`, `src/lib/tvScreen.ts`), rilasciato a pagina nascosta e richiesto di nuovo al ritorno.
 Senza intestazione e con partita in corso, il logo del cliente (`BrandMark`) e i pulsanti stanno nel tabellone (il logo solo
@@ -838,6 +852,14 @@ I dati vengono **solo** da `MatchState`: il portale non rifà calcoli di pallavo
 sono funzioni pure in `src/charts/` (`momentum.ts`, `compare.ts`, `players.ts`, `rotations.ts`, `zones.ts`, `options.ts`)
 con test; i componenti ECharts passano da `EChart.tsx`. Le mappe di campo sono SVG (`CourtMap.tsx`) e mostrano le 14
 traiettorie più frequenti.
+**Grafici fermi tra un punto e l'altro**: `EChart` crea una sola istanza ECharts per tutta la vita del componente; il tema
+si riapplica (`setTheme`) solo se il suo contenuto cambia, quindi una nuova lettura della stessa grafica (riconnessione,
+ritorno in primo piano, segnale `config`) non ridisegna il grafico da zero. Un'opzione con lo stesso contenuto della
+precedente (`optionSignature`; le funzioni, cioè i formatter di tooltip ed etichette, non entrano nella firma: un formatter
+diverso con gli stessi valori non si riapplica) non si riapplica; le serie senza `id` ne ricevono
+uno stabile (`withSeriesIds`: `<tipo>-<posizione>`), perché con `replaceMerge: ['series']` una serie senza `id` veniva
+ricreata a ogni messaggio e le barre di «Rotazioni» ripartivano dal basso. Così si animano solo i valori cambiati
+(`animationDurationUpdate`); l'animazione dal basso resta solo al primo disegno.
 
 ### Tema e stile
 I token (colori, font, raggi) sono scritti **solo** in `src/styles/tokens.css`. Tailwind li legge con
@@ -929,6 +951,15 @@ ciclo e mostra l'avviso.
   inchiostro scuro (#1f2937) o chiaro (#f9fafb) scelto in base alla luminosità del fondo, così restano leggibili anche sul
   bianco; heatmap, linee e frecce restano sopra il fondo. I layout salvati senza `fieldMode` non cambiano.
   Schema `CourtOptionsSchema` in `packages/shared/src/layout.ts`; «nostra» è `currentOurSide()` (casa se non nota).
+  **Orientamento** (gruppo «Metà del campo», opzione `orientation`): «Come il tabellone (casa a sinistra)»
+  (`scoreboard`, predefinito, anche per le mappe salvate senza il campo) tiene la squadra di casa sempre nella metà
+  sinistra e l'ospite nella destra, con le etichette fisse; le traiettorie della casa vanno da sinistra a destra, quelle
+  dell'ospite partono nella metà destra e arrivano nella sinistra. «Squadra mostrata sempre a sinistra» (`shown`) è la
+  vista di prima: la squadra delle traiettorie a sinistra, che attacca verso destra. Le zone DVW sono di chi gioca nella
+  metà, quindi la metà destra usa sempre la geometria ruotata di 180° (`courtLayout` in `src/charts/zones.ts`: squadra a
+  sinistra e a destra, metà di partenza e d'arrivo). Ogni metà ha i colori della sua squadra (nostra/avversaria) e
+  heatmap e numeri d'arrivo stanno nella metà d'arrivo. Senza azioni la scritta «Nessuna azione con zone per questo
+  filtro» sta su una fascia del colore di fondo sopra rete e celle, leggibile su ogni campo.
   **Vista senza tocco** (dispositivi con «Touch: No», di solito la TV): i filtri non si vedono e la mappa mostra la scelta
   del gruppo «Cosa mostra senza tocco (TV)» delle opzioni del blocco: «Squadra» «A turno» (predefinita: casa e ospite si
   alternano), «Solo la nostra squadra» (`useOurSide`, casa se non riconosciuta), «Casa», «Ospite»; «Fondamentale»
@@ -940,7 +971,8 @@ ciclo e mostra l'avviso.
   tocco (tablet, telefono) i filtri restano e partono dalla squadra e dal fondamentale scelti (la prima vista del ciclo).
 - **Pagina predefinita**: ogni modello ha la sua (`docs/architettura.md`, «Pagina pubblica a blocchi»): SIR VOLLEY segue il
   mockup di una schermata a 1920×1080 (tabellone, poi andamento, confronto e mappe di campo in tre colonne, poi giocatori e
-  rotazioni); `MomentumChart` è ammesso anche a larghezza 4.
+  rotazioni; in TV sono 2 schermate, perché la tabella giocatori intera chiede 36 rem); `MomentumChart` è ammesso anche
+  a larghezza 4.
 - **Area riservata e tabellone**: `Scoreboard` ha la variante del mockup; l'area riservata usa il menu laterale (vedi
   «Area riservata»).
 - **Font monospazio**: in SIR VOLLEY `--sir-font-mono` è Google Sans Code (prima codici e token ricadevano su
@@ -948,9 +980,8 @@ ciclo e mostra l'avviso.
 - **Tagli e sovrapposizioni**: le righe a specchio delle statistiche (`StatSlides.tsx`) sono una griglia
   barra | valore | etichetta | valore | barra con valore largo almeno `6ch`; i nomi lunghi stanno su al massimo 2 righe, con
   `title`, e vanno a capo dopo «_» (`BreakableName` in `components/ui.tsx`); le liste di giocatori si impilano nei
-  contenitori stretti; «Confronto squadre» ha colonne fisse; in TV `BlockLayout` misura l'altezza reale dei blocchi e
-  rifà i gruppi della rotazione (`tvGroups` con `measured`, `lib/layout.ts`), una scheda più alta dello schermo scorre
-  dentro; le diapositive a tutto schermo scorrono sugli schermi bassi; il tabellone dà ai parziali al massimo il 40%
+  contenitori stretti; «Confronto squadre» ha colonne fisse; in TV i gruppi della rotazione vengono solo dal layout, dalle altezze dei tipi e dalle
+  opzioni dei blocchi (`tvGroups`, `blockMinRem`, `lib/layout.ts`), un contenuto non previsto dalle opzioni scorre dentro la card; le diapositive a tutto schermo scorrono sugli schermi bassi; il tabellone dà ai parziali al massimo il 40%
   della larghezza e ai nomi fino a 3 righe; i titoli delle schede sono larghi almeno 12 rem, con i comandi sotto.
 - **Limiti noti**: nessun logo per squadra (scelta di Luca); il tema forzato non dà avvisi di contrasto (`brandContrastIssues`
   è vuoto); dopo il primo salvataggio il layout del cliente resta fisso anche se cambia modello (va reimpostato con
@@ -1498,7 +1529,7 @@ API del server: il portale non è scansionato.
   tagliati, ritmo della rotazione, schermo acceso); tablet verticale e orizzontale; telefono 360 px (tabellone fisso,
   sezioni, scorrimento laterale della tabella, contrasto dei gradienti in chiaro e scuro e con i colori del cliente).
   Le altezze `TV_BLOCK_MIN_REM` sono stime.
-- **da provare con il modello SIR VOLLEY**: desktop/TV 1920×1080 (il mockup su una schermata), iPad verticale e orizzontale,
+- **da provare con il modello SIR VOLLEY**: desktop/TV 1920×1080 (il mockup su due schermate in TV), iPad verticale e orizzontale,
   telefono verticale e orizzontale (tabellone fisso, menu ☰), resa del font e del rosso del testo piccolo.
 
 ## Riferimenti

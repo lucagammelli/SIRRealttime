@@ -1,8 +1,16 @@
-import type { ImportRosterResponse, Player, PlayerEditableField, RosterResponse } from '@arenalive/shared';
+import type {
+  ImportRosterResponse,
+  OverlayPlayerKind,
+  Player,
+  PlayerEditableField,
+  RosterResponse,
+} from '@arenalive/shared';
 import {
   CreatePlayerRequestSchema,
   IdParamSchema,
   isVideoMime,
+  OVERLAY_PLAYER_KIND_LABELS,
+  OVERLAY_PLAYER_KINDS,
   PLAYER_EDITABLE_FIELDS,
   PLAYER_VIDEOS_MAX,
   PlayerMediaRequestSchema,
@@ -20,7 +28,7 @@ import { validate } from '../lib/validate.js';
 import { LeagueFetchError } from '../leagues/fetcher.js';
 import { LeagueFormatError } from '../leagues/legavolley.js';
 import type { Tx } from '../matchLock.js';
-import { editedAfter, findPlayer, listPlayers, mergeRoster, rosterContext, rosterSeasons } from '../roster.js';
+import { editedAfter, findPlayer, overlayKindsOf, listPlayers, mergeRoster, rosterContext, rosterSeasons } from '../roster.js';
 import type { PhotoToDownload } from '../rosterImport.js';
 import { RosterPhotoJobs } from '../rosterImport.js';
 import { requireRole } from '../security.js';
@@ -183,7 +191,9 @@ export function rosterRoutes(app: FastifyInstance, ctx: AppContext): void {
   /**
    * Main photo and other photos and videos of a player: only files of the library of the client for the players (kind
    * `player`), the main photo an image, at most PLAYER_VIDEOS_MAX videos (400 otherwise). A main photo chosen here is
-   * «changed by hand»: a new import does not replace it.
+   * «changed by hand»: a new import does not replace it. `events`: the photo (an image) and the video (a video) of each
+   * overlay of an action of the player, among its other files (the schema), written in `player_media.events`; without
+   * it the choices of the files that stay are kept.
    */
   app.put('/api/admin/roster/players/:id/media', admin, async (request): Promise<Player> => {
     const tenantId = adminTenantId(request);
@@ -211,11 +221,37 @@ export function rosterRoutes(app: FastifyInstance, ctx: AppContext): void {
         throw badRequest('La foto principale deve essere un’immagine');
       if (body.mediaIds.filter((m) => isVideoMime(mime.get(m) ?? '')).length > PLAYER_VIDEOS_MAX)
         throw badRequest(`Al massimo ${PLAYER_VIDEOS_MAX} video per giocatore`);
+      const events = new Map<string, OverlayPlayerKind[]>();
+      if (body.events) {
+        for (const kind of OVERLAY_PLAYER_KINDS) {
+          const choice = body.events[kind];
+          if (!choice) continue;
+          if (choice.photoAssetId && isVideoMime(mime.get(choice.photoAssetId) ?? ''))
+            throw badRequest(`La foto dell’avviso «${OVERLAY_PLAYER_KIND_LABELS[kind]}» deve essere un’immagine`);
+          if (choice.videoAssetId && !isVideoMime(mime.get(choice.videoAssetId) ?? ''))
+            throw badRequest(`Il video dell’avviso «${OVERLAY_PLAYER_KIND_LABELS[kind]}» deve essere un video`);
+          for (const assetId of [choice.photoAssetId, choice.videoAssetId])
+            if (assetId) events.set(assetId, [...(events.get(assetId) ?? []), kind]);
+        }
+      } else {
+        // The choices of the files that stay (each file keeps its type: they stay one photo and one video per overlay).
+        const before = await tx
+          .select({ assetId: playerMedia.assetId, events: playerMedia.events })
+          .from(playerMedia)
+          .where(tenantScope(playerMedia, tenantId, eq(playerMedia.playerId, id)));
+        for (const b of before) events.set(b.assetId, overlayKindsOf(b.events));
+      }
       await tx.delete(playerMedia).where(tenantScope(playerMedia, tenantId, eq(playerMedia.playerId, id)));
       if (body.mediaIds.length > 0)
-        await tx
-          .insert(playerMedia)
-          .values(body.mediaIds.map((assetId, position) => ({ tenantId, playerId: id, assetId, position })));
+        await tx.insert(playerMedia).values(
+          body.mediaIds.map((assetId, position) => ({
+            tenantId,
+            playerId: id,
+            assetId,
+            position,
+            events: events.get(assetId) ?? [],
+          })),
+        );
       const photoChanged = row.photoAssetId !== body.photoAssetId;
       await tx
         .update(players)

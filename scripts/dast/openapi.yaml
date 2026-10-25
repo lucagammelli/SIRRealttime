@@ -102,7 +102,7 @@ paths:
       responses:
         '200':
           {
-            description: "grafica del cliente dell'hostname: nome, colori, loghi, blocchi, pause e avvisi della pagina pubblica",
+            description: "grafica del cliente dell'hostname: nome, colori, loghi, blocchi, pause e avvisi della pagina pubblica, foto principale e foto e video per avviso dei giocatori della rosa",
           }
         '404': { description: hostname senza cliente }
   /api/public/assets/{id}:
@@ -767,9 +767,18 @@ paths:
               properties:
                 photoAssetId: { type: string, format: uuid, nullable: true, example: null }
                 mediaIds: { type: array, maxItems: 12, items: { type: string, format: uuid }, example: [] }
+                events:
+                  type: object
+                  description: foto e video di ogni avviso del giocatore (ace, block, substitution), solo tra mediaIds; senza, restano le scelte dei file che restano
+                  additionalProperties: false
+                  properties:
+                    ace: { $ref: '#/components/schemas/PlayerEventMedia' }
+                    block: { $ref: '#/components/schemas/PlayerEventMedia' }
+                    substitution: { $ref: '#/components/schemas/PlayerEventMedia' }
+                  example: {}
       responses:
         '200': { description: foto e video del giocatore salvati }
-        '400': { description: file non della libreria dei giocatori, foto non immagine o troppi video }
+        '400': { description: file non della libreria dei giocatori o non abbinato al giocatore, foto non immagine, video non video o troppi video }
         '404': { description: non trovato }
   /api/admin/roster/import:
     post:
@@ -1253,6 +1262,12 @@ paths:
         '409': { description: comando non ammesso nello stato }
 components:
   schemas:
+    PlayerEventMedia:
+      type: object
+      additionalProperties: false
+      properties:
+        photoAssetId: { type: string, format: uuid, nullable: true, example: null }
+        videoAssetId: { type: string, format: uuid, nullable: true, example: null }
     LayoutBlocks:
       type: array
       maxItems: 24

@@ -22,7 +22,12 @@ const FIXED = '9b1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
 const base = midMatchState();
 
 const config = (input: TenantOverlaysInput) => TenantOverlaysSchema.parse(input);
-const ROSSI: PublicPlayerMedia = { number: 8, photo: PHOTO, images: [PHOTO_2], videos: [VIDEO] };
+/** Main photo PHOTO; for the ace PHOTO_2 and VIDEO, for the substitution VIDEO only, nothing for the block. */
+const ROSSI: PublicPlayerMedia = {
+  number: 8,
+  photo: PHOTO,
+  events: { ace: { photo: PHOTO_2, video: VIDEO }, substitution: { photo: null, video: VIDEO } },
+};
 
 function ace(over: Partial<MatchEvent> = {}): MatchEvent {
   return {
@@ -66,24 +71,26 @@ afterEach(() => {
 describe('overlayFor: photo or video of the player', () => {
   const photoVideo = config({ ace: { playerMedia: { source: 'video' } } });
 
-  it('the video of the player of our team when videos are allowed, its photo otherwise', () => {
+  it('the video of the overlay of the player of our team when videos are allowed, the photo of the overlay otherwise', () => {
     const withVideo = overlayFor(ace(), state([]), photoVideo, 'tv', 0, 'home', roster(true));
     expect(withVideo?.background).toMatchObject({ kind: 'video', assetId: VIDEO, teams: 'ours' });
     const phone = overlayFor(ace(), state([]), photoVideo, 'phone', 0, 'home', roster(false));
-    expect(phone?.background).toMatchObject({ kind: 'image', assetId: PHOTO });
+    expect(phone?.background).toMatchObject({ kind: 'image', assetId: PHOTO_2 });
   });
 
-  it('«Foto del giocatore» shows the main photo; «Casuale» one of its photos, always the same for the same event', () => {
-    const photo = config({ ace: { playerMedia: { source: 'photo' } } });
+  it('«Foto del giocatore» shows the photo of the overlay, else the main photo; an old «Casuale» is the same', () => {
+    const photo = config({ ace: { playerMedia: { source: 'photo' } }, block: { playerMedia: { source: 'photo' } } });
     expect(overlayFor(ace(), state([]), photo, 'tv', 0, 'home', roster(true))?.background).toMatchObject({
       kind: 'image',
-      assetId: PHOTO,
+      assetId: PHOTO_2,
     });
+    const block = ace({ kind: 'block', id: 'block-1' });
+    expect(overlayFor(block, state([]), photo, 'tv', 0, 'home', roster(true))?.background?.assetId).toBe(PHOTO);
     const random = config({ ace: { playerMedia: { source: 'photo', pick: 'random' } } });
-    const first = overlayFor(ace({ id: 'ace-7' }), state([]), random, 'tv', 0, 'home', roster(true))?.background;
-    const again = overlayFor(ace({ id: 'ace-7' }), state([]), random, 'tv', 0, 'home', roster(true))?.background;
-    expect([PHOTO, PHOTO_2]).toContain(first?.assetId);
-    expect(again).toEqual(first);
+    for (const id of ['ace-7', 'ace-8'])
+      expect(overlayFor(ace({ id }), state([]), random, 'tv', 0, 'home', roster(true))?.background?.assetId).toBe(
+        PHOTO_2,
+      );
   });
 
   it('the opponent gets no photo of ours: the text only', () => {
@@ -104,7 +111,7 @@ describe('overlayFor: photo or video of the player', () => {
     const c = config({
       ace: { playerMedia: { source: 'video' }, background: { kind: 'image', assetId: FIXED } },
     });
-    const other = { number: 3, photo: null, images: [], videos: [] };
+    const other = { number: 3, photo: null, events: {} };
     expect(overlayFor(ace(), state([]), c, 'tv', 0, 'home', roster(true, [other]))?.background?.assetId).toBe(FIXED);
     expect(overlayFor(ace(), state([]), c, 'tv', 0, 'home', roster(true, []))?.background?.assetId).toBe(FIXED);
     // Without the argument (as before the roster existed) nothing changes.
@@ -170,32 +177,44 @@ describe('photo or video of the player: clean, with or without text', () => {
 
 describe('files of the players to keep ready', () => {
   const c = config({ ace: { playerMedia: { source: 'video' } } });
-  const numbers = new Set([8]);
+  const court = new Set([8]);
+  const team = new Set([8, 3]);
+  const ids = (list: { assetId: string }[]) => list.map((b) => b.assetId);
 
-  it('photos always, videos only when allowed; the main one only, or all of them with «Casuale»', () => {
-    const ids = (list: { assetId: string }[]) => list.map((b) => b.assetId);
-    expect(ids(wantedBackgrounds(c, 'tv', false, { players: [ROSSI], numbers }))).toEqual([PHOTO, VIDEO]);
-    expect(ids(wantedBackgrounds(c, 'phone', false, { players: [ROSSI], numbers }))).toEqual([PHOTO]);
-    expect(ids(wantedBackgrounds(c, 'tv', true, { players: [ROSSI], numbers }))).toEqual([PHOTO]);
+  it('only the file each overlay would show: the video when allowed, else the photo of the overlay or the main one', () => {
+    expect(ids(wantedBackgrounds(c, 'tv', false, { players: [ROSSI], court, team }))).toEqual([VIDEO]);
+    expect(ids(wantedBackgrounds(c, 'phone', false, { players: [ROSSI], court, team }))).toEqual([PHOTO_2]);
+    expect(ids(wantedBackgrounds(c, 'tv', true, { players: [ROSSI], court, team }))).toEqual([PHOTO_2]);
+    // An old «Casuale» keeps one file only.
     const random = config({ ace: { playerMedia: { source: 'video', pick: 'random' } } });
-    expect(ids(wantedBackgrounds(random, 'tv', false, { players: [ROSSI], numbers }))).toEqual([PHOTO, PHOTO_2, VIDEO]);
+    expect(ids(wantedBackgrounds(random, 'tv', false, { players: [ROSSI], court, team }))).toEqual([VIDEO]);
+    const photos = config({ ace: { playerMedia: { source: 'photo' } }, block: { playerMedia: { source: 'photo' } } });
+    expect(ids(wantedBackgrounds(photos, 'tv', false, { players: [ROSSI], court, team }))).toEqual([PHOTO_2, PHOTO]);
   });
 
-  it('only the players in play, and only for the overlays on and shown on the device', () => {
-    expect(wantedBackgrounds(c, 'tv', false, { players: [ROSSI], numbers: new Set([3]) })).toEqual([]);
+  it('ACE! and Muro for the players on court, Cambio for the whole team; only the overlays on and shown on the device', () => {
+    const bench = { players: [ROSSI], court: new Set([3]), team: new Set([3, 8]) };
+    expect(wantedBackgrounds(c, 'tv', false, bench)).toEqual([]);
+    const sub = config({ substitution: { playerMedia: { source: 'video' } } });
+    expect(ids(wantedBackgrounds(sub, 'tv', false, bench))).toEqual([VIDEO]);
+    expect(wantedBackgrounds(sub, 'tv', false, { players: [ROSSI], court, team: new Set([3]) })).toEqual([]);
     const off = config({ ace: { enabled: false, playerMedia: { source: 'video' } } });
-    expect(wantedBackgrounds(off, 'tv', false, { players: [ROSSI], numbers })).toEqual([]);
+    expect(wantedBackgrounds(off, 'tv', false, { players: [ROSSI], court, team })).toEqual([]);
+    const notOnPhone = config({ ace: { devices: { phone: false }, playerMedia: { source: 'video' } } });
+    expect(wantedBackgrounds(notOnPhone, 'phone', false, { players: [ROSSI], court, team })).toEqual([]);
     expect(wantedBackgrounds(c, 'tv', false)).toEqual([]);
+    // A player without any file: nothing to read.
+    const none = { number: 8, photo: null, events: {} };
+    expect(wantedBackgrounds(c, 'tv', false, { players: [none], court, team })).toEqual([]);
   });
 
-  it('players in play: the ones on court, with the bench when the substitution shows the player', () => {
+  it('players in play: the ones on court, and the whole team with the bench', () => {
     const lineup = base.live.lineups.home.filter((n): n is number => n !== null);
-    expect([...playerNumbersInPlay(base, 'home', c)].sort()).toEqual([...lineup].sort());
-    expect(playerNumbersInPlay(base, null, c).size).toBe(0);
-    const sub = config({ substitution: { playerMedia: { source: 'photo' } } });
-    expect(playerNumbersInPlay(base, 'home', sub).size).toBe(
-      new Set(base.players.home.map((p) => p.number).concat(lineup)).size,
-    );
+    const inPlay = playerNumbersInPlay(base, 'home');
+    expect([...inPlay.court].sort()).toEqual([...lineup].sort());
+    expect(inPlay.team.size).toBe(new Set(base.players.home.map((p) => p.number).concat(lineup)).size);
+    const unknown = playerNumbersInPlay(base, null);
+    expect(unknown.court.size + unknown.team.size).toBe(0);
   });
 });
 
@@ -258,7 +277,7 @@ describe('Overlay on the page: photo of the player of our team', () => {
 
   it('the opponent ace has the text only; a player without files too', async () => {
     expect(await show('away', [ROSSI])).toMatchObject({ text: 'ACE! Rossi', video: false, image: false });
-    expect(await show('home', [{ number: 8, photo: null, images: [], videos: [] }])).toMatchObject({
+    expect(await show('home', [{ number: 8, photo: null, events: {} }])).toMatchObject({
       video: false,
       image: false,
     });

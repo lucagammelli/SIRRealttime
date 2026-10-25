@@ -1,7 +1,9 @@
 import type { Role, RosterPlayer } from '@arenalive/dvw-simulator';
 import type {
+  OverlayPlayerKind,
   Player,
   PlayerEditableField,
+  PlayerEventMedia,
   PlayerMediaItem,
   PlayerRole,
   PublicPlayerMedia,
@@ -9,10 +11,13 @@ import type {
 } from '@arenalive/shared';
 import {
   adminAssetPath,
+  isOverlayPlayerKind,
   isVideoMime,
+  noPlayerEvents,
   normalizeTeamText,
   PLAYER_EDITABLE_FIELDS,
   PLAYERS_MAX,
+  publicPlayerEvents,
   resolveClubProfile,
 } from '@arenalive/shared';
 import { asc, desc, eq, inArray, isNull } from 'drizzle-orm';
@@ -82,6 +87,28 @@ export async function rosterSeasons(db: Db | Tx, tenantId: string): Promise<numb
 }
 
 type AssetLite = { id: string; mime: string; name: string | null };
+/** A file of a player with the overlays that show it (`player_media.events`). */
+type MediaLite = AssetLite & { events: unknown };
+
+/** Pure: the overlays of a file from the jsonb `player_media.events`; a malformed value reads as none. */
+export const overlayKindsOf = (events: unknown): OverlayPlayerKind[] =>
+  Array.isArray(events)
+    ? events.filter((k): k is OverlayPlayerKind => typeof k === 'string' && isOverlayPlayerKind(k))
+    : [];
+
+/**
+ * Pure: the photo and video of each overlay of a player from its files (`events` of each file: an image is the photo,
+ * a video the video; the first file in order wins, the routes never write two).
+ */
+export function eventMediaOf(files: readonly MediaLite[]): Record<OverlayPlayerKind, PlayerEventMedia> {
+  const out = noPlayerEvents();
+  for (const f of files)
+    for (const kind of overlayKindsOf(f.events)) {
+      const field = isVideoMime(f.mime) ? 'videoAssetId' : 'photoAssetId';
+      out[kind][field] ??= f.id;
+    }
+  return out;
+}
 
 const itemOf = (a: AssetLite): PlayerMediaItem => ({
   assetId: a.id,
@@ -91,11 +118,17 @@ const itemOf = (a: AssetLite): PlayerMediaItem => ({
 });
 
 /** Photos and videos of the players `ids`, in their order, by player. */
-async function mediaOf(db: Db | Tx, tenantId: string, ids: string[]): Promise<Map<string, AssetLite[]>> {
-  const out = new Map<string, AssetLite[]>();
+async function mediaOf(db: Db | Tx, tenantId: string, ids: string[]): Promise<Map<string, MediaLite[]>> {
+  const out = new Map<string, MediaLite[]>();
   if (ids.length === 0) return out;
   const rows = await db
-    .select({ playerId: playerMedia.playerId, id: assets.id, mime: assets.mime, name: assets.name })
+    .select({
+      playerId: playerMedia.playerId,
+      id: assets.id,
+      mime: assets.mime,
+      name: assets.name,
+      events: playerMedia.events,
+    })
     .from(playerMedia)
     .innerJoin(assets, eq(assets.id, playerMedia.assetId))
     .where(tenantScope(playerMedia, tenantId, inArray(playerMedia.playerId, ids)))
@@ -114,7 +147,7 @@ async function photosOf(db: Db | Tx, tenantId: string, rows: PlayerRow[]): Promi
   return new Map(found.map((a) => [a.id, a]));
 }
 
-const playerOf = (r: PlayerRow, photo: AssetLite | undefined, media: AssetLite[]): Player => ({
+const playerOf = (r: PlayerRow, photo: AssetLite | undefined, media: MediaLite[]): Player => ({
   id: r.id,
   season: r.season,
   number: r.number,
@@ -130,6 +163,7 @@ const playerOf = (r: PlayerRow, photo: AssetLite | undefined, media: AssetLite[]
   editedFields: r.editedFields.filter(isEditable),
   photo: photo ? itemOf(photo) : null,
   media: media.map(itemOf),
+  events: eventMediaOf(media),
   removed: r.removedAt !== null,
   position: r.position,
 });
@@ -166,7 +200,8 @@ export async function findPlayer(db: Db | Tx, tenantId: string, id: string): Pro
 
 /**
  * Photos and videos of the players of the current season of a client for the public pages, by shirt number: only the
- * players in the roster (not removed) with at least one file.
+ * players in the roster (not removed) with a main photo or a file chosen for an overlay; of the others files only the
+ * ones chosen for an overlay (the public pages need nothing else).
  */
 export async function publicPlayerMedia(db: Db, tenantId: string): Promise<PublicPlayerMedia[]> {
   const { season } = await rosterContext(db, tenantId);
@@ -186,11 +221,21 @@ export async function publicPlayerMedia(db: Db, tenantId: string): Promise<Publi
   ]);
   return rows.flatMap((r) => {
     const photo = r.photoAssetId ? photos.get(r.photoAssetId) : undefined;
-    const files = media.get(r.id) ?? [];
-    const images = files.filter((f) => !isVideoMime(f.mime)).map((f) => f.id);
-    const videos = files.filter((f) => isVideoMime(f.mime)).map((f) => f.id);
-    if (!photo && images.length === 0 && videos.length === 0) return [];
-    return [{ number: r.number, photo: photo && !isVideoMime(photo.mime) ? photo.id : null, images, videos }];
+    const events = publicPlayerEvents(eventMediaOf(media.get(r.id) ?? []));
+    const main = photo && !isVideoMime(photo.mime) ? photo.id : null;
+    if (!main && Object.keys(events).length === 0) return [];
+    // For the pages opened before the media of each overlay (old schema, `images` and `videos` required).
+    const chosen = Object.values(events);
+    const once = (ids: (string | null)[]): string[] => [...new Set(ids.filter((id): id is string => id !== null))];
+    return [
+      {
+        number: r.number,
+        photo: main,
+        events,
+        images: once(chosen.map((e) => e.photo)),
+        videos: once(chosen.map((e) => e.video)),
+      },
+    ];
   });
 }
 
@@ -218,18 +263,31 @@ export async function simulationRoster(db: Db | Tx, tenantId: string): Promise<R
   return rows.map((r) => ({ ...r, role: r.role ? SIMULATOR_ROLE[r.role] : null }));
 }
 
-/** Ids of the players of a client that use a file (main photo or other media). */
-export async function playersUsingAsset(db: Db | Tx, tenantId: string, assetId: string): Promise<PlayerRow[]> {
+/**
+ * The players of a client that use a file (main photo or other media); `events`: the overlays of the player that show
+ * it (empty: not chosen for an overlay).
+ */
+export async function playersUsingAsset(
+  db: Db | Tx,
+  tenantId: string,
+  assetId: string,
+): Promise<(PlayerRow & { events: OverlayPlayerKind[] })[]> {
+  const byMedia = await db
+    .select({ p: players, events: playerMedia.events })
+    .from(playerMedia)
+    .innerJoin(players, eq(players.id, playerMedia.playerId))
+    .where(tenantScope(playerMedia, tenantId, eq(playerMedia.assetId, assetId)));
   const byPhoto = await db
     .select()
     .from(players)
     .where(tenantScope(players, tenantId, eq(players.photoAssetId, assetId)));
-  const byMedia = await db
-    .select({ p: players })
-    .from(playerMedia)
-    .innerJoin(players, eq(players.id, playerMedia.playerId))
-    .where(tenantScope(playerMedia, tenantId, eq(playerMedia.assetId, assetId)));
-  const all = [...byPhoto, ...byMedia.map((m) => m.p)];
+  // The ones that show it in an overlay first: their reason is the most precise.
+  const all = [
+    ...byMedia
+      .map((m) => ({ ...m.p, events: overlayKindsOf(m.events) }))
+      .sort((a, b) => b.events.length - a.events.length),
+    ...byPhoto.map((p) => ({ ...p, events: [] })),
+  ];
   return all.filter((p, i) => all.findIndex((q) => q.id === p.id) === i);
 }
 

@@ -4,6 +4,7 @@ import {
   defaultIntermissions,
   defaultLayout,
   defaultOverlays,
+  noPlayerEvents,
   TenantOverlaysSchema,
 } from '@arenalive/shared';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
@@ -247,6 +248,7 @@ describe('page «Immagini e video»: photos and videos of the players', () => {
         editedFields: [],
         photo: { assetId: SHOT, url: `/api/admin/assets/${SHOT}/file`, video: false, name: null },
         media: [{ assetId: CLIP, url: `/api/admin/assets/${CLIP}/file`, video: true, name: null }],
+        events: noPlayerEvents(),
         removed: false,
         position: 0,
       },

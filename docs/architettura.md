@@ -341,12 +341,14 @@ il video è tolto (resta il testo); immagini, eventi senza squadra e lato del cl
 Funzioni pure `overlayBackgrounds(config)` (gli sfondi in uso) e
 `withoutOverlayBackgrounds(config)` (copia senza sfondi, usata da esportazione e importazione della grafica: i pacchetti non
 portano video). Un documento salvato prima resta valido. Foto o video del giocatore: gli avvisi di `OVERLAY_PLAYER_KINDS`
-(`ace`, `block`, `substitution`) possono avere `playerMedia` (`OverlayPlayerMediaSchema`: `source` `photo` | `video`, `pick`
-`default` | `random`, `audio`, `fit`, `duration` come lo sfondo video; facoltativo, senza vale lo sfondo fisso). `playerBackground(overlay,
-evento, latoNostro, giocatori, { videos })` (pura) dà lo sfondo solo per un'azione di un giocatore della **nostra squadra**
-con quel numero di maglia nella rosa; il video solo se `videos` (non sul telefono né con meno animazioni) e il giocatore ne
-ha uno, altrimenti la foto; `random` sceglie con un seme dall'id dell'evento (stesso evento, stessa scelta); senza nulla →
-sfondo fisso o solo testo. `OverlaysResponseSchema`
+(`ace`, `block`, `substitution`; `OverlayPlayerKindSchema`, nomi `OVERLAY_PLAYER_KIND_LABELS`) possono avere `playerMedia`
+(`OverlayPlayerMediaSchema`: `source` `photo` | `video`, `audio`, `fit`, `duration` come lo sfondo video, `showText`;
+facoltativo, senza vale lo sfondo fisso; il vecchio `pick` `default` | `random` di un documento salvato prima si accetta e si
+scarta). `playerMediaFile(source, avviso, giocatore, { videos })` (pura) dà il file di un giocatore per un avviso: il video
+scelto per quell'avviso se `source` è `video` e `videos` (non sul telefono né con meno animazioni), altrimenti la foto scelta
+per quell'avviso, altrimenti la foto principale. `playerBackground(overlay, evento, latoNostro, giocatori, { videos })` (pura)
+ne fa lo sfondo solo per un'azione di un giocatore della **nostra squadra** con quel numero di maglia nella rosa; senza nulla
+→ sfondo fisso o solo testo. `OverlaysResponseSchema`
 (`GET`/`PUT /api/admin/overlays`); `PublicTenantResponseSchema` contiene anche `overlays`. `TENANT_CONFIG_VERSION` resta 1.
 
 Rosa (`players.ts`): la squadra del cliente in una stagione, abbinata ai giocatori del file di scout **per numero di maglia**.
@@ -354,13 +356,16 @@ Rosa (`players.ts`): la squadra del cliente in una stagione, abbinata ai giocato
 Opposto, Libero), `roleFromLeague` (pura: ruolo dal testo del sito), `PLAYER_SOURCES` (`league` | `manual`),
 `PLAYER_EDITABLE_FIELDS` (campi modificati a mano, che un'importazione non sovrascrive; `photo` = foto principale), limiti
 `PLAYERS_MAX` 40, `PLAYER_MEDIA_MAX` 12 (foto e video oltre la principale), `PLAYER_VIDEOS_MAX` 3, nome 60, altezza 120-250,
-anno di nascita 1900-2100, numero 0-99. Schemi: `PlayerSchema` (con `photo`, `media`, `editedFields`, `removed`), `PlayerMediaItemSchema`,
+anno di nascita 1900-2100, numero 0-99. Schemi: `PlayerSchema` (con `photo`, `media`, `events` = per ogni avviso
+`PlayerEventMediaSchema` `{ photoAssetId, videoAssetId }` fra i `media`, vuoto con `noPlayerEvents()`, `editedFields`, `removed`), `PlayerMediaItemSchema`,
 `RosterResponseSchema` (`GET /api/admin/roster?season=`, `RosterQuerySchema`: stagione, stagioni con rosa, squadra, giocatori,
 `import` = `RosterImportStateSchema`), `CreatePlayerRequestSchema`, `UpdatePlayerRequestSchema` (solo i campi inviati; `removed: false`
-rimette in rosa), `PlayerMediaRequestSchema` (`photoAssetId` e `mediaIds`), `ImportRosterResponseSchema` (`added`, `updated`,
+rimette in rosa), `PlayerMediaRequestSchema` (`photoAssetId`, `mediaIds` e `events` facoltativo: per avviso foto e video,
+solo id presenti in `mediaIds`; il tipo immagine/video lo controlla il server), `ImportRosterResponseSchema` (`added`, `updated`,
 `unchanged`, `skipped` = `SkippedPlayerSchema`, `notOnSite`, `photosQueued`). `PublicPlayerMediaSchema` (`number`, `photo`,
-`images`, `videos`: solo id dei file): `PublicTenantResponseSchema` contiene anche `players`, solo della stagione corrente e
-solo i giocatori con almeno un file; vuoto se manca. Server in `docs/server.md` («Rosa della squadra»).
+`events`: per avviso `{ photo, video }`, solo id dei file, `{}` se manca; `publicPlayerEvents` li ricava da `Player.events`; `images` e `videos` facoltativi, vecchi, solo per le pagine aperte prima, da togliere in un rilascio successivo):
+`PublicTenantResponseSchema` contiene anche `players`, solo della stagione corrente e solo i giocatori con la foto principale
+o un file scelto per un avviso; vuoto se manca. Server in `docs/server.md` («Rosa della squadra»).
 Server in `docs/server.md` («Avvisi sugli eventi»), portale ed editor in `docs/portale.md`.
 
 Agente scaricabile (`agentDownload.ts`): `AgentReleaseSchema` (`arenalive-agent.json`: `version`, `builtAt`, `sha256`,

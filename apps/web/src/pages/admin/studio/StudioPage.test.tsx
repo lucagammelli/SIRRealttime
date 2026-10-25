@@ -17,6 +17,7 @@ import {
   defaultLayout,
   defaultOverlays,
   LayoutBlockSchema,
+  noPlayerEvents,
   SLIDE_TYPES,
   TenantIntermissionsSchema,
   TenantLayoutSchema,
@@ -1129,7 +1130,7 @@ describe('Avvisi', () => {
     );
   });
 
-  it('«Giocatore della nostra squadra»: only for ACE!, Muro and Cambio; photo or video, which one, the options of a video, saved', async () => {
+  it('«Giocatore della nostra squadra»: only for ACE!, Muro and Cambio; photo or video (no «Quale»), the options of a video, saved', async () => {
     const { puts } = mockServer();
     renderAt('/admin/studio/avvisi');
     await studio();
@@ -1145,11 +1146,8 @@ describe('Avvisi', () => {
     expect(within(ace).getByRole('radio', { name: 'Sfondo fisso dell’avviso' })).toHaveProperty('checked', true);
     expect(within(ace).queryByRole('combobox', { name: 'Quale foto o video: Ace' })).toBeNull();
     expect(within(ace).queryByRole('checkbox', { name: /Mostra il testo sopra/ })).toBeNull();
-    expect(
-      within(ace).getByText(
-        /Se il giocatore non ha foto né video si usa lo sfondo dell’avviso, altrimenti solo il testo\. Solo per la nostra squadra\./,
-      ),
-    ).toBeTruthy();
+    expect(within(ace).getByText(/Si usano la foto e il video scelti per questo avviso in/)).toBeTruthy();
+    expect(within(ace).getByText(/senza foto dell’avviso si usa la foto principale/)).toBeTruthy();
     expect(within(ace).getByRole('link', { name: 'Squadra' }).getAttribute('href')).toBe('/admin/squadra');
     fireEvent.click(within(ace).getByRole('radio', { name: 'Foto del giocatore' }));
     expect(within(ace).queryByRole('checkbox', { name: 'Audio del video del giocatore: Ace' })).toBeNull();
@@ -1159,12 +1157,11 @@ describe('Avvisi', () => {
     ).toBeTruthy();
     expect(within(ace).getByRole('combobox', { name: 'Posizione della foto del giocatore: Ace' })).toBeTruthy();
     expect(within(ace).queryByRole('combobox', { name: /Durata/ })).toBeNull();
-    fireEvent.change(within(ace).getByRole('combobox', { name: 'Quale foto o video: Ace' }), {
-      target: { value: 'random' },
-    });
+    expect(within(ace).queryByRole('combobox', { name: /Quale/ })).toBeNull();
+    expect(within(ace).queryByText(/Casuale|Principale/)).toBeNull();
     fireEvent.click(within(ace).getByRole('radio', { name: 'Video del giocatore' }));
-    // The choice of «Quale» stays; the options of the video appear.
-    expect(within(ace).getByRole('combobox', { name: 'Quale foto o video: Ace' })).toHaveProperty('value', 'random');
+    // The options of the video appear; still no «Quale».
+    expect(within(ace).queryByRole('combobox', { name: /Quale/ })).toBeNull();
     fireEvent.click(within(ace).getByRole('checkbox', { name: 'Audio del video del giocatore: Ace' }));
     const showText = within(ace).getByRole('checkbox', { name: 'Mostra il testo sopra il video del giocatore: Ace' });
     expect(showText).toHaveProperty('checked', true);
@@ -1179,7 +1176,6 @@ describe('Avvisi', () => {
     expect(await screen.findByText(/Avvisi salvati/)).toBeTruthy();
     expect((puts('/api/admin/overlays').at(-1)?.body as TenantOverlays).ace.playerMedia).toEqual({
       source: 'video',
-      pick: 'random',
       audio: true,
       fit: 'fullscreen',
       duration: 'video',
@@ -1193,7 +1189,7 @@ describe('Avvisi', () => {
     );
   });
 
-  it('the preview and «Prova» use the first player of the roster with files: its video, or its photo on the phone', async () => {
+  it('the preview and «Prova» use the first player of the roster with files: the video of the overlay, or its photo on the phone', async () => {
     const item = (assetId: string, video: boolean) => ({
       assetId,
       url: `/api/admin/assets/${assetId}/file`,
@@ -1214,6 +1210,7 @@ describe('Avvisi', () => {
       removed: false,
     };
     const PHOTO_ID = '2c3d4e5f-6071-4829-8b3c-4d5e6f7a8b9c';
+    const ACE_PHOTO = '3d4e5f60-7182-4930-9c4d-5e6f7a8b9c0d';
     rosterPlayers = [
       {
         ...base,
@@ -1221,7 +1218,9 @@ describe('Avvisi', () => {
         number: 1,
         lastName: 'Senzafile',
         photo: null,
-        media: [],
+        // Files chosen for no overlay: they show nothing, not a sample.
+        media: [item(VIDEO_ID, true)],
+        events: noPlayerEvents(),
         position: 0,
       },
       {
@@ -1230,7 +1229,8 @@ describe('Avvisi', () => {
         number: 8,
         lastName: 'Rossi',
         photo: item(PHOTO_ID, false),
-        media: [item(VIDEO_ID, true)],
+        media: [item(ACE_PHOTO, false), item(VIDEO_ID, true)],
+        events: { ...noPlayerEvents(), ace: { photoAssetId: ACE_PHOTO, videoAssetId: VIDEO_ID } },
         position: 1,
       },
     ];
@@ -1249,12 +1249,12 @@ describe('Avvisi', () => {
     expect(region.textContent).toContain('ACE! Rossi');
     fireEvent.click(within(await overlayRow('ace')).getByRole('button', { name: 'Prova Ace' }));
     expect(screen.getByTestId('prova-avviso').querySelector('video')).not.toBeNull();
-    // Phone: the photo, never the video.
+    // Phone: the photo of the overlay, never the video.
     fireEvent.click(screen.getByRole('radio', { name: /Telefono/ }));
     await waitFor(() => {
       const r = screen.getByTestId('prova-avviso');
       expect(r.querySelector('video')).toBeNull();
-      expect(r.querySelector('img')?.getAttribute('src')).toBe(`/api/admin/assets/${PHOTO_ID}/file`);
+      expect(r.querySelector('img')?.getAttribute('src')).toBe(`/api/admin/assets/${ACE_PHOTO}/file`);
     });
   });
 

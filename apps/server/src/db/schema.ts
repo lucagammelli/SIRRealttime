@@ -439,7 +439,11 @@ export const players = pgTable(
   ],
 );
 
-/** Other photos and videos of a player (files of the library of its client), in order. */
+/**
+ * Other photos and videos of a player (files of the library of its client), in order. `events`: the overlays of an
+ * action of the player (OVERLAY_PLAYER_KINDS of @arenalive/shared: `ace`, `block`, `substitution`) that show this file,
+ * as their photo (an image) or their video (a video); the routes keep one photo and one video per overlay.
+ */
 export const playerMedia = pgTable(
   'player_media',
   {
@@ -451,6 +455,10 @@ export const playerMedia = pgTable(
       .notNull()
       .references((): AnyPgColumn => assets.id, { onDelete: 'cascade' }),
     position: integer('position').notNull().default(0),
+    events: jsonb('events')
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
   },
   (t) => [primaryKey({ columns: [t.playerId, t.assetId] }), index('player_media_asset_idx').on(t.assetId)],
 );

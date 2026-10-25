@@ -1,8 +1,9 @@
 import type { AssetListResponse, AssetSummary, ImportRosterResponse, Player, RosterResponse } from '@arenalive/shared';
+import { noPlayerEvents } from '@arenalive/shared';
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderAs } from '../../test/adminPage.tsx';
-import { importSummary, photoProgressText, requestOf, ROSTER_POLL_MS, RosterPage } from './RosterPage.tsx';
+import { eventsWith, importSummary, photoProgressText, requestOf, ROSTER_POLL_MS, RosterPage } from './RosterPage.tsx';
 
 const id = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const PHOTO = id(101);
@@ -32,6 +33,7 @@ const player = (n: number, over: Partial<Player> = {}): Player => ({
   editedFields: [],
   photo: null,
   media: [],
+  events: noPlayerEvents(),
   removed: false,
   position: n,
   ...over,
@@ -375,9 +377,101 @@ describe('page «Squadra»', () => {
     fireEvent.click(screen.getByLabelText('Foto: Rossi in schiacciata'));
     fireEvent.click(screen.getByRole('button', { name: 'Salva foto e video' }));
     await waitFor(() =>
-      expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ photoAssetId: PHOTO, mediaIds: [CLIP, SHOT] }),
+      expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({
+        photoAssetId: PHOTO,
+        mediaIds: [CLIP, SHOT],
+        events: noPlayerEvents(),
+      }),
     );
     expect(calls.find((c) => c.method === 'PUT')?.url).toBe(`/api/admin/roster/players/${id(8)}/media`);
+  });
+
+  it('«Foto e video degli avvisi»: a photo and a video for each overlay, among the other files, with a thumbnail', async () => {
+    const calls = mockApi((call) => {
+      if (call.method === 'PUT') return { body: player(8) };
+      if (call.url === '/api/admin/assets') return { body: LIBRARY };
+      return {
+        body: rosterOf([
+          player(8, {
+            lastName: 'Rossi',
+            photo: item(PHOTO),
+            media: [item(SHOT), item(CLIP, true)],
+            events: { ...noPlayerEvents(), block: { photoAssetId: SHOT, videoAssetId: null } },
+          }),
+        ]),
+      };
+    });
+    renderAs('admin', <RosterPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Foto e video di Rossi Mario' }));
+    const group = (await screen.findByText('Foto e video degli avvisi')).closest('fieldset');
+    if (!group) throw new Error('no fieldset');
+    // One row per overlay of a player, each with its two choices.
+    expect(
+      within(group)
+        .getAllByRole('listitem')
+        .map((li) => li.firstChild?.textContent),
+    ).toEqual(['Ace', 'Muro punto', 'Cambio']);
+    const acePhoto = within(group).getByLabelText<HTMLSelectElement>('Foto dell’avviso «Ace»');
+    const aceVideo = within(group).getByLabelText<HTMLSelectElement>('Video dell’avviso «Ace»');
+    // Photos among the other photos (not the main one, not the videos), videos among the videos.
+    expect([...acePhoto.options].map((o) => o.textContent)).toEqual(['Foto principale', 'Rossi in schiacciata']);
+    expect([...aceVideo.options].map((o) => o.textContent)).toEqual(['Nessun video', 'Rossi muro']);
+    // What is saved is shown, with the thumbnail of the chosen file.
+    const blockPhoto = within(group).getByLabelText<HTMLSelectElement>('Foto dell’avviso «Muro punto»');
+    expect(blockPhoto.value).toBe(SHOT);
+    expect(blockPhoto.parentElement?.querySelector('img')?.getAttribute('src')).toBe(`/api/admin/assets/${SHOT}/file`);
+    expect(acePhoto.parentElement?.querySelector('img')).toBeNull();
+    fireEvent.change(aceVideo, { target: { value: CLIP } });
+    expect(aceVideo.parentElement?.querySelector('video')).not.toBeNull();
+    fireEvent.change(within(group).getByLabelText('Video dell’avviso «Cambio»'), { target: { value: CLIP } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salva foto e video' }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({
+        photoAssetId: PHOTO,
+        mediaIds: [SHOT, CLIP],
+        events: {
+          ace: { photoAssetId: null, videoAssetId: CLIP },
+          block: { photoAssetId: SHOT, videoAssetId: null },
+          substitution: { photoAssetId: null, videoAssetId: CLIP },
+        },
+      }),
+    );
+  });
+
+  it('a file taken away from the other files leaves the overlays without it', async () => {
+    const calls = mockApi((call) => {
+      if (call.method === 'PUT') return { body: player(8) };
+      if (call.url === '/api/admin/assets') return { body: LIBRARY };
+      return {
+        body: rosterOf([
+          player(8, {
+            lastName: 'Rossi',
+            media: [item(SHOT), item(CLIP, true)],
+            events: { ...noPlayerEvents(), ace: { photoAssetId: SHOT, videoAssetId: CLIP } },
+          }),
+        ]),
+      };
+    });
+    renderAs('admin', <RosterPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Foto e video di Rossi Mario' }));
+    const aceVideo = await screen.findByLabelText<HTMLSelectElement>('Video dell’avviso «Ace»');
+    expect(aceVideo.value).toBe(CLIP);
+    fireEvent.click(screen.getByLabelText('Video: Rossi muro'));
+    expect(aceVideo.value).toBe('');
+    // Become the main photo: no longer one of the other files.
+    fireEvent.change(screen.getByLabelText(/^Foto principale/), { target: { value: SHOT } });
+    expect(screen.getByLabelText<HTMLSelectElement>('Foto dell’avviso «Ace»').value).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: 'Salva foto e video' }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({
+        photoAssetId: SHOT,
+        mediaIds: [],
+        events: noPlayerEvents(),
+      }),
+    );
+    expect(
+      eventsWith({ ...noPlayerEvents(), block: { photoAssetId: SHOT, videoAssetId: CLIP } }, [CLIP]).block,
+    ).toEqual({ photoAssetId: null, videoAssetId: CLIP });
   });
 
   it('«Foto e video» without files in the library points to the library', async () => {

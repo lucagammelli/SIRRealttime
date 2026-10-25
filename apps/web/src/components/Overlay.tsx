@@ -277,12 +277,12 @@ export function Overlay({
   const reducedMotion = useReducedMotion();
   // Side of our team, claimed by the match view (team chosen in «Grafica»): a video for our team only follows it.
   const ourSide = useOurSide();
-  // Photos and videos of the players of our team (roster): kept ready for the ones on court; no video on the phone nor
-  // with reduced motion (the photo is used).
+  // Photos and videos of the players of our team (roster): the file of each overlay kept ready for the ones on court
+  // (the whole team for Cambio); no video on the phone nor with reduced motion (the photo is used).
   const players = useTenantLook()?.players ?? NO_PLAYERS;
   const videos = device !== 'phone' && !reducedMotion;
-  const numbers = playerNumbersInPlay(state, ourSide, config);
-  const media = useOverlayMedia(config, device, reducedMotion, undefined, { players, numbers });
+  const { court, team } = playerNumbersInPlay(state, ourSide);
+  const media = useOverlayMedia(config, device, reducedMotion, undefined, { players, court, team });
 
   // New events of a live update go in the queue; everything else is only remembered as seen.
   useEffect(() => {

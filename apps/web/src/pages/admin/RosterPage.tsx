@@ -2,8 +2,10 @@ import type {
   AssetSummary,
   CreatePlayerRequest,
   ImportRosterResponse,
+  OverlayPlayerKind,
   Player,
   PlayerEditableField,
+  PlayerEventMedia,
   PlayerMediaItem,
   PlayerRole,
   RosterResponse,
@@ -14,6 +16,8 @@ import {
   CreatePlayerRequestSchema,
   ImportRosterResponseSchema,
   isVideoMime,
+  OVERLAY_PLAYER_KIND_LABELS,
+  OVERLAY_PLAYER_KINDS,
   PLAYER_MEDIA_MAX,
   PLAYER_ROLE_LABELS,
   PLAYER_ROLES,
@@ -269,9 +273,64 @@ export const playerFiles = (assets: readonly AssetSummary[]): AssetSummary[] =>
   assets.filter((a) => a.kind === 'player');
 
 /**
+ * Pure: the photo and video of each overlay still valid with the other files `available` (a file taken away, or become
+ * the main photo, leaves its overlays without it).
+ */
+export function eventsWith(
+  events: Record<OverlayPlayerKind, PlayerEventMedia>,
+  available: readonly string[],
+): Record<OverlayPlayerKind, PlayerEventMedia> {
+  const keep = (id: string | null): string | null => (id !== null && available.includes(id) ? id : null);
+  return Object.fromEntries(
+    OVERLAY_PLAYER_KINDS.map((k) => [
+      k,
+      { photoAssetId: keep(events[k].photoAssetId), videoAssetId: keep(events[k].videoAssetId) },
+    ]),
+  ) as Record<OverlayPlayerKind, PlayerEventMedia>;
+}
+
+/** One choice of a file for an overlay: a select among `options` and the thumbnail of the chosen one. */
+function EventFileSelect({
+  label,
+  none,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  none: string;
+  value: string | null;
+  options: readonly AssetSummary[];
+  onChange: (id: string | null) => void;
+}) {
+  const current = options.find((a) => a.id === value);
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded bg-surface-2 text-xs text-muted">
+        {current ? <Thumb asset={current} /> : '–'}
+      </span>
+      <select
+        className={`${inputClass} min-w-0 flex-1`}
+        aria-label={label}
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}
+      >
+        <option value="">{none}</option>
+        {options.map((a) => (
+          <option key={a.id} value={a.id}>
+            {assetLabel(a)}
+          </option>
+        ))}
+      </select>
+    </span>
+  );
+}
+
+/**
  * «Foto e video» of a player: the main photo (an image) and the other photos and videos, chosen only among the files of
  * the library for the players (they are uploaded in «Immagini e video»). At most PLAYER_MEDIA_MAX files, of them
- * PLAYER_VIDEOS_MAX videos; the order is the one of the choice.
+ * PLAYER_VIDEOS_MAX videos; the order is the one of the choice. Then, for each overlay of an action of the player
+ * (OVERLAY_PLAYER_KINDS), its photo and its video among the other files (none: the main photo, no video).
  */
 function MediaEditor({
   player,
@@ -289,10 +348,21 @@ function MediaEditor({
   const images = files.filter((a) => !isVideoMime(a.mime));
   const [photo, setPhoto] = useState(player.photo?.assetId ?? '');
   const [chosen, setChosen] = useState<string[]>(player.media.map((m) => m.assetId));
+  const [events, setEvents] = useState(player.events);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const byId = new Map(files.map((a) => [a.id, a]));
   const videosChosen = chosen.filter((id) => isVideoMime(byId.get(id)?.mime ?? '')).length;
+  const others = chosen.filter((id) => id !== photo);
+  const valid = eventsWith(events, others);
+  const otherFiles = others.flatMap((id) => {
+    const a = byId.get(id);
+    return a ? [a] : [];
+  });
+  const otherImages = otherFiles.filter((a) => !isVideoMime(a.mime));
+  const otherVideos = otherFiles.filter((a) => isVideoMime(a.mime));
+  const setEvent = (kind: OverlayPlayerKind, change: Partial<PlayerEventMedia>): void =>
+    setEvents((e) => ({ ...e, [kind]: { ...e[kind], ...change } }));
 
   const toggle = (id: string, on: boolean): void =>
     setChosen((c) => (on ? [...c.filter((x) => x !== id), id] : c.filter((x) => x !== id)));
@@ -301,7 +371,8 @@ function MediaEditor({
     setError(null);
     const parsed = PlayerMediaRequestSchema.safeParse({
       photoAssetId: photo === '' ? null : photo,
-      mediaIds: chosen.filter((id) => id !== photo),
+      mediaIds: others,
+      events: valid,
     });
     if (!parsed.success) return setError('Scelta non valida: ogni file una sola volta.');
     setBusy(true);
@@ -371,6 +442,38 @@ function MediaEditor({
                       </li>
                     );
                   })}
+              </ul>
+            </fieldset>
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium text-text">Foto e video degli avvisi</legend>
+              <p className="text-xs text-muted">
+                Per ogni avviso del giocatore scegli una foto e un video tra le altre foto e video scelti sopra. Con
+                «Foto principale» l’avviso mostra la foto principale; con «Nessun video» mostra la foto. Se l’avviso
+                mostra la foto o il video si sceglie nello Studio grafico, in «Avvisi».
+              </p>
+              <ul className="divide-y divide-grid">
+                {OVERLAY_PLAYER_KINDS.map((kind) => {
+                  const name = OVERLAY_PLAYER_KIND_LABELS[kind];
+                  return (
+                    <li key={kind} className="grid gap-2 py-2 sm:grid-cols-[7rem_1fr_1fr] sm:items-center">
+                      <span className="text-sm font-medium text-text">{name}</span>
+                      <EventFileSelect
+                        label={`Foto dell’avviso «${name}»`}
+                        none="Foto principale"
+                        value={valid[kind].photoAssetId}
+                        options={otherImages}
+                        onChange={(id) => setEvent(kind, { photoAssetId: id })}
+                      />
+                      <EventFileSelect
+                        label={`Video dell’avviso «${name}»`}
+                        none="Nessun video"
+                        value={valid[kind].videoAssetId}
+                        options={otherVideos}
+                        onChange={(id) => setEvent(kind, { videoAssetId: id })}
+                      />
+                    </li>
+                  );
+                })}
               </ul>
             </fieldset>
           </>

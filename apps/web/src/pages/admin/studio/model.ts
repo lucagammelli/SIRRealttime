@@ -36,8 +36,10 @@ import {
   LAYOUT_DEVICES,
   newBlock,
   OVERLAY_KINDS,
+  OVERLAY_PLAYER_KIND_LABELS,
   backgroundForTeam,
   playerBackground,
+  publicPlayerEvents,
   SET_BREAK_SETS,
   TEMPLATES,
   THANKS_MESSAGE,
@@ -176,8 +178,8 @@ export const OVERLAY_LABELS: Record<OverlayKind, { label: string; hint: string }
     label: 'Set point',
     hint: 'Quando una squadra arriva a un punto dal set, anche ai vantaggi e al tie-break; non si ripete finché resta in vantaggio.',
   },
-  ace: { label: 'Ace', hint: 'Punto diretto in battuta.' },
-  block: { label: 'Muro punto', hint: 'Punto diretto a muro.' },
+  ace: { label: OVERLAY_PLAYER_KIND_LABELS.ace, hint: 'Punto diretto in battuta.' },
+  block: { label: OVERLAY_PLAYER_KIND_LABELS.block, hint: 'Punto diretto a muro.' },
   lead: {
     label: 'Sorpasso',
     hint: `La squadra che era dietro passa avanti: dal 15-15 (9-9 al tie-break) o dopo una rimonta di ${COMEBACK_MIN_POINTS} punti.`,
@@ -189,7 +191,10 @@ export const OVERLAY_LABELS: Record<OverlayKind, { label: string; hint: string }
   run: { label: 'Break', hint: `Dal ${RUN_MIN_POINTS}° punto di fila della stessa squadra, a ogni punto in più.` },
   timeout: { label: 'Time-out', hint: 'Alla chiamata del time-out (la pausa del time-out lo mostra già).' },
   longRally: { label: 'Scambio lungo', hint: `Scambio con almeno ${LONG_RALLY_MIN_ATTACKS} attacchi.` },
-  substitution: { label: 'Cambio', hint: 'Sostituzione: {giocatore} e {numero} sono di chi entra.' },
+  substitution: {
+    label: OVERLAY_PLAYER_KIND_LABELS.substitution,
+    hint: 'Sostituzione: {giocatore} e {numero} sono di chi entra.',
+  },
 };
 
 export const PLACEHOLDER_LABELS: Record<OverlayPlaceholder, string> = {
@@ -686,25 +691,25 @@ export interface RosterSample {
   media: PublicPlayerMedia;
 }
 
-/** Pure: the first player of the roster (not removed) with a photo or a video; null when none. */
+/**
+ * Pure: the first player of the roster (not removed) with a main photo or a file chosen for an overlay (the others show
+ * nothing), with its files as the public page has them; null when none.
+ */
 export function rosterSample(players: readonly Player[]): RosterSample | null {
-  const p = players.find((x) => !x.removed && (x.photo !== null || x.media.length > 0));
+  const p = players.find(
+    (x) => !x.removed && (x.photo !== null || Object.keys(publicPlayerEvents(x.events)).length > 0),
+  );
   if (!p) return null;
   return {
     player: { number: p.number, firstName: p.firstName, lastName: p.lastName },
-    media: {
-      number: p.number,
-      photo: p.photo?.assetId ?? null,
-      images: p.media.filter((m) => !m.video).map((m) => m.assetId),
-      videos: p.media.filter((m) => m.video).map((m) => m.assetId),
-    },
+    media: { number: p.number, photo: p.photo?.assetId ?? null, events: publicPlayerEvents(p.events) },
   };
 }
 
 /**
  * Pure: the example event of an overlay for the preview and its background. For the overlays of a player with the photo
- * or video of the player chosen, the event is of the player of `sample` (a different one for every `key`, so that «Casuale»
- * varies) and the background is its file (a video not on the phone), else the fixed background of the overlay.
+ * or video of the player chosen, the event is of the player of `sample` (a new id for every `key`) and the background is
+ * its file for that overlay (`playerBackground`: a video not on the phone), else the fixed background of the overlay.
  */
 export function overlayPreview(
   kind: OverlayKind,

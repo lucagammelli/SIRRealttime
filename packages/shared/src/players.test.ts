@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { AssetKindSchema, VideoUploadQuerySchema } from './assets.js';
-import { OverlayPlayerMediaSchema, playerBackground, TenantOverlaysSchema } from './overlays.js';
+import { OverlayPlayerMediaSchema, playerBackground, playerMediaFile, TenantOverlaysSchema } from './overlays.js';
 import {
   CreatePlayerRequestSchema,
   PLAYER_MEDIA_MAX,
   PLAYER_ROLE_LABELS,
   PlayerMediaRequestSchema,
+  PublicPlayerMediaSchema,
   roleFromLeague,
   RosterQuerySchema,
   UpdatePlayerRequestSchema,
@@ -77,6 +78,27 @@ describe('roster: contracts', () => {
     expect(PlayerMediaRequestSchema.safeParse({ photoAssetId: null, mediaIds: many }).success).toBe(false);
   });
 
+  it('the photo and video of each overlay: only files of the player, only the overlays of a player', () => {
+    const ok = PlayerMediaRequestSchema.parse({
+      photoAssetId: A,
+      mediaIds: [B, V1],
+      events: { ace: { photoAssetId: B, videoAssetId: V1 }, block: { videoAssetId: V1 } },
+    });
+    expect(ok.events).toEqual({
+      ace: { photoAssetId: B, videoAssetId: V1 },
+      block: { photoAssetId: null, videoAssetId: V1 },
+    });
+    expect(PlayerMediaRequestSchema.parse({ photoAssetId: null, mediaIds: [] }).events).toBeUndefined();
+    // The main photo is not one of the other files: «Nessuna» already shows it.
+    for (const events of [
+      { ace: { photoAssetId: A } },
+      { substitution: { videoAssetId: C } },
+      { tie: { photoAssetId: B } },
+      { ace: { photoAssetId: B, extra: 1 } },
+    ])
+      expect(PlayerMediaRequestSchema.safeParse({ photoAssetId: A, mediaIds: [B, V1], events }).success).toBe(false);
+  });
+
   it('the season of the query, the kind of the files and the players of the public graphics', () => {
     expect(RosterQuerySchema.parse({ season: '2026' })).toEqual({ season: 2026 });
     expect(RosterQuerySchema.parse({})).toEqual({});
@@ -96,30 +118,37 @@ describe('roster: contracts', () => {
 
 describe('photo or video of the player behind an overlay', () => {
   const players = [
-    { number: 4, photo: A, images: [B, C], videos: [V1, V2] },
-    { number: 6, photo: null, images: [], videos: [] },
-    { number: 9, photo: null, images: [C], videos: [] },
+    {
+      number: 4,
+      photo: A,
+      events: {
+        ace: { photo: B, video: V1 },
+        block: { photo: null, video: V2 },
+        substitution: { photo: C, video: null },
+      },
+    },
+    { number: 6, photo: null, events: {} },
+    { number: 9, photo: C, events: {} },
+    { number: 11, photo: null, events: { ace: { photo: null, video: V1 } } },
   ];
   const event = (
     over: Partial<{
-      id: string;
       kind: 'ace' | 'block' | 'substitution' | 'tie';
       team: 'home' | 'away' | null;
       number: number | null;
     }> = {},
   ) => ({
-    id: over.id ?? 'ev-1',
     kind: over.kind ?? 'ace',
     team: over.team === undefined ? 'home' : over.team,
     player: over.number === null ? null : { number: over.number ?? 4, firstName: 'Mathis', lastName: 'Henno' },
   });
   const media = (input: Record<string, unknown>) => ({ playerMedia: OverlayPlayerMediaSchema.parse(input) });
+  const on = { videos: true };
 
   it('is optional on the overlays: the documents saved before keep the fixed background', () => {
     expect(TenantOverlaysSchema.parse({}).ace.playerMedia).toBeUndefined();
     expect(TenantOverlaysSchema.parse({ ace: { playerMedia: { source: 'video' } } }).ace.playerMedia).toEqual({
       source: 'video',
-      pick: 'default',
       audio: false,
       fit: 'center',
       duration: 'seconds',
@@ -127,19 +156,34 @@ describe('photo or video of the player behind an overlay', () => {
     });
     expect(OverlayPlayerMediaSchema.parse({ source: 'video', showText: false }).showText).toBe(false);
     expect(TenantOverlaysSchema.safeParse({ ace: { playerMedia: { source: 'gif' } } }).success).toBe(false);
-    expect(playerBackground({}, event(), 'home', players, { videos: true })).toBeUndefined();
+    expect(playerBackground({}, event(), 'home', players, on)).toBeUndefined();
   });
 
-  it('the main video of the player of our team, with the options of the overlay', () => {
+  it('a document saved with the old «Quale» (main or random) stays valid and drops it', () => {
+    for (const pick of ['default', 'random']) {
+      const parsed = TenantOverlaysSchema.parse({ block: { playerMedia: { source: 'photo', pick, audio: true } } });
+      expect(parsed.block.playerMedia).toEqual({
+        source: 'photo',
+        audio: true,
+        fit: 'center',
+        duration: 'seconds',
+        showText: true,
+      });
+      expect(TenantOverlaysSchema.parse(parsed)).toEqual(parsed);
+    }
+    expect(TenantOverlaysSchema.safeParse({ ace: { playerMedia: { source: 'photo', pick: 'all' } } }).success).toBe(
+      false,
+    );
+  });
+
+  it('the video of the overlay of the player of our team, with the options of the overlay', () => {
     expect(
       playerBackground(
         media({ source: 'video', audio: true, fit: 'fullscreen', duration: 'video' }),
         event(),
         'home',
         players,
-        {
-          videos: true,
-        },
+        on,
       ),
     ).toEqual({
       kind: 'video',
@@ -150,57 +194,76 @@ describe('photo or video of the player behind an overlay', () => {
       duration: 'video',
       showText: true,
     });
-    expect(playerBackground(media({ source: 'photo' }), event(), 'home', players, { videos: true })).toMatchObject({
+    expect(playerBackground(media({ source: 'video' }), event({ kind: 'block' }), 'home', players, on)?.assetId).toBe(
+      V2,
+    );
+    // Photo: the one of the overlay, the main one when none is chosen for it.
+    expect(playerBackground(media({ source: 'photo' }), event(), 'home', players, on)).toMatchObject({
       kind: 'image',
-      assetId: A,
+      assetId: B,
+      duration: 'seconds',
     });
+    expect(playerBackground(media({ source: 'photo' }), event({ kind: 'block' }), 'home', players, on)?.assetId).toBe(
+      A,
+    );
+    expect(
+      playerBackground(media({ source: 'photo' }), event({ kind: 'substitution' }), 'home', players, on)?.assetId,
+    ).toBe(C);
   });
 
   it('only for an action of a player of our team, of an overlay of a player, with a player of the roster', () => {
     const m = media({ source: 'photo' });
-    expect(playerBackground(m, event({ team: 'away' }), 'home', players, { videos: true })).toBeUndefined();
-    expect(playerBackground(m, event(), null, players, { videos: true })).toBeUndefined();
-    expect(playerBackground(m, event({ kind: 'tie' }), 'home', players, { videos: true })).toBeUndefined();
-    expect(playerBackground(m, event({ number: null }), 'home', players, { videos: true })).toBeUndefined();
-    expect(playerBackground(m, event({ number: 22 }), 'home', players, { videos: true })).toBeUndefined();
+    expect(playerBackground(m, event({ team: 'away' }), 'home', players, on)).toBeUndefined();
+    expect(playerBackground(m, event(), null, players, on)).toBeUndefined();
+    expect(playerBackground(m, event({ kind: 'tie' }), 'home', players, on)).toBeUndefined();
+    expect(playerBackground(m, event({ number: null }), 'home', players, on)).toBeUndefined();
+    expect(playerBackground(m, event({ number: 22 }), 'home', players, on)).toBeUndefined();
     // Our team away: its players are the away ones.
-    expect(playerBackground(m, event({ team: 'away' }), 'away', players, { videos: true })?.assetId).toBe(A);
+    expect(playerBackground(m, event({ team: 'away' }), 'away', players, on)?.assetId).toBe(B);
   });
 
-  it('a video falls back to the photo without videos (phone, reduced motion) or when the player has none; nothing: undefined', () => {
-    const m = media({ source: 'video' });
+  it('a video falls back to the photo of the overlay, then to the main photo; nothing: undefined', () => {
+    const m = media({ source: 'video', duration: 'video' });
+    // No videos (phone, reduced motion): the photo of the overlay.
     expect(playerBackground(m, event(), 'home', players, { videos: false })).toMatchObject({
       kind: 'image',
-      assetId: A,
-    });
-    expect(playerBackground(m, event({ number: 9 }), 'home', players, { videos: true })).toMatchObject({
-      kind: 'image',
-      assetId: C,
+      assetId: B,
       duration: 'seconds',
     });
-    expect(playerBackground(m, event({ number: 6 }), 'home', players, { videos: true })).toBeUndefined();
+    // No video for this overlay: its photo, else the main photo.
+    expect(playerBackground(m, event({ kind: 'substitution' }), 'home', players, on)?.assetId).toBe(C);
+    expect(playerBackground(m, event({ kind: 'block' }), 'home', players, { videos: false })?.assetId).toBe(A);
+    expect(playerBackground(m, event({ number: 9 }), 'home', players, on)).toMatchObject({ kind: 'image', assetId: C });
+    expect(playerBackground(m, event({ number: 6 }), 'home', players, on)).toBeUndefined();
+    expect(playerBackground(m, event({ number: 11 }), 'home', players, { videos: false })).toBeUndefined();
+    expect(playerBackground(m, event({ number: 11 }), 'home', players, on)?.assetId).toBe(V1);
+    // A photo overlay never shows the video.
+    expect(playerBackground(media({ source: 'photo' }), event({ number: 11 }), 'home', players, on)).toBeUndefined();
   });
 
-  it('«random» picks among the photos or videos, always the same one for the same event', () => {
-    const m = media({ source: 'photo', pick: 'random' });
-    const picks = new Set(
-      Array.from(
-        { length: 30 },
-        (_, i) => playerBackground(m, event({ id: `ev-${i}` }), 'home', players, { videos: true })?.assetId,
-      ),
-    );
-    expect([...picks].sort()).toEqual([A, B, C].sort());
-    const once = playerBackground(m, event({ id: 'fisso' }), 'home', players, { videos: true });
-    expect(playerBackground(m, event({ id: 'fisso' }), 'home', players, { videos: true })).toEqual(once);
-    const videos = new Set(
-      Array.from(
-        { length: 20 },
-        (_, i) =>
-          playerBackground(media({ source: 'video', pick: 'random' }), event({ id: `v-${i}` }), 'home', players, {
-            videos: true,
-          })?.assetId,
-      ),
-    );
-    expect([...videos].sort()).toEqual([V1, V2].sort());
+  it('the file of a player for an overlay, as the preload sees it', () => {
+    const [p4] = players;
+    if (!p4) throw new Error('no player');
+    expect(playerMediaFile('video', 'ace', p4, on)).toEqual({ kind: 'video', assetId: V1 });
+    expect(playerMediaFile('photo', 'ace', p4, on)).toEqual({ kind: 'image', assetId: B });
+    expect(playerMediaFile('video', 'block', p4, { videos: false })).toEqual({ kind: 'image', assetId: A });
+  });
+});
+
+describe('public media of the players', () => {
+  it('reads the media of each overlay; an old answer without them reads as none', () => {
+    expect(PublicPlayerMediaSchema.parse({ number: 4, photo: A })).toEqual({ number: 4, photo: A, events: {} });
+    expect(
+      PublicPlayerMediaSchema.parse({ number: 4, photo: null, events: { ace: { photo: null, video: V1 } } }).events,
+    ).toEqual({ ace: { photo: null, video: V1 } });
+    expect(PublicPlayerMediaSchema.safeParse({ number: 4, photo: null, events: { tie: {} } }).success).toBe(false);
+    // The old fields for the pages opened before: optional, kept when sent.
+    expect(PublicPlayerMediaSchema.parse({ number: 4, photo: A, events: {}, images: [B], videos: [V1] })).toEqual({
+      number: 4,
+      photo: A,
+      events: {},
+      images: [B],
+      videos: [V1],
+    });
   });
 });

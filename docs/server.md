@@ -753,7 +753,7 @@ resta fino all'inizio della partita successiva, così la pagina mostra foto e co
 calendario iniziata prima della fine dell'ultima è la partita stessa (`.dvw` non abbinato) e non è «prossima». Le
 impostazioni arrivano da `ClubLook.afterMatch` (`clubLook`). Se alla fine il `.dvw` non è ancora abbinato (file fatto da un
 modello vecchio, con data sbagliata), `IngestService` riprova l'abbinamento con il giorno (Roma) in cui è finito; inoltre
-`comingFixtures` esclude le partite proposte come candidate da un `.dvw` finito non abbinato.
+`comingFixtures` esclude le partite proposte come candidate da un `.dvw` finito non abbinato, e le partite iniziate prima della fine di un `.dvw` finito non abbinato (non più di 4 ore prima, `startedBeforeEnd`): non sono «in arrivo». Una partita iniziata dopo quella fine resta «in arrivo».
 
 Concorrono al canale i `.dvw` non abbinati a una partita del calendario (le amichevoli non abbinate restano visibili) e
 quelli abbinati a una partita trasmessa; quelli abbinati a una partita non trasmessa sono esclusi (`channelAllowed` in

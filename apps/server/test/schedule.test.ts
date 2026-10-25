@@ -211,6 +211,25 @@ describe('public schedule', () => {
     server.setNow(new Date('2026-10-25T19:32:00Z'));
     expect((await schedule()).body.fixtures.map((f) => f.away.name)).not.toContain('Tinet Prata di Pordenone');
   });
+  it('keeps coming a fixture that begins after the end of a finished file not linked', async () => {
+    await server.database.db.delete(matches).where(eq(matches.tenantId, server.tenantId));
+    server.setNow(new Date('2026-10-25T14:00:00Z'));
+    const early = generateMatch({
+      seed: 11,
+      homeName: 'Squadra Qualunque',
+      awayName: 'Altra Squadra',
+      startTime: '2026-09-01T17:00:00Z',
+    });
+    await ingest(server.app, agent, await requestFor('presto', 0, [], fileAt(early, 30)));
+    await ingest(
+      server.app,
+      agent,
+      await requestFor('presto', 1, fileAt(early, 30).scoutLines, fileAt(early, early.lines.length)),
+    );
+    // Ended at 14:00, the match of 18:00 has not begun: still coming.
+    server.setNow(new Date('2026-10-25T14:02:00Z'));
+    expect((await schedule()).body.fixtures.map((f) => f.away.name)).toContain('Tinet Prata di Pordenone');
+  });
   it('leaves out a revoked link at once and an expired one', async () => {
     server.setNow(new Date('2026-11-01T10:00:00Z'));
     const fresh = await login(server.app, ADMIN);

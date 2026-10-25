@@ -49,7 +49,7 @@ describe('«Prossima partita»', () => {
     expect(screen.getByText(/ore 18:00/)).toBeTruthy();
     expect(screen.getByText('Palasport di Cuneo · Cuneo (CN)')).toBeTruthy();
     expect(screen.getByRole('timer').getAttribute('aria-label')).toBe('Mancano 2 giorni, 1 ore e 0 minuti');
-    expect(screen.getByText(/La diretta comparirà qui da sola/)).toBeTruthy();
+    expect(screen.queryByText(/La diretta comparirà qui da sola/)).toBeNull();
   });
 
   it('says when the match is postponed or no longer in the calendar, without countdown', () => {

@@ -180,8 +180,8 @@ export function LivePage() {
   // Over the match (pauses, tables, maps) nothing can be tapped until the look is known: a device without touch must
   // never see a button, not even while it loads.
   const touchReady = look === null ? false : touch;
-  // Without touch also the phone and the tablet are laid out in screens without scrolling, like the big screen.
-  const screens = screensFor(device, look?.layout ?? null);
+  // Screens without scrolling: the big screen only (the «Touch» option never changes the layout).
+  const screens = screensFor(device);
   const controls = !touch ? null : (
     <div
       className={`flex items-center gap-2 transition-opacity focus-within:opacity-100 motion-reduce:transition-none ${idle ? 'opacity-0' : ''}`}

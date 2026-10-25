@@ -299,10 +299,10 @@ export function renderSlide(slide: IntermissionSlide, env: SlideEnv, size: Slide
       return size === 'full' ? (
         <div className="flex min-h-full flex-col items-center justify-center gap-4">
           <p className="font-display text-xl font-semibold uppercase tracking-wide text-muted">Parziali dei set</p>
-          <Partials partials={setPartials(env.state)} />
+          <Partials partials={setPartials(env.state)} device={env.device} />
         </div>
       ) : (
-        <Partials partials={setPartials(env.state)} compact />
+        <Partials partials={setPartials(env.state)} device={env.device} compact />
       );
     case 'setScorers':
       return (

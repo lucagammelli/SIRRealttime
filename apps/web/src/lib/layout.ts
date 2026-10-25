@@ -140,20 +140,6 @@ export function tabletSpan(width: number): string {
   return `col-span-12 ${landscape} ${DESKTOP_SPAN[columns] ?? '@min-[1150px]:col-span-12'}`;
 }
 
-/**
- * Pure: columns of a block of `width` when a phone or a tablet without touch is laid out in screens (`BlockLayout`), the
- * same that its grid gives it (`tabletSpan`): the phone and the tablet in portrait one column, the tablet in landscape
- * the narrow blocks half wide and the wide ones full, the desktop its width. `gridPx`: width of the grid (0: not
- * measured yet, laid out as in portrait).
- */
-export function screenWidth(width: number, device: Device, gridPx: number): number {
-  const columns = Math.min(LAYOUT_COLUMNS, Math.max(1, width));
-  if (device === 'tv') return columns;
-  if (device === 'phone' || gridPx < GRID_LANDSCAPE_MIN_PX) return LAYOUT_COLUMNS;
-  if (gridPx < GRID_DESKTOP_MIN_PX) return columns >= 8 ? LAYOUT_COLUMNS : LAYOUT_COLUMNS / 2;
-  return columns;
-}
-
 /** Classes of the grid itself: in the tablet landscape range it fills the holes left by a full width block. */
 export const TABLET_GRID_FLOW = '@min-[856px]:grid-flow-row-dense @min-[1150px]:grid-flow-row';
 

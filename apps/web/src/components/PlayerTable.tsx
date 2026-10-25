@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import type { PlayerRow, PlayerSortKey, SortDirection } from '../charts/players.ts';
 import { playerRows, sortPlayerRows, statSets } from '../charts/players.ts';
 import { formatCount, formatPct, teamName } from '../lib/format.ts';
-import { useDeviceContext, useTouch } from '../lib/useLayout.ts';
+import { useDeviceContext, useScrolls, useTouch } from '../lib/useLayout.ts';
 import { Card, Empty, Segmented } from './ui.tsx';
 
 interface Column {
@@ -67,6 +67,8 @@ const TEXT: Record<Side, string> = { home: 'text-home-ink', away: 'text-away-ink
 export function PlayerTable({ state, className = '' }: { state: MatchState; className?: string }) {
   const compact = useDeviceContext() === 'phone';
   const touch = useTouch();
+  // Scrolls everywhere but on the big screen without touch (there what does not fit the card is cut).
+  const scrolls = useScrolls();
   const [allColumns, setAllColumns] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
   const essential = compact && !allColumns;
@@ -135,13 +137,13 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
       ) : (
         // Wide table: it scrolls sideways inside the card (focusable, so also with the keyboard), never the page.
         // Phone: also vertically inside the card, so that the header stays visible (sticky) while scrolling.
-        // Without touch nothing scrolls: what does not fit the card is cut by its body (overflow hidden).
+        // On the big screen without touch nothing scrolls: what does not fit the card is cut by its body (overflow hidden).
         <div
-          {...(touch
+          {...(scrolls
             ? { role: 'region', 'aria-label': 'Tabella giocatori, scorrevole in orizzontale', tabIndex: 0 }
             : {})}
           className={`sir-card-bleed -mx-4 max-w-[calc(100%+2rem)] sm:-mx-5 sm:max-w-[calc(100%+2.5rem)] ${
-            touch ? `sir-scroll-x ${compact ? 'max-h-[70dvh] overflow-y-auto' : ''}` : ''
+            scrolls ? `sir-scroll-x ${compact ? 'max-h-[70dvh] overflow-y-auto' : ''}` : ''
           }`}
         >
           <table className={`w-full border-collapse text-sm tabular ${essential ? '' : 'min-w-[46rem]'}`}>
@@ -149,7 +151,7 @@ export function PlayerTable({ state, className = '' }: { state: MatchState; clas
               Statistiche dei giocatori di {teamName(state.teams, side)}
               {setShown ? ` nel ${setShown}° set` : ' nella partita'}. Le intestazioni ordinano la tabella.
             </caption>
-            <thead className={compact && touch ? 'sticky top-0 z-10 bg-surface' : ''}>
+            <thead className={compact && scrolls ? 'sticky top-0 z-10 bg-surface' : ''}>
               {!essential && (
                 <tr className="bg-table-head text-xs uppercase tracking-wide text-muted">
                   <th colSpan={2} scope="colgroup" />

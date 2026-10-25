@@ -231,7 +231,7 @@ describe('LivePage layout of the client', () => {
 });
 
 describe('LivePage without «Touch»', () => {
-  it('tablet and phone without touch are screens without scrolling (fixed height, groups); with touch the page scrolls', () => {
+  it('tablet and phone without touch keep the page of touch (column, scrolling), without controls; the big screen stays in screens', () => {
     const lookWith = (touch: boolean) =>
       tenantLookOf({
         name: 'Sir Safety',
@@ -243,7 +243,6 @@ describe('LivePage without «Touch»', () => {
         sponsors: [],
         players: [],
       });
-    const SCROLL = '.overflow-y-auto, .overflow-auto, .overflow-scroll, .sir-scroll-x';
     for (const [width, height] of [
       [1024, 768],
       [390, 844],
@@ -252,10 +251,12 @@ describe('LivePage without «Touch»', () => {
       setWidth(width, height);
       const off = renderAt();
       const root = off.container.querySelector('[data-device]');
-      expect(root?.className).toContain('h-dvh');
-      expect(root?.className).toContain('overflow-hidden');
-      expect(off.container.querySelector('[data-layout="screens"]')).toBeTruthy();
-      expect(off.container.querySelector(SCROLL)).toBeNull();
+      expect(root?.className).toContain('min-h-dvh');
+      expect(root?.className).not.toContain('h-dvh overflow-hidden');
+      expect(off.container.querySelector('[data-layout="screens"], [data-layout="tv"]')).toBeNull();
+      expect(off.container.querySelector('[data-tv-block]')).toBeNull();
+      expect(off.container.querySelector('.sir-scroll-x')).toBeTruthy();
+      expect(off.container.querySelector('main button, main select, main a')).toBeNull();
       off.unmount();
       act(() => setTenantLook(lookWith(true)));
       const on = renderAt();

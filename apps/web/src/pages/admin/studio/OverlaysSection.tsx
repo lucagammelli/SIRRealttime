@@ -279,13 +279,14 @@ function BackgroundSetting({
           )}
           <p className="text-xs text-muted">
             {mode === 'video'
-              ? 'Video della libreria: parte subito e gira per i secondi dell’avviso su TV e tablet. Con «Audio» acceso si sente anche il sonoro, se il browser lo permette (altrimenti parte senza audio). Sul telefono il video non si mostra, e nemmeno a chi ha chiesto meno animazioni: lì l’avviso esce con il solo testo.'
+              ? 'Video della libreria: parte subito e gira per i secondi dell’avviso su TV, tablet e telefono. Con «Audio» acceso si sente anche il sonoro, se il browser lo permette (altrimenti parte senza audio). A chi ha chiesto meno animazioni il video non si mostra: l’avviso esce con il solo testo.'
               : 'Immagine della libreria: sta dietro al testo, senza velatura (solo una fascia leggera dietro le parole).'}{' '}
             Con «Solo la nostra squadra» (predefinito) gli avvisi della squadra avversaria escono con il solo testo, in
             casa e in trasferta; la nostra squadra è quella scelta in «Colori e loghi» › «Squadra» e, se non la si
             riconosce nella partita, lo sfondo non compare. Senza «Mostra il testo» lo sfondo esce pulito, senza
             velatura (il testo resta per chi usa un lettore di schermo). Il file si scarica all’apertura della pagina
-            (sul telefono solo le immagini, mai il video): se non è ancora pronto l’avviso esce con il solo testo.
+            (con meno animazioni solo le immagini, mai il video): se non è ancora pronto l’avviso esce con il solo
+            testo.
           </p>
         </div>
       )}
@@ -420,7 +421,7 @@ function PlayerMediaSetting({
         </Link>{' '}
         › «Foto e video»; senza foto dell’avviso si usa la foto principale. Se il giocatore non ne ha si usa lo sfondo
         dell’avviso, altrimenti solo il testo. Solo per la nostra squadra
-        {pm?.source === 'video' && '; senza video, sul telefono e con movimento ridotto si mostra la foto'}.
+        {pm?.source === 'video' && '; senza video o con movimento ridotto si mostra la foto'}.
       </p>
     </div>
   );
@@ -469,7 +470,7 @@ function VideoOptions({
       {background.duration === 'video' && (
         <p className="w-full text-xs text-muted">
           L’avviso resta finché il video finisce (al massimo {OVERLAY_VIDEO_MAX_SECONDS} secondi). Se la durata non si
-          legge, o il video non si vede (telefono, movimento ridotto), dura i secondi impostati ({overlay.seconds}).
+          legge, o il video non si vede (movimento ridotto), dura i secondi impostati ({overlay.seconds}).
         </p>
       )}
     </div>

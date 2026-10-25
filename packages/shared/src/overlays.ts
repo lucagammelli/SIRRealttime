@@ -101,7 +101,7 @@ export type OverlayVideoFit = (typeof OVERLAY_VIDEO_FITS)[number];
 /**
  * How long an overlay with a video lasts: `seconds` (the seconds of the overlay, the video loops: as before the setting
  * existed) or `video` (until the video ends, played once, at most OVERLAY_VIDEO_MAX_SECONDS; the seconds of the overlay
- * when the length of the video cannot be read, the video does not start, on the phone and with reduced motion).
+ * when the length of the video cannot be read, the video does not start, or with reduced motion).
  */
 export const OVERLAY_VIDEO_DURATIONS = ['seconds', 'video'] as const;
 export type OverlayVideoDuration = (typeof OVERLAY_VIDEO_DURATIONS)[number];
@@ -192,7 +192,7 @@ export type OverlayPlayerMedia = z.output<typeof OverlayPlayerMediaSchema>;
 
 /**
  * Pure: the file of a player of the roster behind the overlay of `kind`: the video chosen for that overlay when the
- * overlay shows the video and `videos` (not on the phone nor with reduced motion), otherwise the photo chosen for that
+ * overlay shows the video and `videos` (not with reduced motion), otherwise the photo chosen for that
  * overlay, otherwise the main photo; undefined when none (the fixed background or the text only).
  */
 export function playerMediaFile(

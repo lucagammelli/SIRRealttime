@@ -74,8 +74,10 @@ describe('overlayFor: photo or video of the player', () => {
   it('the video of the overlay of the player of our team when videos are allowed, the photo of the overlay otherwise', () => {
     const withVideo = overlayFor(ace(), state([]), photoVideo, 'tv', 0, 'home', roster(true));
     expect(withVideo?.background).toMatchObject({ kind: 'video', assetId: VIDEO, teams: 'ours' });
-    const phone = overlayFor(ace(), state([]), photoVideo, 'phone', 0, 'home', roster(false));
-    expect(phone?.background).toMatchObject({ kind: 'image', assetId: PHOTO_2 });
+    const phone = overlayFor(ace(), state([]), photoVideo, 'phone', 0, 'home', roster(true));
+    expect(phone?.background).toMatchObject({ kind: 'video', assetId: VIDEO, teams: 'ours' });
+    const reduced = overlayFor(ace(), state([]), photoVideo, 'phone', 0, 'home', roster(false));
+    expect(reduced?.background).toMatchObject({ kind: 'image', assetId: PHOTO_2 });
   });
 
   it('«Foto del giocatore» shows the photo of the overlay, else the main photo; an old «Casuale» is the same', () => {
@@ -183,7 +185,7 @@ describe('files of the players to keep ready', () => {
 
   it('only the file each overlay would show: the video when allowed, else the photo of the overlay or the main one', () => {
     expect(ids(wantedBackgrounds(c, 'tv', false, { players: [ROSSI], court, team }))).toEqual([VIDEO]);
-    expect(ids(wantedBackgrounds(c, 'phone', false, { players: [ROSSI], court, team }))).toEqual([PHOTO_2]);
+    expect(ids(wantedBackgrounds(c, 'phone', false, { players: [ROSSI], court, team }))).toEqual([VIDEO]);
     expect(ids(wantedBackgrounds(c, 'tv', true, { players: [ROSSI], court, team }))).toEqual([PHOTO_2]);
     // An old «Casuale» keeps one file only.
     const random = config({ ace: { playerMedia: { source: 'video', pick: 'random' } } });
@@ -268,11 +270,10 @@ describe('Overlay on the page: photo of the player of our team', () => {
     expect(r.fetched).toContain(publicAssetPath(VIDEO));
   });
 
-  it('on the phone the photo, never the video (not even downloaded)', async () => {
+  it('on the phone the video too', async () => {
     const r = await show('home', [ROSSI], 'phone');
-    expect(r.video).toBe(false);
-    expect(r.image).toBe(true);
-    expect(r.fetched).not.toContain(publicAssetPath(VIDEO));
+    expect(r.video).toBe(true);
+    expect(r.fetched).toContain(publicAssetPath(VIDEO));
   });
 
   it('the opponent ace has the text only; a player without files too', async () => {

@@ -98,8 +98,8 @@ export function OverlayBanner({
 }) {
   const reduced = useReducedMotion();
   const tone = team ?? 'neutral';
-  // No video on the phone nor with reduced motion (the page does not even download it there).
-  const shown = media && !((reduced || device === 'phone') && media.kind === 'video') ? media : null;
+  // No video with reduced motion (the page does not even download it then).
+  const shown = media && !(reduced && media.kind === 'video') ? media : null;
   if (!shown)
     return (
       <div
@@ -278,9 +278,9 @@ export function Overlay({
   // Side of our team, claimed by the match view (team chosen in «Grafica»): a video for our team only follows it.
   const ourSide = useOurSide();
   // Photos and videos of the players of our team (roster): the file of each overlay kept ready for the ones on court
-  // (the whole team for Cambio); no video on the phone nor with reduced motion (the photo is used).
+  // (the whole team for Cambio); no video with reduced motion (the photo is used).
   const players = useTenantLook()?.players ?? NO_PLAYERS;
-  const videos = device !== 'phone' && !reducedMotion;
+  const videos = !reducedMotion;
   const { court, team } = playerNumbersInPlay(state, ourSide);
   const media = useOverlayMedia(config, device, reducedMotion, undefined, { players, court, team });
 
@@ -321,7 +321,7 @@ export function Overlay({
     if (next) setCurrent(next);
   }, [current, arrivals, blocked]);
 
-  // The video of the overlay on screen, when the overlay follows its length (not on the phone nor with reduced motion:
+  // The video of the overlay on screen, when the overlay follows its length (not with reduced motion:
   // there the video is not shown and the seconds apply).
   const shownMedia = current ? backgroundMedia(current.background, media, current.player) : null;
   const followsVideo = shownMedia?.kind === 'video' && shownMedia.duration === 'video';

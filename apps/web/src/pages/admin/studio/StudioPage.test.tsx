@@ -1189,7 +1189,7 @@ describe('Avvisi', () => {
     );
   });
 
-  it('the preview and «Prova» use the first player of the roster with files: the video of the overlay, or its photo on the phone', async () => {
+  it('the preview and «Prova» use the first player of the roster with files: the video of the overlay, also on the phone', async () => {
     const item = (assetId: string, video: boolean) => ({
       assetId,
       url: `/api/admin/assets/${assetId}/file`,
@@ -1249,12 +1249,12 @@ describe('Avvisi', () => {
     expect(region.textContent).toContain('ACE! Rossi');
     fireEvent.click(within(await overlayRow('ace')).getByRole('button', { name: 'Prova Ace' }));
     expect(screen.getByTestId('prova-avviso').querySelector('video')).not.toBeNull();
-    // Phone: the photo of the overlay, never the video.
+    // Phone: the video too.
     fireEvent.click(screen.getByRole('radio', { name: /Telefono/ }));
     await waitFor(() => {
-      const r = screen.getByTestId('prova-avviso');
-      expect(r.querySelector('video')).toBeNull();
-      expect(r.querySelector('img')?.getAttribute('src')).toBe(`/api/admin/assets/${ACE_PHOTO}/file`);
+      expect(screen.getByTestId('prova-avviso').querySelector('video')?.getAttribute('src')).toBe(
+        `/api/admin/assets/${VIDEO_ID}/file`,
+      );
     });
   });
 

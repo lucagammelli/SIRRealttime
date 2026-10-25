@@ -320,7 +320,6 @@ function Studio({
           ourTeamSide(previewMatch.teams, branding.draft.ourTeam) ?? 'home',
           rosterPick,
           trial.key,
-          device,
         ).background
       : overlay.background;
     if (background?.kind === 'video' && background.duration === 'video') {

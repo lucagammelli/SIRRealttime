@@ -67,7 +67,7 @@ afterEach(() => {
 });
 
 describe('backgrounds to preload', () => {
-  it('only of the overlays on and shown on the device, each file once; no videos on the phone nor with reduced motion', () => {
+  it('only of the overlays on and shown on the device, each file once; videos also on the phone, none with reduced motion', () => {
     // substitution: not on the phone by default; timeout: off.
     const files = (list: { kind: string; assetId: string }[]) => list.map(({ kind, assetId }) => ({ kind, assetId }));
     expect(files(wantedBackgrounds(WITH_BACKGROUNDS, 'tablet', false))).toEqual([
@@ -76,7 +76,10 @@ describe('backgrounds to preload', () => {
       { kind: 'image', assetId: '11111111-0000-4000-8000-000000000000' },
     ]);
     expect(wantedBackgrounds(WITH_BACKGROUNDS, 'tv', false).map((b) => b.assetId)).toHaveLength(3);
-    expect(files(wantedBackgrounds(WITH_BACKGROUNDS, 'phone', false))).toEqual([{ kind: 'image', assetId: IMAGE }]);
+    expect(files(wantedBackgrounds(WITH_BACKGROUNDS, 'phone', false))).toEqual([
+      { kind: 'video', assetId: VIDEO },
+      { kind: 'image', assetId: IMAGE },
+    ]);
     expect(files(wantedBackgrounds(WITH_BACKGROUNDS, 'tv', true))).toEqual([
       { kind: 'image', assetId: IMAGE },
       { kind: 'image', assetId: '11111111-0000-4000-8000-000000000000' },
@@ -146,24 +149,31 @@ describe('drawing an overlay with a background', () => {
     expect(document.querySelector('[data-overlay]')?.hasAttribute('data-background')).toBe(false);
   });
 
-  it('on the phone a video background is never drawn (text only), an image one is', () => {
+  it('on the phone a video background is drawn like an image one, but not with reduced motion', () => {
     stubReducedMotion(false);
     const view = render(
       <OverlayBanner text="ACE" team="home" device="phone" media={{ kind: 'video', url: 'blob:vid' }} />,
     );
+    expect(document.querySelector('video')?.getAttribute('src')).toBe('blob:vid');
+    view.unmount();
+    stubReducedMotion(true);
+    const reduced = render(
+      <OverlayBanner text="ACE" team="home" device="phone" media={{ kind: 'video', url: 'blob:vid' }} />,
+    );
     expect(document.querySelector('video')).toBeNull();
     expect(document.querySelector('[data-overlay]')?.textContent).toBe('ACE');
-    view.unmount();
+    reduced.unmount();
+    stubReducedMotion(false);
     render(<OverlayBanner text="MURO" team="home" device="phone" media={{ kind: 'image', url: 'blob:img' }} />);
     expect(document.querySelector('[data-background="image"] img')?.getAttribute('src')).toBe('blob:img');
   });
 
-  it('the page on the phone does not even download a video background', async () => {
+  it('the page on the phone downloads a video background too', async () => {
     const load = vi.fn<MediaLoader>((path) => Promise.resolve(`blob:${path}`));
     const { result } = renderHook(() => useOverlayMedia(WITH_BACKGROUNDS, 'phone', false, load));
     await act(() => Promise.resolve());
-    expect(load.mock.calls.map((c) => c[0])).toEqual([publicAssetPath(IMAGE)]);
-    expect(result.current.has(VIDEO)).toBe(false);
+    expect(load.mock.calls.map((c) => c[0])).toContain(publicAssetPath(VIDEO));
+    expect(result.current.has(VIDEO)).toBe(true);
   });
 
   it('the page preloads the backgrounds; an overlay whose file is not ready yet goes out with the text only', async () => {
@@ -398,16 +408,17 @@ describe('options of a video background', () => {
 
   describe('overlay that lasts as long as its video', () => {
     const SECONDS = 4;
-    async function show(background: { duration: 'seconds' | 'video' }, device: 'tv' | 'phone' = 'tv') {
+    async function show(background: { duration: 'seconds' | 'video' }, reduced = false) {
+      stubReducedMotion(reduced);
       vi.stubGlobal('fetch', () => Promise.resolve(new Response(new Blob(['v'], { type: 'video/mp4' }))));
       vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:video' }));
       vi.useFakeTimers();
       const release = claimOurSide('home');
       const c = config({ ace: { seconds: SECONDS, background: { kind: 'video', assetId: VIDEO, ...background } } });
-      const view = render(<Overlay state={withEvents([])} live={false} config={c} device={device} />);
+      const view = render(<Overlay state={withEvents([])} live={false} config={c} device="tv" />);
       await act(() => Promise.resolve());
       await act(() => Promise.resolve());
-      view.rerender(<Overlay state={withEvents([event('ace')])} live config={c} device={device} />);
+      view.rerender(<Overlay state={withEvents([event('ace')])} live config={c} device="tv" />);
       return { view, release };
     }
     const on = () => document.querySelector('[data-overlay]') !== null;
@@ -470,8 +481,8 @@ describe('options of a video background', () => {
       release();
     });
 
-    it('on the phone (no video shown): the seconds of the overlay', async () => {
-      const { release } = await show({ duration: 'video' }, 'phone');
+    it('with reduced motion (no video shown): the seconds of the overlay', async () => {
+      const { release } = await show({ duration: 'video' }, true);
       expect(document.querySelector('video')).toBeNull();
       tick(3_900);
       expect(on()).toBe(true);

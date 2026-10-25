@@ -196,7 +196,7 @@ function Stage({
   const placement = overlayPlacement(docs.overlays, overlay);
   // The example event is of our team (home when the team of the client is not in the match): its video is shown.
   const trialSide = ourTeamSide(shown.teams, docs.branding.ourTeam) ?? 'home';
-  const preview = overlayPreview(overlayKindShown, overlay, shown, trialSide, sample, trial?.key ?? 0, device);
+  const preview = overlayPreview(overlayKindShown, overlay, shown, trialSide, sample, trial?.key ?? 0);
   const previewBackground = preview.background;
   const slides =
     pause && kind

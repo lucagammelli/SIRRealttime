@@ -322,15 +322,15 @@ describe('LivePage pauses without the graphics of the client', () => {
     });
   });
 
-  it('graphics not available (404): the default pause shows', async () => {
+  it('graphics not available (404): no pause, never the default one', async () => {
     await atEndOfSet(async () => {
       const notFound = vi.fn(() => Promise.resolve(new Response('{"error":"Non trovato"}', { status: 404 })));
       await act(() => initBranding({ fetch: notFound as unknown as typeof fetch }));
       expect(notFound).toHaveBeenCalledTimes(1);
       setWidth(1024);
       renderAt();
-      expect(screen.getByRole('dialog', { name: 'Fine 1° set' })).toBeTruthy();
-      expect(screen.getByText('Riepilogo del 1° set')).toBeTruthy();
+      expect(screen.getByRole('region', { name: 'Tabellone' })).toBeTruthy();
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
   });
 });

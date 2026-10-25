@@ -9,12 +9,21 @@ import {
   defaultLayout,
   defaultOverlays,
 } from '@arenalive/shared';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { usePalette } from '../charts/usePalette.ts';
 import { BrandMark } from '../components/BrandMark.tsx';
 import { bytesToBase64 } from './base64.ts';
-import { createBrandingRefresh, loadTenantLook, setTenantLook, tenantLookOf, writePalette } from './branding.ts';
+import {
+  createBrandingRefresh,
+  initBranding,
+  loadTenantLook,
+  setTenantLook,
+  tenantLookOf,
+  useTenantIntermissions,
+  useTenantOverlays,
+  writePalette,
+} from './branding.ts';
 import { applyThemeChoice } from './theme.ts';
 
 const LOGO = '/api/public/assets/6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
@@ -110,6 +119,32 @@ describe('loading the graphics', () => {
     expect(
       await loadTenantLook({ fetch: ok({ ...evil, branding: { ...evil.branding, colors: { home: 'red;}' } } }) }),
     ).toBeNull();
+  });
+});
+
+describe('pauses and overlays of the public page: never the defaults', () => {
+  const failing = vi.fn(() => Promise.reject(new Error('rete'))) as unknown as typeof fetch;
+  const hooks = () => renderHook(() => ({ pauses: useTenantIntermissions(), overlays: useTenantOverlays() }));
+
+  it('graphics not loaded yet, or never loaded because the read failed: no pauses and no overlays', async () => {
+    const view = hooks();
+    expect(view.result.current).toEqual({ pauses: null, overlays: null });
+    await act(() => initBranding({ fetch: failing }));
+    expect(view.result.current).toEqual({ pauses: null, overlays: null });
+  });
+
+  it('a read that fails after a good one keeps the pauses and the overlays loaded before', async () => {
+    const off = defaultIntermissions();
+    off.milestone.enabled = false;
+    const doc = { ...tenant({ home: '#e30613' }), intermissions: off };
+    const view = hooks();
+    await act(() =>
+      initBranding({ fetch: vi.fn(() => Promise.resolve(Response.json(doc))) as unknown as typeof fetch }),
+    );
+    expect(view.result.current.pauses?.milestone.enabled).toBe(false);
+    await act(() => initBranding({ fetch: failing, fresh: true }));
+    expect(view.result.current.pauses?.milestone.enabled).toBe(false);
+    expect(view.result.current.overlays).not.toBeNull();
   });
 });
 

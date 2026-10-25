@@ -13,8 +13,6 @@ import {
   brandPalette,
   DEFAULT_BRAND_NAME,
   DEFAULT_TEMPLATE,
-  defaultIntermissions,
-  defaultOverlays,
   ourTeamSide,
   PublicTenantResponseSchema,
   TemplateIdSchema,
@@ -57,10 +55,6 @@ let look: TenantLook | null = null;
 /** Load of the graphics: still loading, loaded (`look` set), or failed (the portal defaults). */
 export type TenantLookStatus = 'loading' | 'loaded' | 'failed';
 let status: TenantLookStatus = 'loading';
-/** Pauses used when the graphics cannot be loaded: the defaults of the shared contract. */
-const DEFAULT_INTERMISSIONS: TenantIntermissions = defaultIntermissions();
-/** Overlays used when the graphics cannot be loaded: the defaults of the shared contract. */
-const DEFAULT_OVERLAYS: TenantOverlays = defaultOverlays();
 /** Bumped at every change of the variables: the charts read the palette again. */
 let revision = 0;
 const listeners = new Set<() => void>();
@@ -258,7 +252,7 @@ export async function loadTenantLook(options: LoadOptions = {}): Promise<TenantL
 
 /**
  * Loads and applies the graphics of the client (at start, and again after a save). A failure keeps graphics already
- * loaded; without them the status becomes `failed` (the portal defaults, pauses included).
+ * loaded; without them the status becomes `failed` (the portal defaults for the graphics; no pauses and no overlays).
  */
 export async function initBranding(options: LoadOptions = {}): Promise<void> {
   const loaded = await loadTenantLook(options);
@@ -368,25 +362,20 @@ export function useTenantLookStatus(): TenantLookStatus {
 }
 
 /**
- * Pauses of the public page: the ones of the client once its graphics are loaded, the defaults when the load failed,
- * none (null) while it is still loading.
+ * Pauses of the public page: the ones of the client once its graphics are loaded (a later failed read keeps the last
+ * ones loaded), none (null) while they are not loaded or when the load failed: never the defaults, which are on, so
+ * a pause the client turned off would show.
  */
 export function useTenantIntermissions(): TenantIntermissions | null {
-  const current = useTenantLook();
-  const state = useTenantLookStatus();
-  if (current) return current.intermissions;
-  return state === 'failed' ? DEFAULT_INTERMISSIONS : null;
+  return useTenantLook()?.intermissions ?? null;
 }
 
 /**
- * Overlays of the events of the match: the ones of the client once its graphics are loaded, the defaults when the
- * load failed, none (null) while it is still loading.
+ * Overlays of the events of the match: the ones of the client once its graphics are loaded (a later failed read keeps
+ * the last ones loaded), none (null) while they are not loaded or when the load failed: never the defaults.
  */
 export function useTenantOverlays(): TenantOverlays | null {
-  const current = useTenantLook();
-  const state = useTenantLookStatus();
-  if (current) return current.overlays;
-  return state === 'failed' ? DEFAULT_OVERLAYS : null;
+  return useTenantLook()?.overlays ?? null;
 }
 
 /** Changes at every new set of variables (graphics or theme): key for re-reading the palette of the charts. */

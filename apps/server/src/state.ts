@@ -201,8 +201,15 @@ export async function channelMessage(ctx: AppContext, tenantId: string): Promise
     .orderBy(desc(matches.live), sql`${matches.liveSince} desc nulls last`, desc(matches.updatedAt))
     .limit(1);
   const coming = await comingFixtures(ctx.db, tenantId, now);
-  const next = coming.rows.find((r) => !coming.live.has(r.id)) ?? null;
   const latest = row?.state ? { ...row, state: row.state } : null;
+  // A calendar match that began before the last one ended is that same match (its `.dvw` not linked): the next is the following.
+  const endedAt = latest?.state.status === 'finished' ? (latest.finishedAt ?? latest.updatedAt) : null;
+  const next =
+    coming.rows.find(
+      (r) =>
+        !coming.live.has(r.id) &&
+        (endedAt === null || (effectiveStartsAt(r)?.getTime() ?? Infinity) > endedAt.getTime()),
+    ) ?? null;
   const choice = channelChoice({
     latest: latest
       ? {

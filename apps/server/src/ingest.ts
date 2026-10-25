@@ -152,6 +152,8 @@ export class IngestService {
         if (
           !simulated &&
           state.status === 'finished' &&
+          // Only a file seen being played: an old file that arrives already finished is not today's match.
+          row.state !== null &&
           row.state?.status !== 'finished' &&
           link.clientFixtureId === null &&
           (link.fixtureLink === null || link.fixtureLink === 'pending')

@@ -178,6 +178,20 @@ describe('public schedule', () => {
     server.setNow(new Date('2026-10-25T16:02:00Z'));
     expect((await schedule()).body.fixtures.map((f) => f.away.name)).not.toContain('Tinet Prata di Pordenone');
   });
+  it('does not link to the match of today an old file that arrives already finished', async () => {
+    await server.database.db.delete(matches).where(eq(matches.tenantId, server.tenantId));
+    server.setNow(new Date('2026-10-25T16:10:00Z'));
+    const old = generateMatch({
+      seed: 9,
+      homeName: 'Sir Susa Scai Perugia',
+      awayName: 'Tinet Prata',
+      startTime: '2026-10-14T17:00:00Z',
+    });
+    const sent = await ingest(server.app, agent, await requestFor('perugia-old', 0, [], fileAt(old, old.lines.length)));
+    expect(sent.json()).toMatchObject({ status: 'ok' });
+    server.setNow(new Date('2026-10-25T16:12:00Z'));
+    expect((await schedule()).body.fixtures.map((f) => f.away.name)).toContain('Tinet Prata di Pordenone');
+  });
   it('leaves out a revoked link at once and an expired one', async () => {
     server.setNow(new Date('2026-11-01T10:00:00Z'));
     const fresh = await login(server.app, ADMIN);

@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { shareTokens } from '../src/db/index.js';
 import { generateToken, hashToken } from '../src/lib/tokens.js';
 import { insertShareToken } from '../src/shareCodes.js';
+import { clubLookOf } from '../src/club.js';
 import { channelChoice, CHANNEL_STALE_MS } from '../src/state.js';
 import type { TestServer } from './helpers.js';
 import { ADMIN, createAgent, fileAt, ingest, login, requestFor, startServer } from './helpers.js';
@@ -58,6 +59,19 @@ describe('channelChoice after the end of a match', () => {
     const same = { startsAt: new Date('2026-10-25T13:00:00Z') };
     expect(channelChoice({ latest, next: same, now: after(1), afterMatch: withPhoto })).toBe('latest');
     expect(channelChoice({ latest, next: same, now: after(120), afterMatch: noPhoto })).toBe('latest');
+  });
+});
+
+describe('clubLookOf afterMatch', () => {
+  it('waits delayMinutes only when «Dopo la partita» is on', () => {
+    const image = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
+    const base = { branding: {}, clubProfile: {} };
+    expect(clubLookOf({ ...base, intermissions: { afterMatch: { enabled: false } } }).afterMatch.delayMinutes).toBe(0);
+    expect(clubLookOf({ ...base, intermissions: { afterMatch: { enabled: true, image } } }).afterMatch).toEqual({
+      image,
+      delayMinutes: 30,
+    });
+    expect(clubLookOf(base).afterMatch).toEqual({ image: null, delayMinutes: 0 });
   });
 });
 

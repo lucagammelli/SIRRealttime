@@ -128,7 +128,8 @@ export function clubLookOf(tenant: { branding: unknown; clubProfile: unknown; in
     teamLogos: profile.teamLogos,
     coverage: profile.coverage,
     ourTeam: branding.ourTeam,
-    afterMatch: { image: afterMatchImage(afterMatch), delayMinutes: afterMatch.delayMinutes },
+    // Screen off: no wait after the end of the match.
+    afterMatch: { image: afterMatchImage(afterMatch), delayMinutes: afterMatch.enabled ? afterMatch.delayMinutes : 0 },
   };
 }
 

@@ -9,7 +9,8 @@ import { PLAYERS_MAX, VIDEO_UPLOAD_PATH } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
-import { assets, leagues, leagueTeams, players, tenantLeagues, tenants } from '../src/db/index.js';
+import { z } from 'zod';
+import { assets, leagues, leagueTeams, playerMedia, players, tenantLeagues, tenants } from '../src/db/index.js';
 import type { FetchLike } from '../src/leagues/fetcher.js';
 import { parseRoster, playerPhotoUrl, rejectedUrlReason, splitPlayerName } from '../src/leagues/legavolley.js';
 import type { ExistingPlayer } from '../src/roster.js';
@@ -514,14 +515,12 @@ describe('roster of the club', () => {
       .insert(leagueTeams)
       .values({ leagueId: cup.id, externalId: 7777, name: 'Squadra della coppa' })
       .returning();
-    await server.database.db
-      .insert(tenantLeagues)
-      .values({
-        tenantId: server.tenantId,
-        leagueId: cup.id,
-        leagueTeamId: cupTeam?.id ?? null,
-        createdAt: new Date('2025-01-01'),
-      });
+    await server.database.db.insert(tenantLeagues).values({
+      tenantId: server.tenantId,
+      leagueId: cup.id,
+      leagueTeamId: cupTeam?.id ?? null,
+      createdAt: new Date('2025-01-01'),
+    });
     await clubOfPerugia(server);
     const call = await caller(server);
     const roster = (await call({ url: '/api/admin/roster' })).json<RosterResponse>();
@@ -605,9 +604,143 @@ describe('roster of the club', () => {
     expect((await call({ method: 'DELETE', url: `/api/admin/assets/${v[3]?.id}` })).statusCode).toBe(204);
 
     const pub = (await server.app.inject({ url: '/api/public/tenant' })).json<PublicTenantResponse>();
-    expect(pub.players).toEqual([{ number: 4, photo: image.id, images: [], videos: [v[0]?.id, v[1]?.id] }]);
+    // Only the main photo: the other files are not chosen for an overlay.
+    expect(pub.players).toEqual([{ number: 4, photo: image.id, events: {}, images: [], videos: [] }]);
     // Removed from the roster: no longer on the public page.
     await call({ method: 'DELETE', url: `/api/admin/roster/players/${id}` });
     expect((await server.app.inject({ url: '/api/public/tenant' })).json<PublicTenantResponse>().players).toEqual([]);
+  });
+
+  it('photo and video of each overlay of a player: its files only, of the right type, kept, protected, public', async () => {
+    const server = await start(site().fetch);
+    await clubOfPerugia(server);
+    const call = await caller(server);
+    const added = await call({
+      method: 'POST',
+      url: '/api/admin/roster/players',
+      payload: { number: 4, firstName: 'Mathis', lastName: 'Henno' },
+    });
+    const id = added.json<Player>().id;
+    expect(added.json<Player>().events).toEqual({
+      ace: { photoAssetId: null, videoAssetId: null },
+      block: { photoAssetId: null, videoAssetId: null },
+      substitution: { photoAssetId: null, videoAssetId: null },
+    });
+    const upload = async (kind: string, w: number) =>
+      (
+        await call({ method: 'POST', url: '/api/admin/assets', payload: { kind, data: png(w, 40).toString('base64') } })
+      ).json<AssetSummary>();
+    const main = await upload('player', 30);
+    const photo = await upload('player', 32);
+    const spare = await upload('player', 34);
+    const video = (
+      await call({
+        method: 'POST',
+        url: `${VIDEO_UPLOAD_PATH}?kind=player`,
+        headers: { 'content-type': 'application/octet-stream' },
+        payload: mp4(64, 36, 501),
+      })
+    ).json<AssetSummary>();
+    const put = (payload: unknown) =>
+      call({
+        method: 'PUT',
+        url: `/api/admin/roster/players/${id}/media`,
+        payload: payload as Record<string, unknown>,
+      });
+    const mediaIds = [photo.id, spare.id, video.id];
+    const ok = await put({
+      photoAssetId: main.id,
+      mediaIds,
+      events: { ace: { photoAssetId: photo.id, videoAssetId: video.id }, substitution: { videoAssetId: video.id } },
+    });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json<Player>().events).toEqual({
+      ace: { photoAssetId: photo.id, videoAssetId: video.id },
+      block: { photoAssetId: null, videoAssetId: null },
+      substitution: { photoAssetId: null, videoAssetId: video.id },
+    });
+    // Wrong type, a file not of the player (also the main photo), a file of another client: refused, nothing changes.
+    const other = await createTenant(server, 'altro', ['altro.test']);
+    const adminB = { email: 'b@altro.test', password: 'password-altro-1' };
+    await createUser(server, adminB, 'admin', other);
+    const callB = await caller(server, adminB, 'altro.test');
+    const foreign = (
+      await callB({
+        method: 'POST',
+        url: '/api/admin/assets',
+        payload: { kind: 'player', data: png(36, 40).toString('base64') },
+      })
+    ).json<AssetSummary>();
+    for (const bad of [
+      { photoAssetId: null, mediaIds, events: { ace: { photoAssetId: video.id } } },
+      { photoAssetId: null, mediaIds, events: { block: { videoAssetId: photo.id } } },
+      { photoAssetId: main.id, mediaIds, events: { ace: { photoAssetId: main.id } } },
+      { photoAssetId: null, mediaIds: [photo.id], events: { ace: { photoAssetId: spare.id } } },
+      { photoAssetId: null, mediaIds: [...mediaIds, foreign.id], events: { ace: { photoAssetId: foreign.id } } },
+      { photoAssetId: null, mediaIds, events: { tie: { photoAssetId: photo.id } } },
+    ])
+      expect((await put(bad)).statusCode, JSON.stringify(bad.events)).toBe(400);
+    // Another client never touches this player.
+    expect(
+      (
+        await callB({
+          method: 'PUT',
+          url: `/api/admin/roster/players/${id}/media`,
+          payload: { photoAssetId: null, mediaIds: [foreign.id], events: { ace: { photoAssetId: foreign.id } } },
+        })
+      ).statusCode,
+    ).toBe(404);
+
+    const pub = () =>
+      server.app.inject({ url: '/api/public/tenant' }).then((r) => r.json<PublicTenantResponse>().players);
+    expect(await pub()).toEqual([
+      {
+        number: 4,
+        photo: main.id,
+        events: { ace: { photo: photo.id, video: video.id }, substitution: { photo: null, video: video.id } },
+        images: [photo.id],
+        videos: [video.id],
+      },
+    ]);
+    // A page opened before this release (old schema, `images` and `videos` required) still reads the tenant.
+    const OldPublicPlayerMedia = z.object({
+      number: z.int().min(0).max(99),
+      photo: z.uuid().nullable(),
+      images: z.array(z.uuid()),
+      videos: z.array(z.uuid()),
+    });
+    expect(z.array(OldPublicPlayerMedia).parse(await pub())).toEqual([
+      { number: 4, photo: main.id, images: [photo.id], videos: [video.id] },
+    ]);
+    // A malformed jsonb of the choices reads as none: no error.
+    await server.database.db.update(playerMedia).set({ events: { ace: true } as unknown as string[] });
+    expect((await call({ url: '/api/admin/roster' })).statusCode).toBe(200);
+    expect(await pub()).toEqual([{ number: 4, photo: main.id, events: {}, images: [], videos: [] }]);
+    expect((await call({ method: 'DELETE', url: `/api/admin/assets/${spare.id}` })).statusCode).toBe(409);
+    await put({
+      photoAssetId: main.id,
+      mediaIds,
+      events: { ace: { photoAssetId: photo.id, videoAssetId: video.id }, substitution: { videoAssetId: video.id } },
+    });
+
+    // In use for an overlay: not deleted, and the reason names the overlay.
+    const del = await call({ method: 'DELETE', url: `/api/admin/assets/${video.id}` });
+    expect(del.statusCode).toBe(409);
+    expect(del.json<{ error: string }>().error).toContain('«Ace», «Cambio»');
+
+    // Without `events` the choices of the files that stay are kept; a file taken away takes its choices with it.
+    const kept = await put({ photoAssetId: main.id, mediaIds: [spare.id, photo.id] });
+    expect(kept.json<Player>().events.ace).toEqual({ photoAssetId: photo.id, videoAssetId: null });
+    expect(kept.json<Player>().events.substitution).toEqual({ photoAssetId: null, videoAssetId: null });
+    // Back to none: the public page has the main photo only.
+    await put({ photoAssetId: main.id, mediaIds: [spare.id, photo.id], events: {} });
+    expect(await pub()).toEqual([{ number: 4, photo: main.id, events: {}, images: [], videos: [] }]);
+    // No main photo and nothing chosen: not on the public page.
+    await put({ photoAssetId: null, mediaIds: [spare.id, photo.id], events: {} });
+    expect(await pub()).toEqual([]);
+    await put({ photoAssetId: null, mediaIds: [photo.id], events: { block: { photoAssetId: photo.id } } });
+    expect(await pub()).toEqual([
+      { number: 4, photo: null, events: { block: { photo: photo.id, video: null } }, images: [photo.id], videos: [] },
+    ]);
   });
 });

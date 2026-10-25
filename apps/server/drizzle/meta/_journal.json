@@ -169,6 +169,13 @@
       "when": 1792864339126,
       "tag": "0023_lato_simulazione",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792918768056,
+      "tag": "0024_media_avvisi",
+      "breakpoints": true
     }
   ]
 }

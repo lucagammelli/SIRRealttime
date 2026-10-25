@@ -1,12 +1,15 @@
 import { z } from 'zod';
 import { AssetIdSchema } from './assets.js';
 import { LeagueSeasonSchema } from './leagues.js';
+import type { OverlayPlayerKind } from './overlays.js';
+import { OVERLAY_PLAYER_KINDS, OverlayPlayerKindSchema } from './overlays.js';
 import { plainText } from './strings.js';
 
 /**
  * «Squadra»: the roster of the team of the client in a season (`players`), imported from the site of the league and then
- * edited by hand, with a main photo and other photos and videos of the library for each player (`player_media`). The
- * players of the roster are matched to the ones of the scout file by shirt number.
+ * edited by hand, with a main photo and other photos and videos of the library for each player (`player_media`), and
+ * among them the photo and the video of each overlay of an action of the player (ACE!, Muro, Cambio:
+ * OVERLAY_PLAYER_KINDS). The players of the roster are matched to the ones of the scout file by shirt number.
  */
 
 /** Id of a player of the roster (row of `players`). */
@@ -91,6 +94,23 @@ export const PlayerMediaItemSchema = z.object({
 });
 export type PlayerMediaItem = z.infer<typeof PlayerMediaItemSchema>;
 
+/**
+ * Photo and video of a player for the overlay of one of its actions: files among its other photos and videos (null:
+ * none, the overlay uses the main photo and no video).
+ */
+export const PlayerEventMediaSchema = z.object({
+  photoAssetId: AssetIdSchema.nullable(),
+  videoAssetId: AssetIdSchema.nullable(),
+});
+export type PlayerEventMedia = z.infer<typeof PlayerEventMediaSchema>;
+
+/** Pure: no photo nor video chosen for any overlay. */
+export const noPlayerEvents = (): Record<OverlayPlayerKind, PlayerEventMedia> =>
+  Object.fromEntries(OVERLAY_PLAYER_KINDS.map((k) => [k, { photoAssetId: null, videoAssetId: null }])) as Record<
+    OverlayPlayerKind,
+    PlayerEventMedia
+  >;
+
 export const PlayerSchema = z.object({
   id: PlayerIdSchema,
   season: LeagueSeasonSchema,
@@ -110,6 +130,8 @@ export const PlayerSchema = z.object({
   photo: PlayerMediaItemSchema.nullable(),
   /** Other photos and videos, in their order. */
   media: z.array(PlayerMediaItemSchema),
+  /** Photo and video of each overlay of an action of the player, among `media`. */
+  events: z.record(OverlayPlayerKindSchema, PlayerEventMediaSchema),
   /** Taken out of the roster (only the imported ones: the ones added by hand are deleted). */
   removed: z.boolean(),
   position: z.int(),
@@ -189,16 +211,37 @@ export type UpdatePlayerRequest = z.infer<typeof UpdatePlayerRequestSchema>;
 /**
  * `PUT /api/admin/roster/players/:id/media`: the main photo (an image of the library, null: none) and the other photos
  * and videos (files of the library of kind `player`, each once, at most PLAYER_MEDIA_MAX, of them PLAYER_VIDEOS_MAX
- * videos), in order.
+ * videos), in order; `events`: the photo (an image) and the video (a video) of each overlay of an action of the player,
+ * only among `mediaIds` (a missing overlay: none). Without `events` the choices of the files that stay are kept.
  */
-export const PlayerMediaRequestSchema = z.strictObject({
-  photoAssetId: AssetIdSchema.nullable(),
-  mediaIds: z
-    .array(AssetIdSchema)
-    .max(PLAYER_MEDIA_MAX)
-    .refine((ids) => new Set(ids).size === ids.length, { message: 'file ripetuto' }),
-});
+export const PlayerMediaRequestSchema = z
+  .strictObject({
+    photoAssetId: AssetIdSchema.nullable(),
+    mediaIds: z
+      .array(AssetIdSchema)
+      .max(PLAYER_MEDIA_MAX)
+      .refine((ids) => new Set(ids).size === ids.length, { message: 'file ripetuto' }),
+    events: z
+      .partialRecord(
+        OverlayPlayerKindSchema,
+        z.strictObject({
+          photoAssetId: AssetIdSchema.nullable().default(null),
+          videoAssetId: AssetIdSchema.nullable().default(null),
+        }),
+      )
+      .optional(),
+  })
+  .superRefine((r, ctx) => {
+    const ids = new Set(r.mediaIds);
+    for (const [kind, choice] of Object.entries(r.events ?? {}))
+      for (const field of ['photoAssetId', 'videoAssetId'] as const) {
+        const id = choice[field];
+        if (id !== null && !ids.has(id))
+          ctx.addIssue({ code: 'custom', path: ['events', kind, field], message: 'file non abbinato al giocatore' });
+      }
+  });
 export type PlayerMediaRequest = z.infer<typeof PlayerMediaRequestSchema>;
+export type PlayerMediaRequestInput = z.input<typeof PlayerMediaRequestSchema>;
 
 /** A player of the site not added by the import, and why. */
 export const SkippedPlayerSchema = z.object({ number: z.int(), name: z.string(), reason: z.string() });
@@ -220,12 +263,33 @@ export type ImportRosterResponse = z.infer<typeof ImportRosterResponseSchema>;
 
 /**
  * Photos and videos of a player of the roster for the public pages (only the players with at least one, of the current
- * season), by shirt number: the overlays of an action of our team show them (see `playerBackground`).
+ * season), by shirt number: the main photo and the photo and video chosen for each overlay of an action of the player
+ * (missing overlay: none). The overlays of an action of our team show them (see `playerBackground`).
  */
 export const PublicPlayerMediaSchema = z.object({
   number: PlayerNumberSchema,
   photo: AssetIdSchema.nullable(),
-  images: z.array(AssetIdSchema),
-  videos: z.array(AssetIdSchema),
+  events: z
+    .partialRecord(
+      OverlayPlayerKindSchema,
+      z.object({ photo: AssetIdSchema.nullable(), video: AssetIdSchema.nullable() }),
+    )
+    .default({}),
+  /**
+   * Old fields, only for the public pages opened before the media of each overlay (they show the first one): the photos
+   * and the videos chosen for an overlay, each once. To be removed in a later release.
+   */
+  images: z.array(AssetIdSchema).optional(),
+  videos: z.array(AssetIdSchema).optional(),
 });
 export type PublicPlayerMedia = z.infer<typeof PublicPlayerMediaSchema>;
+
+/** Pure: the photo and video of each overlay of a player as the public pages have them (only the overlays with one). */
+export function publicPlayerEvents(events: Record<OverlayPlayerKind, PlayerEventMedia>): PublicPlayerMedia['events'] {
+  const out: PublicPlayerMedia['events'] = {};
+  for (const kind of OVERLAY_PLAYER_KINDS) {
+    const { photoAssetId, videoAssetId } = events[kind];
+    if (photoAssetId || videoAssetId) out[kind] = { photo: photoAssetId, video: videoAssetId };
+  }
+  return out;
+}

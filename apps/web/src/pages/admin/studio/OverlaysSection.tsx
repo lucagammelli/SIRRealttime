@@ -24,7 +24,6 @@ import {
   OVERLAY_MIN_PRIORITY,
   OVERLAY_MIN_SECONDS,
   OVERLAY_PLACEHOLDERS,
-  OVERLAY_PLAYER_PICKS,
   OVERLAY_POSITIONS,
   OVERLAY_SIZES,
   OVERLAY_TEXT_MAX,
@@ -301,10 +300,6 @@ export const PLAYER_MODE_LABELS: Record<PlayerMode, string> = {
   photo: 'Foto del giocatore',
   video: 'Video del giocatore',
 };
-export const PLAYER_PICK_LABELS: Record<OverlayPlayerMedia['pick'], string> = {
-  default: 'Principale',
-  random: 'Casuale',
-};
 
 /** Pure: the mode of an overlay (no `playerMedia`: the fixed background). */
 export const playerModeOf = (overlay: Pick<Overlay, 'playerMedia'>): PlayerMode =>
@@ -320,17 +315,15 @@ export function withPlayerMode(overlay: Overlay, mode: PlayerMode): Overlay {
 /** Pure: the overlay with some options of the player media changed (none set: unchanged). */
 export function withPlayerOptions(
   overlay: Overlay,
-  options: Partial<Pick<OverlayPlayerMedia, 'pick' | 'audio' | 'fit' | 'duration' | 'showText'>>,
+  options: Partial<Pick<OverlayPlayerMedia, 'audio' | 'fit' | 'duration' | 'showText'>>,
 ): Overlay {
   return overlay.playerMedia ? { ...overlay, playerMedia: { ...overlay.playerMedia, ...options } } : overlay;
 }
 
-const isPick = (v: string): v is OverlayPlayerMedia['pick'] => (OVERLAY_PLAYER_PICKS as readonly string[]).includes(v);
-
 /**
  * «Giocatore della nostra squadra» (ACE!, Muro, Cambio): the fixed background of the overlay, or the photo or video of
- * the player of our team who made the action, taken from the roster («Squadra»): the main one or one at random. The
- * options of a video are the ones of a video background.
+ * the player of our team who made the action, taken from the roster («Squadra» → «Foto e video»: the photo and video
+ * chosen there for this overlay, else the main photo). The options of a video are the ones of a video background.
  */
 function PlayerMediaSetting({
   label,
@@ -362,23 +355,6 @@ function PlayerMediaSetting({
       </fieldset>
       {pm && (
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-1.5">
-            Quale
-            <select
-              className={selectClass}
-              aria-label={`Quale foto o video: ${label}`}
-              value={pm.pick}
-              onChange={(e) => {
-                if (isPick(e.target.value)) onChange(withPlayerOptions(overlay, { pick: e.target.value }));
-              }}
-            >
-              {OVERLAY_PLAYER_PICKS.map((p) => (
-                <option key={p} value={p}>
-                  {PLAYER_PICK_LABELS[p]}
-                </option>
-              ))}
-            </select>
-          </label>
           <label className="flex items-center gap-1.5">
             <input
               type="checkbox"
@@ -438,12 +414,13 @@ function PlayerMediaSetting({
         </div>
       )}
       <p className="text-xs text-muted">
-        Se il giocatore non ha foto né video si usa lo sfondo dell’avviso, altrimenti solo il testo. Solo per la nostra
-        squadra. Foto e video si scelgono in{' '}
+        Si usano la foto e il video scelti per questo avviso in{' '}
         <Link to="/admin/squadra" className="font-medium text-primary underline">
           Squadra
-        </Link>
-        {pm?.source === 'video' && '; sul telefono e con movimento ridotto si mostra la foto'}.
+        </Link>{' '}
+        › «Foto e video»; senza foto dell’avviso si usa la foto principale. Se il giocatore non ne ha si usa lo sfondo
+        dell’avviso, altrimenti solo il testo. Solo per la nostra squadra
+        {pm?.source === 'video' && '; senza video, sul telefono e con movimento ridotto si mostra la foto'}.
       </p>
     </div>
   );

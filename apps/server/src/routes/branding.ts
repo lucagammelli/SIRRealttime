@@ -21,6 +21,7 @@ import {
   adminAssetPath,
   AssetFileMimeSchema,
   isVideoMime,
+  OVERLAY_PLAYER_KIND_LABELS,
   overlayBackgrounds,
   VIDEO_MAX_BYTES,
   VIDEO_UPLOAD_PATH,
@@ -266,6 +267,8 @@ export async function assetUse(tx: Tx, tenantId: string, id: string): Promise<st
   if (overlayBackgrounds(resolveOverlays(tenant?.overlays)).some((b) => b.assetId === id))
     return 'File in uso come sfondo di un avviso: toglilo dall’avviso prima di eliminarlo';
   const [player] = await playersUsingAsset(tx, tenantId, id);
+  if (player && player.events.length > 0)
+    return `File in uso da ${player.lastName} ${player.firstName} della rosa per l’avviso ${player.events.map((k) => `«${OVERLAY_PLAYER_KIND_LABELS[k]}»`).join(', ')}: toglilo da «Foto e video» del giocatore prima di eliminarlo`;
   if (player)
     return `File in uso da ${player.lastName} ${player.firstName} della rosa: toglilo da «Foto e video» del giocatore prima di eliminarlo`;
   const [fixture] = await tx

@@ -7,7 +7,7 @@ import type {
   PublicPlayerMedia,
   TenantOverlays,
 } from '@arenalive/shared';
-import { OVERLAY_KINDS, OVERLAY_PLAYER_KINDS, publicAssetPath } from '@arenalive/shared';
+import { OVERLAY_KINDS, OVERLAY_PLAYER_KINDS, playerMediaFile, publicAssetPath } from '@arenalive/shared';
 import type { MatchState, Side } from '@arenalive/volley-stats';
 import { useEffect, useRef, useState } from 'react';
 
@@ -38,35 +38,37 @@ export const mediaOf = (background: OverlayBackground, url: string, player?: { s
   ...(player ? { player } : { showText: background.showText }),
 });
 
-/** The players of our team whose photos and videos are kept ready: the roster media of the public page and their shirt numbers. */
+/**
+ * The players of our team whose photos and videos are kept ready: the roster media of the public page and their shirt
+ * numbers, the ones on court (`court`: ACE!, Muro) and the whole team of the match (`team`, the bench too: who comes in
+ * with a substitution).
+ */
 export interface PlayerPreload {
   players: readonly PublicPlayerMedia[];
-  numbers: ReadonlySet<number>;
+  court: ReadonlySet<number>;
+  team: ReadonlySet<number>;
 }
 
-/**
- * Pure: the shirt numbers of our team whose files are worth keeping ready: the players on court and, when the overlay of
- * the substitution shows the player, the whole bench (the one who comes in is not on court yet). None when our team is
- * not known in the match.
- */
+/** Pure: the shirt numbers of our team on court and of the whole team of the match; none when our team is not known. */
 export function playerNumbersInPlay(
   state: Pick<MatchState, 'live' | 'players'>,
   ourSide: Side | null,
-  config: TenantOverlays | null,
-): Set<number> {
-  const numbers = new Set<number>();
-  if (ourSide === null) return numbers;
-  for (const n of state.live.lineups[ourSide]) if (n !== null) numbers.add(n);
-  if (config?.substitution.enabled && config.substitution.playerMedia)
-    for (const p of state.players[ourSide]) numbers.add(p.number);
-  return numbers;
+): { court: Set<number>; team: Set<number> } {
+  const court = new Set<number>();
+  const team = new Set<number>();
+  if (ourSide === null) return { court, team };
+  for (const n of state.live.lineups[ourSide]) if (n !== null) court.add(n);
+  for (const n of court) team.add(n);
+  for (const p of state.players[ourSide]) team.add(p.number);
+  return { court, team };
 }
 
 /**
  * Pure: the backgrounds to keep ready on this device: of the overlays on and shown on `device`, each file once; no
  * videos on the phone (data and memory of a mobile connection) nor with reduced motion: the overlay then shows its
- * text only. With `preload`, also the photos (always) and videos (when allowed) of the players of our team in play for the
- * overlays that show the player (the main one, or all of them with «Casuale»).
+ * text only. With `preload`, also the file of each player for each overlay that shows the player (the one of
+ * `playerMediaFile`: the video of that overlay, else its photo, else the main photo): of the players on court for ACE!
+ * and Muro, of the whole team for Cambio.
  */
 export function wantedBackgrounds(
   config: TenantOverlays | null,
@@ -76,22 +78,19 @@ export function wantedBackgrounds(
 ): OverlayBackground[] {
   if (!config) return [];
   const out = new Map<string, OverlayBackground>();
-  const videosAllowed = !reducedMotion && device !== 'phone';
-  if (preload && preload.numbers.size > 0) {
+  const videos = !reducedMotion && device !== 'phone';
+  if (preload) {
     for (const kind of OVERLAY_PLAYER_KINDS) {
       const overlay = config[kind];
       const pm = overlay.playerMedia;
       if (!pm || !overlay.enabled || !overlay.devices[device]) continue;
-      const some = (ids: readonly string[]): string[] => (pm.pick === 'random' ? [...ids] : ids.slice(0, 1));
+      const numbers = kind === 'substitution' ? preload.team : preload.court;
+      const common = { audio: pm.audio, fit: pm.fit, teams: 'ours' as const, showText: pm.showText };
       for (const player of preload.players) {
-        if (!preload.numbers.has(player.number)) continue;
-        const common = { audio: pm.audio, fit: pm.fit, teams: 'ours' as const, showText: pm.showText };
-        const photos = player.photo ? [player.photo, ...player.images] : player.images;
-        for (const assetId of some(photos))
-          if (!out.has(assetId)) out.set(assetId, { kind: 'image', assetId, ...common, duration: 'seconds' });
-        if (pm.source === 'video' && videosAllowed)
-          for (const assetId of some(player.videos))
-            if (!out.has(assetId)) out.set(assetId, { kind: 'video', assetId, ...common, duration: pm.duration });
+        if (!numbers.has(player.number)) continue;
+        const file = playerMediaFile(pm.source, kind, player, { videos });
+        if (file && !out.has(file.assetId))
+          out.set(file.assetId, { ...file, ...common, duration: file.kind === 'video' ? pm.duration : 'seconds' });
       }
     }
   }

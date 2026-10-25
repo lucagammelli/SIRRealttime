@@ -362,15 +362,19 @@ per i suoi secondi, con l'animazione; la scena passa ad «Avviso»), e in «Avan
 predefinito» (solo di quell'evento). «Posizione e dimensione» è il riquadro «Posizione e dimensione di tutti gli avvisi»
 (impostazioni generali). Per i tre avvisi di un giocatore (ACE!, Muro, Cambio: `OVERLAY_PLAYER_KINDS`) l'avviso aperto ha
 anche il riquadro «Giocatore della nostra squadra» (`PlayerMediaSetting`): «Sfondo fisso dell'avviso» (nessun `playerMedia`),
-«Foto del giocatore» o «Video del giocatore»; «Quale» («Principale» / «Casuale», `pick`); «Mostra il testo sopra il video» (o «la foto»,
-`showText`, acceso se manca nei documenti salvati); «Posizione» (del video o della foto: `fit`, anche la foto del giocatore può stare a tutto schermo), con il video «Audio» e «Durata» (come lo sfondo video, senza «Video per»: è sempre la nostra squadra) e la nota «Se il giocatore non ha foto
-né video si usa lo sfondo dell'avviso, altrimenti solo il testo. Solo per la nostra squadra.» con il rimando a «Squadra».
+«Foto del giocatore» o «Video del giocatore» (il file è quello scelto per l'avviso in «Squadra» › «Foto e video»: non c'è più
+«Quale», il vecchio `pick` dei documenti salvati si legge e si scarta); «Mostra il testo sopra il video» (o «la foto»,
+`showText`, acceso se manca nei documenti salvati); «Posizione» (del video o della foto: `fit`, anche la foto del giocatore può stare a tutto schermo), con il video «Audio» e «Durata» (come lo sfondo video, senza «Video per»: è sempre la nostra squadra) e la nota «Si usano la foto e il video
+scelti per questo avviso in Squadra › «Foto e video»; senza foto dell’avviso si usa la foto principale. Se il giocatore non ne
+ha si usa lo sfondo dell’avviso, altrimenti solo il testo. Solo per la nostra squadra» (con il video anche «; senza video, sul
+telefono e con movimento ridotto si mostra la foto») con il collegamento «Squadra».
 Nessuno sfondo ha più la velatura del colore della squadra (tolta `VEIL`, per scelta di Luca): né la foto o il video del giocatore
 (`QueuedOverlay.player`, `overlayPreview().player`) né lo sfondo fisso; con il testo
 acceso c'è solo una fascia leggera dietro le parole (`TEXT_BAND`), spento il testo resta solo per gli screen reader.
-L'anteprima e «Prova» usano il primo giocatore della rosa con foto o video (`rosterSample`, `overlayPreview` in
-`studio/model.ts`; la rosa è letta da `GET /api/admin/roster`, se non si legge lo Studio funziona senza) e, per «Casuale», una
-scelta diversa a ogni «Prova». «Salva» è disattivato con un testo non valido. Logica pura: `lib/overlay.ts` (`overlayValues`,
+L'anteprima e «Prova» usano il primo giocatore della rosa con la foto principale o un file scelto per un avviso
+(`rosterSample`, con `publicPlayerEvents`; `overlayPreview` in `studio/model.ts`, che passa per `playerBackground`: il video o
+la foto di quell'avviso, altrimenti la foto principale; la rosa è letta da `GET /api/admin/roster`, se non si legge lo Studio
+funziona senza). «Salva» è disattivato con un testo non valido. Logica pura: `lib/overlay.ts` (`overlayValues`,
 `overlayText`, `overlayFor`, `unseenEvents`, `enqueue`, `nextOverlay`, `sampleEvent`).
 
 **Limiti noti dello Studio**: i valori da provare su dispositivi veri sono quelli di sempre (TV a 4-5 m, telefono con la
@@ -1176,7 +1180,12 @@ Con più stagioni c'è il menu «Stagione», altrimenti la riga «Stagione 2026/
 - **«Foto e video»** (`MediaEditor`, `PUT /api/admin/roster/players/:id/media`): foto principale (menu «Nessuna» + immagini) e
   «Altre foto e video» (caselle con anteprima, al massimo `PLAYER_MEDIA_MAX` = 12 file, di cui `PLAYER_VIDEOS_MAX` = 3 video),
   **solo tra i file della libreria di tipo `player`** (`GET /api/admin/assets`, `playerFiles`); il collegamento «Carica nella
-  libreria» porta a `/admin/media` (qui non si carica). Senza file: «Nessun file per i giocatori nella libreria.».
+  libreria» porta a `/admin/media` (qui non si carica). Senza file: «Nessun file per i giocatori nella libreria.». Sotto,
+  «Foto e video degli avvisi»: una riga per ogni avviso di un giocatore (`OVERLAY_PLAYER_KINDS`, nomi
+  `OVERLAY_PLAYER_KIND_LABELS`: «Ace», «Muro punto», «Cambio») con due menu, ciascuno con la miniatura da 40 px del file scelto
+  (`EventFileSelect`, «–» senza file): «Foto dell’avviso «…»» tra le altre foto scelte sopra («Foto principale» = nessuna,
+  si usa la principale) e «Video dell’avviso «…»» tra gli altri video («Nessun video»). Un file tolto dalle altre foto e video,
+  o diventato foto principale, sparisce dalle scelte (`eventsWith`); «Salva foto e video» invia anche `events`.
 - **Viewer**: vede la tabella e il segno ✎, con `READ_ONLY_TEXT`; niente importazione, modulo né comandi (`useCanEdit`).
 - Test: `RosterPage.test.tsx`, `AdminApp.test.tsx` (menu).
 
@@ -1306,10 +1315,12 @@ configurazione del cliente da `overlays` di `GET /api/public/tenant` (`docs/arch
   `playerBackground(...) ?? backgroundForTeam(...)` con i `players` di `GET /api/public/tenant` (`TenantLook.players`) e il lato
   di `useOurSide()`: solo per gli eventi di un giocatore della nostra squadra con quel numero di maglia nella rosa, altrimenti
   lo sfondo fisso dell'avviso, altrimenti il solo testo. Il video solo se non è un telefono e senza movimento ridotto
-  (`videos` passato da `Overlay.tsx`), altrimenti la foto. Precaricamento: `wantedBackgrounds(..., preload)` aggiunge i file dei
-  giocatori della nostra squadra **in campo** (`playerNumbersInPlay`: formazione di `state.live.lineups`, più la panchina se
-  l'avviso «Cambio» mostra il giocatore) per gli avvisi accesi sul dispositivo: foto sempre, video solo se ammessi; con
-  «Principale» solo il file principale, con «Casuale» tutti.
+  (`videos` passato da `Overlay.tsx`), altrimenti la foto. Il file è quello di `playerMediaFile` (`@arenalive/shared`): con
+  «Video del giocatore» il video scelto per quell'avviso in «Squadra», altrimenti (o senza video, telefono, movimento ridotto)
+  la foto scelta per quell'avviso, altrimenti la foto principale. Precaricamento: `wantedBackgrounds(..., preload)` aggiunge,
+  per ogni avviso acceso sul dispositivo, **solo il file che l'avviso mostrerebbe** (`playerMediaFile`) dei giocatori della
+  nostra squadra: per ACE! e Muro quelli in campo (`playerNumbersInPlay(...).court`, formazione di `state.live.lineups`), per
+  Cambio tutta la squadra della partita con la panchina (`.team`).
 - **Posizione e dimensione** (`position`: `top`, `center`, `bottom`, predefinito `top`; `size`: `small`, `medium`,
   `large`, predefinita `medium`; `overlayPlacement` di `@arenalive/shared`): impostazioni generali del documento e override
   facoltativo per ogni avviso. In alto al 12 % dal bordo, al centro, in basso al 14 % sopra la banda delle pause; tre

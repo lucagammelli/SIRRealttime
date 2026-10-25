@@ -158,47 +158,64 @@ export type OverlayPlayerKind = (typeof OVERLAY_PLAYER_KINDS)[number];
 export const isOverlayPlayerKind = (kind: string): kind is OverlayPlayerKind =>
   (OVERLAY_PLAYER_KINDS as readonly string[]).includes(kind);
 
+export const OverlayPlayerKindSchema = z.enum(OVERLAY_PLAYER_KINDS);
+/** Italian names of the overlays of an action of a player (the ones of «Studio» → Avvisi). */
+export const OVERLAY_PLAYER_KIND_LABELS: Record<OverlayPlayerKind, string> = {
+  ace: 'Ace',
+  block: 'Muro punto',
+  substitution: 'Cambio',
+};
+
 /** What the overlay of an action of a player of our team shows: its photo or its video. */
 export const OVERLAY_PLAYER_SOURCES = ['photo', 'video'] as const;
-/** Which one: the main one (main photo, first video) or one at random. */
-export const OVERLAY_PLAYER_PICKS = ['default', 'random'] as const;
+/** Values of the old «Quale» choice (main or random file): still read in the documents saved before, then dropped. */
+const OLD_PLAYER_PICKS = ['default', 'random'] as const;
 
 /**
  * Photo or video of the player of our team behind the overlay of its action (OVERLAY_PLAYER_KINDS), from the roster
- * («Squadra»); `audio`, `fit` and `duration` as for a video background; `showText` (missing: true) writes the text over it. Missing (the documents saved before): the fixed
- * background of the overlay.
+ * («Squadra»: the photo and video chosen for that overlay, see `playerMediaFile`); `audio`, `fit` and `duration` as for
+ * a video background; `showText` (missing: true) writes the text over it. Missing (the documents saved before): the
+ * fixed background of the overlay. The old field `pick` of the documents saved before is accepted and dropped.
  */
-export const OverlayPlayerMediaSchema = z.strictObject({
-  source: z.enum(OVERLAY_PLAYER_SOURCES),
-  pick: z.enum(OVERLAY_PLAYER_PICKS).default('default'),
-  audio: z.boolean().default(false),
-  fit: z.enum(OVERLAY_VIDEO_FITS).default('center'),
-  duration: z.enum(OVERLAY_VIDEO_DURATIONS).default('seconds'),
-  /** The text of the overlay is written over the photo or video of the player (false: the media only, clean). */
-  showText: z.boolean().default(true),
-});
+export const OverlayPlayerMediaSchema = z
+  .strictObject({
+    source: z.enum(OVERLAY_PLAYER_SOURCES),
+    pick: z.enum(OLD_PLAYER_PICKS).optional(),
+    audio: z.boolean().default(false),
+    fit: z.enum(OVERLAY_VIDEO_FITS).default('center'),
+    duration: z.enum(OVERLAY_VIDEO_DURATIONS).default('seconds'),
+    /** The text of the overlay is written over the photo or video of the player (false: the media only, clean). */
+    showText: z.boolean().default(true),
+  })
+  .transform(({ source, audio, fit, duration, showText }) => ({ source, audio, fit, duration, showText }));
 export type OverlayPlayerMedia = z.output<typeof OverlayPlayerMediaSchema>;
 
-/** Pure: a number 0..n-1 from a text (FNV-1a), the same for the same text: the «random» pick of an event never changes. */
-function seededIndex(text: string, n: number): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return n > 0 ? h % n : 0;
+/**
+ * Pure: the file of a player of the roster behind the overlay of `kind`: the video chosen for that overlay when the
+ * overlay shows the video and `videos` (not on the phone nor with reduced motion), otherwise the photo chosen for that
+ * overlay, otherwise the main photo; undefined when none (the fixed background or the text only).
+ */
+export function playerMediaFile(
+  source: OverlayPlayerMedia['source'],
+  kind: OverlayPlayerKind,
+  player: PublicPlayerMedia,
+  options: { videos: boolean },
+): { kind: OverlayBackgroundKind; assetId: string } | undefined {
+  const own = player.events[kind];
+  if (source === 'video' && options.videos && own?.video) return { kind: 'video', assetId: own.video };
+  const photo = own?.photo ?? player.photo;
+  return photo ? { kind: 'image', assetId: photo } : undefined;
 }
 
 /**
  * Pure: the photo or video of the player of an event behind its overlay, as a background: only for the overlays of
  * OVERLAY_PLAYER_KINDS with `playerMedia`, an event of a player of our team (`ourSide` known) and a player of the roster
- * with that shirt number. A video only when `videos` (not on the phone nor with reduced motion) and the player has one,
- * otherwise its photo; `random` picks with a seed from the id of the event. undefined when there is nothing: the fixed
+ * with that shirt number; the file is the one of `playerMediaFile`. undefined when there is nothing: the fixed
  * background of the overlay (or the text only) is used.
  */
 export function playerBackground(
   overlay: { playerMedia?: OverlayPlayerMedia | undefined },
-  event: Pick<MatchEvent, 'id' | 'kind' | 'team' | 'player'>,
+  event: Pick<MatchEvent, 'kind' | 'team' | 'player'>,
   ourSide: Side | null,
   players: readonly PublicPlayerMedia[],
   options: { videos: boolean },
@@ -209,16 +226,16 @@ export function playerBackground(
   const number = event.player.number;
   const player = players.find((p) => p.number === number);
   if (!player) return undefined;
-  const pick = (ids: readonly string[]): string | undefined =>
-    pm.pick === 'random' ? ids[seededIndex(event.id, ids.length)] : ids[0];
-  const common = { audio: pm.audio, fit: pm.fit, teams: 'ours' as const, showText: pm.showText };
-  if (pm.source === 'video' && options.videos) {
-    const video = pick(player.videos);
-    if (video) return { kind: 'video', assetId: video, ...common, duration: pm.duration };
-  }
-  const photos = player.photo ? [player.photo, ...player.images] : player.images;
-  const photo = pick(photos);
-  return photo ? { kind: 'image', assetId: photo, ...common, duration: 'seconds' } : undefined;
+  const file = playerMediaFile(pm.source, event.kind, player, options);
+  if (!file) return undefined;
+  return {
+    ...file,
+    audio: pm.audio,
+    fit: pm.fit,
+    teams: 'ours',
+    showText: pm.showText,
+    duration: file.kind === 'video' ? pm.duration : 'seconds',
+  };
 }
 
 interface OverlayDefaults {

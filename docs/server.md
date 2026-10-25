@@ -521,7 +521,10 @@ importata dal sito della Lega e ritoccabile a mano. La pagina del portale arriva
   giocatori attivi: i rimossi non contano); `PATCH` e `DELETE /api/admin/roster/players/:id` (un giocatore a mano si cancella,
   uno importato si segna rimosso e un'importazione non lo riporta; `PATCH removed: false` lo rimette, 409 se il numero è
   occupato); `PUT /api/admin/roster/players/:id/media` (foto principale e altri file: solo file del cliente di `kind` `player`, la
-  principale un'immagine, al massimo `PLAYER_MEDIA_MAX` e `PLAYER_VIDEOS_MAX`, 400 altrimenti); `POST /api/admin/roster/import`
+  principale un'immagine, al massimo `PLAYER_MEDIA_MAX` e `PLAYER_VIDEOS_MAX`, 400 altrimenti; `events`: per ogni avviso di un
+  giocatore, `OVERLAY_PLAYER_KINDS` = `ace`/`block`/`substitution`, una foto e un video solo fra i `mediaIds`, la foto
+  un'immagine e il video un video, 400 altrimenti; senza `events` restano le scelte dei file che restano, un file tolto porta
+  via le sue scelte. Le scelte stanno in `player_media.events`, la risposta le ha in `Player.events`); `POST /api/admin/roster/import`
   (admin, limite per minuto `RATE_LIMIT_ROSTER_IMPORT`, predefinito 3; 409 senza squadra o con un'importazione già in corso,
   502 `LEAGUE_UNAVAILABLE`/`LEAGUE_FORMAT` se il sito non risponde o è cambiato). I campi inviati con `PATCH` e la foto principale
   scelta a mano finiscono in `edited_fields`.
@@ -536,9 +539,15 @@ importata dal sito della Lega e ritoccabile a mano. La pagina del portale arriva
   una. Lo stato (`RosterImportState`) sta solo in memoria e si perde al riavvio. Se la quota del cliente è superata il lavoro si
   ferma (`lastError`); le foto non scaricate sono contate nel messaggio.
 - **File dei giocatori**: `POST /api/admin/assets/video?kind=player` (`VideoUploadQuerySchema`) e `POST /api/admin/assets` con
-  `kind: 'player'`; un file usato da un giocatore non si elimina (409 «File in uso da … della rosa»).
+  `kind: 'player'`; un file usato da un giocatore non si elimina (409 «File in uso da … della rosa»; se è scelto per un
+  avviso il messaggio lo nomina: «… della rosa per l'avviso «Ace», «Cambio»: …», `assetUse` con `playersUsingAsset`).
 - **Pagina pubblica**: `players` di `GET /api/public/tenant` (`publicPlayerMedia`): solo la stagione corrente, solo i giocatori
-  con almeno un file, solo gli id dei file (non i dati personali). Ogni modifica avvisa le pagine (`tenantConfigChanged`).
+  con la foto principale o un file scelto per un avviso, solo il numero e gli id dei file (`photo` e `events`, per avviso
+  `photo`/`video`; gli altri file non scelti per un avviso non si esportano, nessun dato personale). Per le pagine aperte prima
+  di questo rilascio restano anche `images` e `videos` (vecchio schema, dove erano obbligatori): le foto e i video scelti per
+  un avviso, ognuno una volta; si toglieranno in un rilascio successivo. Un `events` malformato nel DB vale «nessuna scelta»
+  (`overlayKindsOf`). Ogni modifica avvisa le
+  pagine (`tenantConfigChanged`).
 
 ### Club, calendario e abbinamento (`src/club.ts`, `src/leagues/match.ts`, `src/matchLock.ts`, `src/routes/club.ts`)
 Ogni cliente sceglie uno o più campionati già noti (al massimo `CLUB_MAX_LEAGUES` = 8) e in ognuno la sua squadra
@@ -1319,7 +1328,7 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `share_tokens` | `tenant_id`, `token_hash`, `match_id` (null: segue la live), `client_fixture_id` (link di una partita del calendario, `ON DELETE CASCADE`; unico quando non nullo e non revocato: indice parziale dalla migrazione `0014_link_partita.sql`), `label`, `expires_at`, `revoked`, `short_code_hash` (unica, null finché non assegnato), `short_code_salt` (migrazioni `0004_short_codes.sql`, `0006_club.sql`) |
 | `assets` | `tenant_id`, `kind` (enum `asset_kind`: `logo`/`sponsor`/`overlay`), `sha256`, `mime` (immagini e `video/mp4`/`video/webm`), `width`, `height`, `bytes`, `name` (nullable, nome del file al caricamento o dopo «Rinomina»; CHECK di lunghezza 1-120, `assets_name_check`; migrazione `0020_nomi_file.sql`, reversibile: le istruzioni sono in testa al file), `created_at`; indice univoco `assets_tenant_sha256_kind_idx` su cliente + `sha256` + `kind` (migrazione `0003_assets.sql`; `overlay` aggiunto dalla `0018_sfondi_avvisi.sql`, `ALTER TYPE … ADD VALUE`, **non reversibile**: Postgres non toglie un valore da un enum) |
 | `players` | rosa (migrazione `0022_rosa.sql`; enum `player_role` e `player_source`): `tenant_id`, `season`, `number` (CHECK 0-99), `first_name`/`last_name` (CHECK 1-60), `role`, `birth_year`, `height_cm` (CHECK 120-250), `birthplace`, `nationality` (CHECK ≤3), `external_key`, `source`, `edited_fields` (jsonb), `photo_asset_id` (→ `assets`, `ON DELETE SET NULL`), `removed_at`, `position`, `created_at`, `updated_at`. Indici unici parziali: `players_tenant_season_key_idx` (cliente, stagione, `external_key` se non nulla) e `players_tenant_season_number_idx` (cliente, stagione, `number` fra i non rimossi) |
-| `player_media` | altre foto e video di un giocatore: `tenant_id`, `player_id` (→ `players`, `ON DELETE CASCADE`), `asset_id` (→ `assets`, `ON DELETE CASCADE`), `position`; chiave primaria `(player_id, asset_id)`. `asset_kind` ha anche `player` (migrazione `0021_foto_giocatori.sql`, `ALTER TYPE … ADD VALUE`, **non reversibile**: Postgres non toglie un valore da un enum) |
+| `player_media` | altre foto e video di un giocatore: `tenant_id`, `player_id` (→ `players`, `ON DELETE CASCADE`), `asset_id` (→ `assets`, `ON DELETE CASCADE`), `position`, `events` (jsonb, predefinito `[]`: gli avvisi del giocatore, `ace`/`block`/`substitution`, che mostrano il file come foto se è un'immagine o come video se è un video; uno per tipo e avviso lo garantisce la rotta; migrazione `0024_media_avvisi.sql`, reversibile: l'istruzione è in testa al file; per mantenere l'aspetto di «Principale» assegna ad ACE!, Muro e Cambio il primo video di ogni giocatore e, se manca la foto principale, la prima delle altre foto); chiave primaria `(player_id, asset_id)`. `asset_kind` ha anche `player` (migrazione `0021_foto_giocatori.sql`, `ALTER TYPE … ADD VALUE`, **non reversibile**: Postgres non toglie un valore da un enum) |
 | `sponsors` | anagrafica degli sponsor (migrazione `0015_sponsor.sql`): `tenant_id`, `name` (1-80, CHECK; unico per cliente: `sponsors_tenant_name_idx`), `website` (nullo o `https://…`, CHECK), `position`, `created_at`; `assets.sponsor_id` (→ `sponsors`, `ON DELETE SET NULL`, indice `assets_sponsor_idx`) |
 | `agent_registrations` | `tenant_id`, `name`, `secret_hash` (unico), `pairing_code`, `ip`, `status` (enum `agent_registration_status`: `pending`/`approved`/`rejected`/`consumed`), `agent_id`, `created_at`, `expires_at`, `decided_at`, `agent_expires_at` (validità scelta all'approvazione; migrazioni `0001_agent_registrations.sql`, `0007_ruoli_calendario.sql`) |
 | `agents`, `tenants` (colonne di `0007_ruoli_calendario.sql`) | `agents.expires_at` (nulla = senza scadenza); `tenants.club_profile` (jsonb, predefinito `{}`) e `tenants.agent_quota` (intero, predefinito 1; la migrazione la porta a max(1, agenti non revocati) per i clienti esistenti) |

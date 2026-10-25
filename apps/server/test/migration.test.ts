@@ -429,6 +429,59 @@ describe('migrations 0021-0022: roster of the club', () => {
   });
 });
 
+describe('migration 0024: photo and video of each overlay of a player', () => {
+  it('keeps the look of «Principale» (first video, first photo without a main one) and can be undone', async () => {
+    const client = new PGlite();
+    cleanup.push(() => client.close());
+    const db = drizzle({ client, schema });
+    await migrate(db, { migrationsFolder: await migrationsUpTo('0023_lato_simulazione') });
+    // Files by their sha256: i1, i2 images; v1, v2 videos; m the main photo of Bianchi.
+    await client.exec(`
+      insert into assets (tenant_id, kind, sha256, mime, width, height, bytes)
+        select id, 'player', repeat(x.c, 64), x.mime, 64, 36, 100 from tenants,
+          (values ('1', 'image/jpeg'), ('2', 'image/png'), ('3', 'video/mp4'), ('4', 'video/webm'), ('5', 'image/jpeg'))
+            as x(c, mime);
+      insert into players (tenant_id, season, number, first_name, last_name, source, photo_asset_id)
+        select id, 2026, 4, 'Mathis', 'Rossi', 'manual', null from tenants;
+      insert into players (tenant_id, season, number, first_name, last_name, source, photo_asset_id)
+        select t.id, 2026, 5, 'Mario', 'Bianchi', 'manual', a.id from tenants t, assets a where a.sha256 = repeat('5', 64);
+      insert into players (tenant_id, season, number, first_name, last_name, source)
+        select id, 2026, 6, 'Luca', 'Verdi', 'manual' from tenants;
+      insert into player_media (tenant_id, player_id, asset_id, position)
+        select p.tenant_id, p.id, a.id, x.pos from players p, assets a,
+          (values (4, '2', 0), (4, '4', 1), (4, '1', 2), (4, '3', 3), (5, '1', 0), (5, '3', 1)) as x(num, c, pos)
+        where p.number = x.num and a.sha256 = repeat(x.c, 64);
+    `);
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    const read = async () =>
+      (
+        await client.query<{ number: number; c: string; events: unknown }>(`
+          select p.number, left(a.sha256, 1) as c, pm.events from player_media pm
+            join players p on p.id = pm.player_id join assets a on a.id = pm.asset_id
+          order by p.number, pm.position`)
+      ).rows.map((r) => [r.number, r.c, r.events]);
+    const all = ['ace', 'block', 'substitution'];
+    expect(await read()).toEqual([
+      // Rossi, no main photo: its first photo and its first video for the three overlays.
+      [4, '2', all],
+      [4, '4', all],
+      [4, '1', []],
+      [4, '3', []],
+      // Bianchi has a main photo: only its first video.
+      [5, '1', []],
+      [5, '3', all],
+    ]);
+    // Undone by the statement written at the top of the migration: the files stay, without choices.
+    const sqlText = await readFile(join(MIGRATIONS_FOLDER, '0024_media_avvisi.sql'), 'utf8');
+    const down = /^-- Reversibile[^:]*: (.*)$/m.exec(sqlText)?.[1];
+    expect(down).toBeDefined();
+    await client.exec(down ?? '');
+    const rows = await client.query<{ position: number; events?: unknown }>('select * from player_media');
+    expect(rows.rows).toHaveLength(6);
+    expect(rows.rows[0]?.events).toBeUndefined();
+  });
+});
+
 describe('seed', () => {
   const config = (env: Record<string, string> = {}) =>
     loadConfig({

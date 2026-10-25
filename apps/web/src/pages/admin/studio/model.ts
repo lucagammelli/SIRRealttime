@@ -709,7 +709,7 @@ export function rosterSample(players: readonly Player[]): RosterSample | null {
 /**
  * Pure: the example event of an overlay for the preview and its background. For the overlays of a player with the photo
  * or video of the player chosen, the event is of the player of `sample` (a new id for every `key`) and the background is
- * its file for that overlay (`playerBackground`: a video not on the phone), else the fixed background of the overlay.
+ * its file for that overlay (`playerBackground`), else the fixed background of the overlay.
  */
 export function overlayPreview(
   kind: OverlayKind,
@@ -718,14 +718,13 @@ export function overlayPreview(
   side: Side,
   sample: RosterSample | null,
   key: number,
-  device: LayoutDevice,
 ): { event: MatchEvent; background: OverlayBackground | undefined; player?: { showText: boolean } } {
   const base = sampleEvent(kind, state, side);
   // The fixed background only for our team (the event of the preview is always of `side`, our team).
   const fixed = backgroundForTeam(overlay.background, base.team, side);
   if (!sample || !overlay.playerMedia) return { event: base, background: fixed };
   const event: MatchEvent = { ...base, id: `${base.id}-${key}`, player: sample.player };
-  const background = playerBackground(overlay, event, side, [sample.media], { videos: device !== 'phone' });
+  const background = playerBackground(overlay, event, side, [sample.media], { videos: true });
   return background
     ? { event, background, player: { showText: overlay.playerMedia.showText } }
     : { event, background: fixed };

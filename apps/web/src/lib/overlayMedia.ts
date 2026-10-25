@@ -65,8 +65,8 @@ export function playerNumbersInPlay(
 
 /**
  * Pure: the backgrounds to keep ready on this device: of the overlays on and shown on `device`, each file once; no
- * videos on the phone (data and memory of a mobile connection) nor with reduced motion: the overlay then shows its
- * text only. With `preload`, also the file of each player for each overlay that shows the player (the one of
+ * videos with reduced motion: the overlay then shows its text only. With `preload`, also the file of each player for each
+ * overlay that shows the player (the one of
  * `playerMediaFile`: the video of that overlay, else its photo, else the main photo): of the players on court for ACE!
  * and Muro, of the whole team for Cambio.
  */
@@ -78,7 +78,7 @@ export function wantedBackgrounds(
 ): OverlayBackground[] {
   if (!config) return [];
   const out = new Map<string, OverlayBackground>();
-  const videos = !reducedMotion && device !== 'phone';
+  const videos = !reducedMotion;
   if (preload) {
     for (const kind of OVERLAY_PLAYER_KINDS) {
       const overlay = config[kind];
@@ -98,7 +98,7 @@ export function wantedBackgrounds(
     const overlay = config[kind];
     const background = overlay.background;
     if (!overlay.enabled || !overlay.devices[device] || !background) continue;
-    if ((reducedMotion || device === 'phone') && background.kind === 'video') continue;
+    if (reducedMotion && background.kind === 'video') continue;
     if (!out.has(background.assetId)) out.set(background.assetId, background);
   }
   return [...out.values()];

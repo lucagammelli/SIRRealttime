@@ -420,7 +420,7 @@ function PlayerMediaSetting({
         </Link>{' '}
         › «Foto e video»; senza foto dell’avviso si usa la foto principale. Se il giocatore non ne ha si usa lo sfondo
         dell’avviso, altrimenti solo il testo. Solo per la nostra squadra
-        {pm?.source === 'video' && '; senza video, sul telefono e con movimento ridotto si mostra la foto'}.
+        {pm?.source === 'video' && '; senza video e con movimento ridotto si mostra la foto'}.
       </p>
     </div>
   );

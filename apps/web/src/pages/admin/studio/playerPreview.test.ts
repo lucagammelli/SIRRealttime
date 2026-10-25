@@ -91,7 +91,7 @@ describe('preview with a player of the roster', () => {
     });
   });
 
-  it('the event and the background: the file of the player for that overlay (video not on the phone), else the fixed background', () => {
+  it('the event and the background: the file of the player for that overlay (the video, also on the phone), else the fixed background', () => {
     const state = midMatchState();
     const sample = rosterSample([
       player({
@@ -115,24 +115,20 @@ describe('preview with a player of the roster', () => {
       },
       'video',
     );
-    const tv = overlayPreview('ace', overlay, state, 'home', sample, 1, 'tv');
+    const tv = overlayPreview('ace', overlay, state, 'home', sample, 1);
     expect(tv.event.player).toEqual({ number: 8, firstName: 'Mario', lastName: 'Rossi' });
     expect(tv.background).toMatchObject({ kind: 'video', assetId: VIDEO });
-    expect(overlayPreview('ace', overlay, state, 'home', sample, 1, 'phone').background).toMatchObject({
-      kind: 'image',
-      assetId: PHOTO_ACE,
-    });
-    // Another overlay of the player without its own files: the main photo.
+        // Another overlay of the player without its own files: the main photo.
     const block = withPlayerMode(defaultOverlay('block'), 'video');
-    expect(overlayPreview('block', block, state, 'home', sample, 1, 'tv').background).toMatchObject({
+    expect(overlayPreview('block', block, state, 'home', sample, 1).background).toMatchObject({
       kind: 'image',
       assetId: PHOTO,
     });
     // No roster sample, or the overlay does not show the player: the fixed background and the example event.
-    expect(overlayPreview('ace', overlay, state, 'home', null, 1, 'tv').background?.assetId).toBe(FIXED);
+    expect(overlayPreview('ace', overlay, state, 'home', null, 1).background?.assetId).toBe(FIXED);
     const fixed = withPlayerMode(overlay, 'fixed');
-    expect(overlayPreview('ace', fixed, state, 'home', sample, 1, 'tv').background?.assetId).toBe(FIXED);
+    expect(overlayPreview('ace', fixed, state, 'home', sample, 1).background?.assetId).toBe(FIXED);
     // A different event for every «Prova».
-    expect(overlayPreview('ace', overlay, state, 'home', sample, 2, 'tv').event.id).not.toBe(tv.event.id);
+    expect(overlayPreview('ace', overlay, state, 'home', sample, 2).event.id).not.toBe(tv.event.id);
   });
 });

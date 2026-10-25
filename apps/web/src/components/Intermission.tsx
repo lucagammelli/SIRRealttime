@@ -19,7 +19,7 @@ import {
 import type { Device } from '../lib/layout.ts';
 import { intermissionsUseSchedule, isScheduleType, useSchedule } from '../lib/schedule.ts';
 import { useReducedMotion } from '../lib/theme.ts';
-import { useElementHeight, useTouch } from '../lib/useLayout.ts';
+import { useElementHeight, useTouch, useTouchScreen } from '../lib/useLayout.ts';
 import { SlideFit } from './SlideFit.tsx';
 
 const BUTTON =
@@ -199,7 +199,9 @@ function PauseView({
   onClose: () => void;
 }) {
   const reduced = useReducedMotion();
-  const touch = useTouch();
+  // Buttons of the pause: option «Touch» of the club AND a real touch screen (the Studio preview follows the option only).
+  const screenTouch = useTouchScreen();
+  const touch = useTouch() && (preview || screenTouch);
   const titleId = useId();
   const mode = active.pause.modes[device];
   const slides = visibleSlides(state, active, { sponsorLogo, schedule, sponsors: look?.sponsors ?? [] });

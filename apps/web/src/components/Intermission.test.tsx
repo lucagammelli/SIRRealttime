@@ -19,12 +19,15 @@ const setBreak = previewState(mid, 'setBreak', 1);
 const timeout = previewState(mid, 'timeout');
 const finished = stateAfter();
 
+let touchScreen = true;
+
 function stubReducedMotion(reduce: boolean): void {
   vi.stubGlobal(
     'matchMedia',
     (query: string) =>
       ({
-        matches: reduce && query.includes('reduced-motion'),
+        // A touch screen, unless a test says otherwise (see `touchScreen`).
+        matches: (touchScreen && query.includes('any-pointer')) || (reduce && query.includes('reduced-motion')),
         media: query,
         addEventListener: () => undefined,
         removeEventListener: () => undefined,
@@ -240,6 +243,42 @@ describe('Intermission: full screen and banner', () => {
       fireEvent.keyDown(document, { key: 'Escape' });
       expect(dialog() ?? banner()).toBeNull();
       cleanup();
+    }
+  });
+
+  it('TV with option «Touch» on but a screen without touch: no «Chiudi», «Torna alla partita», «Ferma rotazione»; Esc closes', () => {
+    touchScreen = false;
+    try {
+      stubReducedMotion(false);
+      setup(setBreak, { device: 'tv' });
+      expect(screen.queryAllByRole('button')).toEqual([]);
+      cleanup();
+      setup(setBreak, { device: 'tablet' });
+      expect(screen.queryAllByRole('button')).toEqual([]);
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(dialog() ?? banner()).toBeNull();
+    } finally {
+      touchScreen = true;
+    }
+  });
+
+  it('the Studio preview keeps the option of the club even on a screen without touch', () => {
+    touchScreen = false;
+    try {
+      stubReducedMotion(false);
+      render(
+        <Intermission
+          state={mid}
+          config={null}
+          preview={TenantIntermissionsSchema.parse({}).setBreak}
+          device="tablet"
+          paused={false}
+          onTogglePaused={vi.fn()}
+        />,
+      );
+      expect(screen.queryByRole('button', { name: 'Ferma rotazione' })).not.toBeNull();
+    } finally {
+      touchScreen = true;
     }
   });
 

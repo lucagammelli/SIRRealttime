@@ -16,7 +16,7 @@ connessioni. Con un valore valido la pagina si collega a `/ws/public/<token o co
 
 | Blocco | Contenuto |
 |---|---|
-| Tabellone | punteggio del set, set vinti, pallino della battuta, parziali dei set, «Ultimo punto», «Serie in corso», «Timeout nel set», «Cambi nel set», «Vince» a partita finita |
+| Tabellone | punteggio del set, set vinti, pallino della battuta (lati speculari: casa «pallino, logo, nome, set vinti», ospite «set vinti, nome, logo, pallino», uguale su ogni dispositivo; nome intero sulla TV, nome breve su tablet e telefono, intero per i lettori di schermo), parziali dei set, «Ultimo punto», «Serie in corso», «Timeout nel set», «Cambi nel set», «Vince» a partita finita |
 | Andamento del set | vantaggio punto per punto, selettore «Set» |
 | Confronto squadre | statistiche delle due squadre, selettore «Periodo» |
 | Statistiche giocatori | tabella per squadra («Squadra») e per set («Set») |
@@ -854,6 +854,11 @@ il browser non ha l'API non succede nulla.
   altrimenti «Partita d’esempio».
 
 ### Dati e grafici
+**Nomi delle squadre** (`lib/format.ts`): `teamShort` usa il codice squadra del `.dvw` come sigla solo se è fatto di sole
+lettere (max 4, maiuscolo); un ID numerico o misto (9593, T1A) non si vede mai: la sigla (3 lettere) si ricava dal nome
+(«Sir Susa Scai Perugia» → SIR). `teamName` ricade su codice di sole lettere, poi su «Casa»/«Ospiti». Tutti i punti del
+portale passano da queste due funzioni.
+
 I dati vengono **solo** da `MatchState`: il portale non rifà calcoli di pallavolo. Le trasformazioni da stato a grafico
 sono funzioni pure in `src/charts/` (`momentum.ts`, `compare.ts`, `players.ts`, `rotations.ts`, `zones.ts`, `options.ts`)
 con test; i componenti ECharts passano da `EChart.tsx`. Le mappe di campo sono SVG (`CourtMap.tsx`) e mostrano le 14
@@ -1054,6 +1059,12 @@ controlli in `docs/server.md`, «Grafica per cliente»).
   contenuto senza `<a>`). I grafici restano sulla vista predefinita; la rotazione automatica della TV continua. Senza
   tocco niente scorre: telefono e tablet diventano schermate a rotazione come la TV e le card si adattano al loro spazio
   (vedi «Senza tocco: mai scorrimento»). Test: `components/touch.test.tsx`.
+  **Pause e schermo senza tocco**: i pulsanti di `Intermission` («Torna alla partita», «Chiudi», «Ferma rotazione») si
+  vedono solo se l'opzione «Touch» è accesa **e** lo schermo è davvero touch (`useTouch() && useTouchScreen()`,
+  `matchMedia('(any-pointer: coarse)')` seguito al cambio; senza `matchMedia` vale `true`). Una TV senza tocco non li
+  mostra mai, nemmeno con «Touch: Sì»; Esc chiude comunque. Gli altri controlli (schermo intero, tema, installazione,
+  selettori) seguono solo l'opzione del club. L'anteprima dello Studio (`preview`) segue solo l'opzione. Test:
+  `lib/useTouchScreen.test.tsx`, `components/Intermission.test.tsx`.
 Ogni cliente sceglie quali blocchi mostra la pagina della partita, in che ordine e con che larghezza, separatamente per
 TV, tablet e telefono. Il contratto (`TenantLayoutSchema`, `docs/architettura.md`) e le rotte (`GET`/`PUT
 /api/admin/layout`, `docs/server.md`) sono altrove; il layout arriva al portale in `GET /api/public/tenant` (`layout`,

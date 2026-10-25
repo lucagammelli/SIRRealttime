@@ -1,7 +1,7 @@
 import type { TeamLogoPair } from '@arenalive/shared';
 import type { MatchState, Side } from '@arenalive/volley-stats';
 import type { ReactNode } from 'react';
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { useOurSide, useTemplate } from '../lib/branding.ts';
 import type { ClubLogoPlace } from '../lib/clubLogo.ts';
 import { clubLogoClass, useOurLogoSize } from '../lib/clubLogo.ts';
@@ -48,6 +48,19 @@ function useLogoClass(): (place: ClubLogoPlace, side: Side) => string {
   const ourSide = useOurSide();
   const size = useOurLogoSize();
   return (place, side) => clubLogoClass(place, size, side === ourSide);
+}
+
+/**
+ * Elements of a side of the scoreboard in the mirrored order, equal on every device: home «dot, logo, name, sets»,
+ * away «sets, name, logo, dot», so the sets won are always on the inner side, next to the score.
+ */
+function mirrored(
+  side: Side,
+  parts: { dot: ReactNode; logo: ReactNode; name: ReactNode; sets: ReactNode },
+): ReactNode[] {
+  const { dot, logo, name, sets } = parts;
+  const ordered = side === 'home' ? [dot, logo, name, sets] : [sets, name, logo, dot];
+  return ordered.map((node, i) => <Fragment key={i}>{node}</Fragment>);
 }
 
 function ServeDot({ side, active, small = false }: { side: Side; active: boolean; small?: boolean }) {
@@ -189,6 +202,7 @@ export function Scoreboard({
   const minutes = matchMinutes(state);
   const serving = state.status === 'finished' ? null : state.live.servingTeam;
   const names: Record<Side, string> = { home: teamName(state.teams, 'home'), away: teamName(state.teams, 'away') };
+  const short: Record<Side, string> = { home: teamShort(state.teams, 'home'), away: teamShort(state.teams, 'away') };
 
   const topBar = (
     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-1.5 sm:px-6 sm:py-2">
@@ -204,7 +218,6 @@ export function Scoreboard({
   );
 
   if (device === 'phone') {
-    const short: Record<Side, string> = { home: teamShort(state.teams, 'home'), away: teamShort(state.teams, 'away') };
     return (
       <>
         <section
@@ -218,32 +231,37 @@ export function Scoreboard({
             {SIDES.map((side) => (
               <div
                 key={side}
-                className={`flex min-w-0 items-center gap-1.5 ${side === 'home' ? 'order-1' : 'order-3 flex-row-reverse'}`}
+                data-side={side}
+                className={`flex min-w-0 items-center gap-1.5 ${side === 'home' ? 'order-1 justify-start' : 'order-3 justify-end'}`}
               >
-                <span
-                  className={`rounded-card px-2 font-display text-2xl font-bold tabular ${SOFT[side]} ${INK[side]}`}
-                  aria-label={`Set vinti ${SIDE_LABEL[side]}`}
-                >
-                  {state.setsWon[side]}
-                </span>
-                <TeamLogo url={logos?.[side]} className={logoClass('scoreboardPhone', side)} />
-                <div className={`min-w-0 ${side === 'home' ? 'text-left' : 'text-right'}`}>
-                  <h2
-                    className={`truncate font-display text-base font-bold uppercase leading-tight ${INK[side]}`}
-                    title={names[side]}
-                  >
-                    <span aria-hidden="true">{short[side]}</span>
-                    <span className="sr-only">{names[side]}</span>
-                  </h2>
-                  <span className={`flex items-center gap-1 ${side === 'away' ? 'justify-end' : ''}`}>
-                    <ServeDot side={side} active={serving === side} small />
-                    {winner === side && (
-                      <span className={`rounded-card px-1.5 text-[10px] font-semibold ${BG[side]} ${ON[side]}`}>
-                        Vince
+                {mirrored(side, {
+                  dot: <ServeDot side={side} active={serving === side} small />,
+                  logo: <TeamLogo url={logos?.[side]} className={logoClass('scoreboardPhone', side)} />,
+                  name: (
+                    <h2
+                      className={`min-w-0 truncate font-display text-base font-bold uppercase leading-tight ${INK[side]}`}
+                      title={names[side]}
+                    >
+                      <span aria-hidden="true">{short[side]}</span>
+                      <span className="sr-only">{names[side]}</span>
+                    </h2>
+                  ),
+                  sets: (
+                    <div className="flex shrink-0 flex-col items-center gap-0.5">
+                      <span
+                        className={`rounded-card px-2 font-display text-2xl font-bold tabular ${SOFT[side]} ${INK[side]}`}
+                        aria-label={`Set vinti ${SIDE_LABEL[side]}`}
+                      >
+                        {state.setsWon[side]}
                       </span>
-                    )}
-                  </span>
-                </div>
+                      {winner === side && (
+                        <span className={`rounded-card px-1.5 text-[10px] font-semibold ${BG[side]} ${ON[side]}`}>
+                          Vince
+                        </span>
+                      )}
+                    </div>
+                  ),
+                })}
               </div>
             ))}
             <div className="order-2">
@@ -259,7 +277,16 @@ export function Scoreboard({
 
   if (template.scoreboard === 'mockup')
     return (
-      <TemplateScoreboard state={state} status={status} brand={brand} names={names} serving={serving} logos={logos} />
+      <TemplateScoreboard
+        state={state}
+        status={status}
+        brand={brand}
+        names={names}
+        short={short}
+        device={device}
+        serving={serving}
+        logos={logos}
+      />
     );
 
   const size = SIZES[device];
@@ -274,32 +301,43 @@ export function Scoreboard({
         {SIDES.map((side) => (
           <div
             key={side}
-            className={`flex min-w-0 flex-col ${side === 'home' ? 'order-1 items-start' : 'order-3 items-end'}`}
+            data-side={side}
+            className={`flex min-w-0 items-center gap-2 ${side === 'home' ? 'order-1 justify-start' : 'order-3 justify-end'}`}
           >
-            <div className={`flex w-full items-center gap-2 ${side === 'home' ? 'justify-start' : 'justify-end'}`}>
-              {side === 'home' && <ServeDot side={side} active={serving === side} />}
-              {side === 'home' && <TeamLogo url={logos?.home} className={logoClass(size.logo, 'home')} />}
-              <h2
-                className={`min-w-0 truncate font-display font-bold uppercase leading-tight ${size.name} ${TEXT[side]}`}
-                title={names[side]}
-              >
-                {names[side]}
-              </h2>
-              {side === 'away' && <TeamLogo url={logos?.away} className={logoClass(size.logo, 'away')} />}
-              {side === 'away' && <ServeDot side={side} active={serving === side} />}
-            </div>
-            <div className={`mt-2 flex items-center gap-3 ${side === 'away' ? 'flex-row-reverse' : ''}`}>
-              <span
-                className={`rounded-card px-3 font-display font-bold tabular ${size.sets} ${SOFT[side]} ${TEXT[side]}`}
-                aria-label={`Set vinti ${SIDE_LABEL[side]}`}
-              >
-                {state.setsWon[side]}
-              </span>
-              <span className="text-xs uppercase tracking-wide text-muted">set</span>
-              {winner === side && (
-                <span className={`rounded-card px-2 py-0.5 text-xs font-semibold ${BG[side]} ${ON[side]}`}>Vince</span>
-              )}
-            </div>
+            {mirrored(side, {
+              dot: <ServeDot side={side} active={serving === side} />,
+              logo: <TeamLogo url={logos?.[side]} className={logoClass(size.logo, side)} />,
+              name: (
+                <h2
+                  className={`min-w-0 truncate font-display font-bold uppercase leading-tight ${size.name} ${TEXT[side]}`}
+                  title={names[side]}
+                >
+                  {device === 'tv' ? (
+                    names[side]
+                  ) : (
+                    <>
+                      <span aria-hidden="true">{short[side]}</span>
+                      <span className="sr-only">{names[side]}</span>
+                    </>
+                  )}
+                </h2>
+              ),
+              sets: (
+                <div className="flex shrink-0 flex-col items-center gap-1">
+                  <span
+                    className={`rounded-card px-3 font-display font-bold tabular ${size.sets} ${SOFT[side]} ${TEXT[side]}`}
+                    aria-label={`Set vinti ${SIDE_LABEL[side]}`}
+                  >
+                    {state.setsWon[side]}
+                  </span>
+                  {winner === side && (
+                    <span className={`rounded-card px-2 py-0.5 text-xs font-semibold ${BG[side]} ${ON[side]}`}>
+                      Vince
+                    </span>
+                  )}
+                </div>
+              ),
+            })}
           </div>
         ))}
         <div className="order-2">
@@ -323,6 +361,8 @@ function TemplateScoreboard({
   status,
   brand,
   names,
+  short,
+  device,
   serving,
   logos,
 }: {
@@ -330,6 +370,8 @@ function TemplateScoreboard({
   status?: ReactNode;
   brand: boolean;
   names: Record<Side, string>;
+  short: Record<Side, string>;
+  device: Device;
   serving: Side | null;
   logos?: TeamLogoPair | undefined;
 }) {
@@ -339,33 +381,52 @@ function TemplateScoreboard({
   const logoClass = useLogoClass();
   const team = (side: Side) => (
     <div
+      data-side={side}
       className={`flex min-w-0 items-center gap-3 sm:gap-4 ${side === 'home' ? 'order-1 justify-start' : 'order-3 justify-end'}`}
     >
-      <ServeDot side={side} active={serving === side} />
-      <TeamLogo url={logos?.[side]} className={logoClass('scoreboardTemplate', side)} />
-      <h2
-        data-long={names[side].length > LONG_NAME}
-        className={`sir-team-name line-clamp-3 min-w-0 break-words font-display font-bold uppercase leading-[1.05] text-text ${
-          names[side].length > LONG_NAME ? 'text-xl' : 'text-2xl'
-        } ${side === 'away' ? 'text-right' : ''}`}
-        title={names[side]}
-      >
-        <BreakableName text={names[side]} />
-      </h2>
-      <div className="flex shrink-0 flex-col items-center gap-1">
-        <span
-          aria-label={`Set vinti ${SIDE_LABEL[side]}`}
-          className={`rounded-card border-2 px-3 font-display text-4xl font-bold leading-tight tabular sm:text-5xl ${
-            state.setsWon[side] > 0 ? 'border-accent text-accent' : 'border-border text-text'
-          }`}
-        >
-          {state.setsWon[side]}
-        </span>
-        {winner === side && (
-          <span className="rounded-button bg-accent px-2 py-0.5 text-xs font-semibold text-on-accent">Vince</span>
-        )}
-      </div>
-      {side === 'home' && <span className="hidden text-sm font-semibold uppercase text-muted xl:inline">Set</span>}
+      {mirrored(side, {
+        dot: <ServeDot side={side} active={serving === side} />,
+        logo: <TeamLogo url={logos?.[side]} className={logoClass('scoreboardTemplate', side)} />,
+        name: (
+          <h2
+            data-long={device === 'tv' && names[side].length > LONG_NAME}
+            className={`sir-team-name line-clamp-3 min-w-0 break-words font-display font-bold uppercase leading-[1.05] text-text ${
+              device === 'tv' && names[side].length > LONG_NAME ? 'text-xl' : 'text-2xl'
+            } ${side === 'away' ? 'text-right' : ''}`}
+            title={names[side]}
+          >
+            {device === 'tv' ? (
+              <BreakableName text={names[side]} />
+            ) : (
+              <>
+                <span aria-hidden="true">{short[side]}</span>
+                <span className="sr-only">{names[side]}</span>
+              </>
+            )}
+          </h2>
+        ),
+        // «Set» label on both sides, on the inner side of the box (same rule: only on wide containers).
+        sets: (
+          <div className={`flex shrink-0 items-center gap-2 ${side === 'away' ? 'flex-row-reverse' : ''}`}>
+            <div className="flex flex-col items-center gap-1">
+              <span
+                aria-label={`Set vinti ${SIDE_LABEL[side]}`}
+                className={`rounded-card border-2 px-3 font-display text-4xl font-bold leading-tight tabular sm:text-5xl ${
+                  state.setsWon[side] > 0 ? 'border-accent text-accent' : 'border-border text-text'
+                }`}
+              >
+                {state.setsWon[side]}
+              </span>
+              {winner === side && (
+                <span className="rounded-button bg-accent px-2 py-0.5 text-xs font-semibold text-on-accent">Vince</span>
+              )}
+            </div>
+            <span aria-hidden="true" className="hidden text-sm font-semibold uppercase text-muted xl:inline">
+              Set
+            </span>
+          </div>
+        ),
+      })}
     </div>
   );
   return (

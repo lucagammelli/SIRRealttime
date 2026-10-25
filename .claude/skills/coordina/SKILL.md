@@ -79,14 +79,16 @@ Vale per il primo messaggio a un agente; per le riprese basta il nuovo (§2b). I
 ## 5. Chiusura del job: la fai tu, senza operatore
 Dopo l'APPROVATO (o la tua rilettura per micro e piccola), in ordine, ognuno con l'output ridotto
 (`> <scratchpad>/<nome>.log 2>&1; echo uscita=$?; tail -n 30 <log>`):
-1. `scripts/job.sh allinea <ramo>`; conflitto → lo sistema lo sviluppatore (`SendMessage`), poi riparti da qui;
-2. `scripts/ci_locale.sh` nel worktree, **una volta** dopo l'allineamento. Per il livello **micro** senza file
-   TypeScript, `package.json` o configurazioni di build si salta, e lo dici. Fallita → corregge lo sviluppatore,
-   poi riparti dal punto 2;
-3. commit dei soli file del job (mai `git add -A` alla cieca; niente `.env`, `config.json` dell'agente, temporanei),
-   messaggio in italiano con la riga `Co-Authored-By` in fondo;
+1. commit dei soli file del job (mai `git add -A` alla cieca; niente `.env`, `config.json` dell'agente, temporanei),
+   messaggio in italiano con la riga `Co-Authored-By` in fondo: la CI registra l'esito solo su un worktree pulito;
+2. `scripts/job.sh allinea <ramo>`; conflitto → lo sistema lo sviluppatore (`SendMessage`), poi riparti da qui;
+3. `scripts/ci_locale.sh` nel worktree, **una volta** dopo l'allineamento (di default solo i pacchetti toccati e i
+   dipendenti; `--completa` forza tutto). Per il livello **micro** senza file TypeScript, `package.json` o
+   configurazioni di build si salta, e lo dici. Fallita → corregge lo sviluppatore, poi riparti dal punto 2;
 4. pubblicazione come vuole Luca: di norma (sua scelta del 2026-10-15) `git push origin HEAD:main` fast-forward dal
-   worktree e poi `scripts/job.sh chiudi <ramo>`; PR o `job.sh unisci <ramo>` solo se li chiede.
+   worktree e poi `scripts/job.sh chiudi <ramo>`. Con PR: `scripts/job.sh pr <ramo> "<titolo>" "<corpo>"` fa allinea,
+   CI, push e PR in un solo passo (punti 2-3 inclusi), poi `scripts/job.sh unisci <ramo>`, che salta la CI se il
+   tree è già verificato su quella base.
 
 L'agente **operatore** (`sonnet`) serve solo per avviare e verificare Docker Compose quando Luca chiede la prova; la
 prova nel portale la fai tu (skill `run` o browser).

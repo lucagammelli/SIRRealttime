@@ -21,15 +21,18 @@ Operazioni e regole:
   e riporta l'output: `--forza` solo se il prompt dice che Luca l'ha accettato. Riporta il `WORKTREE=` stampato.
 - **Allineamento** prima del commit finale e prima della PR: `scripts/job.sh allinea <ramo>`. Conflitto: fermati e
   riporta l'output, lo sistema lo sviluppatore.
-- **CI locale**: `scripts/ci_locale.sh` nel worktree, **una volta**, subito dopo `allinea` e prima del commit (sei
-  l'unico agente che la lancia). Riporta l'esito reale e, se fallisce, le righe di errore.
+- **CI locale**: di norma la esegue `scripts/job.sh pr` (passo di sotto). Se il prompt chiede la CI da sola:
+  `scripts/ci_locale.sh` nel worktree (solo i pacchetti toccati; `--completa` solo se il prompt lo dice, per i rilasci),
+  **una volta**, subito dopo `allinea`, con il lavoro già in commit (su un worktree sporco non si registra l'esito).
+  Riporta l'esito reale e, se fallisce, le righe di errore.
 - **Commit**: nel worktree del job, mai su `main`. Aggiungi solo i file elencati dal coordinatore
   (mai `git add -A` alla cieca: controlla `git status` e non includere `.env`, `config.json` dell'agente, `node_modules`,
   file temporanei). Messaggio in italiano, che termina con la riga:
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
-- **Push e PR**: solo se il prompt lo elenca e con `ci_locale.sh` passato dopo l'ultimo `allinea` e senza modifiche
-  successive. PR con `gh pr create` verso `main`, descrizione in italiano con cosa cambia, esito di `ci_locale.sh`, e in fondo:
-  `🤖 Generated with [Claude Code](https://claude.com/claude-code)`. Mai `push --force`, mai push su `main`.
+- **Push e PR**: solo se il prompt lo elenca, con il lavoro già in commit:
+  `scripts/job.sh pr <ramo> "<titolo>" "<corpo>"` (allinea, CI, push, `gh pr create`): corpo in italiano con cosa cambia;
+  esito della CI e riga finale `🤖 Generated with [Claude Code](https://claude.com/claude-code)` li aggiunge lo script.
+  Lancialo in primo piano con timeout lungo (può attendere il turno dei test). Mai `push --force`, mai push su `main`.
 - **Merge** (solo se il prompt lo elenca): **solo** `scripts/job.sh unisci <ramo>` dalla cartella principale, mai
   `gh pr merge` a mano. Lancialo in primo piano con un timeout lungo (aspetta da sé il turno). Se esce con errore
   fermati e riporta le ultime righe.

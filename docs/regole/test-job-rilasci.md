@@ -15,20 +15,33 @@
 scripts/job.sh elenco                     # job, worktree, file toccati, PR aperte
 scripts/job.sh apri <ramo> "<sez>" "<aree>"
 scripts/job.sh allinea <ramo>             # rebase (o merge se già pushato) su origin/main
-scripts/job.sh unisci <ramo>              # allinea, CI locale, push, merge PR, chiudi (una sessione alla volta)
+scripts/job.sh pr <ramo> "<titolo>" "<corpo>"   # allinea, CI locale, push, PR con l'esito della CI
+scripts/job.sh unisci <ramo>              # allinea, CI (saltata se il tree è già verificato), push, merge PR, chiudi
 scripts/job.sh chiudi <ramo>              # toglie worktree e ramo dopo il merge
 ```
 
 ## CI locale
 - `scripts/ci_locale.sh` dalla radice del worktree: `pnpm install --frozen-lockfile`, lint, typecheck, test, build.
-- Si lancia una volta, dopo `allinea` e prima del push (la lancia il coordinatore). Un esito precedente al rebase non vale.
+- **Solo le parti toccate**: di default lint, typecheck, test e build girano sui pacchetti cambiati rispetto a
+  `origin/main` e sui loro dipendenti. Se cambiano file della radice (`package.json`, `pnpm-lock.yaml`,
+  `pnpm-workspace.yaml`, `tsconfig*`, configurazioni eslint/prettier/vitest, `samples/`, `scripts/ci_locale.sh`) gira tutto.
+  `--completa` forza tutto. `scripts/rilascia.sh` non lancia la CI: la PR di rilascio tocca il `package.json` della
+  radice, quindi la CI (via `job.sh pr`) diventa completa da sola; `--completa` resta per una verifica totale a mano.
+- Lint e typecheck girano in parallelo; **solo test e build** aspettano il turno (lucchetto `.claude/ci-pesante.lock`):
+  due CI di job diversi non li eseguono insieme («Attendo il turno…»).
+- La registrazione vale solo se il worktree era pulito all'avvio e alla fine e il tree non è cambiato durante la CI.
+- **Una CI sola per job**: il flusso è `scripts/job.sh pr` (allinea, CI, push, PR con l'esito) poi `scripts/job.sh unisci`.
+  Se la CI va bene su un worktree pulito, registra il tree verificato in `.claude/ci-ok-<ramo>` (fuori dal repository);
+  `unisci` salta la CI se dopo l'allineamento HEAD ha lo stesso tree sulla stessa base, altrimenti la riesegue.
+- Un esito precedente al rebase non vale: la CI si lancia dopo `allinea` (lo fanno `pr` e `unisci`). Modifiche non
+  salvate dopo la CI annullano il salto: il commit successivo cambia il tree e la CI si rifà.
 - Si salta solo per modifiche a soli documenti, skill o agenti (nessun file TypeScript, `package.json` o configurazione di build).
 - Non c'è CI su GitHub: la CI è solo locale; nella PR si riporta l'esito di `ci_locale.sh`.
 
 ## Commit, PR, merge
 - Commit e PR in italiano; il commit termina con `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`,
   la PR con `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
-- PR solo se Luca lo chiede; il merge di una PR solo con `scripts/job.sh unisci`, mai `gh pr merge` a mano.
+- PR solo se Luca lo chiede (`scripts/job.sh pr`, che aggiunge da solo la riga finale e l'esito della CI); il merge di una PR solo con `scripts/job.sh unisci`, mai `gh pr merge` a mano.
 - Mai push forzati. Su `main` solo push fast-forward dal worktree del job dopo la CI verde, come ha scelto Luca
   (2026-10-15), seguito da `job.sh chiudi`; PR e `job.sh unisci` quando li chiede.
 

@@ -24,8 +24,11 @@ Come lavori:
    prompt lo dice, aggiorni tu anche il documento della sezione (regole in `docs/regole/documentazione.md`; comandi e
    nomi citati devono esistere nel codice).
 3. Dipendenze nuove: solo se necessarie e motivate nel rapporto; aggiorna il lockfile con `pnpm install`.
-4. Lancia i controlli dei pacchetti toccati: `pnpm --filter <pacchetto> lint`, `typecheck`, `test` (e `build` se
-   cambia la configurazione). Non lanci `scripts/ci_locale.sh`: la lancia il coordinatore.
+4. Lancia lint e typecheck dei pacchetti toccati (`pnpm --filter <pacchetto> lint`, `typecheck`) e i test del solo
+   pacchetto toccato, meglio ancora dei soli file di test interessati (`pnpm --filter <pacchetto> exec vitest run <file>`);
+   `build` solo se cambia la configurazione. Mai la suite completa e mai `scripts/ci_locale.sh`: la suite completa
+   la esegue la CI (una volta sola, via `job.sh pr`). Se fallisce un test non correlato alla tua modifica, rilancialo
+   da solo e riportalo nel rapporto (flaky o memoria esaurita), senza correggerlo.
 5. Non aggirare mai un controllo che fallisce (niente `eslint-disable`, `@ts-ignore`, test saltati) senza motivarlo.
 6. Il coordinatore ti riprende con `SendMessage` per correzioni (supervisore, conflitti, CI fallita) **e per le
    attività successive**, anche di un altro job: non rileggere regole e file già letti se non sono cambiati, rileggi

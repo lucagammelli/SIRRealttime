@@ -56,8 +56,24 @@ in `src/**/*.test.ts` e `test/**/*.test.ts`, ambiente `node`.
 
 ### CI
 La CI è solo locale: `scripts/ci_locale.sh` esegue 5 passi: 1/5 `pnpm install --frozen-lockfile`,
-2/5 `pnpm -r --if-present lint`, 3/5 typecheck, 4/5 test, 5/5 build. Non c'è CI su GitHub (nessuna GitHub Action);
-lo script va lanciato prima di ogni PR e da `scripts/job.sh unisci`. Richiede Node 24 e corepack.
+2/5 lint, 3/5 typecheck, 4/5 test, 5/5 build (script `--if-present` di ogni pacchetto). Non c'è CI su GitHub (nessuna
+GitHub Action). Richiede Node 24 e corepack.
+
+- **Ambito**: di default solo i pacchetti cambiati rispetto a `origin/main` (commit del ramo e modifiche non salvate) e
+  i loro dipendenti (`pnpm --filter "...[origin/main]"`; la build include anche le dipendenze, che usano il loro `dist`).
+  Gira tutto se cambiano file della radice (`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `tsconfig*`,
+  `eslint.config.*`, `.prettier*`, `.editorconfig`, `.npmrc`, `vitest*`, `samples/`, `scripts/ci_locale.sh`,
+  `scripts/versione.mjs`, `scripts/scrivi-versione.mjs`) o con `scripts/ci_locale.sh --completa` (rilasci). Il modo scelto
+  è scritto nella prima riga dell'output.
+- **Parallelismo e turno**: lint e typecheck partono insieme (2 pacchetti alla volta ciascuno, per non esaurire la
+  memoria); test e build prendono il lucchetto `.claude/ci-pesante.lock` della cartella principale, quindi due CI di job
+  diversi non fanno test e build insieme (messaggio «Attendo il turno…», attesa massima un'ora).
+- **Una CI per job**: a CI riuscita su un worktree pulito lo script scrive `.claude/ci-ok-<ramo>` (tree, base, modo,
+  durata; file locale, ignorato da git). `scripts/job.sh pr <ramo> "<titolo>" "<corpo>"` esegue allinea, CI, push e
+  `gh pr create` (corpo + esito CI + riga «Generated with Claude Code»); `scripts/job.sh unisci` salta la CI se dopo
+  l'allineamento HEAD ha lo stesso tree sulla stessa base e il worktree è pulito, altrimenti la riesegue.
+- Il typecheck non è incrementale: i `tsconfig` dei pacchetti non scrivono `tsbuildinfo` e la cache sarebbe una
+  seconda via di esecuzione rispetto allo script del pacchetto; guadagno non misurabile su una macchina già satura.
 
 ### Test del server e `ws`
 `apps/server/vitest.config.ts` non usa le condizioni di `vitest.shared.ts` ma solo `@arenalive/source`, `node` e `default`
@@ -171,7 +187,7 @@ cd "$RADICE"
 corepack enable                       # una sola volta: attiva il pnpm fissato in packageManager
 pnpm install                          # dipendenze di tutti i pacchetti
 pnpm --filter "@arenalive/$PACCHETTO" test  # test di un solo pacchetto
-scripts/ci_locale.sh                  # i 5 passi della CI, da lanciare prima di ogni PR
+scripts/ci_locale.sh                  # i 5 passi della CI sui pacchetti toccati (--completa: tutti)
 ```
 
 ### Agente scaricabile (`scripts/costruisci-agente.sh`)

@@ -19,3 +19,5 @@ apps/server/data/
 .claude/unisci.lock*
 .claude/ci-*.log
 .claude/settings.local.json
+.claude/ci-ok-*
+.claude/ci-pesante.lock*

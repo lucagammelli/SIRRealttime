@@ -10,12 +10,14 @@
 #   scripts/job.sh controlla "<sezione>" "<aree>"          sovrapposizioni con i job aperti (esce con 2 se ce ne sono)
 #   scripts/job.sh apri <ramo> "<sezione>" "<aree>" [--forza]   controlla, crea ramo e worktree dalla base, registra
 #   scripts/job.sh allinea <ramo> [--forza]                porta il ramo sulla base (rebase, o merge se già pushato)
+#   scripts/job.sh pr <ramo> "<titolo>" "<corpo>" [--forza]  allinea, CI locale, push, PR (con l'esito della CI)
 #   scripts/job.sh unisci <ramo> [--forza]                 merge della PR, una sessione alla volta: lucchetto, allinea,
-#                                                          CI locale, push, merge, chiudi
+#                                                          CI locale (saltata se il tree è già verificato), push, merge, chiudi
 #   scripts/job.sh chiudi <ramo> [--forza]                 dopo il merge: toglie worktree, ramo locale e riga del registro
 #
 # <aree>: prefissi di percorso separati da virgola (es. "packages/dvw-parser/,docs/dvw-parser.md").
-# --forza su allinea, unisci, chiudi: agire sul job di un'altra sessione ancora attiva (solo con l'ok di Luca).
+# --forza su allinea, pr, unisci, chiudi: agire sul job di un'altra sessione ancora attiva (solo con l'ok di Luca).
+# Flusso: commit nel worktree, «pr» (una CI sola), «unisci» (salta la CI se dopo l'allineamento il tree è lo stesso).
 # Base: origin/main se esiste, altrimenti main locale (repository appena creato, prima del primo push).
 
 # --- variabili ---
@@ -266,10 +268,53 @@ chiudi() {
     echo "Job $ramo chiuso."
 }
 
+# CI locale del ramo, una volta sola per tree: se ci_locale.sh ha già registrato (.claude/ci-ok-<ramo>) lo stesso tree
+# su questa stessa base e il worktree è pulito, la salta. Imposta ESITO_CI (testo per la PR); fallita = errore.
+esegui_ci() {
+    local ramo="$1" wt="$WORKTREES/$1" ok="$PRINCIPALE/.claude/ci-ok-${1//\//_}" log tree_reg base_reg
+    log="$PRINCIPALE/.claude/ci-$ramo.log"
+    if [[ -f "$ok" && -z "$(git -C "$wt" status --porcelain)" ]]; then
+        tree_reg="$(sed -n 's/^tree=//p' "$ok")"; base_reg="$(sed -n 's/^base=//p' "$ok")"
+        if [[ "$tree_reg" == "$(git -C "$wt" rev-parse 'HEAD^{tree}')" && "$base_reg" == "$(git -C "$PRINCIPALE" rev-parse "$(rif_base)")" ]]; then
+            ESITO_CI="OK, già verificata su questo stesso contenuto e questa base ($(sed -n 's/^modo=//p' "$ok"), $(sed -n 's/^durata=//p' "$ok")): non rieseguita"
+            echo "CI locale saltata: tree $(git -C "$wt" rev-parse --short 'HEAD^{tree}') già verificato su $(rif_base)."
+            return 0
+        fi
+    fi
+    rm -f "$ok"
+    echo "CI locale sul ramo allineato (log: $log)…"
+    if ! (cd "$wt" && scripts/ci_locale.sh > "$log" 2>&1); then
+        tail -30 "$log"; errore "CI locale fallita (log: $log)"
+    fi
+    ESITO_CI="OK ($(grep -m1 '^CI locale, modo' "$log" | sed 's/^CI locale, modo //'); $(sed -n 's/^durata=//p' "$ok" 2>/dev/null))"
+}
+
+# PR del job: allinea, CI locale, push, PR con l'esito della CI. Dopo, «unisci» non rifà la CI se non cambia nulla.
+pr() {
+    local ramo="$1" titolo="$2" corpo="$3" forza="${4:-}" wt="$WORKTREES/$1" esistente url
+    [[ -d "$wt" ]] || errore "worktree non trovato: $wt"
+    verifica_proprietario "$ramo" "$forza"
+    command -v gh >/dev/null || errore "gh non disponibile"
+    git -C "$PRINCIPALE" show-ref --verify --quiet "refs/remotes/$REMOTO/$BASE" || errore "$REMOTO/$BASE non esiste: prima il push del commit iniziale"
+    allinea "$ramo" "$forza" || exit $?
+    esegui_ci "$ramo"
+    git -C "$wt" push -q "$REMOTO" "$ramo" || errore "push non riuscito (mai push forzati)"
+    esistente="$(cd "$PRINCIPALE" && gh pr list --head "$ramo" --state open --json number -q '.[0].number')"
+    if [[ -n "$esistente" ]]; then
+        (cd "$PRINCIPALE" && gh pr comment "$esistente" --body "CI locale: $ESITO_CI") >/dev/null || echo "Avviso: commento sulla PR non aggiunto."
+        echo "PR #$esistente già aperta: ramo aggiornato."
+        return 0
+    fi
+    url="$(cd "$PRINCIPALE" && gh pr create --base "$BASE" --head "$ramo" --title "$titolo" \
+        --body "$(printf '%s\n\nCI locale: %s\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)' "$corpo" "$ESITO_CI")")" \
+        || errore "PR non creata"
+    echo "PR creata: $url"
+}
+
 # Merge della PR del job, una sessione alla volta: con il lucchetto, il ramo si allinea all'ultimo main, la CI locale
 # passa su quel main, poi push, merge e chiusura. Così due merge non si incrociano e main resta sempre provato.
 unisci() {
-    local ramo="$1" forza="${2:-}" wt="$WORKTREES/$1" pr log
+    local ramo="$1" forza="${2:-}" wt="$WORKTREES/$1" pr
     [[ -d "$wt" ]] || errore "worktree non trovato: $wt"
     verifica_proprietario "$ramo" "$forza"
     command -v gh >/dev/null || errore "gh non disponibile"
@@ -284,13 +329,9 @@ unisci() {
     echo "$ramo (PR #$pr) dal $(date '+%H:%M')" > "$LUCCHETTO_UNISCI.chi"
     trap 'rm -f "$LUCCHETTO_UNISCI.chi"' EXIT
     allinea "$ramo" "$forza" || exit $?
-    log="$PRINCIPALE/.claude/ci-$ramo.log"
-    echo "CI locale sul ramo allineato (log: $log)…"
-    if ! (cd "$wt" && scripts/ci_locale.sh > "$log" 2>&1); then
-        tail -30 "$log"; errore "CI locale fallita: niente merge (PR #$pr resta aperta)"
-    fi
+    esegui_ci "$ramo"
     git -C "$wt" push -q "$REMOTO" "$ramo" || errore "push non riuscito (mai push forzati)"
-    (cd "$PRINCIPALE" && gh pr comment "$pr" --body "CI locale dopo l'allineamento a $BASE ($(git -C "$wt" rev-parse --short "$REMOTO/$BASE")): OK" >/dev/null) \
+    (cd "$PRINCIPALE" && gh pr comment "$pr" --body "CI locale dopo l'allineamento a $BASE ($(git -C "$wt" rev-parse --short "$REMOTO/$BASE")): $ESITO_CI" >/dev/null) \
         || echo "Avviso: commento con l'esito della CI non aggiunto alla PR."
     (cd "$PRINCIPALE" && gh pr merge "$pr" --merge) || errore "merge della PR #$pr non riuscito"
     echo "PR #$pr unita."
@@ -305,7 +346,8 @@ case "$comando" in
     controlla) [[ $# -ge 2 ]] || errore "uso: controlla \"<sezione>\" \"<aree>\""; controlla "$1" "$2" ;;
     apri)      [[ $# -ge 3 ]] || errore "uso: apri <ramo> \"<sezione>\" \"<aree>\" [--forza]"; apri "$@" ;;
     allinea)   [[ $# -ge 1 ]] || errore "uso: allinea <ramo> [--forza]"; allinea "$@" ;;
+    pr)        [[ $# -ge 3 ]] || errore "uso: pr <ramo> \"<titolo>\" \"<corpo>\" [--forza]"; pr "$@" ;;
     unisci)    [[ $# -ge 1 ]] || errore "uso: unisci <ramo> [--forza]"; unisci "$@" ;;
     chiudi)    [[ $# -ge 1 ]] || errore "uso: chiudi <ramo> [--forza]"; chiudi "$@" ;;
-    *)         errore "comando sconosciuto: $comando (elenco, controlla, apri, allinea, unisci, chiudi)" ;;
+    *)         errore "comando sconosciuto: $comando (elenco, controlla, apri, allinea, pr, unisci, chiudi)" ;;
 esac

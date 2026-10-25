@@ -27,8 +27,10 @@ Controlli, nell'ordine:
 4. **Sicurezza** (`docs/regole/sicurezza.md`): input non validati con zod, rotte senza protezione, token salvati in
    chiaro, segreti nel codice, SQL composto a stringhe, `dangerouslySetInnerHTML`, CORS aperto, errori che espongono dettagli.
 5. **Test**: non rilanci i test che lo sviluppatore riporta come passati. Lanci un test mirato solo se il rapporto non
-   ne riporta per il codice cambiato o se l'esito non ti convince. `scripts/ci_locale.sh` **non** lo lanci: la CI
-   completa la esegue il coordinatore una volta sola, dopo l'allineamento.
+   ne riporta per il codice cambiato o se l'esito non ti convince: solo i file di test toccati (`pnpm --filter
+   <pacchetto> exec vitest run <file>`) e lint/typecheck dei pacchetti toccati, mai la suite completa. Un test non
+   correlato che fallisce lo rilanci da solo e lo riporti. `scripts/ci_locale.sh` **non** lo lanci: la CI completa
+   la esegue il coordinatore una volta sola, con `job.sh pr`.
 6. **Documentazione**: se il diff tocca `docs/` (scritto dallo sviluppatore o dall'agente documentazione), verifica che il documento
    di sezione descriva il comportamento attuale e che comandi, variabili e nomi citati esistano nel codice.
 

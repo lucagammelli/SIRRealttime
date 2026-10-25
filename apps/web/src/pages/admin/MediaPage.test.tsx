@@ -103,7 +103,7 @@ describe('page «Immagini e video»', () => {
     fireEvent.change(screen.getByLabelText('Carica immagine nella libreria'), { target: { files: [file] } });
     await waitFor(() => expect(calls.some((c) => c.url === '/api/admin/assets' && c.method === 'POST')).toBe(true));
     expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({ kind: 'logo', name: 'logo.png' });
-    expect(await screen.findByText(/Caricato: nuovo\.png/)).toBeTruthy();
+    expect(await screen.findByText('Caricato 1 file.')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Uso dell’immagine'), { target: { value: 'sponsor' } });
     fireEvent.change(screen.getByLabelText(/^Sponsor/), { target: { value: SPONSOR } });
     fireEvent.change(screen.getByLabelText('Carica immagine nella libreria'), { target: { files: [file] } });
@@ -118,11 +118,11 @@ describe('page «Immagini e video»', () => {
     fireEvent.change(screen.getByLabelText('Carica video nella libreria'), {
       target: { files: [new File(['x'], 'doc.pdf', { type: 'application/pdf' })] },
     });
-    expect(await screen.findByText('Formato non ammesso: scegli un video MP4, MOV o WebM.')).toBeTruthy();
+    expect(await screen.findByText('doc.pdf: Formato non ammesso: scegli un video MP4, MOV o WebM.')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Carica immagine nella libreria'), {
       target: { files: [new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'grande.png', { type: 'image/png' })] },
     });
-    expect(await screen.findByText('Immagine troppo grande: al massimo 2 MB.')).toBeTruthy();
+    expect(await screen.findByText('grande.png: Immagine troppo grande: al massimo 2 MB.')).toBeTruthy();
     expect(calls.some((c) => c.method === 'POST')).toBe(false);
     fireEvent.change(screen.getByLabelText('Carica video nella libreria'), {
       target: { files: [new File(['v'], 'clip.mp4', { type: 'video/mp4' })] },
@@ -130,6 +130,51 @@ describe('page «Immagini e video»', () => {
     await waitFor(() =>
       expect(calls.some((c) => c.url === '/api/admin/assets/video' && c.method === 'POST')).toBe(true),
     );
+  });
+
+  it('uploads many files one after the other: the refused one is named with its reason, the others are uploaded, one reload', async () => {
+    const onPosts: string[] = [];
+    let active = 0;
+    let overlap = false;
+    const calls = serve(({ url, method, body }) => {
+      if (url === '/api/admin/assets' && method === 'POST') {
+        onPosts.push(String((body as { name?: string }).name));
+        active += 1;
+        if (active > 1) overlap = true;
+        active -= 1;
+      }
+      return undefined;
+    });
+    renderAs('admin', <MediaPage />);
+    await screen.findByRole('heading', { name: 'Immagini e video caricati' });
+    const listCalls = () => calls.filter((c) => c.url === '/api/admin/assets' && c.method === 'GET').length;
+    const before = listCalls();
+    const ok = (n: string) => new File([new Uint8Array([1, 2])], n, { type: 'image/png' });
+    const big = new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'grande.png', { type: 'image/png' });
+    const input = screen.getByLabelText<HTMLInputElement>('Carica immagine nella libreria');
+    expect(input.multiple).toBe(true);
+    fireEvent.change(input, { target: { files: [ok('a.png'), big, ok('b.png')] } });
+    expect(await screen.findByText('Caricati 2 file.')).toBeTruthy();
+    expect(onPosts).toEqual(['a.png', 'b.png']);
+    expect(overlap).toBe(false);
+    expect(screen.getByText('grande.png: Immagine troppo grande: al massimo 2 MB.')).toBeTruthy();
+    await waitFor(() => expect(listCalls()).toBe(before + 1));
+  });
+
+  it('stops when the space of the library is over and says so', async () => {
+    const calls = serve(({ url, method }) =>
+      url === '/api/admin/assets' && method === 'POST'
+        ? { status: 409, body: { error: 'Spazio per i file esaurito (50 MB): elimina quelli che non usi' } }
+        : undefined,
+    );
+    renderAs('admin', <MediaPage />);
+    await screen.findByRole('heading', { name: 'Immagini e video caricati' });
+    const f = (n: string) => new File([new Uint8Array([1])], n, { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText('Carica immagine nella libreria'), {
+      target: { files: [f('a.png'), f('b.png')] },
+    });
+    expect(await screen.findByText(/Spazio della libreria esaurito/)).toBeTruthy();
+    expect(calls.filter((c) => c.method === 'POST')).toHaveLength(1);
   });
 
   it('renames and deletes; a refusal of the server is shown in Italian', async () => {

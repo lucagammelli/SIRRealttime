@@ -1144,7 +1144,10 @@ Carica con le API esistenti: `GET /api/admin/assets`, `/sponsors` e i quattro do
   senza sponsor» di «Sponsor»; `sponsorId`) e «Sfondo degli avvisi» (`kind` `overlay`) e «Foto e video dei giocatori» (`kind` `player`, per la pagina «Squadra»). «Carica immagine»
   (`POST /api/admin/assets`, base64, PNG/JPEG/WebP/SVG, 2 MB, `X`-nome del file) e «Carica video» (il video segue l'uso: con «Foto e video dei giocatori» è
   `POST /api/admin/assets/video?kind=player`, con gli altri usi è sfondo degli avvisi; `uploadVideo(file, kind)`, MP4, MOV o WebM (`VideoPickMimeSchema`: `video/quicktime` solo per ciò che dichiara il browser, il tipo salvato resta `video/mp4`), 15 MB, controllati prima con `videoProblem`: «Formato non ammesso: scegli un video MP4, MOV o WebM.»,
-  «Immagine troppo grande: al massimo 2 MB.»). Stato «Caricamento…» e «Caricato: <nome>.»; gli errori del server sono in italiano.
+  «Immagine troppo grande: al massimo 2 MB.»). Entrambi i campi file accettano **più file insieme** (`multiple`): si caricano uno dopo l'altro, mai in parallelo, con lo stesso uso e sponsor;
+  avanzamento «Caricamento 2 di 5…» (`aria-live`), poi il riepilogo «Caricati N file.» e, per ogni file scartato, «nome: motivo» (formato, troppo grande,
+  errore del server) senza fermare gli altri; se lo spazio della libreria si esaurisce («Spazio per i file esaurito…», 409) il caricamento si ferma e lo dice.
+  La lista si ricarica una sola volta, alla fine. Gli errori del server sono in italiano.
 - **«Immagini e video caricati»** (sottotitolo «Spazio usato: … MB di … MB»): per ogni file nome (quello del file al
   caricamento; senza nome il ripiego «Immagine/Video del gg/mm/aaaa · L×A»), uso (`assetUseText`: «Logo», «Sponsor: <nome>»,
   «Sfondo di un avviso», «Giocatore: <Cognome>» per i file che la rosa usa, altrimenti «Foto/Video di un giocatore»; la rosa

@@ -100,7 +100,7 @@ export function overlayFor(
   now: number,
   /** Side of our team in the match (null: unknown, a background for our team only is then dropped). */
   ourSide: Side | null = null,
-  /** Photos and videos of the players of our team (public answer) and whether a video may be shown (not the phone, not reduced motion). */
+  /** Photos and videos of the players of our team (public answer) and whether a video may be shown (not with reduced motion). */
   roster: { players: readonly PublicPlayerMedia[]; videos: boolean } = { players: [], videos: false },
 ): QueuedOverlay | null {
   const overlay = (config as Partial<TenantOverlays>)[event.kind];

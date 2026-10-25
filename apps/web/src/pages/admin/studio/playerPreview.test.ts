@@ -118,7 +118,7 @@ describe('preview with a player of the roster', () => {
     const tv = overlayPreview('ace', overlay, state, 'home', sample, 1);
     expect(tv.event.player).toEqual({ number: 8, firstName: 'Mario', lastName: 'Rossi' });
     expect(tv.background).toMatchObject({ kind: 'video', assetId: VIDEO });
-        // Another overlay of the player without its own files: the main photo.
+    // Another overlay of the player without its own files: the main photo.
     const block = withPlayerMode(defaultOverlay('block'), 'video');
     expect(overlayPreview('block', block, state, 'home', sample, 1).background).toMatchObject({
       kind: 'image',

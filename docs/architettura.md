@@ -345,7 +345,7 @@ portano video). Un documento salvato prima resta valido. Foto o video del giocat
 (`OverlayPlayerMediaSchema`: `source` `photo` | `video`, `audio`, `fit`, `duration` come lo sfondo video, `showText`;
 facoltativo, senza vale lo sfondo fisso; il vecchio `pick` `default` | `random` di un documento salvato prima si accetta e si
 scarta). `playerMediaFile(source, avviso, giocatore, { videos })` (pura) dà il file di un giocatore per un avviso: il video
-scelto per quell'avviso se `source` è `video` e `videos` (non sul telefono né con meno animazioni), altrimenti la foto scelta
+scelto per quell'avviso se `source` è `video` e `videos` (non con meno animazioni), altrimenti la foto scelta
 per quell'avviso, altrimenti la foto principale. `playerBackground(overlay, evento, latoNostro, giocatori, { videos })` (pura)
 ne fa lo sfondo solo per un'azione di un giocatore della **nostra squadra** con quel numero di maglia nella rosa; senza nulla
 → sfondo fisso o solo testo. `OverlaysResponseSchema`

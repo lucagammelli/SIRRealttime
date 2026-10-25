@@ -408,16 +408,17 @@ describe('options of a video background', () => {
 
   describe('overlay that lasts as long as its video', () => {
     const SECONDS = 4;
-    async function show(background: { duration: 'seconds' | 'video' }, device: 'tv' | 'phone' = 'tv') {
+    async function show(background: { duration: 'seconds' | 'video' }, reduced = false) {
+      stubReducedMotion(reduced);
       vi.stubGlobal('fetch', () => Promise.resolve(new Response(new Blob(['v'], { type: 'video/mp4' }))));
       vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:video' }));
       vi.useFakeTimers();
       const release = claimOurSide('home');
       const c = config({ ace: { seconds: SECONDS, background: { kind: 'video', assetId: VIDEO, ...background } } });
-      const view = render(<Overlay state={withEvents([])} live={false} config={c} device={device} />);
+      const view = render(<Overlay state={withEvents([])} live={false} config={c} device="tv" />);
       await act(() => Promise.resolve());
       await act(() => Promise.resolve());
-      view.rerender(<Overlay state={withEvents([event('ace')])} live config={c} device={device} />);
+      view.rerender(<Overlay state={withEvents([event('ace')])} live config={c} device="tv" />);
       return { view, release };
     }
     const on = () => document.querySelector('[data-overlay]') !== null;
@@ -480,7 +481,15 @@ describe('options of a video background', () => {
       release();
     });
 
-
+    it('with reduced motion (no video shown): the seconds of the overlay', async () => {
+      const { release } = await show({ duration: 'video' }, true);
+      expect(document.querySelector('video')).toBeNull();
+      tick(3_900);
+      expect(on()).toBe(true);
+      tick(200);
+      expect(on()).toBe(false);
+      release();
+    });
   });
 
   it('the example event of the Studio is of the side asked (our team), with one of its players', () => {

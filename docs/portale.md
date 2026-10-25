@@ -366,8 +366,7 @@ anche il riquadro «Giocatore della nostra squadra» (`PlayerMediaSetting`): «S
 «Quale», il vecchio `pick` dei documenti salvati si legge e si scarta); «Mostra il testo sopra il video» (o «la foto»,
 `showText`, acceso se manca nei documenti salvati); «Posizione» (del video o della foto: `fit`, anche la foto del giocatore può stare a tutto schermo), con il video «Audio» e «Durata» (come lo sfondo video, senza «Video per»: è sempre la nostra squadra) e la nota «Si usano la foto e il video
 scelti per questo avviso in Squadra › «Foto e video»; senza foto dell’avviso si usa la foto principale. Se il giocatore non ne
-ha si usa lo sfondo dell’avviso, altrimenti solo il testo. Solo per la nostra squadra» (con il video anche «; senza video, sul
-con movimento ridotto si mostra la foto») con il collegamento «Squadra».
+ha si usa lo sfondo dell’avviso, altrimenti solo il testo. Solo per la nostra squadra» (con il video anche «; senza video o con movimento ridotto si mostra la foto») con il collegamento «Squadra».
 Nessuno sfondo ha più la velatura del colore della squadra (tolta `VEIL`, per scelta di Luca): né la foto o il video del giocatore
 (`QueuedOverlay.player`, `overlayPreview().player`) né lo sfondo fisso; con il testo
 acceso c'è solo una fascia leggera dietro le parole (`TEXT_BAND`), spento il testo resta solo per gli screen reader.

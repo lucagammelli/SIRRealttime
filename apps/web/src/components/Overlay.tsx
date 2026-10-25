@@ -321,7 +321,7 @@ export function Overlay({
     if (next) setCurrent(next);
   }, [current, arrivals, blocked]);
 
-  // The video of the overlay on screen, when the overlay follows its length (not on the phone nor with reduced motion:
+  // The video of the overlay on screen, when the overlay follows its length (not with reduced motion:
   // there the video is not shown and the seconds apply).
   const shownMedia = current ? backgroundMedia(current.background, media, current.player) : null;
   const followsVideo = shownMedia?.kind === 'video' && shownMedia.duration === 'video';

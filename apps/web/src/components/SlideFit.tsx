@@ -1,7 +1,6 @@
 import type { IntermissionFullscreenSize } from '@arenalive/shared';
 import type { ReactNode } from 'react';
 import { useLayoutEffect, useRef } from 'react';
-import { useTouch } from '../lib/useLayout.ts';
 
 /** Limits of the scale of a slide for every size but `normal` (as designed: no scale). */
 export const FIT_LIMITS: Record<Exclude<IntermissionFullscreenSize, 'normal'>, { min: number; max: number }> = {
@@ -30,7 +29,7 @@ export function largestFit(fits: (scale: number) => boolean, min: number, max: n
 
 /**
  * Slide of a full screen pause in the space left by its title. `normal`: as designed, it scrolls when taller than
- * the space. Without touch nobody can scroll it: what does not fit is cut (overflow hidden), no other scale. `large` and `fill`: the slide is laid out narrower and scaled up (CSS transform) as far as it stays
+ * the space. With `cut` (big screen without touch) nobody can scroll it: what does not fit is cut (overflow hidden), no other scale. `large` and `fill`: the slide is laid out narrower and scaled up (CSS transform) as far as it stays
  * whole in the space, centred; `fill` also scales it down when it does not fit. Measured again when the space or
  * the slide change size; without measures (no layout, e.g. tests) the slide is not scaled.
  */
@@ -38,16 +37,18 @@ export function SlideFit({
   size,
   children,
   className = '',
+  cut = false,
   ...rest
 }: {
   size: IntermissionFullscreenSize;
   children: ReactNode;
   className?: string;
+  /** Big screen without touch: nobody can scroll the slide, what does not fit is cut. */
+  cut?: boolean;
   'data-studio-slide'?: string;
 }) {
   const outer = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
-  const touch = useTouch();
   const fitting = size !== 'normal';
 
   useLayoutEffect(() => {
@@ -86,7 +87,7 @@ export function SlideFit({
 
   if (!fitting)
     return (
-      <div {...rest} className={`${className} ${touch ? 'overflow-y-auto overscroll-contain' : 'overflow-hidden'}`}>
+      <div {...rest} className={`${className} ${cut ? 'overflow-hidden' : 'overflow-y-auto overscroll-contain'}`}>
         {children}
       </div>
     );
@@ -95,7 +96,7 @@ export function SlideFit({
       {...rest}
       ref={outer}
       data-slide-fit={size}
-      className={`${className} relative ${touch ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'}`}
+      className={`${className} relative ${cut ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'}`}
     >
       <div ref={inner} className="absolute left-0 top-0 w-full origin-top-left">
         {children}

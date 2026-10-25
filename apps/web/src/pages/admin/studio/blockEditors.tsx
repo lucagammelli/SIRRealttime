@@ -139,9 +139,9 @@ export function DevicePreview({
       : 0.25;
   const scale = fit ? fitScale : measured > 0 ? measured / size.width : 0.25;
   const tv = device === 'tv';
-  // Without touch also the phone and the tablet are screens without scrolling, as on the public page.
+  // Only the big screen is laid out in screens without scrolling, as on the public page.
   const touch = layout?.touch[device] ?? true;
-  const screens = tv || !touch;
+  const screens = tv;
   return (
     <figure
       className={fit ? 'flex h-full w-full flex-col' : 'space-y-2'}

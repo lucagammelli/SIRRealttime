@@ -23,7 +23,6 @@ import {
   TV_LIST_ROW_REM,
   TV_PLAYERS_ROWS,
   tvContentRem,
-  screenWidth,
 } from './layout.ts';
 
 let next = 0;
@@ -322,18 +321,5 @@ describe('heights of the blocks on the big screen', () => {
       b.type === 'topPlayers' ? block({ type: 'topPlayers', width: 12, options: { count: 10 } }) : b,
     );
     expect(tvGroups(long, 40.1, 1, TV_BLOCK_MIN_REM, TV_MAX_SHRINK)).toHaveLength(2);
-  });
-});
-
-describe('screenWidth', () => {
-  it('columns of a block when a device without touch is laid out in screens: those of its own grid', () => {
-    expect(screenWidth(4, 'tv', 0)).toBe(4);
-    expect(screenWidth(4, 'phone', 2000)).toBe(12);
-    expect(screenWidth(4, 'tablet', 0)).toBe(12);
-    expect(screenWidth(4, 'tablet', 800)).toBe(12);
-    expect(screenWidth(4, 'tablet', 1000)).toBe(6);
-    expect(screenWidth(8, 'tablet', 1000)).toBe(12);
-    expect(screenWidth(4, 'tablet', 1200)).toBe(4);
-    expect(screenWidth(40, 'tablet', 1200)).toBe(12);
   });
 });

@@ -6,7 +6,6 @@ import {
   groupMinRem,
   rotationIndex,
   rowMinRem,
-  screenWidth,
   TABLET_GRID_FLOW,
   tabletSpan,
   TV_ROTATION_MS,
@@ -69,8 +68,8 @@ const studioAttrs = (block: LayoutBlock): Record<'data-studio-block' | 'data-stu
  *   the data, and the screens do not change when the data arrive. With touch a card taller than its cell scrolls
  *   inside its body (`index.css`); without touch it never scrolls: the card keeps its full size and what does not fit its cell is cut
  *   (overflow hidden, choice of Luca), never scaled.
- * Without touch (option «Touch» of the device) the phone and the tablet are laid out in screens like the big screen
- * (nobody can scroll them): same rotation, the columns of their own grid (`screenWidth`).
+ * The option «Touch» of the device never changes this layout: the phone and the tablet are laid out the same with it
+ * on or off (it only removes what can be tapped or clicked).
  */
 export function BlockLayout({
   blocks,
@@ -87,7 +86,7 @@ export function BlockLayout({
   const touch = useTouch();
   return (
     <DeviceContext.Provider value={device}>
-      {device === 'tv' || !touch ? (
+      {device === 'tv' ? (
         <TvLayout blocks={blocks} device={device} renderBlock={renderBlock} paused={rotationPaused} touch={touch} />
       ) : device === 'phone' ? (
         <div className="sir-blocks flex flex-col gap-3" data-layout="phone">
@@ -141,18 +140,7 @@ function TvLayout({
   const scale = useContext(LayoutScaleContext) || 1;
   const size = useElementSize(area);
   const heightPx = size.height / scale;
-  // Phone and tablet in screens: the columns their grid gives the blocks (the width of the area, not of the window).
-  const gridPx = size.width / scale;
-  const blocks = useMemo(
-    () =>
-      device === 'tv'
-        ? given
-        : given.map((b) => {
-            const width = screenWidth(b.width, device, gridPx);
-            return width === b.width ? b : { ...b, width };
-          }),
-    [given, device, gridPx],
-  );
+  const blocks = given;
   const reduced = useReducedMotion();
   const scoreboard = blocks.find((b) => b.type === 'scoreboard');
   const template = useTemplate().id;
@@ -173,10 +161,7 @@ function TvLayout({
   const zoom = tvZoom(groupMinRem(group, TV_GAP_REM, minRem, widthRem), availableRem);
 
   return (
-    <div
-      className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4"
-      data-layout={device === 'tv' ? 'tv' : 'screens'}
-    >
+    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4" data-layout="tv">
       {scoreboard && (
         <div className="contents" {...studioAttrs(scoreboard)}>
           {renderBlock(scoreboard, device)}

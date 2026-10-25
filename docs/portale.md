@@ -88,8 +88,8 @@ layout, dal modello e dall'altezza dello schermo, mai dal contenuto del momento*
 («Il 1° set non è ancora iniziato.») hanno la stessa cella che avranno con i dati, la mappa di campo resta alla sua
 dimensione e l'arrivo del primo dato non cambia le schermate. Con queste altezze le righe che le opzioni consentono si
 vedono tutte; un contenuto non previsto dalle opzioni (nomi su più righe, rose oltre 14 giocatori) con il tocco
-attivo scorre dentro il corpo della card, senza tocco viene tagliato dal bordo della card (vedi sotto «Senza tocco: mai
-scorrimento»). I gruppi ruotano ogni 12 s
+attivo scorre dentro il corpo della card, senza tocco viene tagliato dal bordo della card (solo TV, vedi sotto «Senza tocco: solo
+la TV non scorre»). I gruppi ruotano ogni 12 s
 (`TV_ROTATION_MS`, `rotationIndex`) con l'indicatore «Schermata N di M». La rotazione si ferma con
 `prefers-reduced-motion` (resta il primo gruppo) e con il pulsante «Ferma rotazione» (`aria-pressed`; in pausa il
 `title` è «Riprendi rotazione» e riprende dalla schermata corrente), richiesto da WCAG 2.2.2.
@@ -973,7 +973,7 @@ ciclo e mostra l'avviso.
   sinistra e a destra, metà di partenza e d'arrivo). Ogni metà ha i colori della sua squadra (nostra/avversaria) e
   heatmap e numeri d'arrivo stanno nella metà d'arrivo. Senza azioni la scritta «Nessuna azione con zone per questo
   filtro» sta su una fascia del colore di fondo sopra rete e celle, leggibile su ogni campo.
-  **Vista senza tocco** (dispositivi con «Touch: No», di solito la TV): i filtri non si vedono e la mappa mostra la scelta
+  **Vista senza tocco** (dispositivi con «Touch: No»): i filtri non si vedono e la mappa mostra la scelta
   del gruppo «Cosa mostra senza tocco (TV)» delle opzioni del blocco: «Squadra» «A turno» (predefinita: casa e ospite si
   alternano), «Solo la nostra squadra» (`useOurSide`, casa se non riconosciuta), «Casa», «Ospite»; «Fondamentale»
   «Attacco» (predefinito), «Battuta», «A turno»; con almeno un «A turno», «Secondi per ogni vista» (5-60, predefinito 10).
@@ -990,30 +990,25 @@ ciclo e mostra l'avviso.
   «Area riservata»).
 - **Font monospazio**: in SIR VOLLEY `--sir-font-mono` è Google Sans Code (prima codici e token ricadevano su
   `ui-monospace`).
-- **Senza tocco: mai scorrimento**: con «Touch: No» (`useTouch()` falso, su qualunque dispositivo) non compare mai una
-  barra di scorrimento, né nelle card né nella pagina né nelle pause. Le card hanno la loro dimensione piena fin dal
-  primo disegno (nessuna scala, nessuna misura che le cambi dopo) e quello che non ci sta nella cella viene
-  semplicemente tagliato: celle delle schermate (`BlockLayout`, `data-tv-block` con `data-touch="false"`) con il corpo
-  della card in `overflow: hidden` (`index.css`). Le liste («Parziale e marcatori», «Attacco», «Ace», «Muri vincenti»,
-  «Migliori giocatori», «Statistiche giocatori», «Classifica») mostrano tutte le loro righe, tagliate dal bordo se
-  troppe. È una scelta di Luca del 2026-10-24 (vedi `docs/decisioni.md`): la v2.6.4 riduceva il contenuto in scala e
-  la scheda compariva piccola per poi allargarsi. **Telefono e tablet senza tocco** (`screensFor` in `LiveMatch.tsx`)
-  non scorrono: la pagina è alta quanto lo schermo (`h-dvh`, come la TV, anche nell'anteprima dello Studio) e i
-  blocchi sono divisi in schermate che ruotano come sulla TV (`data-layout="screens"`, stessi `TvLayout`, `tvGroups`,
-  indicatore e `prefers-reduced-motion`), con le colonne della griglia del dispositivo (`screenWidth` in
-  `lib/layout.ts`: telefono e tablet verticale una colonna, tablet orizzontale metà o intera, desktop la larghezza del
-  blocco) e i grafici del dispositivo (telefono semplificato). Senza tocco anche la tabella giocatori perde lo
-  scorrimento orizzontale e verticale (niente `sir-scroll-x`, niente regione focalizzabile: le colonne in eccesso sono
-  tagliate), i parziali compatti del tabellone vanno a capo invece di scorrere, «Prossima partita» resta alla sua
-  dimensione e si taglia ciò che esce dallo schermo, e le diapositive a tutto schermo non scorrono (`overflow: hidden`
-  in `SlideFit.tsx`, vedi «Pause»). Con il tocco attivo tutto resta com'era (scorrimento consentito). Test:
-  `components/touch.test.tsx`, `components/SlideFit.test.tsx`, `components/Intermission.test.tsx`,
+- **Senza tocco: solo la TV non scorre**: l'opzione «Touch» non cambia mai impaginazione, scorrimento e contenuti di
+  telefono e tablet: con «No» perdono solo i controlli cliccabili e restano la colonna (telefono) o la griglia (tablet)
+  che scorre, la tabella giocatori scorrevole (`sir-scroll-x`, intestazione fissa sul telefono), i parziali compatti del
+  tabellone in riga scorrevole e le diapositive a tutto schermo scorrevoli (`useScrolls`/`canScroll` in
+  `lib/useLayout.ts`, `cut` di `SlideFit.tsx`). Le schermate a rotazione (`TvLayout`, `screensFor` in `LiveMatch.tsx`,
+  pagina alta quanto lo schermo) sono **solo della TV**. Sulla **TV senza tocco** non compare mai una barra di
+  scorrimento: le card hanno la dimensione piena fin dal primo disegno (nessuna scala) e quello che non ci sta nella
+  cella viene tagliato (celle `data-tv-block` con `data-touch="false"`, corpo della card in `overflow: hidden`,
+  `index.css`); le liste mostrano tutte le loro righe, tagliate dal bordo se troppe; la tabella giocatori perde lo
+  scorrimento, i parziali compatti vanno a capo, «Prossima partita» resta alla sua dimensione e le diapositive a tutto
+  schermo non scorrono (`overflow: hidden`, vedi «Pause»). Scelta di Luca del 2026-10-24, poi limitata alla TV il
+  2026-10-25 (vedi `docs/decisioni.md`). Le sezioni del telefono senza tocco restano aperte (comprimere è un controllo).
+  Test: `components/touch.test.tsx`, `components/SlideFit.test.tsx`, `components/Intermission.test.tsx`,
   `pages/LivePage.test.tsx`.
 - **Tagli e sovrapposizioni**: le righe a specchio delle statistiche (`StatSlides.tsx`) sono una griglia
   barra | valore | etichetta | valore | barra con valore largo almeno `6ch`; i nomi lunghi stanno su al massimo 2 righe, con
   `title`, e vanno a capo dopo «_» (`BreakableName` in `components/ui.tsx`); le liste di giocatori si impilano nei
   contenitori stretti; «Confronto squadre» ha colonne fisse; in TV i gruppi della rotazione vengono solo dal layout, dalle altezze dei tipi e dalle
-  opzioni dei blocchi (`tvGroups`, `blockMinRem`, `lib/layout.ts`), un contenuto non previsto dalle opzioni scorre dentro la card con il tocco e viene tagliato dal bordo della card senza tocco; le diapositive a tutto schermo scorrono sugli schermi bassi solo con il tocco; il tabellone dà ai parziali al massimo il 40%
+  opzioni dei blocchi (`tvGroups`, `blockMinRem`, `lib/layout.ts`), un contenuto non previsto dalle opzioni scorre dentro la card con il tocco e sulla TV senza tocco viene tagliato dal bordo della card; le diapositive a tutto schermo scorrono sugli schermi bassi tranne che sulla TV senza tocco; il tabellone dà ai parziali al massimo il 40%
   della larghezza e ai nomi fino a 3 righe; i titoli delle schede sono larghi almeno 12 rem, con i comandi sotto.
 - **Limiti noti**: nessun logo per squadra (scelta di Luca); il tema forzato non dà avvisi di contrasto (`brandContrastIssues`
   è vuoto); dopo il primo salvataggio il layout del cliente resta fisso anche se cambia modello (va reimpostato con
@@ -1055,9 +1050,9 @@ controlli in `docs/server.md`, «Grafica per cliente»).
   «Tutte le colonne», le intestazioni ordinabili e la selezione delle righe della tabella giocatori, i titoli comprimibili
   delle card sul telefono (restano tutte aperte), i pulsanti ferma/riprendi rotazione, installazione, schermo intero e tema,
   i pulsanti delle pause (pausa/riprendi, chiudi), il link dello sponsor e quello dello short URL del calendario (restano
-  contenuto senza `<a>`). I grafici restano sulla vista predefinita; la rotazione automatica della TV continua. Senza
-  tocco niente scorre: telefono e tablet diventano schermate a rotazione come la TV e le card si adattano al loro spazio
-  (vedi «Senza tocco: mai scorrimento»). Test: `components/touch.test.tsx`.
+  contenuto senza `<a>`). Impaginazione, scorrimento e contenuti restano quelli del tocco acceso (l'unica differenza di
+  contenuto: la mappa del campo senza filtri alterna le viste scelte nello Studio); la rotazione automatica della TV
+  continua e solo la TV è a schermate (vedi «Senza tocco: solo la TV non scorre»). Test: `components/touch.test.tsx`.
   **Pause e schermo senza tocco**: i pulsanti di `Intermission` («Torna alla partita», «Chiudi», «Ferma rotazione») si
   vedono solo se l'opzione «Touch» è accesa **e** lo schermo è davvero touch (`useTouch() && useTouchScreen()`,
   `matchMedia('(any-pointer: coarse)')` seguito al cambio; senza `matchMedia` vale `true`). Una TV senza tocco non li
@@ -1268,7 +1263,7 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
 - **Dimensione a tutto schermo** (`fullscreenSize` della pausa, ereditata dalle pause per set; `components/SlideFit.tsx`,
   usato in `Intermission.tsx`): «Normale» è la diapositiva com'era disegnata (scorre se non ci sta); «Grande» la
   ingrandisce fino a 1,5× finché sta nello schermo (se già non ci sta, resta com'è e scorre); «Riempi lo schermo» la scala
-  alla misura più grande che entra (0,4-4×), senza scorrimento. Senza tocco nessuna scorre: le dimensioni sono le stesse, ma quello che non ci sta viene tagliato
+  alla misura più grande che entra (0,4-4×), senza scorrimento. Sulla TV senza tocco nessuna scorre: le dimensioni sono le stesse, ma quello che non ci sta viene tagliato
   (`overflow: hidden`), senza altre scale. Si usa `transform: scale` (non `zoom`) con ricerca per
   bisezione (`largestFit`, limiti in `FIT_LIMITS`), così le misure restano affidabili anche nell'anteprima scalata dello
   Studio; si rimisura al cambio di spazio o di diapositiva. La banda in basso non cambia.

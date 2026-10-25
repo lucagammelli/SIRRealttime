@@ -33,8 +33,8 @@ export function LiveMatch({
   look?: BlockBrand | null;
 }) {
   const { status, data, error } = snapshot;
-  // Screens without scrolling: the big screen, and every device whose «Touch» is off (`screensFor`).
-  const screens = screensFor(device, layout);
+  // Screens without scrolling: the big screen only (`screensFor`).
+  const screens = screensFor(device);
   if (status === 'invalid') {
     return (
       <StatusScreen title="Link non valido o scaduto" tone="error">
@@ -123,14 +123,9 @@ export function LiveMatch({
   );
 }
 
-/**
- * Pure: the page is laid out in screens without scrolling (fixed height, rotation of the groups): on the big screen,
- * and on a phone or tablet whose «Touch» is off in the layout of the client (nobody could scroll it). Without the
- * layout (still loading) only the big screen.
- */
-export function screensFor(device: Device | undefined, layout: TenantLayout | null): boolean {
-  if (device === 'tv') return true;
-  return device !== undefined && layout !== null && !layout.touch[device];
+/** Pure: the page is laid out in screens without scrolling (fixed height, rotation of the groups) only on the big screen. */
+export function screensFor(device: Device | undefined): boolean {
+  return device === 'tv';
 }
 
 /** Text of the label of a simulated match on the public page. */

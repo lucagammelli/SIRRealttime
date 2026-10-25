@@ -1,6 +1,5 @@
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { TouchContext } from '../lib/useLayout.ts';
 import { FIT_LIMITS, largestFit, SlideFit } from './SlideFit.tsx';
 
 describe('largestFit', () => {
@@ -69,14 +68,12 @@ describe('SlideFit', () => {
     expect(container.querySelector('[data-slide-fit]')).toBeNull();
   });
 
-  it('without touch never scrolls: what does not fit is cut, «Normale» still not scaled', () => {
+  it('with `cut` (big screen without touch) never scrolls: what does not fit is cut, «Normale» still not scaled', () => {
     for (const size of ['normal', 'large', 'fill'] as const) {
       const { container, unmount } = render(
-        <TouchContext.Provider value={false}>
-          <SlideFit size={size} data-studio-slide="a">
-            <p>Slide</p>
-          </SlideFit>
-        </TouchContext.Provider>,
+        <SlideFit size={size} cut data-studio-slide="a">
+          <p>Slide</p>
+        </SlideFit>,
       );
       const box = container.querySelector('[data-studio-slide="a"]');
       expect(box?.className).toContain('overflow-hidden');

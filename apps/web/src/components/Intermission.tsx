@@ -201,7 +201,8 @@ function PauseView({
   const reduced = useReducedMotion();
   // Buttons of the pause: option «Touch» of the club AND a real touch screen (the Studio preview follows the option only).
   const screenTouch = useTouchScreen();
-  const touch = useTouch() && (preview || screenTouch);
+  const touchOption = useTouch();
+  const touch = touchOption && (preview || screenTouch);
   const titleId = useId();
   const mode = active.pause.modes[device];
   const slides = visibleSlides(state, active, { sponsorLogo, schedule, sponsors: look?.sponsors ?? [] });
@@ -386,6 +387,7 @@ function PauseView({
         key={`${slide.id}-${tick}`}
         data-studio-slide={slide.id}
         size={active.pause.fullscreenSize}
+        cut={!touchOption && device === 'tv'}
         className="sir-fade min-h-0 flex-1"
       >
         {renderSlide(slide, env, 'full')}

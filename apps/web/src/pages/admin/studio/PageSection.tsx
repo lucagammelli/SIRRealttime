@@ -249,8 +249,9 @@ export function PageSection({
             <span className="text-sm font-medium text-text">Touch: {draft.touch[device] ? 'Sì' : 'No'}</span>
           </div>
           <p className="text-xs text-muted">
-            Con «No» la pagina pubblica di questo dispositivo non mostra nulla da toccare o cliccare (pulsanti,
-            selettori, link) e i grafici restano sulla vista predefinita. Su TV la rotazione dei blocchi continua.
+            Con «No» la pagina pubblica di questo dispositivo perde solo ciò che si può toccare o cliccare (pulsanti,
+            selettori, link, ordinamento delle colonne); impaginazione e contenuti restano gli stessi. La mappa del
+            campo senza filtri alterna le viste scelte qui. Su TV la rotazione dei blocchi continua.
           </p>
         </SettingsCard>
         <SettingsCard title={`Blocchi (${DEVICE_LABELS[device]})`}>

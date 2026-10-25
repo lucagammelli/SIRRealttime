@@ -16,6 +16,7 @@ import type {
 } from '@arenalive/shared';
 import {
   adminAssetPath,
+  afterMatchImage,
   effectiveStartsAt,
   isFixtureBroadcast,
   ourTeamSide,
@@ -23,6 +24,7 @@ import {
   publicTeamLogoPath,
   resolveBranding,
   resolveClubProfile,
+  resolveIntermissions,
   SCHEDULE_MAX_FIXTURES,
   shownTeamLogo,
 } from '@arenalive/shared';
@@ -42,7 +44,7 @@ import {
 } from './db/index.js';
 import { generateToken, hashToken } from './lib/tokens.js';
 import { pickCompetitionTeams } from './leagues/competitions.js';
-import type { CalendarCandidate } from './leagues/match.js';
+import type { CalendarCandidate, DvwDay } from './leagues/match.js';
 import { dvwFacts, linkFixture } from './leagues/match.js';
 import { romeParts } from './leagues/romeTime.js';
 import type { Tx } from './matchLock.js';
@@ -109,12 +111,15 @@ export interface ClubLook {
   teamLogos: TeamLogosMode;
   coverage: ClubCoverage;
   ourTeam: OurTeam;
+  /** «Dopo la partita» of the client: its photo (null: off or without photo) and the wait after the end. */
+  afterMatch: { image: string | null; delayMinutes: number };
 }
 
 /** Pure: the look of a client from its stored branding and profile. */
-export function clubLookOf(tenant: { branding: unknown; clubProfile: unknown }): ClubLook {
+export function clubLookOf(tenant: { branding: unknown; clubProfile: unknown; intermissions?: unknown }): ClubLook {
   const branding = resolveBranding(tenant.branding);
   const profile = resolveClubProfile(tenant.clubProfile);
+  const afterMatch = resolveIntermissions(tenant.intermissions ?? {}).afterMatch;
   // The logo of the club: the square one, otherwise the horizontal one (the only one some clubs have).
   const logo = branding.logoMark ?? branding.logoMain;
   return {
@@ -123,16 +128,17 @@ export function clubLookOf(tenant: { branding: unknown; clubProfile: unknown }):
     teamLogos: profile.teamLogos,
     coverage: profile.coverage,
     ourTeam: branding.ourTeam,
+    afterMatch: { image: afterMatchImage(afterMatch), delayMinutes: afterMatch.delayMinutes },
   };
 }
 
 /** The look of a client read from the database (defaults for an unknown client). */
 export async function clubLook(db: Db | Tx, tenantId: string): Promise<ClubLook> {
   const [row] = await db
-    .select({ branding: tenants.branding, clubProfile: tenants.clubProfile })
+    .select({ branding: tenants.branding, clubProfile: tenants.clubProfile, intermissions: tenants.intermissions })
     .from(tenants)
     .where(eq(tenants.id, tenantId));
-  return clubLookOf(row ?? { branding: {}, clubProfile: {} });
+  return clubLookOf(row ?? { branding: {}, clubProfile: {}, intermissions: {} });
 }
 
 /** Paths of the logos of a match: public by default; `assetPath` for the images of the client. */
@@ -294,6 +300,8 @@ export async function evaluateFixtureLink(
   tx: Tx,
   tenantId: string,
   parsed: ParsedMatch,
+  /** Day to use instead of the date written in the `.dvw` (a file made from an old template has a stale date). */
+  dayOverride?: DvwDay,
 ): Promise<FixtureLinkValues | null> {
   const [any] = await tx
     .select({ id: clientFixtures.id })
@@ -304,6 +312,7 @@ export async function evaluateFixtureLink(
   const look = await clubLook(tx, tenantId);
   const facts = dvwFacts(parsed);
   facts.ourSide = ourTeamSide(facts.teams, look.ourTeam);
+  if (dayOverride) facts.date = dayOverride;
   let window;
   if (facts.date) {
     const day = Date.UTC(facts.date.year, facts.date.month - 1, facts.date.day);
@@ -583,6 +592,21 @@ export async function comingFixtures(db: Db, tenantId: string, now: Date): Promi
     : [];
   // A finished `.dvw` stays «live» as the link of the client; the match is over all the same.
   const finished = new Set(played.filter((m) => m.status === 'finished').map((m) => m.clientFixtureId));
+  // A finished `.dvw` not linked (pending) that proposes the match among its candidates is that match, played.
+  const pendingFinished = await db
+    .select({ candidates: matches.fixtureCandidates })
+    .from(matches)
+    .where(
+      tenantScope(
+        matches,
+        tenantId,
+        isNull(matches.clientFixtureId),
+        eq(matches.simulated, false),
+        sql`${matches.state}->>'status' = 'finished'`,
+        gte(matches.updatedAt, new Date(now.getTime() - SCHEDULE_GRACE_MS * 2)),
+      ),
+    );
+  for (const m of pendingFinished) for (const c of m.candidates ?? []) finished.add(c.clientFixtureId);
   const live = new Set(played.filter((m) => m.live).flatMap((m) => (m.clientFixtureId ? [m.clientFixtureId] : [])));
   return { rows: broadcast.filter((r) => !finished.has(r.id)), live, look };
 }

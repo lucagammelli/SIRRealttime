@@ -4,7 +4,7 @@ import { ScheduleResponseSchema } from '@arenalive/shared';
 import { and, eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { clientFixtures, shareTokens } from '../src/db/index.js';
+import { clientFixtures, matches, shareTokens } from '../src/db/index.js';
 import type { TestServer } from './helpers.js';
 import {
   ADMIN,
@@ -154,6 +154,29 @@ describe('public schedule', () => {
     expect(end.json()).toMatchObject({ status: 'ok' });
     const names = (await schedule()).body.fixtures.map((f) => f.away.name);
     expect(names).not.toContain('Tinet Prata di Pordenone');
+  });
+  it('leaves out the match of a finished file with a stale date (made from an old template)', async () => {
+    await server.database.db.delete(matches).where(eq(matches.tenantId, server.tenantId));
+    server.setNow(new Date('2026-10-25T16:00:00Z'));
+    const stale = generateMatch({
+      seed: 8,
+      homeName: 'Sir Susa Scai Perugia',
+      awayName: 'Tinet Prata',
+      startTime: '2026-10-14T17:00:00Z',
+    });
+    const first = await ingest(server.app, agent, await requestFor('perugia-stale', 0, [], fileAt(stale, 30)));
+    expect(first.json()).toMatchObject({ status: 'ok' });
+    // The file date is far from the match of the calendar: not linked while it is played.
+    expect((await schedule()).body.fixtures.map((f) => f.away.name)).toContain('Tinet Prata di Pordenone');
+    const end = await ingest(
+      server.app,
+      agent,
+      await requestFor('perugia-stale', 1, fileAt(stale, 30).scoutLines, fileAt(stale, stale.lines.length)),
+    );
+    expect(end.json()).toMatchObject({ status: 'ok' });
+    // Finished: linked by the day it is played, so the match just played is not «next» any more.
+    server.setNow(new Date('2026-10-25T16:02:00Z'));
+    expect((await schedule()).body.fixtures.map((f) => f.away.name)).not.toContain('Tinet Prata di Pordenone');
   });
   it('leaves out a revoked link at once and an expired one', async () => {
     server.setNow(new Date('2026-11-01T10:00:00Z'));

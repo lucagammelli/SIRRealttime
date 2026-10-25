@@ -4,6 +4,7 @@ import { buildDvwText, hashScoutLines } from '@arenalive/shared';
 import { computeMatchState } from '@arenalive/volley-stats';
 import { and, asc, eq, gte } from 'drizzle-orm';
 import { evaluateFixtureLink } from './club.js';
+import { romeParts } from './leagues/romeTime.js';
 import type { AppContext } from './context.js';
 import type { Db } from './db/index.js';
 import { matches, scoutLines } from './db/index.js';
@@ -146,6 +147,20 @@ export class IngestService {
           link = (await evaluateFixtureLink(tx, tenantId, parsed)) ?? link;
         }
         const now = this.now();
+        // Still not linked when the match ends (e.g. the file was made from an old template, with a stale date): the
+        // day it is played, by the clock of the server, decides, so its match of the calendar is not «next» any more.
+        if (
+          !simulated &&
+          state.status === 'finished' &&
+          row.state?.status !== 'finished' &&
+          link.clientFixtureId === null &&
+          (link.fixtureLink === null || link.fixtureLink === 'pending')
+        ) {
+          const rome = romeParts(now);
+          link =
+            (await evaluateFixtureLink(tx, tenantId, parsed, { year: rome.year, month: rome.month, day: rome.day })) ??
+            link;
+        }
         const finishedAt = endOf(row, state.status === 'finished', now);
         if (!simulated) await switchOffOthers(tx, tenantId, row.id, link.clientFixtureId);
         await tx

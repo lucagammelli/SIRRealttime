@@ -32,6 +32,35 @@ describe('channelChoice', () => {
   });
 });
 
+describe('channelChoice after the end of a match', () => {
+  const finishedAt = new Date('2026-10-25T15:00:00Z');
+  const latest = { live: false, finished: true, updatedAt: finishedAt, finishedAt };
+  const after = (minutes: number) => new Date(finishedAt.getTime() + minutes * 60_000);
+  const withPhoto = { image: 'a'.repeat(32), delayMinutes: 30 };
+  const noPhoto = { image: null, delayMinutes: 30 };
+  // A match of the same day, later: its day has already started.
+  const next = { startsAt: new Date('2026-10-25T18:00:00Z') };
+
+  it('keeps the finished match for delayMinutes even when the next match is today', () => {
+    expect(channelChoice({ latest, next, now: after(1), afterMatch: noPhoto })).toBe('latest');
+    expect(channelChoice({ latest, next, now: after(29), afterMatch: noPhoto })).toBe('latest');
+    expect(channelChoice({ latest, next, now: after(30), afterMatch: noPhoto })).toBe('next');
+    // Without the screen configured nothing is waited (as before).
+    expect(channelChoice({ latest, next, now: after(1), afterMatch: null })).toBe('next');
+  });
+
+  it('with a photo keeps the finished match (photo and countdown) until the next match starts', () => {
+    expect(channelChoice({ latest, next, now: after(31), afterMatch: withPhoto })).toBe('latest');
+    expect(channelChoice({ latest, next, now: next.startsAt, afterMatch: withPhoto })).toBe('next');
+  });
+
+  it('ignores a calendar match that started before the end: it is the match just finished', () => {
+    const same = { startsAt: new Date('2026-10-25T13:00:00Z') };
+    expect(channelChoice({ latest, next: same, now: after(1), afterMatch: withPhoto })).toBe('latest');
+    expect(channelChoice({ latest, next: same, now: after(120), afterMatch: noPhoto })).toBe('latest');
+  });
+});
+
 let server: TestServer;
 let cookie: string;
 let agent: string;

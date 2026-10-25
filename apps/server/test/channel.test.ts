@@ -7,7 +7,7 @@ import { shareTokens } from '../src/db/index.js';
 import { generateToken, hashToken } from '../src/lib/tokens.js';
 import { insertShareToken } from '../src/shareCodes.js';
 import { clubLookOf } from '../src/club.js';
-import { channelChoice, CHANNEL_STALE_MS } from '../src/state.js';
+import { channelChoice, CHANNEL_STALE_MS, pickNextFixture } from '../src/state.js';
 import type { TestServer } from './helpers.js';
 import { ADMIN, createAgent, fileAt, ingest, login, requestFor, startServer } from './helpers.js';
 
@@ -72,6 +72,27 @@ describe('clubLookOf afterMatch', () => {
       delayMinutes: 30,
     });
     expect(clubLookOf(base).afterMatch).toEqual({ image: null, delayMinutes: 0 });
+  });
+});
+
+describe('pickNextFixture', () => {
+  const at = (id: string, iso: string) => ({ id, startsAt: new Date(iso), overrideStartsAt: null });
+  const played = at('played', '2026-10-25T16:00:00Z');
+  const following = at('following', '2026-11-01T16:00:00Z');
+  const endedAt = new Date('2026-10-25T18:30:00Z');
+
+  it('skips the match just played (already begun) and picks the real next one', () => {
+    expect(pickNextFixture([played, following], new Set(), endedAt)?.id).toBe('following');
+  });
+
+  it('is null when there is no later match', () => {
+    expect(pickNextFixture([played], new Set(), endedAt)).toBeNull();
+    expect(pickNextFixture([], new Set(), endedAt)).toBeNull();
+  });
+
+  it('is unchanged without a finished match: the first one not live', () => {
+    expect(pickNextFixture([played, following], new Set(), null)?.id).toBe('played');
+    expect(pickNextFixture([played, following], new Set(['played']), null)?.id).toBe('following');
   });
 });
 

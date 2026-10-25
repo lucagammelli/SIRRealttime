@@ -162,6 +162,23 @@ export function channelChoice(input: {
 }
 
 /**
+ * Pure: the next match of the channel among the coming ones, in order: the first not live (a live one is the match
+ * being played, not the next) that begins after the end of the last finished match. A calendar match that began
+ * before that end is that same match (its `.dvw` not linked to it), not the next. `endedAt` null: no finished match.
+ */
+export function pickNextFixture<T extends { id: string; startsAt: Date | null; overrideStartsAt: Date | null }>(
+  coming: readonly T[],
+  live: ReadonlySet<string>,
+  endedAt: Date | null,
+): T | null {
+  return (
+    coming.find(
+      (r) => !live.has(r.id) && (endedAt === null || (effectiveStartsAt(r)?.getTime() ?? Infinity) > endedAt.getTime()),
+    ) ?? null
+  );
+}
+
+/**
  * What the channel of a client shows (`channelChoice`), among the `.dvw` not linked to a match of the calendar (the
  * agent is sending them) and the ones linked to a broadcast match: read from the database, kept 45 s in the hub
  * (forgotten when a match starts or ends), with the newest state of the same match from the memory of the hub.
@@ -202,14 +219,11 @@ export async function channelMessage(ctx: AppContext, tenantId: string): Promise
     .limit(1);
   const coming = await comingFixtures(ctx.db, tenantId, now);
   const latest = row?.state ? { ...row, state: row.state } : null;
-  // A calendar match that began before the last one ended is that same match (its `.dvw` not linked): the next is the following.
-  const endedAt = latest?.state.status === 'finished' ? (latest.finishedAt ?? latest.updatedAt) : null;
-  const next =
-    coming.rows.find(
-      (r) =>
-        !coming.live.has(r.id) &&
-        (endedAt === null || (effectiveStartsAt(r)?.getTime() ?? Infinity) > endedAt.getTime()),
-    ) ?? null;
+  const next = pickNextFixture(
+    coming.rows,
+    coming.live,
+    latest?.state.status === 'finished' ? (latest.finishedAt ?? latest.updatedAt) : null,
+  );
   const choice = channelChoice({
     latest: latest
       ? {

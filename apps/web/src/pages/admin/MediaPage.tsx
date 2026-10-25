@@ -191,6 +191,43 @@ export const UPLOAD_USES: readonly { value: UploadUse; label: string }[] = [
   { value: 'player', label: 'Foto e video dei giocatori' },
 ];
 const NO_SPONSOR = '';
+/** Start of the message of the server when the space of the library is over. */
+const LIBRARY_FULL = 'Spazio per i file esaurito';
+
+interface UploadSummary {
+  uploaded: number;
+  failed: { name: string; reason: string }[];
+  full: boolean;
+  /** Names of the files not tried because the library is full. */
+  notSent?: string[];
+}
+
+/** End of an upload of many files: how many were uploaded, and for every refused file its name and why. */
+function UploadSummaryBox({ summary }: { summary: UploadSummary }) {
+  const { uploaded, failed, full, notSent = [] } = summary;
+  return (
+    <div className="space-y-1 text-xs" role="status">
+      <p className="text-text">
+        {uploaded === 0 ? 'Nessun file caricato.' : uploaded === 1 ? 'Caricato 1 file.' : `Caricati ${uploaded} file.`}
+      </p>
+      {full && (
+        <ErrorBox>
+          Spazio della libreria esaurito: il caricamento si è fermato
+          {notSent.length > 0 ? ` (non provati: ${notSent.join(', ')})` : ''}. Elimina i file che non usi.
+        </ErrorBox>
+      )}
+      {failed.length > 0 && (
+        <ul className="list-disc pl-4 text-danger">
+          {failed.map((f, i) => (
+            <li key={`${f.name}-${i}`}>
+              {f.name}: {f.reason}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 /**
  * «Carica nella libreria»: the only place where images and videos are uploaded. An image is for a logo, a sponsor (of one
@@ -202,29 +239,45 @@ function UploadCard({ sponsors, onUploaded }: { sponsors: readonly Sponsor[]; on
   const [use, setUse] = useState<UploadUse>('logo');
   const [sponsorId, setSponsorId] = useState(NO_SPONSOR);
   const [busy, setBusy] = useState<'image' | 'video' | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ n: number; total: number } | null>(null);
+  const [summary, setSummary] = useState<UploadSummary | null>(null);
 
-  const send = async (what: 'image' | 'video', file: File): Promise<void> => {
-    setDone(null);
-    const problem = what === 'video' ? videoProblem(file) : file.size > ASSET_MAX_BYTES ? IMAGE_TOO_LARGE : null;
-    setError(problem);
-    if (problem) return;
+  /** Uploads the chosen files one after the other (never in parallel), with the same use and sponsor; a refused file does not stop the others, a full library does. */
+  const sendAll = async (what: 'image' | 'video', files: readonly File[]): Promise<void> => {
+    if (files.length === 0) return;
+    setSummary(null);
     setBusy(what);
+    const result: UploadSummary = { uploaded: 0, failed: [], full: false };
     try {
-      const asset =
-        what === 'video'
-          ? await uploadVideo(file, use === 'player' ? 'player' : 'overlay')
-          : await uploadImage(file, use satisfies AssetKind, use === 'sponsor' && sponsorId ? sponsorId : undefined);
-      if (!asset) setError(IMAGE_TOO_LARGE);
-      else {
-        setDone(`Caricato: ${assetLabel(asset)}.`);
-        onUploaded();
+      for (const [i, file] of files.entries()) {
+        setProgress({ n: i + 1, total: files.length });
+        const problem = what === 'video' ? videoProblem(file) : file.size > ASSET_MAX_BYTES ? IMAGE_TOO_LARGE : null;
+        if (problem) {
+          result.failed.push({ name: file.name, reason: problem });
+          continue;
+        }
+        try {
+          const asset =
+            what === 'video'
+              ? await uploadVideo(file, use === 'player' ? 'player' : 'overlay')
+              : await uploadImage(file, use satisfies AssetKind, use === 'sponsor' && sponsorId ? sponsorId : undefined);
+          if (asset) result.uploaded += 1;
+          else result.failed.push({ name: file.name, reason: IMAGE_TOO_LARGE });
+        } catch (err) {
+          const reason = errorMessage(err);
+          result.failed.push({ name: file.name, reason });
+          if (reason.startsWith(LIBRARY_FULL)) {
+            result.full = true;
+            result.notSent = files.slice(i + 1).map((f) => f.name);
+            break;
+          }
+        }
       }
-    } catch (err) {
-      setError(errorMessage(err));
     } finally {
       setBusy(null);
+      setProgress(null);
+      setSummary(result);
+      if (result.uploaded > 0) onUploaded();
     }
   };
   const pickerClass =
@@ -273,17 +326,18 @@ function UploadCard({ sponsors, onUploaded }: { sponsors: readonly Sponsor[]; on
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label className={pickerClass}>
-            {busy === 'image' ? 'Caricamento…' : 'Carica immagine'}
+            {busy === 'image' ? 'Caricamento…' : 'Carica immagini'}
             <input
               type="file"
               accept={ACCEPT}
               className="sr-only"
               disabled={busy !== null}
               aria-label="Carica immagine nella libreria"
+              multiple
               onChange={(e) => {
-                const file = e.target.files?.[0];
+                const files = [...(e.target.files ?? [])];
                 e.target.value = '';
-                if (file) void send('image', file);
+                void sendAll('image', files);
               }}
             />
           </label>
@@ -295,10 +349,11 @@ function UploadCard({ sponsors, onUploaded }: { sponsors: readonly Sponsor[]; on
               className="sr-only"
               disabled={busy !== null}
               aria-label="Carica video nella libreria"
+              multiple
               onChange={(e) => {
-                const file = e.target.files?.[0];
+                const files = [...(e.target.files ?? [])];
                 e.target.value = '';
-                if (file) void send('video', file);
+                void sendAll('video', files);
               }}
             />
           </label>
@@ -308,17 +363,10 @@ function UploadCard({ sponsors, onUploaded }: { sponsors: readonly Sponsor[]; on
           avvisi o come video dei giocatori: il video segue l’uso scelto sopra («Foto e video dei giocatori»; con gli
           altri usi è per gli avvisi).
         </p>
-        {busy !== null && (
-          <p role="status" className="text-xs text-muted">
-            Caricamento del file in corso…
-          </p>
-        )}
-        {done && (
-          <p role="status" className="text-xs text-text">
-            {done}
-          </p>
-        )}
-        {error && <ErrorBox>{error}</ErrorBox>}
+        <p role="status" aria-live="polite" className="text-xs text-muted">
+          {progress ? `Caricamento ${progress.n} di ${progress.total}…` : ''}
+        </p>
+        {summary && <UploadSummaryBox summary={summary} />}
       </div>
     </Card>
   );

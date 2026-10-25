@@ -23,6 +23,19 @@ const lookWith = (ourLogoSize: ClubLogoSize) =>
     players: [],
   });
 
+/** Look of the club with the graphics «SIR VOLLEY» (scoreboard of the mockup). */
+const templateLook = () =>
+  tenantLookOf({
+    name: 'Sir Safety',
+    branding: { ...defaultBranding(), template: 'sir-volley' },
+    images: { logoMain: null, logoMark: null, sponsorLogo: null },
+    layout: defaultLayout(),
+    intermissions: defaultIntermissions(),
+    overlays: defaultOverlays(),
+    sponsors: [],
+    players: [],
+  });
+
 describe('Scoreboard', () => {
   it('shows teams, sets won and partials of the finished match', () => {
     const state = stateAfter();
@@ -86,5 +99,52 @@ describe('Scoreboard', () => {
     expect(screen.getAllByTestId('team-logo')[1]?.getAttribute('class')).toContain('size-12');
     expect(screen.getAllByTestId('team-logo')[0]?.getAttribute('class')).toContain('size-16');
     act(release);
+  });
+
+  it('mirrors the sides on every device: home «dot, logo, name, sets», away «sets, name, logo, dot»', () => {
+    const logos = { home: '/h', away: '/a' };
+    const cases = [
+      ...(['tablet', 'phone', 'tv'] as const).map((device) => [device, 'standard'] as const),
+      ['tablet', 'mockup'] as const,
+      ['tv', 'mockup'] as const,
+    ];
+    for (const [device, variant] of cases) {
+      if (variant === 'mockup') act(() => setTenantLook(templateLook()));
+      const { container, unmount } = render(<Scoreboard state={midMatchState()} device={device} logos={logos} />);
+      const order = (side: string) =>
+        Array.from(container.querySelector(`[data-side="${side}"]`)?.children ?? []).map((el) => {
+          if (el.getAttribute('data-testid') === 'team-logo') return 'logo';
+          if (el.tagName === 'H2') return 'name';
+          if (el.querySelector('[aria-label^="Set vinti"]')) return 'sets';
+          return 'dot';
+        });
+      expect(order('home')).toEqual(['dot', 'logo', 'name', 'sets']);
+      expect(order('away')).toEqual(['sets', 'name', 'logo', 'dot']);
+      unmount();
+      act(() => setTenantLook(null));
+    }
+  });
+
+  it('writes the short name on tablet and phone (full name for screen readers) and the full one on the TV', () => {
+    const state = midMatchState();
+    for (const device of ['tablet', 'phone'] as const) {
+      const { container, unmount } = render(<Scoreboard state={state} device={device} />);
+      const h2 = container.querySelector('[data-side="away"] h2');
+      expect(h2?.querySelector('[aria-hidden="true"]')?.textContent).toBe('VOL');
+      expect(h2?.querySelector('.sr-only')?.textContent).toBe('Volley Club Lugo');
+      unmount();
+    }
+    const tv = render(<Scoreboard state={state} device="tv" />);
+    expect(tv.container.querySelector('[data-side="away"] h2')?.textContent).toBe('Volley Club Lugo');
+    tv.unmount();
+    // Scoreboard of the club graphics (template «SIR VOLLEY»).
+    act(() => setTenantLook(templateLook()));
+    const tablet = render(<Scoreboard state={state} device="tablet" />);
+    const h2 = tablet.container.querySelector('[data-side="away"] h2');
+    expect(h2?.querySelector('[aria-hidden="true"]')?.textContent).toBe('VOL');
+    expect(h2?.querySelector('.sr-only')?.textContent).toBe('Volley Club Lugo');
+    tablet.unmount();
+    const tvTemplate = render(<Scoreboard state={state} device="tv" />);
+    expect(tvTemplate.container.querySelector('[data-side="away"] h2')?.textContent).toContain('Volley');
   });
 });

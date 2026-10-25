@@ -34,16 +34,21 @@ export function formatMinutes(minutes: number | null | undefined): string {
 
 export const SIDE_LABEL: Record<Side, string> = { home: 'Casa', away: 'Ospiti' };
 
-/** Team name, or "Casa"/"Ospiti" when the file has none. */
-export function teamName(teams: Record<Side, TeamRef>, side: Side): string {
-  const t = teams[side];
-  return t.name?.trim() || t.code?.trim() || SIDE_LABEL[side];
+/** The team code when it is made only of letters (a real abbreviation: PER, SUN); numeric DataVolley IDs are not. */
+function letterCode(t: TeamRef): string | null {
+  const code = t.code?.trim();
+  return code && /^\p{L}+$/u.test(code) ? code : null;
 }
 
-/** Short code for tight spaces (3 letters). */
-export function teamShort(teams: Record<Side, TeamRef>, side: Side): string {
+/** Team name, or its letters-only code, or "Casa"/"Ospiti" when the file has neither (never a numeric ID). */
+export function teamName(teams: Record<Side, TeamRef>, side: Side): string {
   const t = teams[side];
-  const code = t.code?.trim();
+  return t.name?.trim() || letterCode(t) || SIDE_LABEL[side];
+}
+
+/** Short code for tight spaces: the code if only letters (max 4), otherwise 3 letters taken from the name. */
+export function teamShort(teams: Record<Side, TeamRef>, side: Side): string {
+  const code = letterCode(teams[side]);
   if (code) return code.slice(0, 4).toUpperCase();
   const name = teamName(teams, side);
   return (

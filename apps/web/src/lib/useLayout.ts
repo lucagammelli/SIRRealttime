@@ -34,6 +34,32 @@ export const useDeviceContext = (): Device => useContext(DeviceContext);
 export const TouchContext = createContext(true);
 export const useTouch = (): boolean => useContext(TouchContext);
 
+const COARSE_POINTER = '(any-pointer: coarse)';
+
+/**
+ * Pure: does the screen really have a touch input? `true` when it cannot be known (no `matchMedia`: tests, SSR), so
+ * nothing disappears without a reason.
+ */
+export function screenHasTouch(match: ((query: string) => { matches: boolean }) | undefined): boolean {
+  return match ? match(COARSE_POINTER).matches : true;
+}
+
+function subscribeTouchScreen(callback: () => void): () => void {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => undefined;
+  const query = window.matchMedia(COARSE_POINTER);
+  query.addEventListener('change', callback);
+  return () => query.removeEventListener('change', callback);
+}
+const touchScreenNow = (): boolean =>
+  screenHasTouch(
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? (q) => window.matchMedia(q) : undefined,
+  );
+
+/** The screen really has a touch input (`any-pointer: coarse`), followed when it changes. */
+export function useTouchScreen(): boolean {
+  return useSyncExternalStore(subscribeTouchScreen, touchScreenNow, () => true);
+}
+
 /**
  * Scale of the page drawn inside a reduced frame (preview of the editor, CSS transform): measured heights are divided
  * by it, so the big screen groups its blocks as on the real screen.

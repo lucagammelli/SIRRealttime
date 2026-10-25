@@ -192,6 +192,25 @@ describe('public schedule', () => {
     server.setNow(new Date('2026-10-25T16:12:00Z'));
     expect((await schedule()).body.fixtures.map((f) => f.away.name)).toContain('Tinet Prata di Pordenone');
   });
+  it('leaves out, in the public schedule of the end-of-match pause, the match just played whatever the file says', async () => {
+    await server.database.db.delete(matches).where(eq(matches.tenantId, server.tenantId));
+    server.setNow(new Date('2026-10-25T19:30:00Z'));
+    // Different names and a stale date: no automatic link is possible, only the time says it is the match of 18:00.
+    const other = generateMatch({
+      seed: 10,
+      homeName: 'Squadra Qualunque',
+      awayName: 'Altra Squadra',
+      startTime: '2026-09-01T17:00:00Z',
+    });
+    await ingest(server.app, agent, await requestFor('altro', 0, [], fileAt(other, 30)));
+    await ingest(
+      server.app,
+      agent,
+      await requestFor('altro', 1, fileAt(other, 30).scoutLines, fileAt(other, other.lines.length)),
+    );
+    server.setNow(new Date('2026-10-25T19:32:00Z'));
+    expect((await schedule()).body.fixtures.map((f) => f.away.name)).not.toContain('Tinet Prata di Pordenone');
+  });
   it('leaves out a revoked link at once and an expired one', async () => {
     server.setNow(new Date('2026-11-01T10:00:00Z'));
     const fresh = await login(server.app, ADMIN);

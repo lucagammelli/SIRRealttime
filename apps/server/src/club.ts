@@ -547,6 +547,9 @@ export async function leaguesWithClubMatches(db: Db, from: Date, to: Date): Prom
 
 /** A match that began this long ago and has no `.dvw` yet is still «coming» (the page of the club waits for it). */
 const SCHEDULE_GRACE_MS = 4 * 3_600_000;
+/** Pure: whether a match that began at `start` (ms) can be the one that ended at `end` (ms): begun before, at most 4 h. */
+export const startedBeforeEnd = (start: number, end: number): boolean =>
+  start <= end && end - start < SCHEDULE_GRACE_MS;
 /** Matches of the calendar read to find the first ones that are still to be played. */
 const SCHEDULE_CANDIDATES = 20;
 
@@ -595,7 +598,11 @@ export async function comingFixtures(db: Db, tenantId: string, now: Date): Promi
   const finished = new Set(played.filter((m) => m.status === 'finished').map((m) => m.clientFixtureId));
   // A finished `.dvw` not linked (pending) that proposes the match among its candidates is that match, played.
   const pendingFinished = await db
-    .select({ candidates: matches.fixtureCandidates })
+    .select({
+      candidates: matches.fixtureCandidates,
+      finishedAt: matches.finishedAt,
+      updatedAt: matches.updatedAt,
+    })
     .from(matches)
     .where(
       tenantScope(
@@ -608,6 +615,16 @@ export async function comingFixtures(db: Db, tenantId: string, now: Date): Promi
       ),
     );
   for (const m of pendingFinished) for (const c of m.candidates ?? []) finished.add(c.clientFixtureId);
+  // A fixture that began before a finished `.dvw` not linked ended (and not long before) is that match, whatever the
+  // names and the date written in the file: it is not «coming».
+  for (const r of broadcast) {
+    const start = effectiveStartsAt(r)?.getTime();
+    if (
+      start !== undefined &&
+      pendingFinished.some((m) => startedBeforeEnd(start, (m.finishedAt ?? m.updatedAt).getTime()))
+    )
+      finished.add(r.id);
+  }
   const live = new Set(played.filter((m) => m.live).flatMap((m) => (m.clientFixtureId ? [m.clientFixtureId] : [])));
   return { rows: broadcast.filter((r) => !finished.has(r.id)), live, look };
 }

@@ -311,6 +311,39 @@ describe('Intermission: full screen and banner', () => {
     expect(dialog()?.querySelector('[data-studio-slide]')?.className).toContain('overflow-y-auto');
   });
 
+  it('band with the partials: a big screen without «Touch» wraps them (no scroll), a phone without «Touch» scrolls as with touch', () => {
+    const config = {
+      setBreakBySet: {
+        '1': {
+          slides: [{ id: 'p', type: 'setScores' as const }],
+          modes: { tv: 'banner' as const, tablet: 'banner' as const, phone: 'banner' as const },
+        },
+      },
+    };
+    const band = (device: Device, touch: boolean) => {
+      render(
+        <TouchContext.Provider value={touch}>
+          <Intermission
+            state={setBreak}
+            config={TenantIntermissionsSchema.parse(config)}
+            device={device}
+            paused={false}
+          />
+        </TouchContext.Provider>,
+      );
+      const list = banner()?.querySelector('ol[aria-label="Parziali dei set"]');
+      const scrolls = banner()?.querySelectorAll('.sir-scroll-x').length;
+      cleanup();
+      return { list, scrolls };
+    };
+    const tv = band('tv', false);
+    expect(tv.list?.className).toContain('flex-wrap');
+    expect(tv.scrolls).toBe(0);
+    const phone = band('phone', false);
+    expect(phone.scrolls).toBe(1);
+    expect(band('tv', true).scrolls).toBe(1);
+  });
+
   it('own title of the pause (Studio «Titolo») on full screen and in the banner; empty: the automatic one', () => {
     setup(setBreak, { device: 'tablet', config: { setBreak: { title: 'Intervallo tecnico' } } });
     expect(screen.getByRole('dialog', { name: 'Intervallo tecnico' })).toBeTruthy();

@@ -74,15 +74,24 @@ describe('«Touch: No»: only the big screen is cut', () => {
       // Scrolls as with touch (table, partials), no card cut by a cell.
       expect(off.container.querySelector('.sir-scroll-x')).toBeTruthy();
       expect(off.container.querySelector('[style*="scale"]')).toBeNull();
-      const offText = off.container.textContent;
-      const offCards = off.container.querySelectorAll('.sir-card').length;
+      // Words of every card: those of the touch page (without its selectors) must all be there without touch.
+      const textsOf = (root: HTMLElement, controls: string): string[] =>
+        [...root.querySelectorAll('.sir-card')].map((card) => {
+          const copy = card.cloneNode(true) as HTMLElement;
+          if (controls) copy.querySelectorAll(controls).forEach((el) => el.remove());
+          return copy.textContent ?? '';
+        });
+      const offTexts = textsOf(off.container, '');
       off.unmount();
       const on = render(<MatchView state={stateAfter()} device={device} layout={TenantLayoutSchema.parse({})} />);
-      expect(on.container.querySelectorAll('.sir-card').length).toBe(offCards);
-      // Same contents: with touch only the controls add texts, the match data are all there.
-      for (const word of ['Statistiche giocatori']) {
-        if (on.container.textContent?.includes(word)) expect(offText).toContain(word);
-      }
+      const onTexts = textsOf(on.container, '[role="radiogroup"], select, summary, label');
+      expect(offTexts.length).toBeGreaterThan(0);
+      expect(onTexts).toHaveLength(offTexts.length);
+      onTexts.forEach((text, i) => {
+        const words = text.match(/\p{L}{4,}/gu) ?? [];
+        expect(words.length).toBeGreaterThan(0);
+        expect(words.filter((w) => !(offTexts[i] ?? '').includes(w))).toEqual([]);
+      });
       on.unmount();
     }
   });

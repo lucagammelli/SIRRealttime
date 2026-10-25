@@ -8,7 +8,7 @@ import { clubLogoClass, useOurLogoSize } from '../lib/clubLogo.ts';
 import { formatMinutes, SIDE_LABEL, teamName, teamShort } from '../lib/format.ts';
 import type { Device } from '../lib/layout.ts';
 import type { SetPartial } from '../lib/scoreboard.ts';
-import { useScrolls, useStickyOffset } from '../lib/useLayout.ts';
+import { canScroll, useDeviceContext, useStickyOffset, useTouch } from '../lib/useLayout.ts';
 import { matchHeadline, matchMinutes, matchWinner, setPartials, statusLabel } from '../lib/scoreboard.ts';
 import { BrandMark } from './BrandMark.tsx';
 import { BreakableName } from './ui.tsx';
@@ -143,9 +143,20 @@ function Score({
   );
 }
 
-export function Partials({ partials, compact = false }: { partials: SetPartial[]; compact?: boolean }) {
+export function Partials({
+  partials,
+  compact = false,
+  device,
+}: {
+  partials: SetPartial[];
+  compact?: boolean;
+  /** Device the strip is drawn for when it is outside the blocks layout (pauses); default: that of the layout. */
+  device?: Device;
+}) {
   // On the big screen without touch nobody can scroll them: the compact partials wrap to a second line instead.
-  const scrolls = useScrolls();
+  const touch = useTouch();
+  const inLayout = useDeviceContext();
+  const scrolls = canScroll(touch, device ?? inLayout);
   if (partials.length === 0) return null;
   return (
     <ol

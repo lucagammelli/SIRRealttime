@@ -4,7 +4,7 @@ import { ScheduleResponseSchema } from '@arenalive/shared';
 import { and, eq } from 'drizzle-orm';
 import type { InjectOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { clientFixtures, shareTokens } from '../src/db/index.js';
+import { clientFixtures, matches, shareTokens } from '../src/db/index.js';
 import type { TestServer } from './helpers.js';
 import {
   ADMIN,
@@ -154,6 +154,81 @@ describe('public schedule', () => {
     expect(end.json()).toMatchObject({ status: 'ok' });
     const names = (await schedule()).body.fixtures.map((f) => f.away.name);
     expect(names).not.toContain('Tinet Prata di Pordenone');
+  });
+  it('leaves out the match of a finished file with a stale date (made from an old template)', async () => {
+    await server.database.db.delete(matches).where(eq(matches.tenantId, server.tenantId));
+    server.setNow(new Date('2026-10-25T16:00:00Z'));
+    const stale = generateMatch({
+      seed: 8,
+      homeName: 'Sir Susa Scai Perugia',
+      awayName: 'Tinet Prata',
+      startTime: '2026-10-14T17:00:00Z',
+    });
+    const first = await ingest(server.app, agent, await requestFor('perugia-stale', 0, [], fileAt(stale, 30)));
+    expect(first.json()).toMatchObject({ status: 'ok' });
+    // The file date is far from the match of the calendar: not linked while it is played.
+    expect((await schedule()).body.fixtures.map((f) => f.away.name)).toContain('Tinet Prata di Pordenone');
+    const end = await ingest(
+      server.app,
+      agent,
+      await requestFor('perugia-stale', 1, fileAt(stale, 30).scoutLines, fileAt(stale, stale.lines.length)),
+    );
+    expect(end.json()).toMatchObject({ status: 'ok' });
+    // Finished: linked by the day it is played, so the match just played is not «next» any more.
+    server.setNow(new Date('2026-10-25T16:02:00Z'));
+    expect((await schedule()).body.fixtures.map((f) => f.away.name)).not.toContain('Tinet Prata di Pordenone');
+  });
+  it('does not link to the match of today an old file that arrives already finished', async () => {
+    await server.database.db.delete(matches).where(eq(matches.tenantId, server.tenantId));
+    server.setNow(new Date('2026-10-25T16:10:00Z'));
+    const old = generateMatch({
+      seed: 9,
+      homeName: 'Sir Susa Scai Perugia',
+      awayName: 'Tinet Prata',
+      startTime: '2026-10-14T17:00:00Z',
+    });
+    const sent = await ingest(server.app, agent, await requestFor('perugia-old', 0, [], fileAt(old, old.lines.length)));
+    expect(sent.json()).toMatchObject({ status: 'ok' });
+    server.setNow(new Date('2026-10-25T16:12:00Z'));
+    expect((await schedule()).body.fixtures.map((f) => f.away.name)).toContain('Tinet Prata di Pordenone');
+  });
+  it('leaves out, in the public schedule of the end-of-match pause, the match just played whatever the file says', async () => {
+    await server.database.db.delete(matches).where(eq(matches.tenantId, server.tenantId));
+    server.setNow(new Date('2026-10-25T19:30:00Z'));
+    // Different names and a stale date: no automatic link is possible, only the time says it is the match of 18:00.
+    const other = generateMatch({
+      seed: 10,
+      homeName: 'Squadra Qualunque',
+      awayName: 'Altra Squadra',
+      startTime: '2026-09-01T17:00:00Z',
+    });
+    await ingest(server.app, agent, await requestFor('altro', 0, [], fileAt(other, 30)));
+    await ingest(
+      server.app,
+      agent,
+      await requestFor('altro', 1, fileAt(other, 30).scoutLines, fileAt(other, other.lines.length)),
+    );
+    server.setNow(new Date('2026-10-25T19:32:00Z'));
+    expect((await schedule()).body.fixtures.map((f) => f.away.name)).not.toContain('Tinet Prata di Pordenone');
+  });
+  it('keeps coming a fixture that begins after the end of a finished file not linked', async () => {
+    await server.database.db.delete(matches).where(eq(matches.tenantId, server.tenantId));
+    server.setNow(new Date('2026-10-25T14:00:00Z'));
+    const early = generateMatch({
+      seed: 11,
+      homeName: 'Squadra Qualunque',
+      awayName: 'Altra Squadra',
+      startTime: '2026-09-01T17:00:00Z',
+    });
+    await ingest(server.app, agent, await requestFor('presto', 0, [], fileAt(early, 30)));
+    await ingest(
+      server.app,
+      agent,
+      await requestFor('presto', 1, fileAt(early, 30).scoutLines, fileAt(early, early.lines.length)),
+    );
+    // Ended at 14:00, the match of 18:00 has not begun: still coming.
+    server.setNow(new Date('2026-10-25T14:02:00Z'));
+    expect((await schedule()).body.fixtures.map((f) => f.away.name)).toContain('Tinet Prata di Pordenone');
   });
   it('leaves out a revoked link at once and an expired one', async () => {
     server.setNow(new Date('2026-11-01T10:00:00Z'));

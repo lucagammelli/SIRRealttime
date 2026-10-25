@@ -132,18 +132,50 @@ export const CHANNEL_STALE_MS = 6 * 3_600_000;
  * Pure: what the channel of a club shows. The last match while it is being played (live, not finished, updated in
  * the last CHANNEL_STALE_MS); otherwise the next broadcast match from the start of its day (Rome) on, or when there
  * is no last match; otherwise the last match (finished: it stays until the day of the next one); otherwise nothing.
+ * After the end of a match the channel keeps it (end-of-match pause, then «Dopo la partita») for `afterMatch.delayMinutes`
+ * from `finishedAt`, and, when the screen has a photo, until the next match starts. A «next» match that started before
+ * the last one ended is that same match (its `.dvw` not linked to the calendar): it is not the next.
  */
 export function channelChoice(input: {
-  latest: { live: boolean; finished: boolean; updatedAt: Date } | null;
+  latest: { live: boolean; finished: boolean; updatedAt: Date; finishedAt?: Date | null } | null;
   next: { startsAt: Date | null } | null;
   now: Date;
+  afterMatch?: { image: string | null; delayMinutes: number } | null;
 }): 'latest' | 'next' | 'none' {
-  const { latest, next, now } = input;
+  const { latest, now, afterMatch } = input;
   if (latest?.live && !latest.finished && now.getTime() - latest.updatedAt.getTime() < CHANNEL_STALE_MS)
     return 'latest';
+  const end = latest?.finished ? (latest.finishedAt ?? latest.updatedAt) : null;
+  const next =
+    input.next && end && input.next.startsAt !== null && input.next.startsAt.getTime() <= end.getTime()
+      ? null
+      : input.next;
+  if (latest && end) {
+    const wait = (afterMatch?.delayMinutes ?? 0) * 60_000;
+    if (next && now.getTime() < end.getTime() + wait) return 'latest';
+    // The photo of «Dopo la partita» stays, with the countdown, until the next match starts.
+    if (next && afterMatch?.image && (next.startsAt === null || now < next.startsAt)) return 'latest';
+  }
   if (next && (!latest || (next.startsAt !== null && now >= romeDayAt(next.startsAt, 0).at))) return 'next';
   if (latest) return 'latest';
   return next ? 'next' : 'none';
+}
+
+/**
+ * Pure: the next match of the channel among the coming ones, in order: the first not live (a live one is the match
+ * being played, not the next) that begins after the end of the last finished match. A calendar match that began
+ * before that end is that same match (its `.dvw` not linked to it), not the next. `endedAt` null: no finished match.
+ */
+export function pickNextFixture<T extends { id: string; startsAt: Date | null; overrideStartsAt: Date | null }>(
+  coming: readonly T[],
+  live: ReadonlySet<string>,
+  endedAt: Date | null,
+): T | null {
+  return (
+    coming.find(
+      (r) => !live.has(r.id) && (endedAt === null || (effectiveStartsAt(r)?.getTime() ?? Infinity) > endedAt.getTime()),
+    ) ?? null
+  );
 }
 
 /**
@@ -186,12 +218,22 @@ export async function channelMessage(ctx: AppContext, tenantId: string): Promise
     .orderBy(desc(matches.live), sql`${matches.liveSince} desc nulls last`, desc(matches.updatedAt))
     .limit(1);
   const coming = await comingFixtures(ctx.db, tenantId, now);
-  const next = coming.rows.find((r) => !coming.live.has(r.id)) ?? null;
   const latest = row?.state ? { ...row, state: row.state } : null;
+  const next = pickNextFixture(
+    coming.rows,
+    coming.live,
+    latest?.state.status === 'finished' ? (latest.finishedAt ?? latest.updatedAt) : null,
+  );
   const choice = channelChoice({
     latest: latest
-      ? { live: latest.live, finished: latest.state.status === 'finished', updatedAt: latest.updatedAt }
+      ? {
+          live: latest.live,
+          finished: latest.state.status === 'finished',
+          updatedAt: latest.updatedAt,
+          finishedAt: latest.finishedAt,
+        }
       : null,
+    afterMatch: look.afterMatch,
     next: next ? { startsAt: effectiveStartsAt(next) } : null,
     now,
   });

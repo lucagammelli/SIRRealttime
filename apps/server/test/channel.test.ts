@@ -6,7 +6,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { shareTokens } from '../src/db/index.js';
 import { generateToken, hashToken } from '../src/lib/tokens.js';
 import { insertShareToken } from '../src/shareCodes.js';
-import { channelChoice, CHANNEL_STALE_MS } from '../src/state.js';
+import { clubLookOf } from '../src/club.js';
+import { channelChoice, CHANNEL_STALE_MS, pickNextFixture } from '../src/state.js';
 import type { TestServer } from './helpers.js';
 import { ADMIN, createAgent, fileAt, ingest, login, requestFor, startServer } from './helpers.js';
 
@@ -29,6 +30,69 @@ describe('channelChoice', () => {
     // An agent left on with a match never finished does not hold the channel for ever.
     const stale = { ...playing, updatedAt: new Date(now.getTime() - CHANNEL_STALE_MS) };
     expect(channelChoice({ latest: stale, next: { startsAt: new Date(now.getTime() + HOUR) }, now })).toBe('next');
+  });
+});
+
+describe('channelChoice after the end of a match', () => {
+  const finishedAt = new Date('2026-10-25T15:00:00Z');
+  const latest = { live: false, finished: true, updatedAt: finishedAt, finishedAt };
+  const after = (minutes: number) => new Date(finishedAt.getTime() + minutes * 60_000);
+  const withPhoto = { image: 'a'.repeat(32), delayMinutes: 30 };
+  const noPhoto = { image: null, delayMinutes: 30 };
+  // A match of the same day, later: its day has already started.
+  const next = { startsAt: new Date('2026-10-25T18:00:00Z') };
+
+  it('keeps the finished match for delayMinutes even when the next match is today', () => {
+    expect(channelChoice({ latest, next, now: after(1), afterMatch: noPhoto })).toBe('latest');
+    expect(channelChoice({ latest, next, now: after(29), afterMatch: noPhoto })).toBe('latest');
+    expect(channelChoice({ latest, next, now: after(30), afterMatch: noPhoto })).toBe('next');
+    // Without the screen configured nothing is waited (as before).
+    expect(channelChoice({ latest, next, now: after(1), afterMatch: null })).toBe('next');
+  });
+
+  it('with a photo keeps the finished match (photo and countdown) until the next match starts', () => {
+    expect(channelChoice({ latest, next, now: after(31), afterMatch: withPhoto })).toBe('latest');
+    expect(channelChoice({ latest, next, now: next.startsAt, afterMatch: withPhoto })).toBe('next');
+  });
+
+  it('ignores a calendar match that started before the end: it is the match just finished', () => {
+    const same = { startsAt: new Date('2026-10-25T13:00:00Z') };
+    expect(channelChoice({ latest, next: same, now: after(1), afterMatch: withPhoto })).toBe('latest');
+    expect(channelChoice({ latest, next: same, now: after(120), afterMatch: noPhoto })).toBe('latest');
+  });
+});
+
+describe('clubLookOf afterMatch', () => {
+  it('waits delayMinutes only when «Dopo la partita» is on', () => {
+    const image = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
+    const base = { branding: {}, clubProfile: {} };
+    expect(clubLookOf({ ...base, intermissions: { afterMatch: { enabled: false } } }).afterMatch.delayMinutes).toBe(0);
+    expect(clubLookOf({ ...base, intermissions: { afterMatch: { enabled: true, image } } }).afterMatch).toEqual({
+      image,
+      delayMinutes: 30,
+    });
+    expect(clubLookOf(base).afterMatch).toEqual({ image: null, delayMinutes: 0 });
+  });
+});
+
+describe('pickNextFixture', () => {
+  const at = (id: string, iso: string) => ({ id, startsAt: new Date(iso), overrideStartsAt: null });
+  const played = at('played', '2026-10-25T16:00:00Z');
+  const following = at('following', '2026-11-01T16:00:00Z');
+  const endedAt = new Date('2026-10-25T18:30:00Z');
+
+  it('skips the match just played (already begun) and picks the real next one', () => {
+    expect(pickNextFixture([played, following], new Set(), endedAt)?.id).toBe('following');
+  });
+
+  it('is null when there is no later match', () => {
+    expect(pickNextFixture([played], new Set(), endedAt)).toBeNull();
+    expect(pickNextFixture([], new Set(), endedAt)).toBeNull();
+  });
+
+  it('is unchanged without a finished match: the first one not live', () => {
+    expect(pickNextFixture([played, following], new Set(), null)?.id).toBe('played');
+    expect(pickNextFixture([played, following], new Set(['played']), null)?.id).toBe('following');
   });
 });
 

@@ -747,6 +747,14 @@ nel log («loghi delle partite non aggiornati») e il salvataggio resta valido.
    (ora di Roma) del giorno in cui gioca** (`romeDayAt`), oppure subito se non c'è una partita precedente;
 3. altrimenti l'ultima partita, anche finita, che resta fino a quel momento; se non c'è nulla, `noMatch`.
 
+Dopo la fine di una partita il canale **resta su di essa** (pausa di fine partita, poi «Dopo la partita») per
+`intermissions.afterMatch.delayMinutes` dal `finished_at` (spento: nessuna attesa); se «Dopo la partita» ha una foto
+resta fino all'inizio della partita successiva, così la pagina mostra foto e conto alla rovescia. Una partita del
+calendario iniziata prima della fine dell'ultima è la partita stessa (`.dvw` non abbinato) e non è «prossima». Le
+impostazioni arrivano da `ClubLook.afterMatch` (`clubLook`). Se alla fine il `.dvw` non è ancora abbinato (file fatto da un
+modello vecchio, con data sbagliata), `IngestService` riprova l'abbinamento con il giorno (Roma) in cui è finito; inoltre
+`comingFixtures` esclude le partite proposte come candidate da un `.dvw` finito non abbinato, e le partite iniziate prima della fine di un `.dvw` finito non abbinato (non più di 4 ore prima, `startedBeforeEnd`): non sono «in arrivo». Una partita iniziata dopo quella fine resta «in arrivo».
+
 Concorrono al canale i `.dvw` non abbinati a una partita del calendario (le amichevoli non abbinate restano visibili) e
 quelli abbinati a una partita trasmessa; quelli abbinati a una partita non trasmessa sono esclusi (`channelAllowed` in
 ingest, cache `ctx.caches.broadcast` di 60 s, e il `where` di `channelMessage`). Il risultato è tenuto in memoria dall'hub

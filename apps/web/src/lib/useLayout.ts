@@ -29,10 +29,15 @@ export const useDeviceContext = (): Device => useContext(DeviceContext);
 
 /**
  * «Touch» of the device of the public page (option of the layout): with `false` nothing can be tapped or clicked
- * (no buttons, selectors or links) and the charts keep their default view. Default: `true`.
+ * (no buttons, selectors, links, sortable headers); the layout, the scrolling and the contents stay the same (only
+ * the map without filters shows in turn the views chosen in the Studio). Default: `true`.
  */
 export const TouchContext = createContext(true);
 export const useTouch = (): boolean => useContext(TouchContext);
+
+/** Can the content scroll? Always, but on the big screen without touch (screens: what does not fit is cut). */
+export const canScroll = (touch: boolean, device: Device): boolean => touch || device !== 'tv';
+export const useScrolls = (): boolean => canScroll(useTouch(), useDeviceContext());
 
 const COARSE_POINTER = '(any-pointer: coarse)';
 

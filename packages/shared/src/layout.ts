@@ -420,8 +420,9 @@ export const TenantLayoutSchema = z.strictObject({
   tablet: DeviceBlocksSchema.default(() => defaultDeviceBlocks('tablet')),
   phone: DeviceBlocksSchema.default(() => defaultDeviceBlocks('phone')),
   /**
-   * «Touch» of every device: with `false` the public page shows nothing to tap or click (no buttons, selectors or
-   * links) and the charts keep their default view. Missing in the documents saved before: `true`.
+   * «Touch» of every device: with `false` the public page only loses what can be tapped or clicked (buttons,
+   * selectors, links, sortable headers, collapsible sections); layout, scrolling and contents stay the same, and the map
+   * without filters shows in turn the views chosen in the Studio. Missing in the documents saved before: `true`.
    */
   touch: z
     .strictObject({

@@ -282,14 +282,14 @@ describe('Intermission: full screen and banner', () => {
     }
   });
 
-  it('without «Touch» a full screen slide never scrolls: what does not fit is cut, «Normale» never scaled; with touch as before', () => {
+  it('big screen without «Touch»: a full screen slide never scrolls (cut, «Normale» never scaled); tablet without «Touch» and with touch scroll', () => {
     for (const size of ['normal', 'large', 'fill'] as const) {
       render(
         <TouchContext.Provider value={false}>
           <Intermission
             state={setBreak}
             config={TenantIntermissionsSchema.parse({ setBreak: { fullscreenSize: size } })}
-            device="tablet"
+            device="tv"
             paused={false}
           />
         </TouchContext.Provider>,
@@ -300,6 +300,13 @@ describe('Intermission: full screen and banner', () => {
       expect(dialog()?.querySelector('.overflow-y-auto, .overflow-auto, .overflow-scroll')).toBeNull();
       cleanup();
     }
+    render(
+      <TouchContext.Provider value={false}>
+        <Intermission state={setBreak} config={TenantIntermissionsSchema.parse({})} device="tablet" paused={false} />
+      </TouchContext.Provider>,
+    );
+    expect(dialog()?.querySelector('[data-studio-slide]')?.className).toContain('overflow-y-auto');
+    cleanup();
     setup(setBreak, { device: 'tablet' });
     expect(dialog()?.querySelector('[data-studio-slide]')?.className).toContain('overflow-y-auto');
   });

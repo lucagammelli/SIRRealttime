@@ -175,7 +175,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'In «Pagina live», per ogni dispositivo (TV, Tablet, Telefono), l’interruttore «Touch: Sì/No» decide se la pagina pubblica ha qualcosa da toccare. Con «No» spariscono pulsanti, selettori, ordinamento delle colonne, link degli sponsor e pulsanti di schermo intero, tema e pause, e i grafici restano sulla vista predefinita. Su una TV senza touch la rotazione dei blocchi continua da sola. Senza touch niente scorre, su nessun dispositivo: anche tablet e telefono diventano schermate che si alternano da sole come sulla TV, e le schede restano alla loro dimensione piena: se hanno più righe di quante ne stanno, quelle in eccesso non si vedono (tagliate dal bordo della scheda, senza barra di scorrimento).',
+        text: 'In «Pagina live», per ogni dispositivo (TV, Tablet, Telefono), l’interruttore «Touch: Sì/No» decide se la pagina pubblica ha qualcosa da toccare. Con «No» spariscono pulsanti, selettori, ordinamento delle colonne, link degli sponsor e pulsanti di schermo intero, tema e pause; impaginazione, scorrimento e contenuti di telefono e tablet restano uguali a quando il touch è acceso. La mappa del campo senza filtri alterna le viste scelte nello Studio. Su una TV senza touch la rotazione dei blocchi continua da sola e le schede restano alla loro dimensione piena: se hanno più righe di quante ne stanno, quelle in eccesso non si vedono (tagliate dal bordo della scheda).',
       },
       {
         kind: 'text',

@@ -8,7 +8,7 @@ import { clubLogoClass, useOurLogoSize } from '../lib/clubLogo.ts';
 import { formatMinutes, SIDE_LABEL, teamName, teamShort } from '../lib/format.ts';
 import type { Device } from '../lib/layout.ts';
 import type { SetPartial } from '../lib/scoreboard.ts';
-import { useStickyOffset, useTouch } from '../lib/useLayout.ts';
+import { useScrolls, useStickyOffset } from '../lib/useLayout.ts';
 import { matchHeadline, matchMinutes, matchWinner, setPartials, statusLabel } from '../lib/scoreboard.ts';
 import { BrandMark } from './BrandMark.tsx';
 import { BreakableName } from './ui.tsx';
@@ -144,15 +144,15 @@ function Score({
 }
 
 export function Partials({ partials, compact = false }: { partials: SetPartial[]; compact?: boolean }) {
-  // Without touch nobody can scroll them: the compact partials wrap to a second line instead.
-  const touch = useTouch();
+  // On the big screen without touch nobody can scroll them: the compact partials wrap to a second line instead.
+  const scrolls = useScrolls();
   if (partials.length === 0) return null;
   return (
     <ol
       aria-label="Parziali dei set"
       className={
         compact
-          ? `${touch ? 'sir-scroll-x flex-nowrap' : 'flex-wrap'} flex justify-center gap-1.5 px-2 pb-2`
+          ? `${scrolls ? 'sir-scroll-x flex-nowrap' : 'flex-wrap'} flex justify-center gap-1.5 px-2 pb-2`
           : 'flex flex-wrap justify-center gap-2 px-3 pb-3 sm:px-6'
       }
     >

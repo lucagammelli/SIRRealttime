@@ -470,3 +470,87 @@ describe('Intermission: «ogni N punti»', () => {
     expect(shown()).toBeNull();
   });
 });
+
+describe('Intermission: «Pausa attiva» off wins over everything', () => {
+  const wait = (ms: number) =>
+    act(() => {
+      vi.advanceTimersByTime(ms);
+    });
+  const parse = (c: TenantIntermissionsInput) => TenantIntermissionsSchema.parse(c);
+  const anyPause = () => document.querySelector('[data-intermission]') ?? screen.queryByRole('dialog');
+  const message = [{ id: 'm', type: 'message' as const }];
+  const ownSlides = { slides: message };
+
+  /** A pause per type (and per set) with the config where only that pause is on, and the state that opens it. */
+  const cases: { name: string; state: MatchState; on: TenantIntermissionsInput; off: TenantIntermissionsInput }[] = [
+    {
+      name: 'time-out',
+      state: timeout,
+      on: { timeout: { enabled: true, delaySeconds: 0, ...ownSlides } },
+      off: { timeout: { enabled: false, delaySeconds: 0, ...ownSlides } },
+    },
+    {
+      name: 'end of set',
+      state: setBreak,
+      on: { setBreak: { enabled: true, delaySeconds: 0, ...ownSlides } },
+      off: { setBreak: { enabled: false, delaySeconds: 0, ...ownSlides } },
+    },
+    {
+      name: 'end of match',
+      state: finished,
+      on: { matchEnd: { enabled: true, delaySeconds: 0, ...ownSlides } },
+      off: { matchEnd: { enabled: false, delaySeconds: 0, ...ownSlides } },
+    },
+    ...(['1', '2', '3', '4'] as const).map((n) => ({
+      name: `own end of set ${n}`,
+      state: { ...setBreak, phase: { ...setBreak.phase, set: Number(n), nextSet: Number(n) + 1 } } as MatchState,
+      on: { setBreakBySet: { [n]: { enabled: true, delaySeconds: 0, ...ownSlides } } },
+      off: { setBreakBySet: { [n]: { enabled: false, delaySeconds: 0, ...ownSlides } } },
+    })),
+  ];
+
+  for (const c of cases) {
+    it(`${c.name}: never shown when off, closed at once when the config arrives off while it is open`, () => {
+      const off = render(<Intermission state={c.state} config={parse(c.off)} device="tablet" paused={false} />);
+      wait(10_000);
+      expect(anyPause()).toBeNull();
+      off.unmount();
+      const view = render(<Intermission state={c.state} config={parse(c.on)} device="tablet" paused={false} />);
+      wait(1000);
+      expect(anyPause()).not.toBeNull();
+      view.rerender(<Intermission state={c.state} config={parse(c.off)} device="tablet" paused={false} />);
+      expect(anyPause()).toBeNull();
+      wait(10_000);
+      expect(anyPause()).toBeNull();
+    });
+  }
+
+  for (const device of ['tv', 'tablet', 'phone'] as const) {
+    it(`«ogni N punti» on ${device}: off never shown, closed at once (open or waiting its delay) when it arrives off`, () => {
+      const on = parse({ milestone: { enabled: true, delaySeconds: 3 } });
+      const off = parse({ milestone: { enabled: false, delaySeconds: 3 } });
+      const el = (s: MatchState, config: typeof on, isLive: boolean) => (
+        <Intermission state={s} live={isLive} config={config} device={device} paused={false} />
+      );
+      const view = render(el(scoreAt(4, 3), on, false));
+      // off while the delay is running
+      view.rerender(el(scoreAt(4, 4), on, true));
+      wait(1000);
+      view.rerender(el(scoreAt(4, 4), off, true));
+      wait(10_000);
+      expect(anyPause()).toBeNull();
+      // off while it is open
+      view.rerender(el(scoreAt(8, 7), on, true));
+      view.rerender(el(scoreAt(8, 8), on, true));
+      wait(3000);
+      expect(anyPause()).not.toBeNull();
+      view.rerender(el(scoreAt(8, 8), off, true));
+      expect(anyPause()).toBeNull();
+      // and then no threshold opens it
+      view.rerender(el(scoreAt(12, 11), off, true));
+      view.rerender(el(scoreAt(12, 12), off, true));
+      wait(10_000);
+      expect(anyPause()).toBeNull();
+    });
+  }
+});

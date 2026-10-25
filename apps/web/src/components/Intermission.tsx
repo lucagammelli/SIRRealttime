@@ -104,9 +104,12 @@ export function Intermission({
     team: null,
     score: { home: state.live.homeScore, away: state.live.awayScore },
   };
-  const active: ActivePause | null = preview
+  // «Pausa attiva» off wins over everything: whatever the state says, a pause that is off is never the one on screen
+  // (not even for the frame before the effect above closes the «ogni N punti»).
+  const candidate: ActivePause | null = preview
     ? { ...(described ?? previewMilestone), pause: preview }
     : (phaseActive ?? (milestone && milestoneConfig ? milestonePause(milestone, milestoneConfig) : null));
+  const active = candidate && (preview || candidate.pause.enabled) ? candidate : null;
   const key = active?.key ?? null;
   const delayMs = preview || key === initialKey ? 0 : (active?.pause.delaySeconds ?? 0) * 1000;
   const [shownKey, setShownKey] = useState<string | null>(null);

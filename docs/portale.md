@@ -1287,7 +1287,7 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   o tentativo, il confronto senza righe con valori, il duello senza giocatori. **Conseguenza**: la pausa time-out di
   default (solo sponsor) non compare se il cliente non ha né immagini sponsor né logo sponsor.
 - **Caricamento della grafica** (`useTenantIntermissions` in `lib/branding.ts`, stato caricamento/caricata/fallita):
-  finché `GET /api/public/tenant` non risponde non si mostra nessuna pausa; se fallisce valgono i predefiniti.
+  finché `GET /api/public/tenant` non risponde non si mostra nessuna pausa; se fallisce non valgono mai i predefiniti (sono accesi): resta l'ultima configurazione già caricata in quella pagina, se non ce n'è nessuna nessuna pausa. «Pausa attiva» spenta vale sopra tutto.
 - **Editor**: sezione «Pause» dello «Studio grafico» (`studio/PausesSection.tsx`; schede, diapositive, regola «ogni N
   punti», ritardo e ripristino descritti lì). La pausa è mostrata subito nell'anteprima, con le modifiche non salvate
   (`previewState` mette nello stato la fase della pausa aperta). La «Partita d'esempio» (`src/blocks/sampleMatch.json`,

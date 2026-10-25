@@ -647,8 +647,8 @@ nome, colori e logo quadrato del cliente (rotta del server, `docs/server.md`).
 «Prossima partita», campionato e giornata, le due squadre con il logo (le iniziali `teamInitials` se manca o non si carica),
 «VS», data e ora in ora italiana («ore HH:MM»; senza data «Data da definire»), palazzetto e città, un conto alla rovescia
 (`countdownTo`: giorni, ore, minuti e secondi, solo per le partite programmate), le variabili colore del club e
-dell'avversario (`teamColorVars`) e una nota: «La diretta comparirà qui da sola appena inizia la partita, senza ricaricare la
-pagina.», oppure «Partita rinviata: data e ora da confermare.», «Partita giocata: S-S.» o «Partita non più presente nel
+dell'avversario (`teamColorVars`) e una nota (nessuna durante il conto alla rovescia; a orario passato «In attesa dell’inizio della partita: la
+diretta comparirà qui da sola.»), oppure «Partita rinviata: data e ora da confermare.», «Partita giocata: S-S.» o «Partita non più presente nel
 calendario ufficiale.». L'indicatore di connessione mostra «In attesa» (`ConnectionBadge`, `upcoming`). Il titolo della scheda
 del browser è «Squadra – Squadra · Prossima partita · Marchio». In TV occupa tutto lo schermo. Il socket resta aperto: quando
 il `.dvw` arriva (o l'admin lo conferma) la pagina diventa la partita senza ricaricare.

@@ -154,7 +154,7 @@ export function NextMatch({
           ? `Partita giocata: ${fixture.result.home}-${fixture.result.away}.`
           : 'Partita giocata.'
         : left
-          ? 'La diretta comparirà qui da sola appena inizia la partita, senza ricaricare la pagina.'
+          ? null
           : 'In attesa dell’inizio della partita: la diretta comparirà qui da sola.';
   return (
     <section
@@ -192,9 +192,11 @@ export function NextMatch({
         {place && <p className={`text-muted ${big ? 'text-2xl' : 'text-sm sm:text-base'}`}>{place}</p>}
       </div>
       {left && fixture.status === 'scheduled' && fixture.inCalendar && <CountdownView left={left} big={big} />}
-      <p role="status" className={`max-w-xl text-muted ${big ? 'text-xl' : 'text-sm'}`}>
-        {note}
-      </p>
+      {note && (
+        <p role="status" className={`max-w-xl text-muted ${big ? 'text-xl' : 'text-sm'}`}>
+          {note}
+        </p>
+      )}
     </section>
   );
 }

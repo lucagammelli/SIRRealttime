@@ -4,6 +4,10 @@ Le versioni seguono il versionamento semantico (`vX.Y.Z`); la fonte della versio
 `package.json` alla radice. Le sezioni nuove le aggiunge `scripts/rilascia.sh` con i titoli dei commit dal tag
 precedente; le note della release su GitHub sono la sezione della versione (`docs/regole/test-job-rilasci.md`).
 
+## [2.7.1] - 2026-10-25
+
+- Pause: «Pausa attiva» spenta non compare mai; senza configurazione caricata niente pause né avvisi predefiniti
+
 ## [2.7.0] - 2026-10-25
 
 - Squadra: foto e video del giocatore per ogni avviso (ACE!, Muro, Cambio), tolto «Casuale»; migrazione 0024 con riempimento dall'aspetto attuale

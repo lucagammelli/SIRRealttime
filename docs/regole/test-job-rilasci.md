@@ -25,9 +25,11 @@ scripts/job.sh chiudi <ramo>              # toglie worktree e ramo dopo il merge
 - **Solo le parti toccate**: di default lint, typecheck, test e build girano sui pacchetti cambiati rispetto a
   `origin/main` e sui loro dipendenti. Se cambiano file della radice (`package.json`, `pnpm-lock.yaml`,
   `pnpm-workspace.yaml`, `tsconfig*`, configurazioni eslint/prettier/vitest, `samples/`, `scripts/ci_locale.sh`) gira tutto.
-  `--completa` forza tutto: **obbligatoria per i rilasci** (`scripts/rilascia.sh`, prima della PR di rilascio).
-- Lint e typecheck girano in parallelo; test e build aspettano il turno (lucchetto `.claude/ci-pesante.lock`): due CI
-  di job diversi non partono insieme («Attendo il turno…»).
+  `--completa` forza tutto. `scripts/rilascia.sh` non lancia la CI: la PR di rilascio tocca il `package.json` della
+  radice, quindi la CI (via `job.sh pr`) diventa completa da sola; `--completa` resta per una verifica totale a mano.
+- Lint e typecheck girano in parallelo; **solo test e build** aspettano il turno (lucchetto `.claude/ci-pesante.lock`):
+  due CI di job diversi non li eseguono insieme («Attendo il turno…»).
+- La registrazione vale solo se il worktree era pulito all'avvio e alla fine e il tree non è cambiato durante la CI.
 - **Una CI sola per job**: il flusso è `scripts/job.sh pr` (allinea, CI, push, PR con l'esito) poi `scripts/job.sh unisci`.
   Se la CI va bene su un worktree pulito, registra il tree verificato in `.claude/ci-ok-<ramo>` (fuori dal repository);
   `unisci` salta la CI se dopo l'allineamento HEAD ha lo stesso tree sulla stessa base, altrimenti la riesegue.

@@ -32,7 +32,10 @@ esac
 esito=0
 inizio=$(date +%s)
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/ci-arenalive.XXXXXX")"
-trap 'rm -rf "$TMP"' EXIT
+# stato all'avvio: la registrazione vale solo se il contenuto verificato è quello di questo momento
+tree0="$(git rev-parse 'HEAD^{tree}' 2>/dev/null || echo -)"
+[[ -z "$(git status --porcelain 2>/dev/null)" ]] && pulito0=1 || pulito0=0
+trap 'kill $(jobs -p) 2>/dev/null; rm -rf "$TMP"' EXIT
 
 # Cartella principale (dove vivono lucchetti e registrazioni): quella del repository condiviso dai worktree.
 PRINCIPALE="$(cd "$(git rev-parse --git-common-dir 2>/dev/null)/.." 2>/dev/null && pwd || echo "$RADICE")"
@@ -46,8 +49,8 @@ base_rif() {
 # File cambiati rispetto alla base: commit del ramo + modifiche non salvate (anche non tracciate).
 file_cambiati() {
     {
-        git diff --name-only "$1...HEAD" 2>/dev/null
-        git status --porcelain 2>/dev/null | cut -c4- | sed 's/.* -> //'
+        git -c core.quotePath=false diff --name-only "$1...HEAD" 2>/dev/null
+        git -c core.quotePath=false status --porcelain 2>/dev/null | cut -c4- | sed 's/.* -> //'
     } | sort -u
 }
 
@@ -88,11 +91,15 @@ passo "1/5 Dipendenze" pnpm install --frozen-lockfile
 
 # lint e typecheck in parallelo: ciascuno con pochi pacchetti alla volta, per non esaurire la memoria
 echo "== 2-3/5 Lint e typecheck in parallelo"
-( pnpm "${filtro[@]}" --workspace-concurrency="$SIMULTANEI" -r --if-present lint > "$TMP/lint.log" 2>&1; echo $? > "$TMP/lint.rc" ) &
-( pnpm "${filtro[@]}" --workspace-concurrency="$SIMULTANEI" -r --if-present typecheck > "$TMP/typecheck.log" 2>&1; echo $? > "$TMP/typecheck.rc" ) &
-wait
-fine_passo "2/5 Lint" "$TMP/lint.log" "$(cat "$TMP/lint.rc")"
-fine_passo "3/5 Typecheck" "$TMP/typecheck.log" "$(cat "$TMP/typecheck.rc")"
+# (esito dai PID con «wait»: un processo ucciso dà un codice diverso da 0, mai un esito mancante preso per buono)
+pnpm "${filtro[@]}" --workspace-concurrency="$SIMULTANEI" -r --if-present lint > "$TMP/lint.log" 2>&1 &
+pid_lint=$!
+pnpm "${filtro[@]}" --workspace-concurrency="$SIMULTANEI" -r --if-present typecheck > "$TMP/typecheck.log" 2>&1 &
+pid_tipi=$!
+wait "$pid_lint"; rc_lint=$?
+wait "$pid_tipi"; rc_tipi=$?
+fine_passo "2/5 Lint" "$TMP/lint.log" "$rc_lint"
+fine_passo "3/5 Typecheck" "$TMP/typecheck.log" "$rc_tipi"
 
 # test e build: un solo giro pesante alla volta tra tutte le CI della macchina
 mkdir -p "$PRINCIPALE/.claude"
@@ -103,7 +110,7 @@ if ! flock -n 7; then
     flock -w "$ATTESA_TURNO" 7 || { echo "Turno non arrivato in $((ATTESA_TURNO / 60)) minuti" >&2; exit 1; }
 fi
 echo "$(git symbolic-ref --short -q HEAD || echo staccato) in $RADICE dal $(date '+%H:%M')" > "$LUCCHETTO_CI.chi"
-trap 'rm -rf "$TMP"; rm -f "$LUCCHETTO_CI.chi"' EXIT
+trap 'kill $(jobs -p) 2>/dev/null; rm -rf "$TMP"; rm -f "$LUCCHETTO_CI.chi"' EXIT
 passo "4/5 Test" pnpm "${filtro[@]}" -r --if-present test
 passo "5/5 Build" pnpm "${filtro_build[@]}" -r --if-present build
 
@@ -113,13 +120,13 @@ echo
 if [[ $esito -eq 0 ]]; then
     echo "CI locale: OK (${durata}s)"
     ramo="$(git symbolic-ref --short -q HEAD || true)"
-    if [[ -n "$ramo" && -z "$(git status --porcelain)" ]]; then
+    if [[ -n "$ramo" && $pulito0 -eq 1 && -z "$(git status --porcelain)" && "$(git rev-parse 'HEAD^{tree}')" == "$tree0" ]]; then
         # registra tree e base verificati (percorso con «/» del ramo reso innocuo)
-        printf 'tree=%s\nbase=%s\nmodo=%s\ndurata=%ss\n' "$(git rev-parse 'HEAD^{tree}')" \
+        printf 'tree=%s\nbase=%s\nmodo=%s\ndurata=%ss\n' "$tree0" \
             "$(git rev-parse "$(base_rif)" 2>/dev/null || echo -)" "$([[ $completa -eq 1 ]] && echo completa || echo parziale)" "$durata" \
             > "$PRINCIPALE/.claude/ci-ok-${ramo//\//_}"
     else
-        echo "Nessuna registrazione: modifiche non salvate o ramo staccato (la CI vale solo su un commit)."
+        echo "Nessuna registrazione: modifiche non salvate (all'avvio o durante la CI), tree cambiato o ramo staccato (la CI vale solo su un commit)."
     fi
     exit 0
 fi

@@ -18,6 +18,7 @@ import {
   agentRegistrations,
   agents,
   assets,
+  displays,
   matches,
   MIGRATIONS_FOLDER,
   playerMedia,
@@ -479,6 +480,43 @@ describe('migration 0024: photo and video of each overlay of a player', () => {
     const rows = await client.query<{ position: number; events?: unknown }>('select * from player_media');
     expect(rows.rows).toHaveLength(6);
     expect(rows.rows[0]?.events).toBeUndefined();
+  });
+});
+
+describe('migration 0025: players for big screens', () => {
+  it('starts without players, keeps the target consistent and survives the deletion of its match', async () => {
+    const client = new PGlite();
+    cleanup.push(() => client.close());
+    const db = drizzle({ client, schema });
+    await migrate(db, { migrationsFolder: await migrationsUpTo('0024_media_avvisi') });
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    expect(await db.select().from(displays)).toEqual([]);
+    const [tenant] = await db.select({ id: tenants.id }).from(tenants);
+    if (!tenant) throw new Error('no tenant');
+    const [match] = await db
+      .insert(matches)
+      .values({ tenantId: tenant.id, matchKey: 'g' })
+      .returning({ id: matches.id });
+    if (!match) throw new Error('no match');
+    const [display] = await db
+      .insert(displays)
+      .values({ tenantId: tenant.id, name: 'Maxischermo', targetKind: 'match', matchId: match.id })
+      .returning();
+    expect(display).toMatchObject({ tokenHash: null, command: null, commandSeq: 0, revoked: false });
+    // An id of another kind is refused; two players without token are allowed.
+    await expect(
+      db.insert(displays).values({ tenantId: tenant.id, name: 'x', targetKind: 'channel', matchId: match.id }),
+    ).rejects.toThrow();
+    await db.insert(displays).values({ tenantId: tenant.id, name: 'y' });
+    await db.delete(matches).where(eq(matches.id, match.id));
+    const [after] = await db.select().from(displays).where(eq(displays.name, 'Maxischermo'));
+    expect(after).toMatchObject({ targetKind: 'match', matchId: null });
+    // Undone by the statement written at the top of the migration.
+    const sqlText = await readFile(join(MIGRATIONS_FOLDER, '0025_player.sql'), 'utf8');
+    const down = /^-- Reversibile[^:]*: (.*)$/m.exec(sqlText)?.[1];
+    expect(down).toBeDefined();
+    await client.exec(down ?? '');
+    await expect(db.select().from(displays)).rejects.toThrow();
   });
 });
 

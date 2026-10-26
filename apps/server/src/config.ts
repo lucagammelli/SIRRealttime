@@ -60,6 +60,10 @@ const EnvSchema = z
     RATE_LIMIT_LEAGUE_SYNC: perMinute(DEFAULT_RATE_LIMITS.leagueSync),
     RATE_LIMIT_ROSTER_IMPORT: perMinute(DEFAULT_RATE_LIMITS.rosterImport),
     RATE_LIMIT_PASSWORD_RESET: perMinute(DEFAULT_RATE_LIMITS.passwordReset),
+    RATE_LIMIT_DISPLAY: perMinute(DEFAULT_RATE_LIMITS.display),
+    RATE_LIMIT_DISPLAY_WS: perMinute(DEFAULT_RATE_LIMITS.displayWs),
+    RATE_LIMIT_DISPLAY_INVALID: perMinute(DEFAULT_RATE_LIMITS.displayInvalid),
+    PLAYER_DOWNLOAD_DIR: z.string().min(1).optional(),
     SETTINGS_ENCRYPTION_KEY: z
       .string()
       .refine((k) => decodeEncryptionKey(k) !== null)
@@ -107,6 +111,11 @@ export interface Config {
   assetsQuotaBytes: number;
   /** Absolute folder with `arenalive-agent.exe` and `arenalive-agent.json` (scripts/costruisci-agente.sh), offered in the portal. */
   agentDownloadDir: string;
+  /**
+   * Absolute folder with `arenalive-player.deb` and `arenalive-player.json` (software of the players, offered by
+   * `GET /api/displays/update`); default: the folder of the agent.
+   */
+  playerDownloadDir: string;
   /**
    * Key of the HMAC that derives the short code of each public link from its id: changing it changes every short
    * code (the printed QR codes stop working; the long links do not change).
@@ -166,12 +175,16 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       leagueSync: e.RATE_LIMIT_LEAGUE_SYNC,
       rosterImport: e.RATE_LIMIT_ROSTER_IMPORT,
       passwordReset: e.RATE_LIMIT_PASSWORD_RESET,
+      display: e.RATE_LIMIT_DISPLAY,
+      displayWs: e.RATE_LIMIT_DISPLAY_WS,
+      displayInvalid: e.RATE_LIMIT_DISPLAY_INVALID,
     },
     socketLimits: { perIp: e.WS_MAX_PER_IP, total: e.WS_MAX_TOTAL },
     defaultTenantSlug: noDefaultTenant ? null : e.DEFAULT_TENANT_SLUG,
     assetsDir: resolve(e.ASSETS_DIR),
     assetsQuotaBytes: e.ASSETS_QUOTA_MB * 1024 * 1024,
     agentDownloadDir: resolve(e.AGENT_DOWNLOAD_DIR),
+    playerDownloadDir: resolve(e.PLAYER_DOWNLOAD_DIR ?? e.AGENT_DOWNLOAD_DIR),
     shareCodeSecret: e.SHARE_CODE_SECRET ?? DEV_SHARE_CODE_SECRET,
     shareCodeSecretIsDefault: e.SHARE_CODE_SECRET === undefined,
     leagueSync: e.LEAGUE_SYNC === 'on',

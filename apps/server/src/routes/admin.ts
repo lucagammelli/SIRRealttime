@@ -4,6 +4,8 @@ import type {
   AgentSummary,
   CreateAgentResponse,
   CreateShareTokenResponse,
+  DisplayConfigFile,
+  DisplaySummary,
   MatchDetail,
   MatchSummary,
   ShareTokenSummary,
@@ -11,16 +13,33 @@ import type {
 import {
   AgentValidityRequestSchema,
   CreateAgentRequestSchema,
+  CreateDisplayRequestSchema,
   CreateShareTokenRequestSchema,
+  DISPLAY_CONFIG_FILE_NAME,
+  DISPLAY_CONFIG_VERSION,
+  DisplayCommandRequestSchema,
+  DisplayConfigFileSchema,
+  DisplayConfigRequestSchema,
   IdParamSchema,
   MATCH_LINKS_DISABLED_MESSAGE,
+  UpdateDisplayRequestSchema,
 } from '@arenalive/shared';
-import { desc, eq, gt } from 'drizzle-orm';
+import { desc, eq, gt, sql } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { agentQuotaOf, agentsInUse, lockTenantAgents, requireAgentSlot } from '../agentQuota.js';
 import type { AppContext } from '../context.js';
 import { perMinute, SESSION_COOKIE } from '../context.js';
-import { agentRegistrations, agents, matches, shareTokens, tenants } from '../db/index.js';
+import { agentRegistrations, agents, displays, matches, shareTokens, tenants } from '../db/index.js';
+import {
+  checkDisplayTarget,
+  displaySummary,
+  isForeignKeyViolation,
+  lockTenantDisplays,
+  requireDisplaySlot,
+  sendReload,
+  showDisplay,
+  targetColumns,
+} from '../displays.js';
 import { badRequest, HttpError, notFound } from '../lib/errors.js';
 import { generateToken, hashToken } from '../lib/tokens.js';
 import { validate } from '../lib/validate.js';
@@ -336,6 +355,139 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
     dropShareLinks(ctx, [id]);
     request.log.info({ shareTokenId: id }, 'link pubblico revocato');
     return reply.code(204).send();
+  });
+
+  /**
+   * Players for big screens («Player»): reading for every user (the IP of the last heartbeat only for admins), every
+   * change for admins. A player is born without token: `POST …/config` gives its `arenalive-player.json` with a new
+   * token at every download (the previous file stops working and its pages are closed).
+   */
+  app.get('/api/admin/displays', viewer, async (request): Promise<DisplaySummary[]> => {
+    const tenantId = adminTenantId(request);
+    const rows = await ctx.db
+      .select()
+      .from(displays)
+      .where(tenantScope(displays, tenantId))
+      .orderBy(desc(displays.createdAt));
+    const withIp = request.user?.role !== 'viewer';
+    return rows.map((r) => displaySummary(r, withIp));
+  });
+
+  app.post('/api/admin/displays', admin, async (request, reply): Promise<DisplaySummary> => {
+    const tenantId = adminTenantId(request);
+    const body = validate(CreateDisplayRequestSchema, request.body);
+    const row = await ctx.db.transaction(async (tx) => {
+      await lockTenantDisplays(tx, tenantId);
+      await requireDisplaySlot(tx, tenantId);
+      const [inserted] = await tx.insert(displays).values({ tenantId, name: body.name }).returning();
+      return inserted;
+    });
+    if (!row) throw new Error('display not inserted');
+    request.log.info({ displayId: row.id }, 'player creato');
+    void reply.code(201);
+    return displaySummary(row, true);
+  });
+
+  /** New name and/or target of a player not revoked: its open pages show the new target at once. */
+  app.patch('/api/admin/displays/:id', admin, async (request): Promise<DisplaySummary> => {
+    const tenantId = adminTenantId(request);
+    const { id } = validate(IdParamSchema, request.params);
+    const body = validate(UpdateDisplayRequestSchema, request.body);
+    const target = body.target;
+    let row: typeof displays.$inferSelect | undefined;
+    try {
+      row = await ctx.db.transaction(async (tx) => {
+        if (target) await checkDisplayTarget(tx, tenantId, target);
+        const [updated] = await tx
+          .update(displays)
+          .set({
+            ...(body.name !== undefined ? { name: body.name } : {}),
+            ...(target ? targetColumns(target) : {}),
+          })
+          .where(tenantScope(displays, tenantId, eq(displays.id, id), eq(displays.revoked, false)))
+          .returning();
+        return updated;
+      });
+    } catch (err) {
+      // The match (or the match of the calendar) was deleted between the check and the update.
+      if (isForeignKeyViolation(err)) throw badRequest('Richiesta non valida: la partita non esiste più');
+      throw err;
+    }
+    if (!row) throw notFound();
+    showDisplay(ctx, row, request.log);
+    request.log.info({ displayId: id, target: row.targetKind, userId: request.user?.id }, 'player modificato');
+    return displaySummary(row, true);
+  });
+
+  /** Revocation: the token stops working at once and the open pages are closed (4404). */
+  app.delete('/api/admin/displays/:id', admin, async (request, reply) => {
+    const tenantId = adminTenantId(request);
+    const { id } = validate(IdParamSchema, request.params);
+    const rows = await ctx.db
+      .update(displays)
+      .set({ revoked: true, tokenHash: null, command: null })
+      .where(tenantScope(displays, tenantId, eq(displays.id, id)))
+      .returning({ id: displays.id });
+    if (rows.length === 0) throw notFound();
+    ctx.hub.closeDisplay(id);
+    request.log.info({ displayId: id, userId: request.user?.id }, 'player revocato');
+    return reply.code(204).send();
+  });
+
+  /**
+   * A command for the device (it gets it with its next heartbeat, and executes it once: a new command replaces one not
+   * executed yet); `reload` goes to the open pages at once too.
+   */
+  app.post('/api/admin/displays/:id/command', admin, async (request): Promise<DisplaySummary> => {
+    const tenantId = adminTenantId(request);
+    const { id } = validate(IdParamSchema, request.params);
+    const { command } = validate(DisplayCommandRequestSchema, request.body);
+    const [row] = await ctx.db
+      .update(displays)
+      .set({ command, commandSeq: sql`${displays.commandSeq} + 1` })
+      .where(tenantScope(displays, tenantId, eq(displays.id, id), eq(displays.revoked, false)))
+      .returning();
+    if (!row) throw notFound();
+    if (command === 'reload') sendReload(ctx, row.id, row.commandSeq);
+    request.log.info({ displayId: id, command, userId: request.user?.id }, 'comando al player');
+    return displaySummary(row, true);
+  });
+
+  /**
+   * `arenalive-player.json` of a player not revoked, as an attachment, with a new token (stored as sha256 only): the
+   * previous file stops working and the pages opened with it are closed. The Wi-Fi of the body goes only into the
+   * file (never stored, never logged).
+   */
+  app.post('/api/admin/displays/:id/config', admin, async (request, reply): Promise<DisplayConfigFile> => {
+    const tenantId = adminTenantId(request);
+    const { id } = validate(IdParamSchema, request.params);
+    const { wifi } = validate(DisplayConfigRequestSchema, request.body ?? {});
+    const tenant = await findTenant(ctx, { id: tenantId });
+    if (!tenant) throw notFound();
+    const token = generateToken();
+    const [row] = await ctx.db
+      .update(displays)
+      .set({ tokenHash: hashToken(token) })
+      .where(tenantScope(displays, tenantId, eq(displays.id, id), eq(displays.revoked, false)))
+      .returning({ id: displays.id, name: displays.name });
+    if (!row) throw notFound();
+    ctx.hub.closeDisplay(row.id);
+    const file = DisplayConfigFileSchema.parse({
+      version: DISPLAY_CONFIG_VERSION,
+      // The page `/schermo` works only on a hostname of the client.
+      serverUrl: publicBaseUrlFor(ctx.config.publicBaseUrl, tenant.hostnames),
+      token,
+      name: row.name,
+      ...(wifi ? { wifi } : {}),
+    });
+    request.log.info(
+      { displayId: row.id, wifi: wifi !== undefined, userId: request.user?.id },
+      'configurazione del player scaricata',
+    );
+    void reply
+      .header('content-disposition', `attachment; filename="${DISPLAY_CONFIG_FILE_NAME}"`)
+      .header('cache-control', 'no-store');
+    return file;
   });
 
   // The browser does not apply CORS to WebSocket: a foreign Origin is refused here (CSWSH).

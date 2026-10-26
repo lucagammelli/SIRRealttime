@@ -832,7 +832,49 @@ il browser non ha l'API non succede nulla.
   (`FULLSCREEN_HINT_SECONDS`); il primo tocco o tasto sulla pagina (non su pulsanti, link o campi; non Maiusc, Ctrl, Alt,
   Tab, Esc…) chiede lo schermo intero. Il suggerimento non intercetta i clic. Il pulsante «Schermo intero» resta.
 - **Kiosk per le TV**: il browser non permette lo schermo intero automatico senza un gesto, quindi per una TV fissa si
-  avvia il browser in modalità kiosk (script in «Come si usa / si prova»).
+  avvia il browser in modalità kiosk (script in «Come si usa / si prova»), oppure si usa il Player (sotto).
+
+### Player per i maxischermi (`pages/DisplayPage.tsx`, `pages/admin/DisplaysPage.tsx`, rotte `/schermo` e `/admin/player`)
+Un Raspberry Pi 5 collegato a un maxischermo apre da solo, all'accensione, `https://<host del cliente>/schermo#<token>` in
+Chromium kiosk. Il portale decide cosa mostra e gli manda i comandi; il software del Raspberry sta nel repository separato
+`ArenaLive-Player` (fase 2, non ancora fatta). Nel codice si chiama «display»: «player» vuol già dire giocatore. API e
+tabella in `docs/server.md` («Player per i maxischermi»); messaggi in `docs/architettura.md`.
+
+**Pagina `/schermo#<token>`** (`DisplayPage`, senza sessione):
+- Legge il token dal frammento e lo toglie dall'indirizzo con `replaceState`, poi lo tiene in `sessionStorage` sotto
+  `arenalive-player-token` (`readDisplayToken`) per i ricaricamenti; senza token valido, o con `sessionStorage` che rifiuta
+  e senza frammento, mostra «Player non valido».
+- È sempre la **tela TV 1920×1080** con lo schermo tenuto acceso (`useWakeLock`) e il puntatore nascosto; non ci sono
+  controlli touch né «Ferma rotazione». Il corpo di `LivePage` è stato estratto in `LiveScreen` (opzione `touch=false`
+  per il player): `/live` funziona come prima.
+- Il socket è `/ws/display` (`useLiveSocket` con `display` e `hello`): il token parte come primo messaggio `auth`, mai
+  nell'URL. `liveConnection` ha le due opzioni nuove `display` (accetta `standby` e `command`, risponde `ack`) e
+  `retryInvalidMs`. Con `standby` mostra la schermata di attesa (`StandbyScreen`: logo del cliente, nome del cliente e del
+  player); con `command` `reload` manda `ack` e ricarica la pagina dopo 500 ms (`DISPLAY_RELOAD_DELAY_MS`).
+- Con 4404 (o 4401) mostra «Player non valido» — «Scarica di nuovo la configurazione dal portale e copiala sulla scheda
+  SD.» e riprova ogni 60 s (`DISPLAY_INVALID_RETRY_MS`), perché l'admin può aver scaricato un file nuovo. Se la rete o
+  l'auth sono lente, resta sull'ultimo stato e riprova con il backoff crescente di `LiveConnection`.
+
+**Pagina «Player»** (`DisplaysPage`, `/admin/player`, gruppo «Dispositivi» del menu; titolo «Player · Area riservata»; il
+viewer vede la lista ma non può modificare, `READ_ONLY_TEXT`). La lista si rilegge ogni 5 s (`useRefresh`,
+`DISPLAYS_REFRESH_MS`) finché la scheda del browser è visibile.
+- «Nuovo player»: «Nome» e «Crea player»; subito dopo si apre «Scarica configurazione» del nuovo player.
+- Per ogni player: nome e stato (`displayStateText`) «In linea» (ultimo heartbeat da meno di 60 s, `DISPLAY_ONLINE_MS`),
+  «Non in linea · visto …», «Mai collegato» (configurato ma mai visto), «Da configurare» (nessun file scaricato),
+  «Revocato»; sotto «Mostra: …», versione, risoluzione dello schermo, IP (solo admin), data di creazione e, se c'è,
+  «Comando in attesa: …».
+- «Cosa mostra»: «Nessuno (schermata di attesa con il logo)», «Canale live del club», poi le scelte di `fixedChoices` di
+  `ShareLinksPage` («Partita: …» e «Calendario: …») e le altre partite ricevute (`targetChoices`). Il cambio vale subito
+  sulle pagine aperte.
+- Comandi: «Ricarica», «Riavvia» (con conferma «Conferma riavvio»), «Spegni schermo» e «Accendi schermo».
+- «Scarica configurazione»: avviso che il file nuovo sostituisce il precedente (la scheda SD col file vecchio smette di
+  funzionare), campi facoltativi «Rete Wi-Fi (facoltativa)» (vuota: cavo), «Password del Wi-Fi» (8-63 caratteri, vuota per
+  una rete aperta; non resta sul server) e «Paese» (due lettere, `IT`), bottone «Scarica il file del player»: il browser
+  salva `arenalive-player.json`, da copiare nella partizione `bootfs` della scheda SD.
+- Riquadro «Scheda SD del player»: i quattro passi e «Scarica l’immagine ArenaLive Player» (`IMAGE_TEXT`), **senza link**
+  fino alla fase 2.
+- «Revoca» (con conferma): il token smette di valere e il maxischermo mostra «Player non valido».
+- La guida ha la sezione «Il maxischermo con il Player» (`pages/admin/guide/content.ts`).
 
 ### Connessione WebSocket (`src/lib/liveConnection.ts`, `useLiveSocket.ts`)
 - `LiveConnection` tiene aperto il socket e, a ogni (ri)connessione, il server rimanda lo stato intero.
@@ -1515,6 +1557,9 @@ Variabili e comandi di `docker compose` sono in `docs/server.md`; il portale è 
 | `pnpm --filter @arenalive/web sample-match` | rigenera `src/blocks/sampleMatch.json` (partita d'esempio dell'anteprima); un test ne verifica la coerenza |
 
 ### Kiosk per le TV (Windows)
+Per un maxischermo fisso senza PC Windows c'è il **Player** (Raspberry Pi 5 che apre da solo `/schermo#<token>`, gestito
+dalla pagina «Player»): vedi «Player per i maxischermi». Lo script qui sotto resta per le TV collegate a un PC Windows.
+
 Crea nella cartella «Esecuzione automatica» di Windows un collegamento che apre il browser a schermo intero sul link
 pubblico, a ogni accensione del PC. Va eseguito in PowerShell sul PC della TV, dopo aver copiato il link da «Link pubblici».
 
@@ -1647,6 +1692,12 @@ API del server: il portale non è scansionato.
   (`docs/statistiche.md`), API in `docs/server.md`; test `Overlay.test.tsx`
 - Agente scaricabile: `apps/web/src/pages/admin/AgentsPage.tsx` (`AgentDownload`, `AGENT_DOWNLOAD_PATH`), test
   `AgentsPage.test.tsx`; `AgentDownloadInfoSchema` in `packages/shared/src/agentDownload.ts`; server in `docs/server.md`
+- Player: `apps/web/src/pages/DisplayPage.tsx` (`DisplayPage`, `DISPLAY_INVALID_RETRY_MS`, `DISPLAY_RELOAD_DELAY_MS`),
+  `components/LiveScreen.tsx` (`LiveScreen`), `components/StandbyScreen.tsx`, `lib/displayToken.ts` (`readDisplayToken`,
+  `DISPLAY_TOKEN_KEY`, `displayAuthMessage`), `lib/liveConnection.ts` (`display`, `retryInvalidMs`), `lib/useRefresh.ts`,
+  `pages/admin/DisplaysPage.tsx` (`DisplaysPage`, `DISPLAYS_REFRESH_MS`, `IMAGE_TEXT`), `pages/admin/displayText.ts`
+  (`displayStateText`, `targetChoices`, `wifiOf`, `COMMAND_LABEL`), `pages/admin/guide/content.ts`; contratti in
+  `packages/shared/src/display.ts` (`docs/architettura.md`), API in `docs/server.md` («Player per i maxischermi»)
 - Simulazione: `apps/web/src/pages/admin/SimulationPage.tsx` (`SimulationPage`, `formatClock`, `paceText`,
   `SIMULATION_POLL_MS`, `PROFILE_FIELDS`), `components/LiveMatch.tsx` (`SimulationLabel`, `SIMULATION_LABEL`), `lib/liveConnection.ts`;
   contratto in `packages/shared/src/simulation.ts` (`docs/architettura.md`), API in `docs/server.md`

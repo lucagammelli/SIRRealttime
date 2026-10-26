@@ -10,8 +10,8 @@ import type {
 } from 'fastify';
 import type { AppContext, SessionUser } from './context.js';
 import { SESSION_COOKIE } from './context.js';
-import { agents, sessions, users } from './db/index.js';
-import { badRequest, forbidden, HttpError, unauthorized, unsupportedMediaType } from './lib/errors.js';
+import { agents, displays, sessions, users } from './db/index.js';
+import { badRequest, forbidden, HttpError, tooManyRequests, unauthorized, unsupportedMediaType } from './lib/errors.js';
 import { hashesEqual, hashToken } from './lib/tokens.js';
 import { hostTenant } from './tenancy.js';
 
@@ -175,5 +175,55 @@ export function authenticateAgent(ctx: AppContext) {
     }
     request.agent = { id: agent.id, tenantId: agent.tenantId };
     await ctx.db.update(agents).set({ lastSeenAt: ctx.now() }).where(eq(agents.id, agent.id));
+  };
+}
+
+/**
+ * Player of a token (sha256 of the token, compared again in constant time), not revoked; `tenantId` limits it to one
+ * client (the page `/schermo` on the hostname of another client finds nothing). null when there is none.
+ */
+export async function findDisplay(
+  ctx: AppContext,
+  hash: string,
+  tenantId?: string,
+): Promise<typeof displays.$inferSelect | null> {
+  const [row] = await ctx.db
+    .select()
+    .from(displays)
+    .where(
+      and(
+        eq(displays.tokenHash, hash),
+        eq(displays.revoked, false),
+        tenantId === undefined ? undefined : eq(displays.tenantId, tenantId),
+      ),
+    )
+    .limit(1);
+  return row?.tokenHash && hashesEqual(row.tokenHash, hash) ? row : null;
+}
+
+/**
+ * preHandler of `/api/displays/*`: bearer token of a player not revoked (the hostname does not matter, as for the
+ * ingest). Every missing or wrong token counts for the IP (`ctx.displayFailures`): past `rateLimits.displayInvalid`
+ * per minute that IP gets 429 until the minute ends.
+ */
+export function authenticateDisplay(ctx: AppContext) {
+  return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    const ip = request.ip || 'sconosciuto';
+    const wait = ctx.displayFailures.blockedFor(ip);
+    if (wait > 0) {
+      void reply.header('retry-after', String(Math.ceil(wait / 1000)));
+      throw tooManyRequests();
+    }
+    let display: typeof displays.$inferSelect | null = null;
+    try {
+      display = await findDisplay(ctx, bearerHash(request));
+    } catch (err) {
+      if (!(err instanceof HttpError) || err.statusCode !== 401) throw err;
+    }
+    if (!display) {
+      ctx.displayFailures.fail(ip);
+      throw unauthorized();
+    }
+    request.display = { id: display.id, tenantId: display.tenantId };
   };
 }

@@ -308,6 +308,44 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
     links: [{ label: 'Vai a Agenti', to: '/admin/agenti' }],
   },
   {
+    id: 'player',
+    title: 'Il maxischermo con il Player',
+    needsWrite: true,
+    blocks: [
+      {
+        kind: 'text',
+        text: 'Il Player è un piccolo computer Raspberry Pi collegato al maxischermo o a un televisore. Quando si accende mostra da solo la pagina della partita, a tutto schermo. Non serve toccare nulla sul posto.',
+      },
+      {
+        kind: 'steps',
+        items: [
+          'Scrivi l’immagine ArenaLive Player sulla scheda SD con Raspberry Pi Imager.',
+          'Apri la pagina «Player», scrivi un nome (per esempio «Maxischermo tribuna») e premi «Crea player».',
+          'Premi «Scarica configurazione». Se il Player usa il Wi-Fi scrivi il nome della rete e la password, poi premi «Scarica il file del player».',
+          'Copia il file scaricato nella parte «bootfs» della scheda SD, accanto agli altri file.',
+          'Metti la scheda nel Raspberry e accendilo: dopo poco nella pagina «Player» compare «In linea».',
+        ],
+      },
+      {
+        kind: 'text',
+        text: 'In «Cosa mostra» scegli cosa va sullo schermo: «Nessuno» (il logo del club), il canale live del club, una partita oppure una partita del calendario. Lo schermo cambia da solo in pochi secondi.',
+      },
+      {
+        kind: 'list',
+        items: [
+          '«Ricarica» apre di nuovo la pagina sullo schermo.',
+          '«Riavvia» riaccende il Raspberry (chiede conferma).',
+          '«Spegni schermo» e «Accendi schermo» spengono e riaccendono l’immagine, senza spegnere il Player.',
+        ],
+      },
+      {
+        kind: 'note',
+        text: 'Ogni volta che scarichi di nuovo il file, quello vecchio smette di funzionare: copia sempre l’ultimo sulla scheda. Con «Revoca» il Player smette subito di mostrare la partita. La password del Wi-Fi resta solo nel file.',
+      },
+    ],
+    links: [{ label: 'Vai a Player', to: '/admin/player' }],
+  },
+  {
     id: 'prova',
     title: 'Prova prima della partita',
     needsWrite: true,

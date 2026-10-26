@@ -1,9 +1,11 @@
 import type {
   ClubCoverage,
   ClubSide,
+  DisplaySocketMessage,
   MatchLogoInfo,
   ServerMessage,
   ShareAccess,
+  StandbyMessage,
   StateMessage,
 } from '@arenalive/shared';
 import type { MatchState } from '@arenalive/volley-stats';
@@ -13,6 +15,7 @@ import {
   LiveSocketQuerySchema,
   matchOurSide,
   matchTeamLogos,
+  resolveBranding,
 } from '@arenalive/shared';
 import { and, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
 import {
@@ -26,15 +29,15 @@ import {
 } from './club.js';
 import type { FastifyBaseLogger } from 'fastify';
 import type { AppContext, ResolvedShareToken } from './context.js';
-import { clientFixtures, matches, shareTokens, tenants } from './db/index.js';
+import { clientFixtures, displays, matches, shareTokens, tenants } from './db/index.js';
 import { romeDayAt } from './leagues/romeTime.js';
-import type { FrameEncoding, Subscriber, Target } from './hub.js';
+import type { FrameEncoding, MatchTarget, Subscriber, Target } from './hub.js';
 import { sameExtras } from './hub.js';
 import { shortCodeLookupHash } from './lib/shortCode.js';
 import { hashToken } from './lib/tokens.js';
-import { tenantScope } from './tenancy.js';
+import { tenantDisplayName, tenantScope } from './tenancy.js';
 
-const whereOf = (target: Exclude<Target, { kind: 'channel' }>) =>
+const whereOf = (target: Exclude<MatchTarget, { kind: 'channel' }>) =>
   target.kind === 'live'
     ? eq(matches.live, true)
     : target.kind === 'match'
@@ -261,7 +264,7 @@ export async function channelMessage(ctx: AppContext, tenantId: string): Promise
  * the one live last). The live link shows the match that became live last. From the memory of the hub when it has it
  * (every state published by this process), otherwise from the database (then kept there).
  */
-export async function currentMessage(ctx: AppContext, target: Target): Promise<ServerMessage> {
+export async function currentMessage(ctx: AppContext, target: MatchTarget): Promise<ServerMessage> {
   if (target.kind === 'channel') return channelMessage(ctx, target.tenantId);
   const known = ctx.hub.current(target);
   if (known) return known;
@@ -303,6 +306,48 @@ export async function currentMessage(ctx: AppContext, target: Target): Promise<S
   return message;
 }
 
+/**
+ * Waiting screen of a player that shows nothing: the display name of its client and the name of the player (empty
+ * when the player is gone: its socket is closed at the same time).
+ */
+export async function standbyMessage(ctx: AppContext, tenantId: string, displayId: string): Promise<StandbyMessage> {
+  const [row] = await ctx.db
+    .select({ displayName: displays.name, slug: tenants.slug, name: tenants.name, branding: tenants.branding })
+    .from(displays)
+    .innerJoin(tenants, eq(tenants.id, displays.tenantId))
+    .where(tenantScope(displays, tenantId, eq(displays.id, displayId)))
+    .limit(1);
+  return {
+    type: 'standby',
+    tenantName: row ? tenantDisplayName(row, resolveBranding(row.branding)) : '',
+    displayName: row?.displayName ?? '',
+  };
+}
+
+/** What a live socket shows now: `currentMessage`, or the waiting screen of a player (`standby`). */
+export function liveMessage(ctx: AppContext, target: Target): Promise<DisplaySocketMessage> {
+  return target.kind === 'standby'
+    ? standbyMessage(ctx, target.tenantId, target.displayId)
+    : currentMessage(ctx, target);
+}
+
+/**
+ * Sends to a socket what `target` shows now, after the hub moved it there (`setTarget`): a player given something
+ * else to show (or after a `resync`).
+ */
+export function sendLive(ctx: AppContext, socket: Subscriber['socket'], target: Target, log: FastifyBaseLogger): void {
+  liveMessage(ctx, target).then(
+    (message) => {
+      // The target changed meanwhile (a player moved twice in a row): only the message of the newest one is sent.
+      if (ctx.hub.targetOf(socket) === target) ctx.hub.send(socket, message);
+    },
+    (err: unknown) => {
+      log.error({ err }, 'stato non disponibile');
+      ctx.hub.send(socket, { type: 'error', message: 'Errore interno' });
+    },
+  );
+}
+
 /** Frames asked by the query of a live socket (`?enc=gzip`); anything else gets text frames. */
 export function encodingOf(query: unknown): FrameEncoding {
   const parsed = LiveSocketQuerySchema.safeParse(query);
@@ -317,15 +362,8 @@ export function encodingOf(query: unknown): FrameEncoding {
 export function attachLiveSocket(ctx: AppContext, sub: Subscriber, log: FastifyBaseLogger): void {
   const { socket, target } = sub;
   ctx.hub.add(sub);
-  const sendCurrent = (): void => {
-    currentMessage(ctx, target).then(
-      (message) => ctx.hub.send(socket, message),
-      (err: unknown) => {
-        log.error({ err }, 'stato non disponibile');
-        ctx.hub.send(socket, { type: 'error', message: 'Errore interno' });
-      },
-    );
-  };
+  // The target of a player changes with the choice of the admin (`setTarget`): always the current one.
+  const sendCurrent = (): void => sendLive(ctx, socket, ctx.hub.targetOf(socket) ?? target, log);
   const resync = ctx.resync.forSocket(sub.ip ?? null, () => {
     ctx.hub.forget(socket);
     sendCurrent();
@@ -479,7 +517,7 @@ export function dropShareLinks(ctx: AppContext, shareTokenIds: readonly string[]
 }
 
 /** Target of a public link: its match of the calendar, its match, otherwise the channel of the club (old live links too). */
-export const targetOf = (share: ResolvedShareToken): Target =>
+export const targetOf = (share: ResolvedShareToken): MatchTarget =>
   share.clientFixtureId
     ? { kind: 'fixture', tenantId: share.tenantId, clientFixtureId: share.clientFixtureId }
     : share.matchId
@@ -491,7 +529,7 @@ export const targetOf = (share: ResolvedShareToken): Target =>
  * it): read from the database, never from the memory of the hub.
  */
 export async function announceFixture(ctx: AppContext, tenantId: string, clientFixtureId: string): Promise<void> {
-  const target: Target = { kind: 'fixture', tenantId, clientFixtureId };
+  const target: MatchTarget = { kind: 'fixture', tenantId, clientFixtureId };
   const [row] = await ctx.db
     .select({
       id: matches.id,

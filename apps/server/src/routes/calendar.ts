@@ -19,6 +19,7 @@ import type { Tx } from '../matchLock.js';
 import { canStayLive, lockTenantMatches } from '../matchLock.js';
 import { requireRole } from '../security.js';
 import { announceFixture, closeNotBroadcast, dropShareLinks, forgetClubCaches, refreshClub } from '../state.js';
+import { refreshDisplays } from '../displays.js';
 import { adminTenantId, tenantScope } from '../tenancy.js';
 
 type FixtureRow = typeof clientFixtures.$inferSelect;
@@ -216,6 +217,8 @@ export function manualFixtureRoutes(app: FastifyInstance, ctx: AppContext): void
     });
     dropShareLinks(ctx, links);
     forgetClubCaches(ctx, tenantId);
+    // The players that showed it go to their waiting screen (`on delete set null`).
+    await refreshDisplays(ctx, tenantId, request.log);
     request.log.info({ tenantId, clientFixtureId: id, userId: request.user?.id }, 'partita del calendario cancellata');
     return reply.code(204).send();
   });

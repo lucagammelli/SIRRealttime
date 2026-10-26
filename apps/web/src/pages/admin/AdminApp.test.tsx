@@ -87,6 +87,7 @@ describe('admin navigation', () => {
       ['Partite', '/admin/partite', 'Partite'],
       ['Link pubblici', '/admin/link', 'Nuovo link pubblico'],
       ['Agenti', '/admin/agenti', 'Nuovo agente'],
+      ['Player', '/admin/player', 'Nuovo player'],
       ['Utenti', '/admin/utenti', 'Nuovo utente'],
       ['Partita live', '/admin/live', 'Connessione alla partita'],
       ['Partite', '/admin/partite', 'Partite'],
@@ -174,7 +175,7 @@ describe('admin navigation', () => {
       'Link pubblici',
       'Simulazione',
     ]);
-    expect(names('Dispositivi')).toEqual(['Agenti']);
+    expect(names('Dispositivi')).toEqual(['Agenti', 'Player']);
     expect(names('Amministrazione')).toEqual(['Utenti']);
     expect(names('Account e aiuto')).toEqual(['Il mio account', 'Guida']);
     expect(within(nav).queryByRole('link', { name: 'Clienti' })).toBeNull();
@@ -273,6 +274,7 @@ describe('admin navigation', () => {
       'Squadra',
       'Link pubblici',
       'Agenti',
+      'Player',
       'Il mio account',
       'Guida',
     ]);

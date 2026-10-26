@@ -368,6 +368,52 @@ clienti**, costruito da `scripts/pubblica-agente-produzione.sh` (agente C#, via 
   Scelta in `docs/decisioni.md`.
 - Nginx (`docker/web.nginx.conf`) ha `proxy_buffering off` solo per questa rotta (`docs/portale.md`).
 
+### Player per i maxischermi (`apps/server/src/displays.ts`, `routes/display.ts`, `routes/admin.ts`)
+Un Raspberry Pi 5 collegato a un maxischermo apre da solo, all'accensione, `https://<host del cliente>/schermo#<token>` in
+Chromium kiosk. Dal portale («Player», `docs/portale.md`) si crea il player, si scarica il suo `arenalive-player.json`
+da copiare nella partizione `bootfs` della scheda SD, si sceglie cosa mostra e si mandano i comandi. Il software del
+Raspberry sta nel repository separato `ArenaLive-Player` (fase 2, non ancora fatta). Nel codice si chiama **display**,
+perché «player» vuol già dire giocatore. Contratti in `packages/shared/src/display.ts` (`docs/architettura.md`).
+
+- **Tabella `displays`** (vedi «Database»): il token è salvato solo come sha256, unico e nullo finché non si scarica la
+  configurazione. Il bersaglio (`none` = schermata di attesa, `channel`, `match`, `fixture`) sta sul player, non su un link:
+  revocare un link non spegne mai un maxischermo. Le chiavi esterne su partita e partita del calendario sono
+  `ON DELETE SET NULL`, quindi se la partita sparisce il player va in attesa. Limite di **20 player non revocati per
+  cliente** (`DISPLAY_LIMIT`, 409 oltre; `lockTenantDisplays` + `requireDisplaySlot` sotto un lock per cliente).
+- **Rotte admin** (`/api/admin/displays`, tabella in «Endpoint»; il superadmin lavora sul cliente attivo):
+  - `GET` per tutti gli utenti, ma il viewer non riceve `lastIp`; `POST` crea un player in attesa (201); `PATCH` cambia nome
+    e/o bersaglio: `checkDisplayTarget` richiede che il bersaglio sia del cliente (una partita **simulata** è esclusa, 400) e le
+    pagine aperte passano subito al nuovo bersaglio, con lo stato completo (`showDisplay`);
+  - `DELETE` **revoca**: `revoked`, token e comando azzerati, socket chiusi con 4404 (`closeDisplay`);
+  - `POST /:id/command`: `reload`, `reboot`, `screenOff` o `screenOn`. C'è **un solo comando pendente**: uno nuovo sostituisce il
+    precedente e fa salire `commandSeq` di 1. `reload` va subito anche alle pagine aperte (`sendReload`);
+  - `POST /:id/config`: genera un **token nuovo a ogni download**, quindi il file precedente smette di valere e le pagine
+    aperte col token vecchio sono chiuse (4404). Risposta `DisplayConfigFile` come allegato `arenalive-player.json`,
+    `cache-control: no-store`. `serverUrl` è l'URL pubblico del cliente (`publicBaseUrlFor`), mai ricavato dall'header
+    `Host`. Il Wi-Fi facoltativo del corpo finisce solo nel file: non è salvato né scritto nei log (il log dice solo se c'era).
+- **Rotte del dispositivo** (Bearer del player, `authenticateDisplay`; l'hostname non conta):
+  - `POST /api/displays/heartbeat` ogni 15 s: aggiorna `lastSeenAt`, `lastIp`, `version` e `resolution`; se arriva `ackSeq`
+    cancella il comando pendente quando `commandSeq <= ackSeq` (`acknowledgeCommand`). La risposta ha `command` e
+    `commandSeq` e, solo se la versione sul server è maggiore secondo X.Y.Z (`displayUpdateWanted`), `update` con
+    `version`, `sha256` e `size` del `.deb`;
+  - `GET /api/displays/update`: il `.deb` (`application/vnd.debian.binary-package`, `no-store`); 404 se non è pubblicato.
+  - Il demone deve confermare `reboot` (con l'`ackSeq` dell'heartbeat) **prima** di riavviare, altrimenti il comando
+    resterebbe pendente e ripartirebbe al giro successivo.
+- **WebSocket `/ws/display`**: il token **non** sta nell'URL ma nel primo messaggio `{ "type": "auth", "token": … }`, entro 10 s
+  (`DISPLAY_AUTH_TIMEOUT_MS`). Chiusure: **4401** se l'auth manca, è malformata o arriva in ritardo; **4404** se il token è
+  sbagliato, revocato, sostituito da un nuovo download o di un altro hostname. Prima dell'auth passano i controlli dei
+  socket pubblici (`WS_MAX_PER_IP`, `WS_MAX_TOTAL`, 503 se pieno; 429 per un IP con troppi errori; 404 senza cliente) e
+  `sameOriginGuard`. Ogni tentativo errato conta per IP (`RATE_LIMIT_DISPLAY_INVALID`).
+  - Dopo l'auth il socket è un socket live del bersaglio del player (`attachLiveSocket`, `hubTargetOf`): `state`, `patch`,
+    `noMatch`, `scheduled`, `config`, `resync` come sulla pagina pubblica, più `standby` (nulla da mostrare: nome del cliente e
+    del player) e `command` (oggi solo `reload`, con `commandSeq`). La pagina risponde `{ "type": "ack", "commandSeq": n }`,
+    che cancella il comando come l'`ackSeq` dell'heartbeat.
+  - Quando il portale cambia il bersaglio il server sposta i socket e manda lo stato completo; quando una partita del
+    calendario viene cancellata, `refreshDisplays` aggiorna i player che la mostravano.
+- **Software del player**: `AgentReleaseStore` è generalizzato (`ReleaseFiles`): oltre ad `arenalive-agent.exe`, serve
+  `arenalive-player.deb` con il manifest `arenalive-player.json` (`version`, `builtAt`, `sha256`, come quello dell'agente) da
+  `PLAYER_DOWNLOAD_DIR` (`PLAYER_FILES`). Il `.deb` è offerto solo se lo sha256 coincide con il manifest.
+
 ### Campionati (`apps/server/src/leagues/`, `src/routes/leagues.ts`)
 Il server scarica dai **siti ufficiali** calendario, classifica, squadre e loghi dei campionati. Oggi c'è un solo
 fornitore, la Lega Pallavolo Serie A (`https://www.legavolley.it`, `LeagueProviderSchema` = `legavolley`). I dati sono
@@ -1152,6 +1198,15 @@ server scrive `dist/build-info.json` (`version` e `commit` corto, da `ARENALIVE_
 | GET | `/api/admin/stats/matches/:matchId/curve` | sessione | viewer |
 | GET (WebSocket) | `/ws/public/:token` | link pubblico (token lungo o codice breve) | - |
 | GET (WebSocket) | `/ws/admin` | sessione + controllo `Origin` | viewer |
+| GET | `/api/admin/displays` | sessione (il viewer non vede `lastIp`) | viewer |
+| POST | `/api/admin/displays` | sessione (201; 409 oltre `DISPLAY_LIMIT`) | admin |
+| PATCH | `/api/admin/displays/:id` | sessione (nome e/o bersaglio) | admin |
+| DELETE | `/api/admin/displays/:id` | sessione (revoca, 204) | admin |
+| POST | `/api/admin/displays/:id/command` | sessione (`reload`, `reboot`, `screenOff`, `screenOn`) | admin |
+| POST | `/api/admin/displays/:id/config` | sessione (scarica `arenalive-player.json` con un token nuovo) | admin |
+| POST | `/api/displays/heartbeat` | token del player (Bearer), limite `RATE_LIMIT_DISPLAY` | - |
+| GET | `/api/displays/update` | token del player (Bearer), limite `RATE_LIMIT_DISPLAY` | - |
+| GET (WebSocket) | `/ws/display` | token del player nel primo messaggio `auth` + controllo `Origin` | - |
 
 La creazione di agenti e link restituisce 201 con il token in chiaro **una sola volta** (`CreateAgentResponse`,
 `CreateShareTokenResponse` con `url`, `shortCode` e `shortUrl`). `DELETE` revoca (204), non cancella. `expiresAt` deve essere nel futuro e
@@ -1214,6 +1269,8 @@ arresto del server. `/ws/admin` rifiuta (403) un `Origin` non ammesso (`CORS_ORI
 Un client con più di 1 MB ancora da inviare è disconnesso subito (troppo lento). L'heartbeat gira ogni 30 s: manda un
 ping, disconnette chi non ha risposto al precedente e chiude i client con credenziale scaduta o revocata.
 `/ws/admin` segue sempre la partita live del cliente della sessione (il superadmin che cambia cliente si riconnette).
+`/ws/display` (la pagina `/schermo` dei player) usa lo stesso `attachLiveSocket`, ma con il token nel primo messaggio e
+due messaggi in più (`standby`, `command`): descrizione e codici di chiusura (4401, 4404) in «Player».
 
 ### Rate limit
 Per indirizzo IP e per minuto. Default (`DEFAULT_RATE_LIMITS`, `apps/server/src/context.ts`), modificabili con le variabili
@@ -1225,6 +1282,8 @@ registrazione agente 10 (la rotta `/status` usa il limite dell'ingest, perché l
 limite: 429. Le quattro rotte pubbliche dei link (`/api/auth/links/:token`, `invite/accept`, `password-reset/request`,
 `password-reset/confirm`) hanno il limite `RATE_LIMIT_PASSWORD_RESET` (10); in più il recupero password accetta 3 richieste
 all'ora per email (in memoria, vedi «Posta, inviti e recupero password»).
+I player hanno limiti propri: `RATE_LIMIT_DISPLAY` (240) per heartbeat e aggiornamento, `RATE_LIMIT_DISPLAY_WS` (60) per
+le aperture di `/ws/display` e `RATE_LIMIT_DISPLAY_INVALID` (20) per i token sbagliati (vedi «Player»).
 
 **Rotte pubbliche e pubblico in palestra** (`src/routes/public.ts`): molti telefoni escono con lo stesso IP (Wi-Fi della
 palestra, NAT mobile), quindi i limiti delle rotte pubbliche sono larghi e **per le richieste riuscite non c'è altro
@@ -1291,6 +1350,10 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `ASSETS_QUOTA_MB` | `50` | spazio massimo delle immagini di ogni cliente, in MB (intero da 1 a 1000); oltre, 409 |
 | `RATE_LIMIT_AGENT_DOWNLOAD` | `10` | richieste al minuto per IP su `GET /api/admin/agent/download` (intero da 1 a 100000) |
 | `AGENT_DOWNLOAD_DIR` | `data/downloads` (container: `/data/downloads`) | cartella con `arenalive-agent.exe` e `arenalive-agent.json` (da `scripts/costruisci-agente.sh`); relativa alla cartella di avvio; vuota: il portale dice che l'agente non è pubblicato |
+| `RATE_LIMIT_DISPLAY` | `240` | richieste al minuto per IP su `POST /api/displays/heartbeat` e `GET /api/displays/update` (intero da 1 a 100000) |
+| `RATE_LIMIT_DISPLAY_WS` | `60` | aperture al minuto per IP di `/ws/display`, riconnessioni comprese (intero da 1 a 100000) |
+| `RATE_LIMIT_DISPLAY_INVALID` | `20` | token di player sbagliati o mancanti al minuto per IP (rotte `/api/displays/*` e `/ws/display`); oltre, 429 fino alla fine del minuto (intero da 1 a 100000) |
+| `PLAYER_DOWNLOAD_DIR` | uguale a `AGENT_DOWNLOAD_DIR` | cartella con `arenalive-player.deb` e `arenalive-player.json` (il software dei player, dal repository `ArenaLive-Player`); vuota: i player non vedono aggiornamenti e `GET /api/displays/update` dà 404 |
 | `RATE_LIMIT_LEAGUE_SYNC` | `6` | «Aggiorna ora» dei campionati al minuto per IP su `POST /api/admin/leagues/:id/sync` (intero da 1 a 100000) |
 | `RATE_LIMIT_ROSTER_IMPORT` | `3` | importazioni della rosa dal sito della Lega al minuto per IP su `POST /api/admin/roster/import` (intero da 1 a 100000) |
 | `RATE_LIMIT_PASSWORD_RESET` | `10` | richieste al minuto per IP su `/api/auth/links/:token`, `/api/auth/invite/accept`, `/api/auth/password-reset/request` e `/confirm` (intero da 1 a 100000) |
@@ -1299,6 +1362,8 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `LEAGUE_CONTACT` | `PUBLIC_BASE_URL` | contatto scritto nello `User-Agent` delle richieste a legavolley.it (ASCII stampabile, al massimo 200 caratteri) |
 
 Le undici `RATE_LIMIT_*`, le due `WS_MAX_*`, `SHARE_CODE_SECRET` e `SETTINGS_ENCRYPTION_KEY` sono anche in `.env.example` e `docker-compose.yml`
+(le tre `RATE_LIMIT_DISPLAY*` e `PLAYER_DOWNLOAD_DIR` sono in `.env.example`; il servizio `server` del compose non le
+passa: restano ai default, e nel container `PLAYER_DOWNLOAD_DIR` segue `AGENT_DOWNLOAD_DIR=/data/downloads`)
 (nel compose `SHARE_CODE_SECRET` è `${SHARE_CODE_SECRET:?…}`: senza la variabile nel `.env` ogni comando `docker compose`
 fallisce).
 
@@ -1343,6 +1408,7 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `tenants` (colonna di `0014_link_partita.sql`) | `match_links_enabled` (booleano, predefinito `false`; la migrazione lo accende per i clienti con link per partita validi, simulazioni escluse) |
 | `user_tokens` | link monouso degli utenti (migrazione `0011_posta_inviti.sql`): `user_id` (→ `users`, `ON DELETE CASCADE`), `kind` (`invite`/`reset`, CHECK), `token_hash` (sha256, unico), `expires_at`, `created_at`; indice unico su (`user_id`, `kind`): un solo link per utente e tipo, quello nuovo sostituisce il vecchio. Un link usato, sostituito o annullato è cancellato; un utente con una riga `invite` non ha ancora scelto la password |
 | `mail_settings` | server di posta, **una sola riga** per tutto il sistema (`singleton` sempre vero, CHECK): `host`, `port` (1-65535), `security` (`none`/`starttls`/`tls`), `username`, `password_enc` (password cifrata AES-256-GCM con `SETTINGS_ENCRYPTION_KEY`, forma `v1.<iv>.<tag>.<testo>`, nulla se manca), `from_name`, `from_email`, `updated_at` (migrazione `0011_posta_inviti.sql`) |
+| `displays` | player per i maxischermi (migrazione `0025_player.sql`; enum `display_target` e `display_command`): `tenant_id`, `name`, `token_hash` (sha256, unico, nullo finché non si scarica la configurazione), `target_kind` (`none`/`channel`/`match`/`fixture`, predefinito `none`), `match_id` (→ `matches`) e `client_fixture_id` (→ `client_fixtures`), entrambi `ON DELETE SET NULL` (se la partita sparisce il player va in attesa), `command` (nullo = nessuno) e `command_seq` (numero dell'ultimo inviato), `revoked`, `last_seen_at`, `last_ip`, `version`, `resolution`, `created_at`; CHECK `displays_target_check`: un id è ammesso solo con il suo tipo di bersaglio |
 
 La migrazione `0011_posta_inviti.sql` crea `user_tokens` e `mail_settings`.
 
@@ -1580,6 +1646,12 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
 - Agente scaricabile: `src/routes/agentDownload.ts` (`agentDownloadRoutes`, `readmeText`), `src/agentRelease.ts`
   (`AgentReleaseStore`), `src/lib/zip.ts` (`zipStream`, `fileCrc32`), `packages/shared/src/agentDownload.ts`, test
   `apps/server/test/agentDownload.test.ts`; script `scripts/costruisci-agente.sh`; pagina in `docs/portale.md`
+- Player (schermi): `src/displays.ts` (`lockTenantDisplays`, `requireDisplaySlot`, `checkDisplayTarget`,
+  `acknowledgeCommand`, `showDisplay`, `sendReload`, `refreshDisplays`, `hubTargetOf`), `src/routes/display.ts`
+  (`displayRoutes`, `DISPLAY_AUTH_TIMEOUT_MS`), `src/routes/admin.ts` (rotte `/api/admin/displays`), `src/security.ts`
+  (`findDisplay`, `authenticateDisplay`), `src/hub.ts` (`displaySockets`, `closeDisplay`), `src/agentRelease.ts`
+  (`PLAYER_FILES`), `src/db/schema.ts` (`displays`), `drizzle/0025_player.sql`, `packages/shared/src/display.ts`
+  (`docs/architettura.md`); pagina in `docs/portale.md`
 - Campionati: `src/leagues/` (`html.ts` lettore HTML, `romeTime.ts` ora italiana, `legavolley.ts` URL e parser
   `parseCalendar`/`parseStandings`/`parseTeam`, `fetcher.ts` `LeagueFetcher`, `sync.ts` `LeagueService`, `scheduler.ts`
   `LeagueScheduler`/`dueSyncs`), `src/routes/leagues.ts` (`leagueRoutes`, `leaguePublicRoutes`), `src/assetStore.ts`

@@ -9,7 +9,7 @@ import type {
 import { applyPatch } from '@arenalive/shared';
 import type { MatchState } from '@arenalive/volley-stats';
 import { gunzipFrame, supportsGzip, withGzip } from './frames.ts';
-import { looksLikeMatchState, parseServerMessage } from './messages.ts';
+import { looksLikeMatchState, parseDisplayMessage, parseServerMessage } from './messages.ts';
 
 /** Close codes of the server (docs/server.md, WebSocket). */
 export const CLOSE_LINK_INVALID = 4404;
@@ -39,7 +39,9 @@ export type LiveData =
     }
   | { kind: 'noMatch' }
   /** Link of a match of the calendar before its start: «Prossima partita». */
-  | { kind: 'scheduled'; fixture: UpcomingFixture };
+  | { kind: 'scheduled'; fixture: UpcomingFixture }
+  /** A player (`/schermo`) given nothing to show: its waiting screen. */
+  | { kind: 'standby'; tenantName: string; displayName: string };
 
 export interface LiveSnapshot {
   status: ConnectionStatus;
@@ -101,6 +103,16 @@ export interface LiveConnectionOptions {
    * `reconnected` the socket opened again after a drop (a `config` may have been lost meanwhile).
    */
   onConfig?: (reason: 'changed' | 'reconnected') => void;
+  /**
+   * Socket of a player (`/ws/display`): it also carries `standby` (the waiting screen) and `command` (`reload`: the
+   * connection confirms it with `ack` and calls `onReload`). The first message (`hello`) is the `auth` of the player.
+   */
+  display?: { onReload: () => void };
+  /**
+   * After 4404/4401 (or a probe that says so; on the socket of a player only 4404) try again every this many ms, keeping the status until a message
+   * arrives (a player whose token may be given again); missing: never again.
+   */
+  retryInvalidMs?: number;
 }
 
 /** Close codes of a server that stopped, restarted or crashed: every client reconnects, so they spread out. */
@@ -288,8 +300,19 @@ export class LiveConnection {
     };
     const handle = (text: unknown): void => {
       if (this.socket !== socket) return;
-      const message = parseServerMessage(text);
+      const display = this.options.display;
+      const message = display ? parseDisplayMessage(text) : parseServerMessage(text);
       if (!message) return;
+      if (message.type === 'command') {
+        socket.send(JSON.stringify({ type: 'ack', commandSeq: message.commandSeq }));
+        display?.onReload();
+        return;
+      }
+      if (message.type === 'standby') {
+        const { tenantName, displayName } = message;
+        this.update({ data: { kind: 'standby', tenantName, displayName }, error: null, status: 'live' });
+        return;
+      }
       if (message.type === 'error') {
         this.update({ error: message.message });
         return;
@@ -322,7 +345,9 @@ export class LiveConnection {
       this.everOpened = true;
       const hello = this.options.hello?.();
       if (hello) socket.send(hello);
-      this.update({ status: 'live', attempts: 0, serverFull: false });
+      // A player retrying after an invalid token stays «invalid» until the server answers with something to show.
+      if (this.isFinal()) this.update({ attempts: 0, serverFull: false });
+      else this.update({ status: 'live', attempts: 0, serverFull: false });
     };
     socket.onmessage = (ev) => {
       if (typeof ev.data === 'string' && pending === 0) {
@@ -345,8 +370,13 @@ export class LiveConnection {
       this.socket = null;
       this.clearResyncTimer();
       if (this.stopped) return;
-      if (ev.code === CLOSE_LINK_INVALID) return this.update({ status: 'invalid' });
-      if (ev.code === CLOSE_SESSION_ENDED) return this.update({ status: 'unauthorized' });
+      if (ev.code === CLOSE_LINK_INVALID) return this.final('invalid');
+      // On the socket of a player 4401 is an `auth` that did not arrive in time (slow network): try again with backoff.
+      if (ev.code === CLOSE_SESSION_ENDED && this.options.display) {
+        this.scheduleReconnect();
+        return;
+      }
+      if (ev.code === CLOSE_SESSION_ENDED) return this.final('unauthorized');
       if (opened && RESTART_CODES.has(ev.code)) {
         this.scheduleReconnect(this.random() * this.restartSpread);
         return;
@@ -366,14 +396,26 @@ export class LiveConnection {
   private afterProbe(result: ProbeResult): void {
     this.probing = false;
     if (this.stopped) return;
-    if (result === 'invalid') return this.update({ status: 'invalid' });
-    if (result === 'unauthorized') return this.update({ status: 'unauthorized' });
+    if (result === 'invalid') return this.final('invalid');
+    if (result === 'unauthorized') return this.final('unauthorized');
     if (typeof result === 'object') {
       // Server full: wait its Retry-After plus up to half of it, so that the clients do not return together.
       this.scheduleReconnect(result.retryAfterMs * (1 + 0.5 * this.random()), true);
       return;
     }
     this.scheduleReconnect();
+  }
+
+  /** The link (or the player) is not valid: final, or tried again after `retryInvalidMs`. */
+  private final(status: 'invalid' | 'unauthorized'): void {
+    this.update({ status });
+    const wait = this.options.retryInvalidMs;
+    if (wait === undefined) return;
+    this.clearTimer();
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      if (!this.stopped) this.connect();
+    }, wait);
   }
 
   /** Next attempt after the backoff, or after `atLeastMs` (plus the backoff jitter) when that is longer. */

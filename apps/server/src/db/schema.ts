@@ -717,6 +717,48 @@ export const clientFixtures = pgTable(
   ],
 );
 
+export const displayTarget = pgEnum('display_target', ['none', 'channel', 'match', 'fixture']);
+export const displayCommand = pgEnum('display_command', ['reload', 'reboot', 'screenOff', 'screenOn']);
+
+/**
+ * Players for big screens (`display` in the code, «Player» on screen): a Raspberry Pi that opens `/schermo` with its
+ * token. What it shows is stored here (not on a link). A match or a match of the calendar that is deleted leaves the
+ * kind with a null id: the player shows the waiting screen (`displayTargetOf`), never something it was not given.
+ */
+export const displays = pgTable(
+  'displays',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: tenantId(),
+    name: text('name').notNull(),
+    /** sha256 hex of the token of the last `arenalive-player.json` downloaded; null: never downloaded. */
+    tokenHash: text('token_hash').unique(),
+    targetKind: displayTarget('target_kind').notNull().default('none'),
+    matchId: uuid('match_id').references(() => matches.id, { onDelete: 'set null' }),
+    clientFixtureId: uuid('client_fixture_id').references(() => clientFixtures.id, {
+      onDelete: 'set null',
+    }),
+    /** Command not executed yet (null: none); `commandSeq` is the number of the last one sent (0: never). */
+    command: displayCommand('command'),
+    commandSeq: integer('command_seq').notNull().default(0),
+    revoked: boolean('revoked').notNull().default(false),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+    lastIp: text('last_ip'),
+    /** Software and screen resolution of the last heartbeat. */
+    version: text('version'),
+    resolution: text('resolution'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('displays_tenant_idx').on(t.tenantId),
+    // Only the id of the kind chosen (a null id: deleted, see above).
+    check(
+      'displays_target_check',
+      sql`(${t.targetKind} = 'match' or ${t.matchId} is null) and (${t.targetKind} = 'fixture' or ${t.clientFixtureId} is null)`,
+    ),
+  ],
+);
+
 /**
  * One visit to a public page (statistics): kept 90 days, then only the totals of `view_daily` stay. No IP, no user
  * agent, no id of the spectator: the id of the visit lives only in the memory of the server until the visit ends.
@@ -831,4 +873,7 @@ export const schema = {
   pageViews,
   viewerPeaks,
   viewDaily,
+  displayTarget,
+  displayCommand,
+  displays,
 };

@@ -50,6 +50,9 @@ scripts/job.sh chiudi <ramo>              # toglie worktree e ramo dopo il merge
   `package.json` dei workspace restano a `0.0.0` (pacchetti privati, mai pubblicati; tenerli allineati sarebbe solo un
   secondo posto da dimenticare). Server (`dist/build-info.json`), portale (Vite), agente Node e agente C# la leggono da lì
   al build (`scripts/versione.mjs`), con il commit corto: `ARENALIVE_COMMIT` nei build Docker (non hanno `.git`) o `git`.
+  Accanto, il campo `arenalivePlayer` dello stesso `package.json` fissa la versione del **Player** (repository
+  `ArenaLive-Player`, che ha la sua versione) che la produzione scarica dalla sua release GitHub
+  (`scripts/pubblica-player-produzione.sh`); non è la versione di ArenaLive e la cambia una PR quando esce un nuovo Player.
 - **Ogni rilascio ha un tag annotato `vX.Y.Z` su `main`** e una release GitHub con le note del `CHANGELOG.md`; la
   produzione si aggiorna al tag (`scripts/aggiorna-produzione.sh vX.Y.Z`). Si sale di **patch** per correzioni, di
   **minor** per funzioni nuove compatibili, di **major** per cambi che rompono (contratti con gli agenti già installati,

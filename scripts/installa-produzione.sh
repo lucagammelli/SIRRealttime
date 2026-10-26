@@ -15,6 +15,7 @@ ADMIN_EMAIL="<email del superadmin iniziale>"
 ADMIN_PASSWORD=""                                  # vuota = generata e mostrata una sola volta; altrimenti almeno 12 caratteri tra lettere, cifre e @ % + = . , : ! _ -
 REPO_URL="git@github.com:lucagammelli/SIRRealttime.git"  # GitHub, pulsante «Code»: indirizzo SSH (repo privato) o https (repo pubblico)
 REPO_RIFERIMENTO="main"                            # ramo o tag da installare (GitHub, «Branches» / «Tags»)
+PLAYER_GITHUB_TOKEN=""                             # facoltativo: token GitHub fine-grained in sola lettura («Contents: read» solo sul repository lucagammelli/ArenaLive-Player) con cui aggiorna-produzione.sh scarica il Player; finisce solo in un file 0600 di root (FILE_TOKEN_PLAYER), mai in CONFIG_SISTEMA né nel registro. Vuoto = resta il token già salvato (o nessuno: il Player non si pubblica). Dopo l'installazione cancellalo da questo file
 CHIAVE_DEPLOY=""                                   # percorso di una chiave privata SSH di deploy già pronta sul server; vuoto = ne creo una io e ti mostro la parte pubblica da inserire su GitHub (Settings > Deploy keys, sola lettura)
 HOSTKEY_GITHUB_SHA256="SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU"  # impronta ed25519 del server git, da docs.github.com «GitHub's SSH key fingerprints» (controllala); vuota con repo https
 CARTELLA_INSTALLAZIONE="/opt/arenalive"         # dove sta il codice (e il file .env di produzione)
@@ -26,6 +27,7 @@ UTENTE_SERVIZIO="arenalive"                              # utente di sistema sen
 SPAZIO_MIN_GB="20"                                 # spazio libero minimo su /var/lib e su / (immagini Docker, database, build dell'agente: ~5 GB temporanei)
 MEMORIA_MIN_MB="1800"                              # RAM + swap minimi: la build del portale ne usa circa 1,5 GB
 DOCKER_GPG_FPR="9DC858229FC7DD38854AE2D88D81803C0EBFCD88"  # impronta della chiave apt di Docker, da docs.docker.com/engine/install/ubuntu
+FILE_TOKEN_PLAYER="/etc/arenalive/player-github-token"  # dove si salva PLAYER_GITHUB_TOKEN (0600, root); il percorso va in CONFIG_SISTEMA come PLAYER_GITHUB_TOKEN_FILE
 CONFIG_SISTEMA="/etc/arenalive/produzione.conf" # impostazioni non segrete lette da aggiorna-produzione.sh, backup e systemd
 LOG="/var/log/arenalive-installazione.log"      # registro di questa installazione
 
@@ -98,10 +100,11 @@ controlla_variabili() {
     if [[ -n "$ADMIN_PASSWORD" ]]; then
         password_valida "$ADMIN_PASSWORD" || fallisci "ADMIN_PASSWORD: almeno 12 caratteri tra lettere, cifre e @ % + = . , : ! _ -"
     fi
-    for v in CARTELLA_INSTALLAZIONE CARTELLA_BACKUP CONFIG_SISTEMA LOG; do
+    for v in CARTELLA_INSTALLAZIONE CARTELLA_BACKUP CONFIG_SISTEMA LOG FILE_TOKEN_PLAYER; do
         percorso_valido "${!v}" || fallisci "$v deve essere un percorso assoluto semplice (lettere, cifre, . _ - /)."
     done
     [[ -z "$CHIAVE_DEPLOY" ]] || percorso_valido "$CHIAVE_DEPLOY" || fallisci "CHIAVE_DEPLOY non è un percorso valido."
+    [[ -z "$PLAYER_GITHUB_TOKEN" || "$PLAYER_GITHUB_TOKEN" =~ ^[A-Za-z0-9_]{20,255}$ ]] || fallisci "PLAYER_GITHUB_TOKEN non ha il formato di un token GitHub."
     [[ "$REPO_URL" =~ ^[A-Za-z0-9@:/._~-]+$ ]] || fallisci "REPO_URL contiene caratteri non ammessi."
     [[ "$REPO_RIFERIMENTO" =~ ^[A-Za-z0-9._/-]+$ ]] || fallisci "REPO_RIFERIMENTO contiene caratteri non ammessi."
     [[ "$BACKUP_DA_TENERE" =~ ^[0-9]+$ && "$BACKUP_DA_TENERE" -ge 1 ]] || fallisci "BACKUP_DA_TENERE deve essere un intero >= 1."
@@ -305,8 +308,17 @@ BACKUP_DA_TENERE="$BACKUP_DA_TENERE"
 UTENTE_SERVIZIO="$UTENTE_SERVIZIO"
 REPO_RIFERIMENTO="$REPO_RIFERIMENTO"
 CHIAVE_DEPLOY_EFFETTIVA="$CHIAVE_EFFETTIVA"
+PLAYER_GITHUB_TOKEN_FILE="$FILE_TOKEN_PLAYER"
 CONF
     chmod 0644 "$CONFIG_SISTEMA"
+    # Token del Player: segreto, quindi in un file a parte leggibile solo da root (scritto senza passare da un comando esterno).
+    if [[ -n "$PLAYER_GITHUB_TOKEN" ]]; then
+        install -d -m 0755 "$(dirname "$FILE_TOKEN_PLAYER")"
+        (umask 077 && printf '%s\n' "$PLAYER_GITHUB_TOKEN" >"$FILE_TOKEN_PLAYER")
+        chown root:root "$FILE_TOKEN_PLAYER"
+        chmod 0600 "$FILE_TOKEN_PLAYER"
+        echo "Token GitHub del Player salvato in $FILE_TOKEN_PLAYER (permessi 600)."
+    fi
     install -d -m 0700 "$CARTELLA_BACKUP"
 }
 
@@ -485,6 +497,7 @@ riepilogo() {
  Backup:           $CARTELLA_BACKUP   (ogni giorno alle 03:30, ne restano $BACKUP_DA_TENERE per tipo)
                    Contengono anche il .env: copiali ogni tanto FUORI da questo server.
  Impostazioni:     $CONFIG_SISTEMA
+ Player:           $([[ -s "$FILE_TOKEN_PLAYER" ]] && echo "token GitHub in $FILE_TOKEN_PLAYER: aggiorna-produzione.sh pubblica il Player" || echo "nessun token GitHub (PLAYER_GITHUB_TOKEN): il Player non si pubblica da solo")
  Registro:         $LOG
 
  Aggiornare:       sudo $CARTELLA_INSTALLAZIONE/scripts/aggiorna-produzione.sh [ramo-o-tag]

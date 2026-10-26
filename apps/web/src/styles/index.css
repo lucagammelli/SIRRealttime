@@ -275,7 +275,7 @@
  * under it stays visible.
  */
 @media (orientation: landscape) and (max-height: 500px) {
-  .sir-score {
+  .sir-score:not(:is(:root.sir-tv, [data-tv-canvas]) *) {
     font-size: 2.5rem;
   }
 }

@@ -138,6 +138,15 @@ describe('page «Player»', () => {
         body: { target: { kind: 'channel' } },
       }),
     );
+    fireEvent.change(within(row).getByRole('combobox', { name: 'Cosa mostra' }), { target: { value: 'simulation' } });
+    await waitFor(() =>
+      expect(server.calls).toContainEqual({
+        url: `/api/admin/displays/${DISPLAY_ID}`,
+        method: 'PATCH',
+        body: { target: { kind: 'simulation' } },
+      }),
+    );
+    expect(within(row).getByText(/Mostra: Simulazione \(partita di prova del simulatore\)/)).toBeTruthy();
     fireEvent.click(within(row).getByRole('button', { name: 'Ricarica' }));
     await waitFor(() =>
       expect(server.calls).toContainEqual({

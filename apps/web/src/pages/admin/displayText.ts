@@ -47,7 +47,7 @@ export interface TargetChoice {
   target: DisplayTarget;
 }
 
-/** Pure: key of a target in the menu (`none`, `channel`, `m:<id>`, `f:<id>`). */
+/** Pure: key of a target in the menu (`none`, `channel`, `simulation`, `m:<id>`, `f:<id>`). */
 export function targetKey(t: DisplayTarget): string {
   if (t.kind === 'match') return `m:${t.matchId}`;
   if (t.kind === 'fixture') return `f:${t.clientFixtureId}`;
@@ -56,9 +56,11 @@ export function targetKey(t: DisplayTarget): string {
 
 export const NONE_TEXT = 'Nessuno (schermata di attesa con il logo)';
 export const CHANNEL_TEXT = 'Canale live del club';
+export const SIMULATION_TEXT = 'Simulazione (partita di prova del simulatore)';
 
 /**
- * Pure: what a player can show: nothing, the channel of the club, the matches of «Una partita fissa» of the public
+ * Pure: what a player can show: nothing, the channel of the club, the simulation of the client (the simulated match
+ * of the moment, page «Simulazione»; the waiting screen without one), the matches of «Una partita fissa» of the public
  * links (live now, then the coming ones of the calendar), then the other matches received (most recent first). The
  * current target of the player stays in the list even when it is no longer among them.
  */
@@ -72,6 +74,7 @@ export function targetChoices(input: {
   const out: TargetChoice[] = [
     { key: 'none', text: NONE_TEXT, target: { kind: 'none' } },
     { key: 'channel', text: CHANNEL_TEXT, target: { kind: 'channel' } },
+    { key: 'simulation', text: SIMULATION_TEXT, target: { kind: 'simulation' } },
   ];
   for (const c of fixedChoices(input))
     out.push({
@@ -100,6 +103,7 @@ export function targetChoices(input: {
 export function targetText(t: DisplayTarget, choices: readonly TargetChoice[] = []): string {
   if (t.kind === 'none') return 'Nessuno (attesa)';
   if (t.kind === 'channel') return CHANNEL_TEXT;
+  if (t.kind === 'simulation') return SIMULATION_TEXT;
   const known = choices.find((c) => c.key === targetKey(t));
   if (known) return known.text;
   return t.kind === 'match' ? 'Partita scelta' : 'Partita del calendario scelta';

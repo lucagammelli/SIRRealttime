@@ -183,6 +183,13 @@
       "when": 1792998431141,
       "tag": "0025_player",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793022717779,
+      "tag": "0026_player_simulazione",
+      "breakpoints": true
     }
   ]
 }

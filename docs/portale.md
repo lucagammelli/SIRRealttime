@@ -571,7 +571,8 @@ per riga, come farebbe l'agente (`docs/server.md`, «Simulazione di una partita�
 - **«Link della simulazione»** (sottotitolo «Aprilo sulla TV, sul tablet o sul telefono.»): link breve `/l/<codice>` con
   QR (`ShareQr`). Mostra la simulazione con la grafica del cliente (pause, avvisi, diapositive, punti in sequenza). Il
   link resta lo stesso per le simulazioni successive del cliente e si cancella con la partita; non compare in «Link
-  pubblici».
+  pubblici». Sotto, il rimando «Per mostrarla su un maxischermo, scegli Simulazione nel Player.»
+  (`SIMULATION_PLAYER_TEXT`).
 - **Etichetta sulla pagina pubblica**: sul link della simulazione, in basso a sinistra, sopra a tutto (pause e diapositive
   a tutto schermo comprese), su TV, tablet e telefono, compare l'etichetta **«Simulazione»** (`SimulationLabel` in
   `components/LiveMatch.tsx`, testo `SIMULATION_LABEL`, `data-testid="simulation-label"`), mostrata quando lo stato
@@ -863,9 +864,11 @@ viewer vede la lista ma non può modificare, `READ_ONLY_TEXT`). La lista si rile
   «Non in linea · visto …», «Mai collegato» (configurato ma mai visto), «Da configurare» (nessun file scaricato),
   «Revocato»; sotto «Mostra: …», versione, risoluzione dello schermo, IP (solo admin), data di creazione e, se c'è,
   «Comando in attesa: …».
-- «Cosa mostra»: «Nessuno (schermata di attesa con il logo)», «Canale live del club», poi le scelte di `fixedChoices` di
-  `ShareLinksPage` («Partita: …» e «Calendario: …») e le altre partite ricevute (`targetChoices`). Il cambio vale subito
-  sulle pagine aperte.
+- «Cosa mostra»: «Nessuno (schermata di attesa con il logo)», «Canale live del club», «Simulazione (partita di prova del
+  simulatore)» (`SIMULATION_TEXT`: segue la simulazione del momento della pagina «Simulazione», senza partita fissa;
+  senza simulazione la schermata di attesa), poi le scelte di `fixedChoices` di `ShareLinksPage` («Partita: …» e
+  «Calendario: …») e le altre partite ricevute (`targetChoices`). Il cambio vale subito sulle pagine aperte. La scelta
+  «Simulazione» c'è solo qui, non nei link pubblici (la simulazione ha già il suo link).
 - Comandi: «Ricarica», «Riavvia» (con conferma «Conferma riavvio»), «Spegni schermo» e «Accendi schermo».
 - «Scarica configurazione» (`ConfigDownload`): avviso «Il download precedente smette di valere» (la scheda SD preparata
   prima smette di funzionare), campi facoltativi «Rete Wi-Fi (facoltativa)» (vuota: cavo), «Password del Wi-Fi» (8-63

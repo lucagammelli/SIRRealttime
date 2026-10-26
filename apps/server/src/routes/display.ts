@@ -14,7 +14,13 @@ import { AgentReleaseStore, PLAYER_FILES } from '../agentRelease.js';
 import type { AppContext } from '../context.js';
 import { perMinute, SERVER_FULL_RETRY_AFTER_S } from '../context.js';
 import { displays } from '../db/index.js';
-import { acknowledgeCommand, hubTargetOf, showDisplay } from '../displays.js';
+import {
+  acknowledgeCommand,
+  displayTargetOf,
+  freshDisplayTarget,
+  resolveDisplayTarget,
+  showDisplay,
+} from '../displays.js';
 import { HttpError, notFound, serverFull, tooManyRequests, unauthorized } from '../lib/errors.js';
 import { hashToken } from '../lib/tokens.js';
 import { validate } from '../lib/validate.js';
@@ -141,15 +147,20 @@ export function displayRoutes(app: FastifyInstance, ctx: AppContext): void {
             return;
           }
           const hash = hashToken(auth.data.token);
+          const target = await resolveDisplayTarget(ctx, row);
+          if (socket.readyState !== socket.OPEN) return;
           attachLiveSocket(
             ctx,
             {
               socket,
-              target: hubTargetOf(row),
+              target,
               grant: { kind: 'display', displayId: row.id },
               expiresAt: null,
               encoding: encodingOf(request.query),
               ip,
+              // At every resync the player follows what it shows now (the simulation of the moment, too).
+              // The same read of a change of target, so a resync never puts back an older target.
+              resolveTarget: () => freshDisplayTarget(ctx, row.id),
             },
             log,
           );
@@ -175,7 +186,8 @@ export function displayRoutes(app: FastifyInstance, ctx: AppContext): void {
             return;
           }
           // A change of target in the same moment did not reach this socket either.
-          if (JSON.stringify(hubTargetOf(fresh)) !== JSON.stringify(hubTargetOf(row))) showDisplay(ctx, fresh, log);
+          if (JSON.stringify(displayTargetOf(fresh)) !== JSON.stringify(displayTargetOf(row)))
+            await showDisplay(ctx, fresh, log);
         })().catch((err: unknown) => {
           log.error({ err }, 'autenticazione del player non riuscita');
           socket.close(1011);

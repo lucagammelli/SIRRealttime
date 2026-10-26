@@ -520,6 +520,44 @@ describe('migration 0025: players for big screens', () => {
   });
 });
 
+describe('migration 0026: a player that follows the simulation', () => {
+  it('accepts the target «simulation» without an id, and is undone back to «Nessuno»', async () => {
+    const client = new PGlite();
+    cleanup.push(() => client.close());
+    const db = drizzle({ client, schema });
+    await migrate(db, { migrationsFolder: await migrationsUpTo('0025_player') });
+    const [tenant] = await db.select({ id: tenants.id }).from(tenants);
+    if (!tenant) throw new Error('no tenant');
+    await db.insert(displays).values({ tenantId: tenant.id, name: 'Prima' });
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    const [match] = await db
+      .insert(matches)
+      .values({ tenantId: tenant.id, matchKey: 's', simulated: true })
+      .returning({ id: matches.id });
+    if (!match) throw new Error('no match');
+    await db.insert(displays).values({ tenantId: tenant.id, name: 'Prova', targetKind: 'simulation' });
+    // Never with an id: it follows the simulation of the moment.
+    await expect(
+      db.insert(displays).values({ tenantId: tenant.id, name: 'x', targetKind: 'simulation', matchId: match.id }),
+    ).rejects.toThrow();
+    const sqlText = await readFile(join(MIGRATIONS_FOLDER, '0026_player_simulazione.sql'), 'utf8');
+    const down = /^-- Reversibile[^:]*: (.*)$/m.exec(sqlText)?.[1];
+    expect(down).toBeDefined();
+    await client.exec(down ?? '');
+    const kinds = await client.query<{ name: string; target_kind: string }>(
+      'select name, target_kind from displays order by name',
+    );
+    expect(kinds.rows).toEqual([
+      { name: 'Prima', target_kind: 'none' },
+      { name: 'Prova', target_kind: 'none' },
+    ]);
+    await expect(client.exec(`update displays set target_kind = 'simulation'`)).rejects.toThrow();
+    await expect(
+      client.query(`update displays set target_kind = 'channel', match_id = $1 where name = 'Prova'`, [match.id]),
+    ).rejects.toThrow();
+  });
+});
+
 describe('seed', () => {
   const config = (env: Record<string, string> = {}) =>
     loadConfig({

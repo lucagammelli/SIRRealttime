@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Aggiorna ArenaLive in produzione: backup, scarica il ramo o tag, build, avvio (le migrazioni del database
 # girano all'avvio del server), verifica della salute. Se la verifica fallisce torna alla versione precedente.
+# Poi pubblica l'agente per Windows e il Player (versione fissata nel package.json, dalla release GitHub del Player).
 # Lo usa anche installa-produzione.sh per la prima installazione.
 # Uso (come root):  scripts/aggiorna-produzione.sh [ramo-o-tag]     (senza argomento: REPO_RIFERIMENTO di CONFIG_SISTEMA)
 # Log: /var/log/arenalive-aggiornamento.log
@@ -111,9 +112,10 @@ principale() {
         # Libera il disco: immagini non più usate (le versioni precedenti) e cache di build più vecchia di 7 giorni.
         docker image prune -f >/dev/null || true
         docker builder prune -f --filter until=168h >/dev/null || true
-        echo "5/5 Aggiornamento riuscito. Agente scaricabile dal portale:"
-        # Non critico: un errore qui non annulla l'aggiornamento (il portale dice solo che l'agente non è pubblicato).
+        echo "5/5 Aggiornamento riuscito. Agente e Player scaricabili dal portale:"
+        # Non critici: un errore qui non annulla l'aggiornamento (il portale dice solo che l'agente o il Player non è pubblicato).
         bash "$CARTELLA_INSTALLAZIONE/scripts/pubblica-agente-produzione.sh" || echo "ATTENZIONE: agente non pubblicato (vedi sopra); riprova con scripts/pubblica-agente-produzione.sh --forza" >&2
+        bash "$CARTELLA_INSTALLAZIONE/scripts/pubblica-player-produzione.sh" || echo "ATTENZIONE: Player non pubblicato (vedi sopra); riprova con scripts/pubblica-player-produzione.sh --forza" >&2
         return 0
     fi
 

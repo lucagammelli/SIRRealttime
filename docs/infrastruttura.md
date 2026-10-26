@@ -131,7 +131,8 @@ binario della piattaforma come dipendenza opzionale.
   La stessa cartella ospita il software dei Player (`arenalive-player.deb` e `arenalive-player.json`) e l'immagine della
   scheda SD: il manifest `arenalive-player-image.json` più i tre pezzi gzip `arenalive-player-image-1.gz`, `-2.gz`, `-3.gz`
   (formato 2, da cui il server compone l'immagine pronta per ogni player) oppure, nel formato 1, `arenalive-player.img.xz`.
-  Sono costruiti dal repository `ArenaLive-Player` e copiati con i suoi script `pubblica-sul-server.sh` e
+  Sono costruiti dal repository `ArenaLive-Player`: in produzione li pubblica `scripts/pubblica-player-produzione.sh`
+  (passo 8b) dalla release GitHub del Player; a mano restano i suoi script `pubblica-sul-server.sh` e
   `pubblica-immagine-sul-server.sh` (quest'ultimo copia pezzi e manifest; durante la copia il server, che controlla
   dimensione e sha256 di ogni pezzo contro il manifest, vede un insieme misto e dice «non pubblicata»). nginx passa i download dell'immagine senza buffer su disco
   (`proxy_buffering off`): `location = /api/admin/player/image` (generica) e `location ^~ /api/admin/displays/image/`
@@ -386,6 +387,7 @@ un editor). Aprilo e compila **solo** il blocco `--- variabili ---` in alto; ogn
 | `ADMIN_PASSWORD` | vuota = generata e mostrata una volta; altrimenti almeno 12 caratteri tra lettere, cifre e `@ % + = . , : ! _ -` | scelta tua |
 | `REPO_URL` | indirizzo SSH (repo privato) o https (pubblico) | GitHub, pulsante «Code» |
 | `REPO_RIFERIMENTO` | ramo o tag da installare (default `main`) | GitHub, «Branches» o «Tags» |
+| `PLAYER_GITHUB_TOKEN` | facoltativo: token GitHub in sola lettura sul repository del Player, per pubblicarlo da solo (passo 8b). Va solo nel file `FILE_TOKEN_PLAYER` (600, root), mai in `CONFIG_SISTEMA`; vuoto = resta quello già salvato. Dopo l'installazione cancellalo dallo script | GitHub, passo 8b |
 | `CHIAVE_DEPLOY` | percorso di una chiave privata SSH già sul server; vuoto = ne crea una lo script | di norma vuoto |
 | `HOSTKEY_GITHUB_SHA256` | impronta ed25519 di GitHub; già compilata, controllala | docs.github.com, «GitHub's SSH key fingerprints»; vuota con repo https |
 | `CARTELLA_INSTALLAZIONE` | dove sta il codice e il `.env` (default `/opt/arenalive`) | scelta tua |
@@ -396,6 +398,7 @@ un editor). Aprilo e compila **solo** il blocco `--- variabili ---` in alto; ogn
 | `UTENTE_SERVIZIO` | utente di sistema senza login, proprietario di codice e chiave (default `arenalive`) | scelta tua |
 | `SPAZIO_MIN_GB`, `MEMORIA_MIN_MB` | soglie minime (default 20 e 1800) | di norma non si toccano |
 | `DOCKER_GPG_FPR` | impronta della chiave apt di Docker; già compilata | docs.docker.com/engine/install/ubuntu |
+| `FILE_TOKEN_PLAYER` | dove si salva `PLAYER_GITHUB_TOKEN` (default `/etc/arenalive/player-github-token`); va in `CONFIG_SISTEMA` come `PLAYER_GITHUB_TOKEN_FILE` | di norma non si tocca |
 | `CONFIG_SISTEMA`, `LOG` | file delle impostazioni non segrete e registro dell'installazione | di norma non si toccano |
 
 Poi si lancia come root:
@@ -514,7 +517,7 @@ tag (le migrazioni del database non tornano indietro: vedi sotto).
 Senza argomento usa `REPO_RIFERIMENTO` di `/etc/arenalive/produzione.conf`. Passi (registro
 `/var/log/arenalive-aggiornamento.log`): 1) backup `pre-aggiornamento`, 2) scarica ramo o tag, 3) build e avvio (le
 migrazioni del database girano all'avvio del server), 4) attesa che `postgres`, `server` e `web` siano «healthy» e che
-`/api/health` risponda (fino a `ATTESA_SALUTE_SECONDI`, default 300), 5) pubblica l'agente (passo 8). A aggiornamento riuscito
+`/api/health` risponda (fino a `ATTESA_SALUTE_SECONDI`, default 300), 5) pubblica l'agente (passo 8) e il Player (passo 8b). A aggiornamento riuscito
 libera il disco (`docker image prune -f` e cache di build più vecchia di 7 giorni). Un solo aggiornamento alla volta (lock).
 
 **Rollback automatico e suoi limiti.** Se la nuova versione non diventa sana lo script torna al commit precedente,
@@ -657,6 +660,56 @@ cd "$CARTELLA_INSTALLAZIONE"
 sudo scripts/pubblica-agente-produzione.sh $FORZA
 ```
 
+### 8b. Player pubblicato da solo
+`scripts/pubblica-player-produzione.sh` pubblica nella stessa cartella `AGENT_DOWNLOAD_HOST_DIR` (per il server
+`PLAYER_DOWNLOAD_DIR`) il software dei Player: `arenalive-player.deb` con `arenalive-player.json` e l'immagine della scheda SD
+nel formato 2 (`arenalive-player-image-{1,2,3}.gz` con `arenalive-player-image.json`). Lo chiama `aggiorna-produzione.sh`
+dopo l'agente; un suo errore stampa un avviso e **non annulla l'aggiornamento**.
+- **Versione**: quella del campo `arenalivePlayer` del `package.json` alla radice, accanto a `version`. Si fissa con una PR
+  in ArenaLive; vuota o assente, lo script non fa nulla.
+- **Già pubblicato**: se i due manifest sono già di quella versione e `.deb` e pezzi hanno dimensione e sha256 dei manifest,
+  esce subito (`--forza` scarica di nuovo).
+- **Da dove**: gli allegati della release `vX.Y.Z` del repository privato `lucagammelli/ArenaLive-Player` (li crea
+  `scripts/rilascia.sh` del Player), letti con l'API di GitHub e il token del file `PLAYER_GITHUB_TOKEN_FILE`
+  (in `/etc/arenalive/produzione.conf`, default `/etc/arenalive/player-github-token`). Senza token stampa un avviso e non fa
+  nulla. Il token passa a `curl` dallo standard input (`--config -`): mai negli argomenti (`ps`), negli URL o nel registro;
+  sui redirect verso un altro host (i file stanno su `objects.githubusercontent.com`) `curl` non lo manda.
+- **Come**: scarica in una cartella temporanea dentro quella dei download (stesso filesystem), dopo aver controllato lo spazio
+  libero (somma degli allegati più 200 MB). Prende solo gli allegati con i nomi fissi. Controlla versione, dimensione e sha256
+  del `.deb` e dei tre pezzi contro i manifest scaricati. Poi sposta, con `mv` atomici, prima i pezzi e poi il manifest
+  dell'immagine, prima il `.deb` e poi il suo manifest. Solo alla fine toglie `arenalive-player.img.xz` del formato 1.
+  Se un controllo fallisce, la cartella pubblicata resta com'era.
+
+**Token GitHub** (una volta sola; il repository del Player è privato):
+1. GitHub, foto del profilo > **Settings** > **Developer settings** > **Personal access tokens** > **Fine-grained tokens** >
+   **Generate new token**.
+2. Nome `arenalive-produzione-player`, scadenza a scelta (alla scadenza ne serve uno nuovo), **Resource owner** `lucagammelli`.
+3. **Repository access**: **Only select repositories** > `lucagammelli/ArenaLive-Player`.
+4. **Permissions** > **Repository permissions** > **Contents**: **Read-only** (resta anche **Metadata: Read-only**,
+   obbligatorio). Nient'altro.
+5. **Generate token** e copialo (si vede una volta sola): va nella variabile `TOKEN` dello script qui sotto, sul server.
+
+```bash
+# --- variabili ---
+TOKEN="<token fine-grained di GitHub, inizia con github_pat_>"   # passo 5 qui sopra
+FILE_TOKEN="/etc/arenalive/player-github-token"                     # PLAYER_GITHUB_TOKEN_FILE di /etc/arenalive/produzione.conf
+CARTELLA_INSTALLAZIONE="/opt/arenalive"                             # la stessa dell'installazione
+FORZA=""                                                            # "--forza" = scarica anche se il Player è già pubblicato
+
+# --- comandi ---
+sudo install -d -m 0755 "$(dirname "$FILE_TOKEN")"
+printf '%s\n' "$TOKEN" | sudo install -m 0600 -o root -g root /dev/stdin "$FILE_TOKEN"
+cd "$CARTELLA_INSTALLAZIONE"
+sudo scripts/pubblica-player-produzione.sh $FORZA
+```
+In alternativa il token si dà a `installa-produzione.sh` con `PLAYER_GITHUB_TOKEN` (passo 2). Per cambiarlo si rilancia lo
+script qui sopra con il nuovo; per toglierlo: `sudo rm /etc/arenalive/player-github-token`.
+
+**Flusso di un rilascio del Player**: `scripts/rilascia.sh X.Y.Z` nel repository del Player (macchina di build: tag e
+release con gli allegati) → in ArenaLive `"arenalivePlayer": "X.Y.Z"` nel `package.json` (PR) → rilascio di ArenaLive
+(`scripts/rilascia.sh` avvisa, senza fermarsi, se su GitHub manca la release del Player a quella versione) →
+`aggiorna-produzione.sh vA.B.C`, che pubblica anche il Player. I player installati si aggiornano al heartbeat successivo.
+
 ### 9. Log e controlli
 ```bash
 # --- variabili ---
@@ -686,11 +739,13 @@ di un cliente anche hostname non assegnato in «Clienti», passo 7).
 | `scripts/aggiorna-produzione.sh` | backup, aggiornamento, verifica di salute, rollback del codice |
 | `scripts/backup-produzione.sh` | backup con rotazione (timer systemd e prima degli aggiornamenti) |
 | `scripts/pubblica-agente-produzione.sh` | costruisce e pubblica l'agente scaricabile |
+| `scripts/pubblica-player-produzione.sh` | scarica dalla release GitHub del Player e pubblica `.deb` e immagine della scheda SD (passo 8b) |
 | `scripts/ripristina-produzione.sh` | porta in una nuova installazione i dati della vecchia (database, immagini, segreti, hostname) |
 | `docker/compose.produzione.yml` | sovrapposizione a `docker-compose.yml`: Caddy, nessuna porta di server e web, log a rotazione, sottoreti fisse `172.29.250.0/24` e `fd29:250::/64` (IPv6) |
 | `docker/Caddyfile` | HTTPS automatico per `ARENALIVE_HOSTNAMES` (Let's Encrypt o CA interna, secondo `ARENALIVE_TLS_MODE`) e on demand per gli hostname dei clienti (`ask` al server), redirect 80 → 443, header HSTS, nessun access log |
 | `docker/web.realip.conf` | nginx si fida di `X-Forwarded-For` solo dalla sottorete di Caddy (IP vero per rate limit) |
-| `/etc/arenalive/produzione.conf` | impostazioni non segrete lette dagli script e da systemd |
+| `/etc/arenalive/produzione.conf` | impostazioni non segrete lette dagli script e da systemd (anche `PLAYER_GITHUB_TOKEN_FILE`) |
+| `/etc/arenalive/player-github-token` | token GitHub in sola lettura per il Player (600, root; facoltativo, passo 8b) |
 | `arenalive.service`, `arenalive-backup.service`, `arenalive-backup.timer` | unit systemd (avvio automatico, backup 03:30) |
 
 Il `.env` di produzione lo crea lo script (permessi 600) e **non lo sovrascrive mai**: aggiunge solo le variabili mancanti.
@@ -718,7 +773,7 @@ Dopo l'installazione le altre variabili del server (`docs/server.md`) si cambian
 
 ## Riferimenti
 - `scripts/installa-produzione.sh`, `scripts/aggiorna-produzione.sh`, `scripts/backup-produzione.sh`,
-  `scripts/pubblica-agente-produzione.sh`, `scripts/ripristina-produzione.sh`, `docker/compose.produzione.yml`, `docker/Caddyfile`, `docker/web.realip.conf`
+  `scripts/pubblica-agente-produzione.sh`, `scripts/pubblica-player-produzione.sh`, `scripts/ripristina-produzione.sh`, `docker/compose.produzione.yml`, `docker/Caddyfile`, `docker/web.realip.conf`
 - `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`
 - `tsconfig.base.json`, `packages/*/tsconfig.json`, `packages/*/tsconfig.build.json`
 - `vitest.shared.ts`, `packages/*/vitest.config.ts`

@@ -7,6 +7,7 @@
 #   2) scripts/rilascia.sh --tagga X.Y.Z    dopo il merge: controlla che main contenga la versione, crea il tag
 #                                           annotato vX.Y.Z, lo pubblica e crea la release GitHub con le note del CHANGELOG.
 # Con --prova fa solo i controlli e mostra cosa farebbe, senza cambiare nulla (né file, né rami, né GitHub).
+# Avvisa (senza fermarsi) se su GitHub manca la release del Player alla versione fissata nel campo "arenalivePlayer".
 # Poi, in produzione (come root):  scripts/aggiorna-produzione.sh vX.Y.Z
 # Serve: git, gh (autenticato con `gh auth login`), node, accesso in scrittura a origin.
 
@@ -17,6 +18,7 @@ RAMO_PRINCIPALE="main"                                      # ramo da cui si ril
 FILE_CHANGELOG="CHANGELOG.md"                               # elenco delle versioni, in italiano
 CARTELLA_WORKTREE="$RADICE/.claude/worktrees"               # dove si crea il worktree del ramo di rilascio (esclusa da git)
 CO_AUTORE="Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"   # riga finale del commit
+REPO_PLAYER="lucagammelli/ArenaLive-Player"                  # repository del Player: la sua release vX.Y.Z (campo "arenalivePlayer" del package.json) la scarica la produzione
 FIRMA_PR="🤖 Generated with [Claude Code](https://claude.com/claude-code)"   # riga finale della PR
 
 # --- codice ---
@@ -133,9 +135,24 @@ note_versione() {
         }' "$1"
 }
 
+# Avviso, mai un errore: la release del Player alla versione fissata in $1 (contenuto di un package.json) deve esistere
+# su GitHub, altrimenti aggiorna-produzione.sh non riesce a pubblicarlo (il resto dell'aggiornamento va avanti).
+controlla_player() {
+    local player
+    player="$(printf '%s' "$1" | node -e 'let t="";process.stdin.on("data",d=>t+=d).on("end",()=>console.log(JSON.parse(t).arenalivePlayer ?? ""))')" || player=""
+    if [[ -z "$player" ]]; then
+        echo "ATTENZIONE: nessuna versione del Player fissata nel package.json (campo arenalivePlayer): la produzione non lo pubblica." >&2
+    elif gh release view "v$player" --repo "$REPO_PLAYER" >/dev/null 2>&1; then
+        echo "Player: release v$player di $REPO_PLAYER presente."
+    else
+        echo "ATTENZIONE: su GitHub manca la release v$player di $REPO_PLAYER (o gh non la vede): in produzione il Player non si aggiornerà finché non la crei con scripts/rilascia.sh del Player." >&2
+    fi
+}
+
 prepara() {
     controlla_main
     controlla_versione_nuova
+    controlla_player "$(cat "$RADICE/package.json")"
     local ramo="rilascio-$VERSIONE" cartella
     cartella="$CARTELLA_WORKTREE/$ramo"
     git rev-parse -q --verify "refs/heads/$ramo" >/dev/null && errore "il ramo locale $ramo esiste già"
@@ -195,6 +212,7 @@ tagga() {
     if [[ -n "$ultimo" ]] && ! maggiore "$VERSIONE" "${ultimo#v}"; then
         errore "la versione $VERSIONE deve essere maggiore dell'ultimo tag ($ultimo)"
     fi
+    controlla_player "$(git show "HEAD:package.json")"
     local note
     note="$(note_versione "$FILE_CHANGELOG" "$VERSIONE")"
     [[ -n "$note" ]] || errore "nessuna sezione [$VERSIONE] in $FILE_CHANGELOG"

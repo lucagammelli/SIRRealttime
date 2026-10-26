@@ -25,6 +25,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import { comingFixtures, ourTeamForManual } from '../club.js';
 import type { AppContext } from '../context.js';
 import { matches, shareTokens } from '../db/index.js';
+import { refreshSimulationDisplays } from '../displays.js';
 import type { IngestSource } from '../ingest.js';
 import { applyIngest } from '../ingest.js';
 import { conflict, notFound } from '../lib/errors.js';
@@ -232,6 +233,8 @@ export class SimulationService {
       await this.enqueue(session, () => this.snapshot(session, this.dueCount(session)));
       if (!session.matchId) throw new Error('simulated match not created');
       await this.ensureLink(session);
+      // The players on «Simulazione» follow this match (a new one, or the same one used again) at once.
+      await refreshSimulationDisplays(this.ctx, tenantId, this.log);
       this.log.info({ tenantId, matchId: session.matchId, source: request.source.kind }, 'simulazione avviata');
       this.schedule(session);
       return await this.describe(tenantId);
@@ -336,7 +339,7 @@ export class SimulationService {
    */
   private async deleteMatches(where: SQL | undefined): Promise<number> {
     const doomed = await this.ctx.db
-      .select({ id: matches.id })
+      .select({ id: matches.id, tenantId: matches.tenantId })
       .from(matches)
       .where(and(eq(matches.simulated, true), where));
     if (doomed.length === 0) return 0;
@@ -352,6 +355,9 @@ export class SimulationService {
     for (const r of rows) this.ctx.hub.forgetMatch(r.id);
     this.ctx.caches.shares.deleteWhere((share) => share.matchId !== null && ids.includes(share.matchId));
     for (const link of links) this.closeLink(link.id);
+    // Their players on «Simulazione» go to the waiting screen (or to a simulated match still there).
+    for (const tenantId of new Set(doomed.map((r) => r.tenantId)))
+      await refreshSimulationDisplays(this.ctx, tenantId, this.log);
     return rows.length;
   }
 

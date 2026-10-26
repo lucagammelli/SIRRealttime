@@ -384,7 +384,8 @@ apre `/schermo#<token>` e parla con il server in due modi: HTTP con Bearer per i
   senza `/` finale, `token`, `name`, `wifi` facoltativo) con `DisplayWifiSchema` (`ssid` fino a 32, `password` 8-63 facoltativa,
   `country` di due lettere maiuscole). Il Wi-Fi esiste solo nel file scaricato o nello slot dell'immagine pronta, mai nel database.
 - Bersaglio e comandi: `DisplayTargetSchema` (`none`, `channel`, `match` con `matchId`, `fixture` con `clientFixtureId`: gli
-  stessi casi dei link pubblici, ma salvati sul player e non su un link) e `DisplayCommandSchema` (`reload`, `reboot`,
+  stessi casi dei link pubblici, ma salvati sul player e non su un link; più `simulation`, senza id, che segue la
+  simulazione del cliente di quel momento o mostra l'attesa) e `DisplayCommandSchema` (`reload`, `reboot`,
   `screenOff`, `screenOn`).
 - Rotte admin: `DisplaySummarySchema` (mai il token: solo `configured`; `lastIp` nullo per un viewer),
   `CreateDisplayRequestSchema`, `UpdateDisplayRequestSchema` (nome e/o bersaglio, almeno uno), `DisplayCommandRequestSchema`,

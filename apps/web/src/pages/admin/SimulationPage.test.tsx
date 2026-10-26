@@ -2,7 +2,7 @@ import type { SimulationResponse, SimulationSummary } from '@arenalive/shared';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderAs } from '../../test/adminPage.tsx';
-import { formatClock, paceText, SimulationPage } from './SimulationPage.tsx';
+import { formatClock, paceText, SIMULATION_PLAYER_TEXT, SimulationPage } from './SimulationPage.tsx';
 
 const MATCH = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
 
@@ -77,6 +77,7 @@ describe('«Simulazione» page', () => {
     });
     expect(screen.getByText('In corso')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'http://portale.test/l/K7M2QX9P' })).toBeTruthy();
+    expect(screen.getByText(SIMULATION_PLAYER_TEXT)).toBeTruthy();
     // One at a time: the form waits for the end of this one.
     expect(screen.getByRole('button', { name: 'Avvia' }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByText(/Una simulazione alla volta/)).toBeTruthy();

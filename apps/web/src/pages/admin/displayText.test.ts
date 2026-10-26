@@ -2,6 +2,7 @@ import type { ClubFixture, DisplaySummary, MatchSummary } from '@arenalive/share
 import { describe, expect, it } from 'vitest';
 import {
   CHANNEL_TEXT,
+  SIMULATION_TEXT,
   DISPLAY_ONLINE_MS,
   displayOnline,
   displayStateText,
@@ -62,7 +63,7 @@ describe('state of a player', () => {
 });
 
 describe('what a player shows', () => {
-  it('offers nothing, the channel and the matches, keeping the current target', () => {
+  it('offers nothing, the channel, the simulation and the matches, keeping the current target', () => {
     const live = match({ id: '0b8e8a8e-3c55-4b8a-8c2e-4b7f1b0d9e22', live: true, status: 'inProgress' });
     const choices = targetChoices({
       fixtures: [] as ClubFixture[],
@@ -71,11 +72,21 @@ describe('what a player shows', () => {
       now: NOW,
       current: { kind: 'fixture', clientFixtureId: ID },
     });
-    expect(choices.map((c) => c.key)).toEqual(['none', 'channel', `m:${live.id}`, `m:${match().id}`, `f:${ID}`]);
+    expect(choices.map((c) => c.key)).toEqual([
+      'none',
+      'channel',
+      'simulation',
+      `m:${live.id}`,
+      `m:${match().id}`,
+      `f:${ID}`,
+    ]);
     expect(choices[0]?.text).toBe(NONE_TEXT);
-    expect(choices[2]?.text).toBe('Partita: In diretta: Perugia – Trento');
-    expect(choices[3]?.text).toMatch(/^Partita: Perugia – Trento · /);
+    expect(choices[2]?.text).toBe(SIMULATION_TEXT);
+    expect(choices[3]?.text).toBe('Partita: In diretta: Perugia – Trento');
+    expect(choices[4]?.text).toMatch(/^Partita: Perugia – Trento · /);
     expect(targetText({ kind: 'channel' })).toBe(CHANNEL_TEXT);
+    expect(targetText({ kind: 'simulation' })).toBe(SIMULATION_TEXT);
+    expect(targetKey({ kind: 'simulation' })).toBe('simulation');
     expect(targetText({ kind: 'match', matchId: live.id }, choices)).toBe('Partita: In diretta: Perugia – Trento');
     expect(targetText({ kind: 'fixture', clientFixtureId: ID })).toBe('Partita del calendario scelta');
     expect(targetKey({ kind: 'none' })).toBe('none');

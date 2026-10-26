@@ -23,15 +23,17 @@ export const DISPLAY_CONFIG_VERSION = 1;
 export const DisplayTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{20,200}$/);
 
 /**
- * What a player shows: nothing (waiting screen with the logo of the client), the channel of the club, one match, or
- * one match of the calendar (the same cases of the public links, `targetOf` of the server). Stored on the player, not
- * on a link: revoking a link never switches a big screen off.
+ * What a player shows: nothing (waiting screen with the logo of the client), the channel of the club, one match, one
+ * match of the calendar (the same cases of the public links, `targetOf` of the server), or the simulation of the
+ * client (`simulation`: the simulated match of the moment, which changes with every new simulation; the waiting screen
+ * when there is none). Stored on the player, not on a link: revoking a link never switches a big screen off.
  */
 export const DisplayTargetSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('none') }),
   z.strictObject({ kind: z.literal('channel') }),
   z.strictObject({ kind: z.literal('match'), matchId: z.uuid() }),
   z.strictObject({ kind: z.literal('fixture'), clientFixtureId: z.uuid() }),
+  z.strictObject({ kind: z.literal('simulation') }),
 ]);
 export type DisplayTarget = z.infer<typeof DisplayTargetSchema>;
 

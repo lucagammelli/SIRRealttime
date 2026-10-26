@@ -362,8 +362,27 @@ export function encodingOf(query: unknown): FrameEncoding {
 export function attachLiveSocket(ctx: AppContext, sub: Subscriber, log: FastifyBaseLogger): void {
   const { socket, target } = sub;
   ctx.hub.add(sub);
-  // The target of a player changes with the choice of the admin (`setTarget`): always the current one.
-  const sendCurrent = (): void => sendLive(ctx, socket, ctx.hub.targetOf(socket) ?? target, log);
+  // The target of a player changes with the choice of the admin (`setTarget`): always the current one, read again
+  // when the socket can do it (`resolveTarget`).
+  const resolve = sub.resolveTarget;
+  const sendCurrent = (): void => {
+    if (!resolve) {
+      sendLive(ctx, socket, ctx.hub.targetOf(socket) ?? target, log);
+      return;
+    }
+    resolve().then(
+      (fresh) => {
+        const now = ctx.hub.targetOf(socket);
+        if (!now) return;
+        if (fresh && JSON.stringify(fresh) !== JSON.stringify(now)) ctx.hub.setTarget(socket, fresh);
+        sendLive(ctx, socket, ctx.hub.targetOf(socket) ?? now, log);
+      },
+      (err: unknown) => {
+        log.error({ err }, 'stato non disponibile');
+        ctx.hub.send(socket, { type: 'error', message: 'Errore interno' });
+      },
+    );
+  };
   const resync = ctx.resync.forSocket(sub.ip ?? null, () => {
     ctx.hub.forget(socket);
     sendCurrent();

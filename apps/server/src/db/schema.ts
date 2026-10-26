@@ -717,13 +717,14 @@ export const clientFixtures = pgTable(
   ],
 );
 
-export const displayTarget = pgEnum('display_target', ['none', 'channel', 'match', 'fixture']);
+export const displayTarget = pgEnum('display_target', ['none', 'channel', 'match', 'fixture', 'simulation']);
 export const displayCommand = pgEnum('display_command', ['reload', 'reboot', 'screenOff', 'screenOn']);
 
 /**
  * Players for big screens (`display` in the code, «Player» on screen): a Raspberry Pi that opens `/schermo` with its
  * token. What it shows is stored here (not on a link). A match or a match of the calendar that is deleted leaves the
  * kind with a null id: the player shows the waiting screen (`displayTargetOf`), never something it was not given.
+ * `simulation` has no id: it follows the simulated match of the client of the moment (`resolveDisplayTarget`).
  */
 export const displays = pgTable(
   'displays',

@@ -413,7 +413,7 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
       throw err;
     }
     if (!row) throw notFound();
-    showDisplay(ctx, row, request.log);
+    await showDisplay(ctx, row, request.log);
     request.log.info({ displayId: id, target: row.targetKind, userId: request.user?.id }, 'player modificato');
     return displaySummary(row, true);
   });

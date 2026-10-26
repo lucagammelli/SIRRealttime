@@ -48,6 +48,11 @@ export interface Subscriber {
   ip?: string | null;
   /** Public link of the socket (statistics of the visits); missing for admin sockets. */
   link?: { shareTokenId: string; clientFixtureId: string | null };
+  /**
+   * A player: what it follows, read again at every full state it asks (`resync`) and at its first one (a player on
+   * the simulation follows the simulated match of the moment); null: nothing to change (the player is gone).
+   */
+  resolveTarget?: () => Promise<Target | null>;
 }
 
 interface Entry extends Subscriber {

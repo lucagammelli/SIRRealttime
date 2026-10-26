@@ -376,14 +376,15 @@ Raspberry sta nel repository separato `ArenaLive-Player`. Nel codice si chiama *
 perché «player» vuol già dire giocatore. Contratti in `packages/shared/src/display.ts` (`docs/architettura.md`).
 
 - **Tabella `displays`** (vedi «Database»): il token è salvato solo come sha256, unico e nullo finché non si scarica la
-  configurazione. Il bersaglio (`none` = schermata di attesa, `channel`, `match`, `fixture`) sta sul player, non su un link:
+  configurazione. Il bersaglio (`none` = schermata di attesa, `channel`, `match`, `fixture`, `simulation`) sta sul player, non su un link:
   revocare un link non spegne mai un maxischermo. Le chiavi esterne su partita e partita del calendario sono
   `ON DELETE SET NULL`, quindi se la partita sparisce il player va in attesa. Limite di **20 player non revocati per
   cliente** (`DISPLAY_LIMIT`, 409 oltre; `lockTenantDisplays` + `requireDisplaySlot` sotto un lock per cliente).
 - **Rotte admin** (`/api/admin/displays`, tabella in «Endpoint»; il superadmin lavora sul cliente attivo):
   - `GET` per tutti gli utenti, ma il viewer non riceve `lastIp`; `POST` crea un player in attesa (201); `PATCH` cambia nome
-    e/o bersaglio: `checkDisplayTarget` richiede che il bersaglio sia del cliente (una partita **simulata** è esclusa, 400) e le
-    pagine aperte passano subito al nuovo bersaglio, con lo stato completo (`showDisplay`);
+    e/o bersaglio: `checkDisplayTarget` richiede che il bersaglio sia del cliente (una partita **simulata** fissa è esclusa,
+    400: la simulazione si segue con `simulation`) e le pagine aperte passano subito al nuovo bersaglio, con lo stato
+    completo (`showDisplay`);
   - `DELETE` **revoca**: `revoked`, token e comando azzerati, socket chiusi con 4404 (`closeDisplay`);
   - `POST /:id/command`: `reload`, `reboot`, `screenOff` o `screenOn`. C'è **un solo comando pendente**: uno nuovo sostituisce il
     precedente e fa salire `commandSeq` di 1. `reload` va subito anche alle pagine aperte (`sendReload`);
@@ -411,6 +412,15 @@ perché «player» vuol già dire giocatore. Contratti in `packages/shared/src/d
     che cancella il comando come l'`ackSeq` dell'heartbeat.
   - Quando il portale cambia il bersaglio il server sposta i socket e manda lo stato completo; quando una partita del
     calendario viene cancellata, `refreshDisplays` aggiorna i player che la mostravano.
+  - **Bersaglio `simulation`** (la simulazione del cliente, senza id): `resolveDisplayTarget` lo risolve nella partita
+    simulata del cliente di quel momento (`currentSimulationMatch`: `simulated = true` con uno stato, la più recente), cioè
+    il socket segue quella partita come il link della simulazione (`hubTargetOf` dà un bersaglio `match`, quindi arrivano
+    anche gli stati «isolati» della simulazione); senza partita simulata, `standby`. Il simulatore chiama
+    `refreshSimulationDisplays` quando una simulazione parte (partita nuova o riusata) e quando cancella le sue partite
+    («Elimina», `SIMULATION_RETENTION_MS`, partite rimaste da un riavvio): i player del cliente su `simulation` con una
+    pagina aperta passano subito alla partita o all'attesa. Il bersaglio si risolve di nuovo alla connessione, al primo
+    stato e a ogni `resync` (`resolveTarget` del socket, che rilegge il player). Il canale continua a escludere le partite
+    simulate, e la simulazione di un altro cliente non arriva mai (`tenantScope`).
 - **Software del player**: `AgentReleaseStore` è generalizzato (`ReleaseFiles`): oltre ad `arenalive-agent.exe`, serve
   `arenalive-player.deb` con il manifest `arenalive-player.json` (`version`, `builtAt`, `sha256`, come quello dell'agente) da
   `PLAYER_DOWNLOAD_DIR` (`PLAYER_FILES`). Il `.deb` è offerto solo se lo sha256 coincide con il manifest.
@@ -1459,7 +1469,7 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `tenants` (colonna di `0014_link_partita.sql`) | `match_links_enabled` (booleano, predefinito `false`; la migrazione lo accende per i clienti con link per partita validi, simulazioni escluse) |
 | `user_tokens` | link monouso degli utenti (migrazione `0011_posta_inviti.sql`): `user_id` (→ `users`, `ON DELETE CASCADE`), `kind` (`invite`/`reset`, CHECK), `token_hash` (sha256, unico), `expires_at`, `created_at`; indice unico su (`user_id`, `kind`): un solo link per utente e tipo, quello nuovo sostituisce il vecchio. Un link usato, sostituito o annullato è cancellato; un utente con una riga `invite` non ha ancora scelto la password |
 | `mail_settings` | server di posta, **una sola riga** per tutto il sistema (`singleton` sempre vero, CHECK): `host`, `port` (1-65535), `security` (`none`/`starttls`/`tls`), `username`, `password_enc` (password cifrata AES-256-GCM con `SETTINGS_ENCRYPTION_KEY`, forma `v1.<iv>.<tag>.<testo>`, nulla se manca), `from_name`, `from_email`, `updated_at` (migrazione `0011_posta_inviti.sql`) |
-| `displays` | player per i maxischermi (migrazione `0025_player.sql`; enum `display_target` e `display_command`): `tenant_id`, `name`, `token_hash` (sha256, unico, nullo finché non si scarica la configurazione), `target_kind` (`none`/`channel`/`match`/`fixture`, predefinito `none`), `match_id` (→ `matches`) e `client_fixture_id` (→ `client_fixtures`), entrambi `ON DELETE SET NULL` (se la partita sparisce il player va in attesa), `command` (nullo = nessuno) e `command_seq` (numero dell'ultimo inviato), `revoked`, `last_seen_at`, `last_ip`, `version`, `resolution`, `created_at`; CHECK `displays_target_check`: un id è ammesso solo con il suo tipo di bersaglio |
+| `displays` | player per i maxischermi (migrazione `0025_player.sql`; enum `display_target` e `display_command`): `tenant_id`, `name`, `token_hash` (sha256, unico, nullo finché non si scarica la configurazione), `target_kind` (`none`/`channel`/`match`/`fixture`/`simulation`, predefinito `none`; `simulation` dalla migrazione `0026_player_simulazione.sql`, reversibile con l'istruzione in testa: i player su `simulation` tornano a `none`), `match_id` (→ `matches`) e `client_fixture_id` (→ `client_fixtures`), entrambi `ON DELETE SET NULL` (se la partita sparisce il player va in attesa), `command` (nullo = nessuno) e `command_seq` (numero dell'ultimo inviato), `revoked`, `last_seen_at`, `last_ip`, `version`, `resolution`, `created_at`; CHECK `displays_target_check`: un id è ammesso solo con il suo tipo di bersaglio |
 
 La migrazione `0011_posta_inviti.sql` crea `user_tokens` e `mail_settings`.
 
@@ -1703,7 +1713,7 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
   (`findDisplay`, `authenticateDisplay`), `src/hub.ts` (`displaySockets`, `closeDisplay`), `src/agentRelease.ts`
   (`PLAYER_FILES`, `DigestCache`), `src/playerImage.ts` (`PlayerImageStore`, `configSlot`, `compressSlot`, `imageStream`,
   `imageBytes`), `src/displayImageTickets.ts` (`DisplayImageTickets`), `src/routes/agentDownload.ts` (`playerImageRoutes`),
-  `src/displays.ts` (`rotateDisplayConfig`), `src/db/schema.ts` (`displays`), `drizzle/0025_player.sql`, `packages/shared/src/display.ts`
+  `src/displays.ts` (`rotateDisplayConfig`, `resolveDisplayTarget`, `refreshSimulationDisplays`), `src/db/schema.ts` (`displays`), `drizzle/0025_player.sql`, `drizzle/0026_player_simulazione.sql`, `packages/shared/src/display.ts`
   (`docs/architettura.md`); pagina in `docs/portale.md`
 - Campionati: `src/leagues/` (`html.ts` lettore HTML, `romeTime.ts` ora italiana, `legavolley.ts` URL e parser
   `parseCalendar`/`parseStandings`/`parseTeam`, `fetcher.ts` `LeagueFetcher`, `sync.ts` `LeagueService`, `scheduler.ts`

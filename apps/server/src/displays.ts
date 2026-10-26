@@ -6,7 +6,7 @@ import type {
   DisplayWifi,
 } from '@arenalive/shared';
 import { DISPLAY_CONFIG_VERSION, DISPLAY_LIMIT, DisplayConfigFileSchema } from '@arenalive/shared';
-import { and, count, eq, lte, sql } from 'drizzle-orm';
+import { and, count, desc, eq, lte, sql } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import type { AppContext } from './context.js';
 import type { Db } from './db/index.js';
@@ -35,6 +35,7 @@ export function displayTargetOf(row: Pick<DisplayRow, 'targetKind' | 'matchId' |
   if (row.targetKind === 'match' && row.matchId) return { kind: 'match', matchId: row.matchId };
   if (row.targetKind === 'fixture' && row.clientFixtureId)
     return { kind: 'fixture', clientFixtureId: row.clientFixtureId };
+  if (row.targetKind === 'simulation') return { kind: 'simulation' };
   return { kind: 'none' };
 }
 
@@ -47,13 +48,21 @@ export function targetColumns(target: DisplayTarget): Pick<DisplayRow, 'targetKi
   };
 }
 
-/** Pure: what the socket of a player follows in the hub (the same targets of the public links, or `standby`). */
-export function hubTargetOf(
-  row: Pick<DisplayRow, 'id' | 'tenantId' | 'targetKind' | 'matchId' | 'clientFixtureId'>,
-): Target {
+type TargetRow = Pick<DisplayRow, 'id' | 'tenantId' | 'targetKind' | 'matchId' | 'clientFixtureId'>;
+
+/**
+ * Pure: what the socket of a player follows in the hub (the same targets of the public links, or `standby`).
+ * `simulationMatchId`: the simulated match of the client now (`currentSimulationMatch`), followed by a player on
+ * `simulation` as the link of the simulation does; null: none, the waiting screen.
+ */
+export function hubTargetOf(row: TargetRow, simulationMatchId: string | null = null): Target {
   const target = displayTargetOf(row);
   const tenantId = row.tenantId;
   switch (target.kind) {
+    case 'simulation':
+      return simulationMatchId
+        ? { kind: 'match', tenantId, matchId: simulationMatchId }
+        : { kind: 'standby', tenantId, displayId: row.id };
     case 'channel':
       return { kind: 'channel', tenantId };
     case 'match':
@@ -63,6 +72,25 @@ export function hubTargetOf(
     case 'none':
       return { kind: 'standby', tenantId, displayId: row.id };
   }
+}
+
+/**
+ * The simulated match of a client now (the simulator keeps one per client and uses it again at every start), with a
+ * state; null: none (never started, or deleted).
+ */
+export async function currentSimulationMatch(db: Db, tenantId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ id: matches.id })
+    .from(matches)
+    .where(tenantScope(matches, tenantId, eq(matches.simulated, true), sql`${matches.state} is not null`))
+    .orderBy(desc(matches.updatedAt))
+    .limit(1);
+  return row?.id ?? null;
+}
+
+/** What the socket of a player follows now: `hubTargetOf`, with the simulation of the moment read for `simulation`. */
+export async function resolveDisplayTarget(ctx: AppContext, row: TargetRow): Promise<Target> {
+  return hubTargetOf(row, row.targetKind === 'simulation' ? await currentSimulationMatch(ctx.db, row.tenantId) : null);
 }
 
 /** Pure: a player in the reserved area; `withIp` false (a viewer): without the IP of the last heartbeat. */
@@ -109,8 +137,9 @@ export async function requireDisplaySlot(tx: Tx, tenantId: string): Promise<void
 }
 
 /**
- * 400 unless the target is of the client: a real match (never a simulated one, which is only for its own link) or a
- * match of its calendar.
+ * 400 unless the target is of the client: a real match (never a fixed simulated one: the simulation is followed with
+ * `simulation`, whatever match it uses) or a match of its calendar. `simulation` is always allowed (without a
+ * simulation the player shows the waiting screen).
  */
 export async function checkDisplayTarget(db: Db | Tx, tenantId: string, target: DisplayTarget): Promise<void> {
   if (target.kind === 'match') {
@@ -150,9 +179,36 @@ export async function acknowledgeCommand(db: Db, displayId: string, commandSeq: 
     .where(and(eq(displays.id, displayId), lte(displays.commandSeq, commandSeq)));
 }
 
-/** The open pages of a player show what it shows now (target changed, renamed: the full message of the target). */
-export function showDisplay(ctx: AppContext, row: DisplayRow, log: FastifyBaseLogger): void {
-  const target = hubTargetOf(row);
+/** Number of the last move of each player, per hub (each app has its own): one entry per player ever shown. */
+const showTurns = new WeakMap<object, Map<string, number>>();
+
+/**
+ * What the pages of a player follow now, read from its saved row (never from a row read earlier by the caller: the
+ * target saved by the admin always wins), or null when the player is revoked or a newer read of the same player
+ * started meanwhile (only the newest one is applied, whatever read finishes first).
+ */
+export async function freshDisplayTarget(ctx: AppContext, displayId: string): Promise<Target | null> {
+  const turns = showTurns.get(ctx.hub) ?? new Map<string, number>();
+  showTurns.set(ctx.hub, turns);
+  const turn = (turns.get(displayId) ?? 0) + 1;
+  turns.set(displayId, turn);
+  const [row] = await ctx.db
+    .select()
+    .from(displays)
+    .where(and(eq(displays.id, displayId), eq(displays.revoked, false)))
+    .limit(1);
+  const target = row ? await resolveDisplayTarget(ctx, row) : null;
+  return turns.get(displayId) === turn ? target : null;
+}
+
+/**
+ * The open pages of a player show what it shows now (target changed, renamed, simulation started or deleted: the
+ * full message of the target), as saved now (`freshDisplayTarget`). Nothing is read when no page of the player is open.
+ */
+export async function showDisplay(ctx: AppContext, row: Pick<DisplayRow, 'id'>, log: FastifyBaseLogger): Promise<void> {
+  if (ctx.hub.displaySockets(row.id).length === 0) return;
+  const target = await freshDisplayTarget(ctx, row.id);
+  if (!target) return;
   for (const socket of ctx.hub.displaySockets(row.id)) {
     ctx.hub.setTarget(socket, target);
     sendLive(ctx, socket, target, log);
@@ -174,7 +230,27 @@ export async function refreshDisplays(ctx: AppContext, tenantId: string, log: Fa
     .select()
     .from(displays)
     .where(tenantScope(displays, tenantId, eq(displays.revoked, false)));
-  for (const row of rows) if (ctx.hub.displaySockets(row.id).length > 0) showDisplay(ctx, row, log);
+  for (const row of rows) await showDisplay(ctx, row, log);
+}
+
+/**
+ * The simulation of a client created, used again or deleted its match: its players on `simulation` with an open page
+ * follow the match of now, or show the waiting screen. Never fails (a log): the simulation goes on anyway.
+ */
+export async function refreshSimulationDisplays(
+  ctx: AppContext,
+  tenantId: string,
+  log: FastifyBaseLogger,
+): Promise<void> {
+  try {
+    const rows = await ctx.db
+      .select()
+      .from(displays)
+      .where(tenantScope(displays, tenantId, eq(displays.revoked, false), eq(displays.targetKind, 'simulation')));
+    for (const row of rows) await showDisplay(ctx, row, log);
+  } catch (err) {
+    log.error({ err, tenantId }, 'player della simulazione non aggiornati');
+  }
 }
 
 /** A configuration just given to a player: its file, the sha256 of its token and what `prepare` made of the file. */

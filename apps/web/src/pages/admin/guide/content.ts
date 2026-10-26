@@ -331,7 +331,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'In «Cosa mostra» scegli cosa va sullo schermo: «Nessuno» (il logo del club), il canale live del club, una partita oppure una partita del calendario. Lo schermo cambia da solo in pochi secondi.',
+        text: 'In «Cosa mostra» scegli cosa va sullo schermo: «Nessuno» (il logo del club), il canale live del club, la «Simulazione» (la partita di prova della pagina «Simulazione»), una partita oppure una partita del calendario. Lo schermo cambia da solo in pochi secondi. Con «Simulazione» il Player segue sempre la simulazione del momento: quando ne avvii una nuova la mostra subito, e quando la elimini torna al logo del club.',
       },
       {
         kind: 'list',
@@ -368,7 +368,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'text',
-        text: 'Per fermare una simulazione in corso o in pausa premi «Arresta» e poi «Conferma arresto»: si ferma subito e per sempre, con il punteggio raggiunto, senza vincitore. Poi puoi premere «Ricomincia» oppure avviarne un’altra. Per la TV: apri il link sul computer o sulla TV e premi «Schermo intero». Su tablet e telefono puoi premere «Installa come app»: la pagina si apre come un’app, a tutto schermo.',
+        text: 'Per fermare una simulazione in corso o in pausa premi «Arresta» e poi «Conferma arresto»: si ferma subito e per sempre, con il punteggio raggiunto, senza vincitore. Poi puoi premere «Ricomincia» oppure avviarne un’altra. Per la TV: apri il link sul computer o sulla TV e premi «Schermo intero». Su tablet e telefono puoi premere «Installa come app»: la pagina si apre come un’app, a tutto schermo. Per mostrarla su un maxischermo con il Player, nella pagina «Player» scegli «Simulazione» in «Cosa mostra».',
       },
     ],
     links: [{ label: 'Vai a Simulazione', to: '/admin/simulazione' }],

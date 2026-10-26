@@ -15,17 +15,20 @@ const TOKEN = 'A'.repeat(43);
 const ID = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
 
 describe('target of a player', () => {
-  it('accepts the four cases and refuses an id of the wrong kind', () => {
+  it('accepts the five cases and refuses an id of the wrong kind', () => {
     for (const t of [
       { kind: 'none' },
       { kind: 'channel' },
       { kind: 'match', matchId: ID },
       { kind: 'fixture', clientFixtureId: ID },
+      { kind: 'simulation' },
     ])
       expect(DisplayTargetSchema.parse(t)).toEqual(t);
     expect(DisplayTargetSchema.safeParse({ kind: 'match' }).success).toBe(false);
     expect(DisplayTargetSchema.safeParse({ kind: 'none', matchId: ID }).success).toBe(false);
     expect(DisplayTargetSchema.safeParse({ kind: 'live' }).success).toBe(false);
+    // The simulation of the moment, never a fixed simulated match.
+    expect(DisplayTargetSchema.safeParse({ kind: 'simulation', matchId: ID }).success).toBe(false);
   });
 
   it('asks at least one field to change', () => {

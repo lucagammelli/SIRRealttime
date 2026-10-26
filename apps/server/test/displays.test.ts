@@ -20,7 +20,7 @@ import {
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { clientFixtures, displays } from '../src/db/index.js';
-import { displayTargetOf, isForeignKeyViolation } from '../src/displays.js';
+import { displayTargetOf, hubTargetOf, isForeignKeyViolation } from '../src/displays.js';
 import type { TestServer } from './helpers.js';
 import {
   ADMIN,
@@ -160,6 +160,19 @@ describe('players in the reserved area', () => {
     expect(displayTargetOf({ targetKind: 'fixture', matchId: null, clientFixtureId: null })).toEqual({ kind: 'none' });
     expect(displayTargetOf({ targetKind: 'channel', matchId: null, clientFixtureId: null })).toEqual({
       kind: 'channel',
+    });
+  });
+
+  it('follows the simulated match of the moment on «Simulazione», or waits', () => {
+    const row = { id: 'd', tenantId: 't', targetKind: 'simulation' as const, matchId: null, clientFixtureId: null };
+    expect(displayTargetOf(row)).toEqual({ kind: 'simulation' });
+    expect(hubTargetOf(row, 'm')).toEqual({ kind: 'match', tenantId: 't', matchId: 'm' });
+    expect(hubTargetOf(row)).toEqual({ kind: 'standby', tenantId: 't', displayId: 'd' });
+    // Only «Simulazione» reads it.
+    expect(hubTargetOf({ ...row, targetKind: 'none' }, 'm')).toEqual({
+      kind: 'standby',
+      tenantId: 't',
+      displayId: 'd',
     });
   });
 

@@ -39,6 +39,12 @@ export interface RateLimits {
   rosterImport: number;
   /** Reset of a password and use of invitation links (`/api/auth/password-reset/*`, `/api/auth/invite/*`, `/api/auth/links/*`). */
   passwordReset: number;
+  /** Heartbeats and updates of the players (`/api/displays/*`): one every 15 s per player, several behind one IP. */
+  display: number;
+  /** Openings of `/ws/display` (reconnections of the page of the players included). */
+  displayWs: number;
+  /** Wrong tokens of players (heartbeat, update, socket): past this the IP is blocked until the minute ends. */
+  displayInvalid: number;
 }
 
 export const DEFAULT_RATE_LIMITS: RateLimits = {
@@ -54,6 +60,9 @@ export const DEFAULT_RATE_LIMITS: RateLimits = {
   leagueSync: 6,
   rosterImport: 3,
   passwordReset: 10,
+  display: 240,
+  displayWs: 60,
+  displayInvalid: 20,
 };
 
 /** Most public WebSockets open at the same time, per client IP and in total. */
@@ -102,6 +111,8 @@ export interface AppContext {
   publicFailures: FailureLimiter;
   /** Unknown short codes of all the IPs together (`rateLimits.shortCodeInvalidTotal` per minute, one key). */
   shortCodeFailures: FailureLimiter;
+  /** Wrong tokens of players per IP (`rateLimits.displayInvalid` per minute): then 429 until the minute ends. */
+  displayFailures: FailureLimiter;
   /** Requests of a password reset per email (3 per hour): the over-limit ones are answered the same and ignored. */
   resetRequests: FailureLimiter;
   /** Mail server of the invitations and of the password resets (settings in the database, `mail_settings`). */
@@ -144,6 +155,12 @@ export interface AuthenticatedAgent {
   tenantId: string;
 }
 
+/** Player authenticated by its bearer token, with the client it belongs to. */
+export interface AuthenticatedDisplay {
+  id: string;
+  tenantId: string;
+}
+
 declare module 'fastify' {
   interface FastifyRequest {
     /** Logged-in user (admin routes and `/ws/admin`). */
@@ -159,6 +176,8 @@ declare module 'fastify' {
     agent: AuthenticatedAgent | null;
     /** Share token of a public request. */
     shareToken: ResolvedShareToken | null;
+    /** Player authenticated by its bearer token (`/api/displays/*`). */
+    display: AuthenticatedDisplay | null;
   }
 }
 

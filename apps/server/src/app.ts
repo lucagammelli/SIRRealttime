@@ -33,6 +33,7 @@ import { clubPublicRoutes, clubRoutes } from './routes/club.js';
 import { manualFixtureRoutes } from './routes/calendar.js';
 import { mailSettingsRoutes } from './routes/mailSettings.js';
 import { manifestRoutes } from './routes/manifest.js';
+import { displayRoutes } from './routes/display.js';
 import { healthRoutes } from './routes/health.js';
 import { ingestRoutes } from './routes/ingest.js';
 import { clubLeagueRoutes } from './routes/clubLeague.js';
@@ -193,6 +194,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     publicFailures: new FailureLimiter(rateLimits.publicInvalid, 60_000, now),
     shortCodeFailures: new FailureLimiter(rateLimits.shortCodeInvalidTotal, 60_000, now),
     resetRequests: new FailureLimiter(RESET_REQUESTS_PER_EMAIL, 3_600_000, now),
+    displayFailures: new FailureLimiter(rateLimits.displayInvalid, 60_000, now),
     mail: new MailService({
       db,
       key: config.settingsEncryptionKey,
@@ -225,6 +227,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   app.decorateRequest('adminTenantId', null);
   app.decorateRequest('agent', null);
   app.decorateRequest('shareToken', null);
+  app.decorateRequest('display', null);
   // Only JSON bodies are accepted.
   app.removeContentTypeParser('text/plain');
 
@@ -262,6 +265,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   manifestRoutes(app, ctx);
   publicRoutes(app, ctx);
   registrationRoutes(app, ctx);
+  displayRoutes(app, ctx);
   // Checks with a cost or a rejection go in preParsing/preValidation/preHandler: the rate limit of a route is an
   // onRequest hook added after the others, so anything in onRequest would run before it and escape the count.
   await app.register((scope, _opts, done) => {

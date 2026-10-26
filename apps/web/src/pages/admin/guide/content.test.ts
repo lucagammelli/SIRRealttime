@@ -25,10 +25,10 @@ const everyMenu = [
 ];
 
 describe('content of the guide', () => {
-  it('has the eleven sections of the user and one more for the superadmin, with unique anchors', () => {
+  it('has the twelve sections of the user and one more for the superadmin, with unique anchors', () => {
     const ids = GUIDE_SECTIONS.map((s) => s.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(GUIDE_SECTIONS.filter((s) => !s.superadminOnly)).toHaveLength(11);
+    expect(GUIDE_SECTIONS.filter((s) => !s.superadminOnly)).toHaveLength(12);
     expect(GUIDE_SECTIONS.filter((s) => s.superadminOnly).map((s) => s.id)).toEqual(['superadmin']);
     for (const s of GUIDE_SECTIONS) expect(s.blocks.length).toBeGreaterThan(0);
   });
@@ -59,8 +59,8 @@ describe('content of the guide', () => {
 
 describe('search of the guide', () => {
   it('gives every section for an empty query, without the superadmin one', () => {
-    expect(filterSections(GUIDE_SECTIONS, '  ', false)).toHaveLength(11);
-    expect(filterSections(GUIDE_SECTIONS, '', true)).toHaveLength(12);
+    expect(filterSections(GUIDE_SECTIONS, '  ', false)).toHaveLength(12);
+    expect(filterSections(GUIDE_SECTIONS, '', true)).toHaveLength(13);
   });
 
   it('finds by word, ignoring case and accents, and needs every word', () => {

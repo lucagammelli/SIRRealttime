@@ -27,6 +27,9 @@ describe('loadConfig', () => {
         leagueSync: 6,
         rosterImport: 3,
         passwordReset: 10,
+        display: 240,
+        displayWs: 60,
+        displayInvalid: 20,
       },
       socketLimits: { perIp: 2000, total: 6000 },
       leagueSync: true,
@@ -50,6 +53,14 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ DATABASE_URL: 'x', ASSETS_QUOTA_MB: '0' })).toThrow(/ASSETS_QUOTA_MB/);
   });
 
+  it('reads the folder of the software of the players: the one of the agent unless set', () => {
+    expect(loadConfig({ DATABASE_URL: 'x' }).playerDownloadDir).toMatch(/[\\/]data[\\/]downloads$/);
+    expect(loadConfig({ DATABASE_URL: 'x', AGENT_DOWNLOAD_DIR: '/srv/a' }).playerDownloadDir).toBe('/srv/a');
+    expect(
+      loadConfig({ DATABASE_URL: 'x', AGENT_DOWNLOAD_DIR: '/srv/a', PLAYER_DOWNLOAD_DIR: '/srv/p' }).playerDownloadDir,
+    ).toBe('/srv/p');
+  });
+
   it('reads DEFAULT_TENANT_SLUG: default «predefinito», empty disables the fallback client', () => {
     expect(loadConfig({ DATABASE_URL: 'x' }).defaultTenantSlug).toBe('predefinito');
     expect(loadConfig({ DATABASE_URL: 'x', DEFAULT_TENANT_SLUG: 'club-a' }).defaultTenantSlug).toBe('club-a');
@@ -70,6 +81,9 @@ describe('loadConfig', () => {
       RATE_LIMIT_SHORT_CODE_INVALID: '500',
       RATE_LIMIT_AGENT_DOWNLOAD: '3',
       RATE_LIMIT_LEAGUE_SYNC: '2',
+      RATE_LIMIT_DISPLAY: '30',
+      RATE_LIMIT_DISPLAY_WS: '12',
+      RATE_LIMIT_DISPLAY_INVALID: '4',
     });
     expect(c.rateLimits).toEqual({
       login: 5,
@@ -84,6 +98,9 @@ describe('loadConfig', () => {
       leagueSync: 2,
       rosterImport: 3,
       passwordReset: 10,
+      display: 30,
+      displayWs: 12,
+      displayInvalid: 4,
     });
     for (const value of ['0', '-1', '1.5', 'abc', '100001']) {
       expect(() => loadConfig({ DATABASE_URL: 'x', RATE_LIMIT_LOGIN: value })).toThrow(/RATE_LIMIT_LOGIN/);

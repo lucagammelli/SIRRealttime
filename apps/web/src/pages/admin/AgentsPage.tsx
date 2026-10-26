@@ -9,13 +9,14 @@ import {
   CreateAgentResponseSchema,
 } from '@arenalive/shared';
 import type { FormEvent } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { z } from 'zod';
 import { Button, buttonClass, Card, CopyButton, Empty, ErrorBox, SecretBox, Spinner } from '../../components/ui.tsx';
 import { apiCommand, apiRequest } from '../../lib/api.ts';
 import { formatDateTime, formatDay, megabytes } from '../../lib/format.ts';
 import type { AsyncState } from '../../lib/useAsync.ts';
 import { useAsync } from '../../lib/useAsync.ts';
+import { useRefresh } from '../../lib/useRefresh.ts';
 import { READ_ONLY_TEXT, useCanEdit } from '../../lib/useCanEdit.ts';
 import { useApiError } from './auth.tsx';
 import { ConfirmButton, Field, inputClass } from './forms.tsx';
@@ -25,20 +26,6 @@ const RegistrationListSchema = z.array(AgentRegistrationSummarySchema);
 
 /** While the page is open, pending requests and agents are reloaded this often (the agent polls every 5 s too). */
 export const AGENTS_REFRESH_MS = 5000;
-
-/** Calls `tick` every `ms` while the browser tab is visible. */
-function useRefresh(tick: () => void, ms: number): void {
-  const latest = useRef(tick);
-  useEffect(() => {
-    latest.current = tick;
-  }, [tick]);
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (document.visibilityState !== 'hidden') latest.current();
-    }, ms);
-    return () => clearInterval(id);
-  }, [ms]);
-}
 
 /**
  * Pure: end of the validity «Fino al» a day (`YYYY-MM-DD`, the last second of that day on the clock of the browser),

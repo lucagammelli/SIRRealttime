@@ -176,6 +176,13 @@
       "when": 1792918768056,
       "tag": "0024_media_avvisi",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792998431141,
+      "tag": "0025_player",
+      "breakpoints": true
     }
   ]
 }

@@ -6,6 +6,7 @@ import type { LiveSnapshot } from '../lib/liveConnection.ts';
 import { ConnectionBadge } from './ConnectionBadge.tsx';
 import { MatchView } from './MatchView.tsx';
 import { NextMatch } from './NextMatch.tsx';
+import { StandbyScreen } from './StandbyScreen.tsx';
 import { StatusScreen } from './StatusScreen.tsx';
 import { Spinner } from './ui.tsx';
 
@@ -82,6 +83,7 @@ export function LiveMatch({
       </div>
     );
   }
+  if (data.kind === 'standby') return <StandbyScreen tenantName={data.tenantName} displayName={data.displayName} />;
   if (data.kind === 'noMatch') {
     return (
       <StatusScreen title="Nessuna partita in corso" action={badge}>

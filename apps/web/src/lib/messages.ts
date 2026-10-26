@@ -1,23 +1,30 @@
 import type { MatchState } from '@arenalive/volley-stats';
-import type { ServerMessage } from '@arenalive/shared';
-import { ServerMessageSchema } from '@arenalive/shared';
+import type { DisplaySocketMessage, ServerMessage } from '@arenalive/shared';
+import { DisplaySocketMessageSchema, ServerMessageSchema } from '@arenalive/shared';
 
 /**
  * Parses a WebSocket frame or an HTTP body coming from the server with the shared schema;
  * `null` for anything that is not valid JSON or not a `ServerMessage`.
  */
 export function parseServerMessage(raw: unknown): ServerMessage | null {
-  let value: unknown = raw;
-  if (typeof raw === 'string') {
-    try {
-      value = JSON.parse(raw);
-    } catch {
-      return null;
-    }
+  const parsed = ServerMessageSchema.safeParse(jsonOf(raw));
+  return parsed.success ? parsed.data : null;
+}
+
+/** As `parseServerMessage`, for the socket of a player (`/ws/display`: also `standby` and `command`). */
+export function parseDisplayMessage(raw: unknown): DisplaySocketMessage | null {
+  const parsed = DisplaySocketMessageSchema.safeParse(jsonOf(raw));
+  return parsed.success ? parsed.data : null;
+}
+
+/** The value of a JSON text (undefined when it is not JSON); anything else as it is. */
+function jsonOf(raw: unknown): unknown {
+  if (typeof raw !== 'string') return raw;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return undefined;
   }
-  const parsed = ServerMessageSchema.safeParse(value);
-  if (!parsed.success) return null;
-  return parsed.data;
 }
 
 /** The state carried by the shared schema is only checked to be an object: these are the fields every view reads. */

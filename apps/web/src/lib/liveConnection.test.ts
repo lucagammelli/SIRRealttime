@@ -574,3 +574,84 @@ describe('config signal of the graphics', () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe('LiveConnection of a player (/ws/display)', () => {
+  function setupDisplay(onReload = vi.fn()) {
+    const sockets: FakeSocket[] = [];
+    const onChange = vi.fn();
+    const conn = new LiveConnection({
+      url: 'ws://test/ws/display',
+      onChange,
+      createSocket: (url) => {
+        const s = new FakeSocket(url);
+        sockets.push(s);
+        return s;
+      },
+      baseDelayMs: 1000,
+      random: () => 0.5,
+      gzip: false,
+      hello: () => JSON.stringify({ type: 'auth', token: 'T'.repeat(43) }),
+      display: { onReload },
+      retryInvalidMs: 60_000,
+    });
+    return { conn, sockets, onReload, last: () => sockets.at(-1) as FakeSocket };
+  }
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('sends auth first, shows standby and then a match', () => {
+    const { conn, last } = setupDisplay();
+    conn.start();
+    last().open();
+    expect(last().outgoing).toEqual([{ type: 'auth', token: 'T'.repeat(43) }]);
+    last().deliver({ type: 'standby', tenantName: 'Club', displayName: 'Tribuna' });
+    expect(conn.current().data).toEqual({ kind: 'standby', tenantName: 'Club', displayName: 'Tribuna' });
+    last().deliver(stateMsg(MATCH_A, 1));
+    expect(conn.current().data).toMatchObject({ kind: 'state', matchId: MATCH_A });
+    conn.stop();
+  });
+
+  it('confirms a reload with ack before reloading, and ignores a command on a public socket', () => {
+    const { conn, last, onReload } = setupDisplay();
+    conn.start();
+    last().open();
+    last().deliver({ type: 'command', command: 'reload', commandSeq: 4 });
+    expect(last().outgoing.at(-1)).toEqual({ type: 'ack', commandSeq: 4 });
+    expect(onReload).toHaveBeenCalledOnce();
+    conn.stop();
+    const pub = setup();
+    pub.conn.start();
+    pub.last().open();
+    pub.last().deliver({ type: 'command', command: 'reload', commandSeq: 4 });
+    expect(pub.last().outgoing).toEqual([]);
+    pub.conn.stop();
+  });
+
+  it('takes 4401 (auth not arrived in time) as a slow network: retries with backoff, never «invalid»', () => {
+    const { conn, sockets, last } = setupDisplay();
+    conn.start();
+    last().open();
+    last().serverClose(CLOSE_SESSION_ENDED);
+    expect(conn.current().status).toBe('reconnecting');
+    vi.advanceTimersByTime(1000);
+    expect(sockets).toHaveLength(2);
+    conn.stop();
+  });
+
+  it('tries an invalid token again every minute, staying «invalid» until something to show arrives', () => {
+    const { conn, sockets, last } = setupDisplay();
+    conn.start();
+    last().open();
+    last().serverClose(CLOSE_LINK_INVALID);
+    expect(conn.current().status).toBe('invalid');
+    vi.advanceTimersByTime(59_000);
+    expect(sockets).toHaveLength(1);
+    vi.advanceTimersByTime(1000);
+    expect(sockets).toHaveLength(2);
+    last().open();
+    expect(conn.current().status).toBe('invalid');
+    last().deliver({ type: 'standby', tenantName: 'Club', displayName: 'Tribuna' });
+    expect(conn.current().status).toBe('live');
+    conn.stop();
+  });
+});

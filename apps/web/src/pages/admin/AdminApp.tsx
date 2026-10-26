@@ -17,6 +17,7 @@ import { AccountPage } from './AccountPage.tsx';
 import { AgentsPage } from './AgentsPage.tsx';
 import { CalendarPage } from './CalendarPage.tsx';
 import { ClubPage } from './ClubPage.tsx';
+import { DisplaysPage } from './DisplaysPage.tsx';
 import { useAuth, useSession } from './auth.tsx';
 import { GuidePage } from './guide/GuidePage.tsx';
 import { LeaguesPage } from './LeaguesPage.tsx';
@@ -206,6 +207,7 @@ function AdminLayout() {
                 <Route path="squadra" element={ofTenant(<RosterPage />)} />
                 <Route path="link" element={ofTenant(<ShareLinksPage />)} />
                 <Route path="agenti" element={ofTenant(<AgentsPage />)} />
+                <Route path="player" element={ofTenant(<DisplaysPage />)} />
                 {/* Read-only: a viewer sees them too. */}
                 <Route path="statistiche" element={ofTenant(<StatsPage />)} />
                 <Route path="simulazione" element={adminOnly(<SimulationPage />)} />

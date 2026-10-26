@@ -15,6 +15,7 @@ const ICONS = {
   branding: 'M12 3a9 9 0 0 0 0 18c1.2 0 1.6-.9 1.4-1.8-.3-1.1.4-2.2 1.6-2.2H17a4 4 0 0 0 4-4c0-5-4-10-9-10z',
   roster: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20a6 6 0 0 1 12 0M16 11a2.5 2.5 0 1 0 0-5M17 14.5a5 5 0 0 1 4 5.5',
   agents: 'M4 5h16v11H4zM9 20h6M12 16v4',
+  displays: 'M3 4h18v12H3zM8 20h8M12 16v4M10 8.5v4l3.5-2z',
   sponsors: 'M12 3l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.4l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z',
   users: 'M16 20a4 4 0 0 0-8 0M12 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z',
   tenants: 'M4 20V7l8-4 8 4v13M9 20v-5h6v5M8.5 9.5h.01M12 9.5h.01M15.5 9.5h.01',
@@ -129,7 +130,13 @@ export function menuGroups({
         ...(isAdmin ? [{ to: '/admin/simulazione', label: 'Simulazione', icon: 'simulation' } as const] : []),
       ],
     },
-    { label: 'Dispositivi', items: [{ to: '/admin/agenti', label: 'Agenti', icon: 'agents' }] },
+    {
+      label: 'Dispositivi',
+      items: [
+        { to: '/admin/agenti', label: 'Agenti', icon: 'agents' },
+        { to: '/admin/player', label: 'Player', icon: 'displays' },
+      ],
+    },
     {
       label: 'Amministrazione',
       items: isAdmin ? [{ to: '/admin/utenti', label: 'Utenti', icon: 'users' }] : [],

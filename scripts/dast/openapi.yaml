@@ -54,6 +54,36 @@ paths:
       responses:
         '200': { description: esito ingest }
         '401': { description: token agente mancante o errato }
+  /api/displays/heartbeat:
+    post:
+      security: [{ displayToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version, uptimeS]
+              properties:
+                version: { type: string, example: 1.0.0 }
+                resolution: { type: string, example: 1920x1080 }
+                uptimeS: { type: integer, example: 60 }
+                ackSeq: { type: integer, example: 0 }
+      responses:
+        '200': { description: comando in attesa e aggiornamento disponibile }
+        '401': { description: token del player mancante, errato o revocato }
+        '429': { description: troppi token errati da questo IP }
+  /api/displays/update:
+    get:
+      security: [{ displayToken: [] }]
+      responses:
+        '200':
+          description: pacchetto .deb del player
+          content:
+            application/vnd.debian.binary-package:
+              schema: { type: string, format: binary }
+        '401': { description: token del player mancante, errato o revocato }
+        '404': { description: software del player non pubblicato }
   /api/agents/registrations:
     post:
       requestBody:
@@ -241,6 +271,70 @@ paths:
       responses:
         '200': { description: agente aggiornato }
         '404': { description: non trovato }
+  /api/admin/displays:
+    get:
+      responses:
+        '200': { description: elenco dei player (IP dell'ultimo contatto solo per admin) }
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, example: player-dast }
+      responses:
+        '201': { description: player creato, senza token }
+        '409': { description: limite di player del cliente raggiunto }
+  /api/admin/displays/{id}:
+    patch:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, example: { name: player-rinominato, target: { kind: channel } } }
+      responses:
+        '200': { description: player aggiornato }
+        '400': { description: bersaglio non valido }
+        '404': { description: non trovato o revocato }
+    delete:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      responses:
+        '204': { description: revocato }
+        '404': { description: non trovato }
+  /api/admin/displays/{id}/command:
+    post:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [command]
+              properties:
+                command: { type: string, enum: [reload, reboot, screenOff, screenOn], example: reload }
+      responses:
+        '200': { description: comando in attesa del player }
+        '404': { description: non trovato o revocato }
+  /api/admin/displays/{id}/config:
+    post:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, example: { wifi: { ssid: Palestra, password: password-wifi, country: IT } } }
+      responses:
+        '200': { description: arenalive-player.json in allegato con un nuovo token }
+        '404': { description: non trovato o revocato }
   /api/admin/agent/info:
     get:
       responses:
@@ -1379,5 +1473,8 @@ components:
             assetId: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 }
   securitySchemes:
     agentToken:
+      type: http
+      scheme: bearer
+    displayToken:
       type: http
       scheme: bearer

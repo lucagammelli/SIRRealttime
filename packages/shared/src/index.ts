@@ -4,6 +4,7 @@ export * from './assets.js';
 export * from './club.js';
 export * from './colors.js';
 export * from './credentials.js';
+export * from './display.js';
 export * from './graphicsExport.js';
 export * from './health.js';
 export * from './ingest.js';

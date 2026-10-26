@@ -1,5 +1,12 @@
 import { gzipSync } from 'node:zlib';
-import type { JsonValue, PatchMessage, ScheduledMessage, ServerMessage, StateMessage } from '@arenalive/shared';
+import type {
+  DisplaySocketMessage,
+  JsonValue,
+  PatchMessage,
+  ScheduledMessage,
+  ServerMessage,
+  StateMessage,
+} from '@arenalive/shared';
 import { diffJson } from '@arenalive/shared';
 import type { WebSocket } from 'ws';
 import type { SocketView } from './stats/tracker.js';
@@ -8,16 +15,25 @@ import type { SocketView } from './stats/tracker.js';
  * What a client follows, always within one client (tenant): a fixed match, the live match of the client (the one
  * that became live last: the admin page), the channel of the club (public links without a match: the live match,
  * otherwise «Prossima partita» of the next broadcast match, see `channelMessage`), or a match of the calendar of the
- * club (`clientFixtureId`: «Prossima partita» until a `.dvw` is linked to it, then that match).
+ * club (`clientFixtureId`: «Prossima partita» until a `.dvw` is linked to it, then that match); `standby`: a player
+ * that shows nothing (its waiting screen, see `liveMessage`), which still gets the `config` signal of its client.
  */
 export type Target =
   | { kind: 'match'; tenantId: string; matchId: string }
   | { kind: 'live'; tenantId: string }
   | { kind: 'channel'; tenantId: string }
-  | { kind: 'fixture'; tenantId: string; clientFixtureId: string };
+  | { kind: 'fixture'; tenantId: string; clientFixtureId: string }
+  | { kind: 'standby'; tenantId: string; displayId: string };
+
+/** What a public link, the admin page and a player that shows something follow. */
+export type MatchTarget = Exclude<Target, { kind: 'standby' }>;
 
 /** What lets a client stay connected: closed when it is revoked (or the session ends) and when it expires. */
-export type Grant = { kind: 'share'; shareTokenId: string } | { kind: 'session'; sessionHash: string };
+export type Grant =
+  | { kind: 'share'; shareTokenId: string }
+  | { kind: 'session'; sessionHash: string }
+  /** A player (`/ws/display`): closed when it is revoked or its token is replaced by a new download. */
+  | { kind: 'display'; displayId: string };
 
 /** `gzip`: the client asked binary frames with the gzip of the JSON (`?enc=gzip`); `text`: plain JSON frames. */
 export type FrameEncoding = 'gzip' | 'text';
@@ -28,7 +44,7 @@ export interface Subscriber {
   grant: Grant;
   expiresAt: Date | null;
   encoding?: FrameEncoding;
-  /** Client IP of a public socket (counted against the per-IP limit); null for admin sockets. */
+  /** Client IP of a public socket or of a player (counted against the per-IP limit); null for admin sockets. */
   ip?: string | null;
   /** Public link of the socket (statistics of the visits); missing for admin sockets. */
   link?: { shareTokenId: string; clientFixtureId: string | null };
@@ -68,7 +84,7 @@ export interface StatePublisher {
   publish(tenantId: string, message: StateMessage, route?: PublishRoute): void;
 }
 
-/** Close code sent when the share token of a connected client is revoked or expires. */
+/** Close code sent when the share token of a connected client is revoked or expires (also a player revoked). */
 export const CLOSE_TOKEN_GONE = 4404;
 /** Close code sent to an admin client when its session ends (logout or expiry). */
 export const CLOSE_SESSION_GONE = 4401;
@@ -275,7 +291,7 @@ export class LiveHub implements StatePublisher {
   }
 
   /** Sends a message to one client; a state not newer than the last one sent for the same match is skipped. */
-  send(socket: WebSocket, message: ServerMessage): void {
+  send(socket: WebSocket, message: DisplaySocketMessage): void {
     const entry = this.entries.get(socket);
     if (!entry) return;
     if (message.type === 'state') {
@@ -403,8 +419,41 @@ export class LiveHub implements StatePublisher {
       if (entry.target.tenantId === tenantId) this.deliver(entry, message, frame, null);
   }
 
-  /** Match a target follows now, as known here (null: unknown, read it from the database). */
+  /** What a socket follows now (null: not here); it changes with `setTarget`. */
+  targetOf(socket: WebSocket): Target | null {
+    return this.entries.get(socket)?.target ?? null;
+  }
+
+  /**
+   * A player was given something else to show: its socket follows `target` from now on, and the next message it gets
+   * (the full state of the new target, sent by the caller) is sent whatever it showed before.
+   */
+  setTarget(socket: WebSocket, target: Target): void {
+    const entry = this.entries.get(socket);
+    if (!entry) return;
+    entry.target = target;
+    entry.last = null;
+    delete entry.channelKey;
+  }
+
+  /** Sockets of a player (its page may be open more than once). */
+  displaySockets(displayId: string): WebSocket[] {
+    const out: WebSocket[] = [];
+    for (const entry of this.entries.values())
+      if (entry.grant.kind === 'display' && entry.grant.displayId === displayId) out.push(entry.socket);
+    return out;
+  }
+
+  /** Closes the sockets of a player (revoked, or its token replaced by a new download). */
+  closeDisplay(displayId: string): void {
+    for (const entry of this.entries.values()) {
+      if (entry.grant.kind === 'display' && entry.grant.displayId === displayId) this.drop(entry);
+    }
+  }
+
+  /** Match a target follows now, as known here (null: unknown, read it from the database; none for `standby`). */
   private matchOf(target: Target): string | null {
+    if (target.kind === 'standby') return null;
     if (target.kind === 'match') return target.matchId;
     if (target.kind === 'live') return this.liveMatch.get(target.tenantId) ?? null;
     if (target.kind === 'channel') return this.channelMatch.get(target.tenantId) ?? null;
@@ -453,7 +502,7 @@ export class LiveHub implements StatePublisher {
 
   private deliver(
     entry: Entry,
-    message: ServerMessage,
+    message: DisplaySocketMessage,
     full: Frame,
     patch: { baseVersion: number; frame: Frame } | null,
   ): void {
@@ -493,7 +542,7 @@ export class LiveHub implements StatePublisher {
 
   private drop(entry: Entry): void {
     this.remove(entry);
-    entry.socket.close(entry.grant.kind === 'share' ? CLOSE_TOKEN_GONE : CLOSE_SESSION_GONE);
+    entry.socket.close(entry.grant.kind === 'session' ? CLOSE_SESSION_GONE : CLOSE_TOKEN_GONE);
   }
 
   /** Disconnects at once, without the close handshake (dead or too slow client). */

@@ -1,35 +1,18 @@
-import { QR_QUERY_PARAM, SHARE_TOKEN_PATTERN, hasSystemLogo, publicAssetPath } from '@arenalive/shared';
+import { QR_QUERY_PARAM, SHARE_TOKEN_PATTERN } from '@arenalive/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
-import { AfterMatchScreen } from '../components/AfterMatchScreen.tsx';
-import { BrandMark } from '../components/BrandMark.tsx';
 import { FullscreenHint, InstallButton } from '../components/AppInstall.tsx';
-import { Intermission } from '../components/Intermission.tsx';
-import { LiveMatch, screensFor } from '../components/LiveMatch.tsx';
-import { Overlay } from '../components/Overlay.tsx';
+import { LiveScreen } from '../components/LiveScreen.tsx';
 import { StatusScreen } from '../components/StatusScreen.tsx';
 import { TvCanvas } from '../components/TvCanvas.tsx';
-import { SystemLogosBar } from '../components/SystemLogosBar.tsx';
-import { useAfterMatchImage } from '../lib/afterMatch.ts';
-import { nextFixture, useSchedule } from '../lib/schedule.ts';
-import { useSystemLogos } from '../lib/systemLogos.ts';
 import { ThemeToggle } from '../components/ThemeToggle.tsx';
 import type { ProbeResult } from '../lib/liveConnection.ts';
 import { registerServiceWorker, useFullscreenOnFirstTouch, useInstallApp } from '../lib/pwa.ts';
 import { useIdle, useTvRootClass, useWakeLock } from '../lib/tvScreen.ts';
 import { tvModeOf } from '../lib/layout.ts';
-import { TouchContext, useDevice } from '../lib/useLayout.ts';
+import { useDevice } from '../lib/useLayout.ts';
 import { socketUrl, useLiveSocket } from '../lib/useLiveSocket.ts';
-import { usePointSequence } from '../lib/pointSequence.ts';
 import { makeHello, newVisitId } from '../lib/visit.ts';
-import {
-  useBrandName,
-  useTemplate,
-  useTenantIntermissions,
-  useTenantLook,
-  useTenantOverlays,
-} from '../lib/branding.ts';
-import { teamName } from '../lib/format.ts';
 
 /** Wait when a 503/429 has no readable Retry-After. */
 const DEFAULT_RETRY_AFTER_MS = 20_000;
@@ -104,60 +87,11 @@ export function LivePage() {
     probe,
     hello,
   });
-  // Several new points in one update are shown one at a time (scoreboard, momentum, last point, overlays and pauses
-  // all read the same state): only presentation, it always ends on the state of the server.
-  const receivedData = received.data;
-  const receivedMatch = receivedData?.kind === 'state' ? receivedData : null;
-  const shownState = usePointSequence(
-    receivedMatch?.state ?? null,
-    receivedMatch?.live === true,
-    receivedMatch?.matchId ?? '',
-  );
-  const snapshot = useMemo(
-    () =>
-      receivedData?.kind === 'state' && shownState !== null && shownState !== receivedData.state
-        ? { ...received, data: { ...receivedData, state: shownState } }
-        : received,
-    [received, receivedData, shownState],
-  );
-
   useEffect(() => {
     const onChange = (): void => setFullscreen(document.fullscreenElement !== null);
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
-
-  const data = snapshot.data;
-  const brand = useBrandName();
-  const look = useTenantLook();
-  const intermissions = useTenantIntermissions();
-  const overlays = useTenantOverlays();
-  const template = useTemplate();
-  const [pauseFullscreen, setPauseFullscreen] = useState(false);
-  const afterMatchImage = useAfterMatchImage(data, intermissions?.afterMatch ?? null);
-  // The schedule is read only while «Dopo la partita» is on screen (shared with the blocks that read it).
-  const afterMatchFixture = nextFixture(useSchedule(afterMatchImage !== null));
-  const blockBrand = useMemo(
-    () =>
-      look
-        ? {
-            name: look.name,
-            logoMain: look.images.logoMain,
-            logoMark: look.images.logoMark,
-            sponsors: look.sponsors,
-          }
-        : null,
-    [look],
-  );
-  useEffect(() => {
-    if (data?.kind === 'state') {
-      const s = data.state;
-      document.title = `${teamName(s.teams, 'home')} ${s.setsWon.home}-${s.setsWon.away} ${teamName(s.teams, 'away')} · ${brand}`;
-    } else if (data?.kind === 'scheduled') {
-      const f = data.fixture;
-      document.title = `${f.home.name} – ${f.away.name} · Prossima partita · ${brand}`;
-    } else document.title = `${brand} · Diretta`;
-  }, [data, brand]);
 
   const toggleFullscreen = (): void => {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
@@ -177,14 +111,7 @@ export function LivePage() {
     return tv ? <TvCanvas>{invalid}</TvCanvas> : invalid;
   }
 
-  // «Touch» of the device chosen by the client: without it nothing on the page can be tapped or clicked.
-  const touch = look?.layout.touch[device] ?? true;
-  // Over the match (pauses, tables, maps) nothing can be tapped until the look is known: a device without touch must
-  // never see a button, not even while it loads.
-  const touchReady = look === null ? false : touch;
-  // Screens without scrolling: the big screen only (the «Touch» option never changes the layout).
-  const screens = screensFor(device);
-  const controls = !touch ? null : (
+  const controls = (
     <div
       className={`flex items-center gap-2 transition-opacity focus-within:opacity-100 motion-reduce:transition-none ${idle ? 'opacity-0' : ''}`}
     >
@@ -241,72 +168,16 @@ export function LivePage() {
       <ThemeToggle />
     </div>
   );
-  // Big screen with a match: no page header, the logo and the buttons go in the scoreboard (one row less).
-  const inScoreboard = tv && data?.kind === 'state';
-  // With the bar of the system logos the brand is not repeated in the page header nor in the scoreboard.
-  const systemLogos = useSystemLogos();
-  const showBrand = !hasSystemLogo(systemLogos.left) && !hasSystemLogo(systemLogos.right);
-
   const page = (
-    <TouchContext.Provider value={touchReady}>
-      <div
-        className={`${template.id === 'standard' ? 'border-t-4 border-accent' : ''} ${
-          // Big screen: the page fills the fixed canvas (1920 × 1080), not the window.
-          screens ? 'flex h-full w-full flex-col overflow-hidden p-3 lg:p-5' : 'flex min-h-dvh flex-col'
-        } ${idle ? 'cursor-none' : ''}`}
-        data-device={device}
-      >
-        {/* Logos of the platform (superadmin), above everything, also on the big screen; nothing without them. */}
-        <SystemLogosBar className={screens ? 'shrink-0 pb-3' : 'sir-page mx-auto w-full max-w-7xl px-3 pt-3 sm:px-5'} />
-        {!inScoreboard && (
-          <header
-            className={`sir-navbar flex shrink-0 items-center justify-between gap-3 ${screens ? 'pb-3' : 'sir-page mx-auto w-full max-w-7xl px-3 pt-3 sm:px-5'}`}
-          >
-            {showBrand ? <BrandMark clubSize /> : <span />}
-            {controls}
-          </header>
-        )}
-        <main className={screens ? 'min-h-0 flex-1' : 'sir-page mx-auto w-full max-w-7xl flex-1 px-3 py-3 sm:px-5'}>
-          <LiveMatch
-            snapshot={snapshot}
-            device={device}
-            brand={inScoreboard && showBrand}
-            rotationPaused={rotationPaused}
-            layout={look?.layout ?? null}
-            look={blockBrand}
-            {...(inScoreboard ? { controls } : {})}
-          />
-        </main>
-        <FullscreenHint visible={fullscreenHint} />
-        {data?.kind === 'state' && (
-          <Overlay
-            key={`avvisi-${data.matchId}`}
-            state={data.state}
-            live={data.live === true}
-            config={overlays}
-            device={device}
-            blocked={pauseFullscreen || afterMatchImage !== null}
-          />
-        )}
-        {data?.kind === 'state' && afterMatchImage === null && (
-          <Intermission
-            key={data.matchId}
-            onFullscreenChange={setPauseFullscreen}
-            state={data.state}
-            live={data.live === true}
-            config={intermissions}
-            device={device}
-            paused={rotationPaused}
-            onTogglePaused={() => setRotationPaused((p) => !p)}
-            look={blockBrand}
-            sponsorLogo={look?.images.sponsorLogo ?? null}
-          />
-        )}
-        {afterMatchImage !== null && (
-          <AfterMatchScreen imageUrl={publicAssetPath(afterMatchImage)} fixture={afterMatchFixture} device={device} />
-        )}
-      </div>
-    </TouchContext.Provider>
+    <LiveScreen
+      received={received}
+      device={device}
+      idle={idle}
+      controls={controls}
+      rotationPaused={rotationPaused}
+      onTogglePaused={() => setRotationPaused((p) => !p)}
+      extra={<FullscreenHint visible={fullscreenHint} />}
+    />
   );
   // Big screen: always drawn on the fixed canvas and scaled to the real screen (same pages on every TV).
   return tv ? <TvCanvas>{page}</TvCanvas> : page;

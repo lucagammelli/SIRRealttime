@@ -11,7 +11,7 @@ qui c'è lo stato attuale del codice. Il portale web è in `apps/web` (`docs/por
 DataVolley (.dvw riscritto per intero)
    → agente: legge il file, estrae le righe di scout, calcola il diff, invia con POST /api/ingest (token agente)
    → server: salva le righe in Postgres, ricostruisce il DVW, ricalcola lo stato
-   → WebSocket (/ws/public/:token, /ws/admin): stato intero alla connessione, poi patch (differenze) a ogni aggiornamento
+   → WebSocket (/ws/public/:token, /ws/admin, /ws/display per i Player dei maxischermi): stato intero alla connessione, poi patch (differenze) a ogni aggiornamento
    → portale (nginx + SPA React): mostra la partita
 ```
 
@@ -376,6 +376,32 @@ mai un token; `allowHttpPrivateNetwork` solo per `http` verso IPv4 privato), `ag
 `AGENT_LOGO_FILES`, `AGENT_LOGO_MAX_BYTES` (2 MB), `AGENT_LOGO_MAX_SIDE` (1024). `isPrivateIPv4` è qui (era nell'agente), perché la
 usano sia l'agente sia lo zip. Server in `docs/server.md`, finestra in `docs/agente.md`, pagina in `docs/portale.md`.
 
+Player per i maxischermi (`display.ts`; nel codice «display», perché «player» vuol già dire giocatore). Un Raspberry Pi 5
+apre `/schermo#<token>` e parla con il server in due modi: HTTP con Bearer per il dispositivo, WebSocket per la pagina.
+- Costanti: `DISPLAY_LIMIT` (20 player non revocati per cliente), `DISPLAY_CONFIG_FILE_NAME` (`arenalive-player.json`),
+  `DISPLAY_CONFIG_VERSION` (1), `DISPLAY_CLOSE_NO_AUTH` (4401), `DISPLAY_CLOSE_INVALID` (4404).
+- Token e file: `DisplayTokenSchema` (base64url, 20-200 caratteri); `DisplayConfigFileSchema` (strict: `version`, `serverUrl`
+  senza `/` finale, `token`, `name`, `wifi` facoltativo) con `DisplayWifiSchema` (`ssid` fino a 32, `password` 8-63 facoltativa,
+  `country` di due lettere maiuscole). Il Wi-Fi esiste solo nel file scaricato, mai sul server.
+- Bersaglio e comandi: `DisplayTargetSchema` (`none`, `channel`, `match` con `matchId`, `fixture` con `clientFixtureId`: gli
+  stessi casi dei link pubblici, ma salvati sul player e non su un link) e `DisplayCommandSchema` (`reload`, `reboot`,
+  `screenOff`, `screenOn`).
+- Rotte admin: `DisplaySummarySchema` (mai il token: solo `configured`; `lastIp` nullo per un viewer),
+  `CreateDisplayRequestSchema`, `UpdateDisplayRequestSchema` (nome e/o bersaglio, almeno uno), `DisplayCommandRequestSchema`,
+  `DisplayConfigRequestSchema`.
+- Rotte del dispositivo: `DisplayHeartbeatRequestSchema` (`version`, `resolution` facoltativa, `uptimeS`, `ackSeq` facoltativo),
+  `DisplayHeartbeatResponseSchema` (`command` o null, `commandSeq`, `update` facoltativo: `DisplayUpdateSchema` con `version`,
+  `sha256`, `size`) e la funzione pura `displayUpdateWanted(corrente, disponibile)`: con due versioni `X.Y.Z` solo se la
+  disponibile è maggiore, altrimenti se è diversa.
+- **Protocollo `/ws/display`**: il token **non** sta nell'URL. Il client manda per primo `DisplayAuthMessageSchema`
+  (`{ type: 'auth', token }`) entro 10 s; altrimenti il server chiude con 4401, con 4404 se il token è errato, revocato,
+  sostituito da un nuovo download o di un altro hostname. Poi il server manda `DisplaySocketMessageSchema`: i messaggi dei
+  socket pubblici (`ServerMessageSchema`: `state`, `patch`, `noMatch`, `scheduled`, `config`, `error`) più
+  `StandbyMessageSchema` (`standby`: `tenantName`, `displayName`, quando non c'è nulla da mostrare) e
+  `DisplayCommandMessageSchema` (`command`, oggi solo `reload`, con `commandSeq`). Il client risponde con
+  `DisplayAckMessageSchema` (`ack`, `commandSeq`) e, come sulla pagina pubblica, può chiedere `resync`.
+Server in `docs/server.md` («Player per i maxischermi»), pagina e pagina admin in `docs/portale.md`.
+
 Campionati (`leagues.ts`, dati pubblici scaricati dai siti ufficiali, **comuni a tutti i clienti**): `LeagueProviderSchema`
 (oggi solo `legavolley`), `LeagueExternalIdSchema` (intero positivo fino a `LEAGUE_MAX_EXTERNAL_ID` 99.999.999),
 `LeagueSeasonSchema` (primo anno, 1945-2100), `seasonLabel` (`2025` → `2025/2026`), `CreateLeagueRequestSchema` (strict:
@@ -501,7 +527,7 @@ pnpm --filter @arenalive/server test      # il flusso completo agente→server�
 ```
 
 ## Riferimenti
-- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `credentials.ts`, `mail.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `leagues.ts`, `club.ts`, `onboarding.ts`, `manifest.ts`, `simulation.ts`, `graphicsExport.ts`, `index.ts`
+- `packages/shared/src/ingest.ts`, `messages.ts`, `patch.ts`, `admin.ts`, `credentials.ts`, `mail.ts`, `registration.ts`, `tenant.ts`, `assets.ts`, `colors.ts`, `layout.ts`, `intermissions.ts`, `overlays.ts`, `agentDownload.ts`, `display.ts`, `configVersion.ts`, `templates.ts`, `ourTeam.ts`, `leagues.ts`, `club.ts`, `onboarding.ts`, `manifest.ts`, `simulation.ts`, `graphicsExport.ts`, `index.ts`
 - `packages/dvw-parser/src/index.ts`, `packages/volley-stats/src/index.ts`
 - `apps/server/src/ingest.ts`, `apps/agent/src/agent.ts`, `apps/web/src/App.tsx`
 - `docs/piano.md`, `docs/agente.md`, `docs/server.md`, `docs/portale.md`, `docs/dvw-parser.md`, `docs/statistiche.md`, `docs/simulatore.md`,

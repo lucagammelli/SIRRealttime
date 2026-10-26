@@ -1333,7 +1333,7 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   alla misura più grande che entra (0,4-4×), senza scorrimento. Sulla TV senza tocco nessuna scorre: le dimensioni sono le stesse, ma quello che non ci sta viene tagliato
   (`overflow: hidden`), senza altre scale. Si usa `transform: scale` (non `zoom`) con ricerca per
   bisezione (`largestFit`, limiti in `FIT_LIMITS`), così le misure restano affidabili anche nell'anteprima scalata dello
-  Studio; si rimisura al cambio di spazio o di diapositiva. La banda in basso non cambia.
+  Studio; si rimisura al cambio di spazio o di diapositiva. La misura avviene con la diapositiva «a riposo» (attributo `data-fit-measuring`: le animazioni d'entrata non allargano il contenuto) e si ripete a fine animazione e quando le immagini caricano; finché un'immagine non ha dimensioni la diapositiva resta nascosta, così la scala è giusta dal primo disegno. Anche `useElementSize`/`useElementHeight` (`lib/useLayout.ts`) misurano prima del primo disegno (`useLayoutEffect`), senza un primo frame 0×0 della rotazione. La banda in basso non cambia.
 - **Banda**: fissa in basso, una riga compatta con titolo, diapositiva, punti indicatori (per i lettori di schermo «Schermata N di M»), «Ferma rotazione»
   e «Chiudi»; non prende il focus (un messaggio `role="status"` avvisa i lettori di schermo). Sul telefono e sul tablet
   la pagina ha uno spazio vuoto sotto di pari altezza, così la banda non copre il tabellone.

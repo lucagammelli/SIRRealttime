@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { generateMatch } from '@arenalive/dvw-simulator';
 import type {
   DisplayConfigFile,
@@ -10,7 +11,12 @@ import type {
   DisplaySocketMessage,
   DisplaySummary,
 } from '@arenalive/shared';
-import { DISPLAY_LIMIT, DisplayConfigFileSchema, DisplaySummarySchema } from '@arenalive/shared';
+import {
+  DISPLAY_LIMIT,
+  DisplayConfigFileSchema,
+  DisplaySummarySchema,
+  PLAYER_IMAGE_SLOT_SIZE,
+} from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { clientFixtures, displays } from '../src/db/index.js';
@@ -449,5 +455,42 @@ describe('socket of the page /schermo', () => {
     await again.next(1);
     await api(admin).revoke(d.id);
     expect(await again.closed).toBe(4404);
+  });
+
+  it('closes the page of a token replaced by an image ready for the player', async () => {
+    // The smallest image in three parts: the slot right after the first sector.
+    const slotSize = PLAYER_IMAGE_SLOT_SIZE;
+    const raw = Buffer.alloc(512 + slotSize + 512, 0x23);
+    const parts = [raw.subarray(0, 512), raw.subarray(512, 512 + slotSize), raw.subarray(512 + slotSize)].map((b) =>
+      gzipSync(b),
+    );
+    const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
+    for (const [i, p] of parts.entries()) await writeFile(join(downloadDir, `arenalive-player-image-${i + 1}.gz`), p);
+    await writeFile(
+      join(downloadDir, 'arenalive-player-image.json'),
+      JSON.stringify({
+        format: 2,
+        version: '0.2.0',
+        builtAt: '2026-10-27T10:00:00.000Z',
+        imageSize: raw.length,
+        imageSha256: sha(raw),
+        slotOffset: 512,
+        slotSize,
+        parts: parts.map((p, i) => ({ file: `arenalive-player-image-${i + 1}.gz`, size: p.length, sha256: sha(p) })),
+      }),
+    );
+    const d = await newDisplay();
+    const first = await configOf(d.id);
+    const client = await connect({ type: 'auth', token: first.token });
+    await client.next(1);
+    const res = await server.app.inject({
+      method: 'POST',
+      url: `/api/admin/displays/${d.id}/image`,
+      headers: { cookie: admin },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(200);
+    expect(await client.closed).toBe(4404);
+    expect((await heartbeat(first.token)).statusCode).toBe(401);
   });
 });

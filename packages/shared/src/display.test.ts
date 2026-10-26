@@ -113,7 +113,8 @@ describe('socket of the player', () => {
 describe('image of the SD card', () => {
   it('describes the file on offer, or its absence', async () => {
     const { PlayerImageInfoSchema, playerImageFileName } = await import('./index.js');
-    expect(playerImageFileName('0.1.0')).toBe('arenalive-player-0.1.0.img.xz');
+    expect(playerImageFileName('0.1.0', 'xz')).toBe('arenalive-player-0.1.0.img.xz');
+    expect(playerImageFileName('0.2.0', 'gz')).toBe('arenalive-player-0.2.0.img.gz');
     expect(PlayerImageInfoSchema.parse({ available: false })).toEqual({ available: false });
     const info = {
       available: true,
@@ -121,9 +122,58 @@ describe('image of the SD card', () => {
       builtAt: '2026-10-26T10:00:00.000Z',
       bytes: 1,
       sha256: 'a'.repeat(64),
+      sha256Of: 'file',
       fileName: 'arenalive-player-0.1.0.img.xz',
+      ready: false,
     };
     expect(PlayerImageInfoSchema.parse(info)).toEqual(info);
     expect(PlayerImageInfoSchema.safeParse({ ...info, sha256: 'x' }).success).toBe(false);
+  });
+
+  const part = (n: number) => ({ file: `arenalive-player-image-${n}.gz`, size: 10, sha256: 'b'.repeat(64) });
+  const manifest = {
+    format: 2,
+    version: '0.2.0',
+    builtAt: '2026-10-26T10:00:00.000Z',
+    imageSize: 65536,
+    imageSha256: 'a'.repeat(64),
+    slotOffset: 4096,
+    slotSize: 8192,
+    parts: [part(1), part(2), part(3)],
+  };
+
+  it('reads the manifest of the three parts', async () => {
+    const { PlayerImageManifestSchema } = await import('./index.js');
+    expect(PlayerImageManifestSchema.parse(manifest)).toEqual(manifest);
+  });
+
+  it('refuses other names of the parts, a slot out of a sector or of the image, another slot size', async () => {
+    const { PlayerImageManifestSchema } = await import('./index.js');
+    const bad = (over: Record<string, unknown>) =>
+      PlayerImageManifestSchema.safeParse({ ...manifest, ...over }).success;
+    expect(bad({ parts: [part(1), { ...part(2), file: '../../etc/passwd' }, part(3)] })).toBe(false);
+    expect(bad({ parts: [part(2), part(1), part(3)] })).toBe(false);
+    expect(bad({ parts: [part(1), part(2)] })).toBe(false);
+    expect(bad({ slotOffset: 4000 })).toBe(false);
+    expect(bad({ slotOffset: 65536 - 4096 })).toBe(false);
+    expect(bad({ slotSize: 4096 })).toBe(false);
+    expect(bad({ format: 1 })).toBe(false);
+  });
+
+  it('names the ready image after the player', async () => {
+    const { playerReadyImageFileName } = await import('./index.js');
+    expect(playerReadyImageFileName('Maxischermo Tribuna Città', '0.2.0')).toBe(
+      'arenalive-player-maxischermo-tribuna-citta-0.2.0.img.gz',
+    );
+    expect(playerReadyImageFileName('«##»', '0.2.0')).toBe('arenalive-player-player-0.2.0.img.gz');
+    expect(playerReadyImageFileName('a'.repeat(100), '1.0.0')).toBe(`arenalive-player-${'a'.repeat(40)}-1.0.0.img.gz`);
+  });
+
+  it('gives the ticket of the download and its address', async () => {
+    const { DisplayImageTicketSchema, DisplayImageTicketParamSchema, displayImagePath } = await import('./index.js');
+    const ticket = { ticket: TOKEN, expiresAt: '2026-10-26T10:10:00.000Z', fileName: 'a.img.gz', size: 5 };
+    expect(DisplayImageTicketSchema.parse(ticket)).toEqual(ticket);
+    expect(displayImagePath(TOKEN)).toBe(`/api/admin/displays/image/${TOKEN}`);
+    expect(DisplayImageTicketParamSchema.safeParse({ ticket: 'x/y' }).success).toBe(false);
   });
 });

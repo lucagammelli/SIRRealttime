@@ -867,16 +867,28 @@ viewer vede la lista ma non può modificare, `READ_ONLY_TEXT`). La lista si rile
   `ShareLinksPage` («Partita: …» e «Calendario: …») e le altre partite ricevute (`targetChoices`). Il cambio vale subito
   sulle pagine aperte.
 - Comandi: «Ricarica», «Riavvia» (con conferma «Conferma riavvio»), «Spegni schermo» e «Accendi schermo».
-- «Scarica configurazione»: avviso che il file nuovo sostituisce il precedente (la scheda SD col file vecchio smette di
-  funzionare), campi facoltativi «Rete Wi-Fi (facoltativa)» (vuota: cavo), «Password del Wi-Fi» (8-63 caratteri, vuota per
-  una rete aperta; non resta sul server) e «Paese» (due lettere, `IT`), bottone «Scarica il file del player»: il browser
-  salva `arenalive-player.json`, da copiare nella partizione `bootfs` della scheda SD.
-- Riquadro «Scheda SD del player»: per l'admin, in alto l'immagine della scheda SD (`ImageDownload`, da
+- «Scarica configurazione» (`ConfigDownload`): avviso «Il download precedente smette di valere» (la scheda SD preparata
+  prima smette di funzionare), campi facoltativi «Rete Wi-Fi (facoltativa)» (vuota: cavo), «Password del Wi-Fi» (8-63
+  caratteri, vuota per una rete aperta; non resta sul server, nemmeno nel database) e «Paese» (due lettere, `IT`). Due
+  percorsi, secondo `ready` di `GET /api/admin/player/image/info`:
+  - **immagine pronta** (il server ha l'immagine di formato 2): bottone principale «Scarica l’immagine pronta»
+    (`READY_IMAGE_TEXT`). Fa `POST /api/admin/displays/:id/image`, riceve il biglietto e avvia il download con un normale
+    link (`downloadLink` verso `displayImagePath(ticket)`, `arenalive-player-<nome>-<versione>.img.gz`: il file di circa 750 MB
+    non passa mai dalla memoria della pagina); poi «Download dell’immagine avviato.». Sotto, il testo `READY_IMAGE_HELP`:
+    scrivila con Raspberry Pi Imager («Usa file personalizzato»), rispondi **No** alla personalizzazione, inserisci la scheda e
+    accendi. L'alternativa «Solo il file di configurazione» (`CONFIG_ONLY_TEXT`) salva `arenalive-player.json`, da copiare
+    nella partizione `bootfs` di una scheda con l'immagine generica;
+  - **immagine pronta assente** (solo `.img.xz` o niente): una nota (`READY_IMAGE_MISSING_TEXT`) e il solo bottone «Solo il
+    file di configurazione» (`POST …/config`, «File arenalive-player.json scaricato.»).
+- Riquadro «Scheda SD del player»: per l'admin, in alto l'immagine **generica** (`ImageDownload`, da
   `GET /api/admin/player/image/info`): se il server la offre, il link «Scarica l’immagine ArenaLive Player» (`IMAGE_TEXT`,
-  `<a href="/api/admin/player/image" download>`: link diretto con il cookie di sessione, circa 750 MB, mai in memoria
-  nella pagina) con versione, data, dimensione in MB, sha256 e «Copia sha256»; altrimenti «Immagine non ancora
-  pubblicata sul server» (`IMAGE_MISSING_TEXT`). Il viewer non lo vede (la rotta è solo admin). Sotto, i quattro passi
-  (immagine con Raspberry Pi Imager, «Usa file personalizzato»; «Scarica configurazione»; copia in bootfs; accensione).
+  `<a href="/api/admin/player/image" download>`: link diretto con il cookie di sessione, `.img.gz` o `.img.xz`; è secondario
+  quando c'è l'immagine pronta, con la scritta «Generica, senza configurazione») con versione, data, dimensione in MB, sha256
+  («sha256 dell’immagine decompressa» per il `.img.gz`, «sha256» per l'`.img.xz`) e «Copia sha256»; altrimenti «Immagine non
+  ancora pubblicata sul server» (`IMAGE_MISSING_TEXT`). Il viewer non lo vede (la rotta è solo admin). Sotto, i passi: con
+  l'immagine pronta tre (crea il player e premi «Scarica configurazione»; «Scarica l’immagine pronta» e scrivila con Raspberry
+  Pi Imager rispondendo No alla personalizzazione; accensione), altrimenti quattro (immagine generica con Raspberry Pi Imager;
+  «Scarica configurazione»; copia in bootfs; accensione).
 - «Revoca» (con conferma): il token smette di valere e il maxischermo mostra «Player non valido».
 - La guida ha la sezione «Il maxischermo con il Player» (`pages/admin/guide/content.ts`).
 
@@ -1699,7 +1711,8 @@ API del server: il portale non è scansionato.
 - Player: `apps/web/src/pages/DisplayPage.tsx` (`DisplayPage`, `DISPLAY_INVALID_RETRY_MS`, `DISPLAY_RELOAD_DELAY_MS`),
   `components/LiveScreen.tsx` (`LiveScreen`), `components/StandbyScreen.tsx`, `lib/displayToken.ts` (`readDisplayToken`,
   `DISPLAY_TOKEN_KEY`, `displayAuthMessage`), `lib/liveConnection.ts` (`display`, `retryInvalidMs`), `lib/useRefresh.ts`,
-  `pages/admin/DisplaysPage.tsx` (`DisplaysPage`, `DISPLAYS_REFRESH_MS`, `IMAGE_TEXT`), `pages/admin/displayText.ts`
+  `pages/admin/DisplaysPage.tsx` (`DisplaysPage`, `ConfigDownload`, `ImageDownload`, `DISPLAYS_REFRESH_MS`, `IMAGE_TEXT`,
+  `READY_IMAGE_TEXT`, `CONFIG_ONLY_TEXT`), `pages/admin/displayText.ts`
   (`displayStateText`, `targetChoices`, `wifiOf`, `COMMAND_LABEL`), `pages/admin/guide/content.ts`; contratti in
   `packages/shared/src/display.ts` (`docs/architettura.md`), API in `docs/server.md` («Player per i maxischermi»)
 - Simulazione: `apps/web/src/pages/admin/SimulationPage.tsx` (`SimulationPage`, `formatClock`, `paceText`,

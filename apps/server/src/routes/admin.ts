@@ -16,9 +16,7 @@ import {
   CreateDisplayRequestSchema,
   CreateShareTokenRequestSchema,
   DISPLAY_CONFIG_FILE_NAME,
-  DISPLAY_CONFIG_VERSION,
   DisplayCommandRequestSchema,
-  DisplayConfigFileSchema,
   DisplayConfigRequestSchema,
   IdParamSchema,
   MATCH_LINKS_DISABLED_MESSAGE,
@@ -36,6 +34,7 @@ import {
   isForeignKeyViolation,
   lockTenantDisplays,
   requireDisplaySlot,
+  rotateDisplayConfig,
   sendReload,
   showDisplay,
   targetColumns,
@@ -462,32 +461,15 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext): void {
     const tenantId = adminTenantId(request);
     const { id } = validate(IdParamSchema, request.params);
     const { wifi } = validate(DisplayConfigRequestSchema, request.body ?? {});
-    const tenant = await findTenant(ctx, { id: tenantId });
-    if (!tenant) throw notFound();
-    const token = generateToken();
-    const [row] = await ctx.db
-      .update(displays)
-      .set({ tokenHash: hashToken(token) })
-      .where(tenantScope(displays, tenantId, eq(displays.id, id), eq(displays.revoked, false)))
-      .returning({ id: displays.id, name: displays.name });
-    if (!row) throw notFound();
-    ctx.hub.closeDisplay(row.id);
-    const file = DisplayConfigFileSchema.parse({
-      version: DISPLAY_CONFIG_VERSION,
-      // The page `/schermo` works only on a hostname of the client.
-      serverUrl: publicBaseUrlFor(ctx.config.publicBaseUrl, tenant.hostnames),
-      token,
-      name: row.name,
-      ...(wifi ? { wifi } : {}),
-    });
+    const rotated = await rotateDisplayConfig(ctx, tenantId, id, wifi, (file) => file);
     request.log.info(
-      { displayId: row.id, wifi: wifi !== undefined, userId: request.user?.id },
+      { displayId: rotated.displayId, wifi: wifi !== undefined, userId: request.user?.id },
       'configurazione del player scaricata',
     );
     void reply
       .header('content-disposition', `attachment; filename="${DISPLAY_CONFIG_FILE_NAME}"`)
       .header('cache-control', 'no-store');
-    return file;
+    return rotated.value;
   });
 
   // The browser does not apply CORS to WebSocket: a foreign Origin is refused here (CSWSH).

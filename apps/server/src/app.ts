@@ -99,7 +99,7 @@ const LOOKUP_CACHE_ENTRIES = 10_000;
 
 /**
  * Share tokens appear in public paths: they are masked in the logs (not the graphics routes of the client, nor the
- * system logos).
+ * system logos), as the tokens of the links of the mails and the tickets of the images ready for a player.
  */
 export function redactUrl(url: string): string {
   if (
@@ -111,6 +111,7 @@ export function redactUrl(url: string): string {
   return url
     .replace(/^\/(api|ws)\/public\/[^/?#]+/, '/$1/public/[token]')
     .replace(/^\/api\/auth\/links\/[^/?#]+/, '/api/auth/links/[token]')
+    .replace(/^\/api\/admin\/displays\/image\/[^/?#]+/, '/api/admin/displays/image/[ticket]')
     .replace(/^\/admin\/(invito|reimposta-password)\/[^/?#]+/, '/admin/$1/[token]');
 }
 

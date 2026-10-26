@@ -1,19 +1,27 @@
-import type { DisplayCommandMessage, DisplaySummary, DisplayTarget } from '@arenalive/shared';
-import { DISPLAY_LIMIT } from '@arenalive/shared';
+import type {
+  DisplayCommandMessage,
+  DisplayConfigFile,
+  DisplaySummary,
+  DisplayTarget,
+  DisplayWifi,
+} from '@arenalive/shared';
+import { DISPLAY_CONFIG_VERSION, DISPLAY_LIMIT, DisplayConfigFileSchema } from '@arenalive/shared';
 import { and, count, eq, lte, sql } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
 import type { AppContext } from './context.js';
 import type { Db } from './db/index.js';
 import { clientFixtures, displays, matches } from './db/index.js';
 import type { Target } from './hub.js';
-import { badRequest, HttpError } from './lib/errors.js';
+import { badRequest, HttpError, notFound } from './lib/errors.js';
+import { generateToken, hashToken } from './lib/tokens.js';
 import type { Tx } from './matchLock.js';
 import { sendLive } from './state.js';
-import { tenantScope } from './tenancy.js';
+import { findTenant, publicBaseUrlFor, tenantScope } from './tenancy.js';
 
 /**
  * Players for big screens (`display`): what they show, the summary of the reserved area and the move of their
- * sockets when the admin changes something. Routes: `routes/admin.ts` (reserved area), `routes/display.ts` (device).
+ * sockets when the admin changes something. Routes: `routes/admin.ts` (reserved area), `routes/display.ts` (device), `routes/agentDownload.ts` (image of the
+ * SD card).
  */
 
 export type DisplayRow = typeof displays.$inferSelect;
@@ -167,4 +175,50 @@ export async function refreshDisplays(ctx: AppContext, tenantId: string, log: Fa
     .from(displays)
     .where(tenantScope(displays, tenantId, eq(displays.revoked, false)));
   for (const row of rows) if (ctx.hub.displaySockets(row.id).length > 0) showDisplay(ctx, row, log);
+}
+
+/** A configuration just given to a player: its file, the sha256 of its token and what `prepare` made of the file. */
+export interface RotatedDisplayConfig<T> {
+  displayId: string;
+  name: string;
+  tokenHash: string;
+  value: T;
+}
+
+/**
+ * `arenalive-player.json` of a player not revoked of the client (404 otherwise) with a new token, stored as sha256
+ * only: the previous file stops working and the pages opened with it are closed. `prepare` turns the file into what
+ * the route sends; when it throws, nothing changes (the token is not replaced). The Wi-Fi goes only into the file
+ * (never stored, never logged). Used by `…/config` (the file) and `…/image` (the image ready for the player).
+ */
+export async function rotateDisplayConfig<T>(
+  ctx: AppContext,
+  tenantId: string,
+  displayId: string,
+  wifi: DisplayWifi | undefined,
+  prepare: (file: DisplayConfigFile) => T,
+): Promise<RotatedDisplayConfig<T>> {
+  const tenant = await findTenant(ctx, { id: tenantId });
+  if (!tenant) throw notFound();
+  const token = generateToken();
+  const tokenHash = hashToken(token);
+  const rotated = await ctx.db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(displays)
+      .set({ tokenHash })
+      .where(tenantScope(displays, tenantId, eq(displays.id, displayId), eq(displays.revoked, false)))
+      .returning({ id: displays.id, name: displays.name });
+    if (!row) throw notFound();
+    const file = DisplayConfigFileSchema.parse({
+      version: DISPLAY_CONFIG_VERSION,
+      // The page `/schermo` works only on a hostname of the client.
+      serverUrl: publicBaseUrlFor(ctx.config.publicBaseUrl, tenant.hostnames),
+      token,
+      name: row.name,
+      ...(wifi ? { wifi } : {}),
+    });
+    return { displayId: row.id, name: row.name, tokenHash, value: prepare(file) };
+  });
+  ctx.hub.closeDisplay(rotated.displayId);
+  return rotated;
 }

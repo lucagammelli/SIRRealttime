@@ -889,13 +889,13 @@ describe('Pause', () => {
     await studio();
     fireEvent.click(screen.getByRole('tab', { name: 'Fine partita' }));
     const card = screen.getByRole('region', { name: 'Dopo la partita' });
-    fireEvent.click(within(card).getByRole('switch', { name: 'Mostra la foto dopo la partita' }));
-    expect(within(card).getByText(/senza foto la schermata non compare/)).toBeTruthy();
+    fireEvent.click(within(card).getByRole('switch', { name: 'Mostra foto o video dopo la partita' }));
+    expect(within(card).getByText(/senza file la schermata non compare/)).toBeTruthy();
     expect(within(card).queryByTestId('anteprima-dopo-partita')).toBeNull();
     // The photo is chosen once, from the library (no second list of the same images under it).
     expect(within(card).queryByText(/Oppure scegli/)).toBeNull();
     expect(within(card).queryAllByRole('radio')).toHaveLength(0);
-    const choose = within(card).getByLabelText('Scegli dalla libreria: Foto a tutto schermo');
+    const choose = within(card).getByLabelText('Scegli dalla libreria: Foto o video a tutto schermo');
     await waitFor(() => expect(within(choose).getAllByRole('option').length).toBeGreaterThan(1));
     fireEvent.change(choose, { target: { value: SPONSOR } });
     fireEvent.change(within(card).getByRole('spinbutton', { name: /Minuti dopo la fine della partita/ }), {
@@ -909,14 +909,21 @@ describe('Pause', () => {
     save();
     expect(await screen.findByText(/Pause salvate/)).toBeTruthy();
     const body = puts('/api/admin/intermissions').at(-1)?.body as TenantIntermissions;
-    expect(body.afterMatch).toEqual({ enabled: true, image: SPONSOR, delayMinutes: 45 });
+    expect(body.afterMatch).toEqual({
+      enabled: true,
+      image: SPONSOR,
+      kind: 'image',
+      audio: false,
+      fit: 'cover',
+      delayMinutes: 45,
+    });
 
-    fireEvent.click(within(card).getByRole('button', { name: 'Togli foto' }));
+    fireEvent.click(within(card).getByRole('button', { name: 'Togli foto o video' }));
     await waitFor(() => expect(within(card).queryByTestId('anteprima-dopo-partita')).toBeNull());
     // No upload here: the photo is chosen from the library, which is filled in «Immagini e video».
     expect(within(card).queryByLabelText('Carica immagine')).toBeNull();
     expect(within(card).getByText('Carica nella libreria').getAttribute('href')).toBe('/admin/media');
-    const pick = within(card).getByLabelText('Scegli dalla libreria: Foto a tutto schermo');
+    const pick = within(card).getByLabelText('Scegli dalla libreria: Foto o video a tutto schermo');
     await waitFor(() => expect(within(pick).getAllByRole('option').length).toBeGreaterThan(1));
     fireEvent.change(pick, { target: { value: SPONSOR } });
     await waitFor(() =>
@@ -937,10 +944,10 @@ describe('Pause', () => {
     fireEvent.click(within(card).getByRole('button', { name: 'Vedi nell’anteprima grande' }));
     expect(checkedScene()).toBe('Dopo la partita');
     expect(scope().querySelector('[data-testid="dopo-partita"]')).toBeNull();
-    expect(screen.getByText(/scegli una foto e accendi/)).toBeTruthy();
+    expect(screen.getByText(/scegli una foto o un video e accendi/)).toBeTruthy();
     // With the photo of the draft (not saved yet): the screen with the photo and the countdown.
-    fireEvent.click(within(card).getByRole('switch', { name: 'Mostra la foto dopo la partita' }));
-    const choose = within(card).getByLabelText('Scegli dalla libreria: Foto a tutto schermo');
+    fireEvent.click(within(card).getByRole('switch', { name: 'Mostra foto o video dopo la partita' }));
+    const choose = within(card).getByLabelText('Scegli dalla libreria: Foto o video a tutto schermo');
     await waitFor(() => expect(within(choose).getAllByRole('option').length).toBeGreaterThan(1));
     fireEvent.change(choose, { target: { value: SPONSOR } });
     fireEvent.click(within(card).getByRole('button', { name: 'Vedi nell’anteprima grande' }));
@@ -952,7 +959,7 @@ describe('Pause', () => {
     expect(screenOfPhoto.querySelector('img')?.getAttribute('src')).toBe(`/api/admin/assets/${SPONSOR}/file`);
     expect(within(screenOfPhoto as HTMLElement).getByRole('heading', { name: 'Prossima partita' })).toBeTruthy();
     // Off: the screen is still shown to the editor, with the reason.
-    fireEvent.click(within(card).getByRole('switch', { name: 'Mostra la foto dopo la partita' }));
+    fireEvent.click(within(card).getByRole('switch', { name: 'Mostra foto o video dopo la partita' }));
     expect(screen.getByText(/Dopo la partita è spento/)).toBeTruthy();
   });
 
@@ -1536,5 +1543,128 @@ describe('phone: the Studio in steps', () => {
     await screen.findByTestId('studio');
     expect(screen.getByTestId('studio').getAttribute('data-step')).toBe('impostazioni');
     expect(await screen.findByRole('list', { name: 'Eventi' })).toBeTruthy();
+  });
+});
+
+describe('Pause: «Mostra titolo» and «Foto o video»', () => {
+  const video: AssetSummary = {
+    ...asset(VIDEO_ID, 'sponsor', 1280, 720),
+    kind: 'overlay',
+    mime: 'video/mp4',
+    url: `/api/admin/assets/${VIDEO_ID}/file`,
+    name: 'Spot',
+  };
+
+  it('a slide of photo or video from the whole library, its options and the title hidden, PUT', async () => {
+    const { puts } = mockServer({}, 'admin', [video]);
+    renderAt('/admin/studio/pause');
+    await studio();
+    fireEvent.click(screen.getByRole('tab', { name: 'Time-out' }));
+    const label = SLIDE_LABELS.media.label;
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tipo di diapositiva' }), { target: { value: 'media' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aggiungi diapositiva' }));
+    expect(slideOrder()).toEqual(['sponsor', 'media']);
+    const row = (): HTMLElement => {
+      const li = screen
+        .getByRole('list', { name: /^Diapositive/ })
+        .querySelector<HTMLElement>('[data-slide-id="media"]');
+      if (!li) throw new Error('no row');
+      return li;
+    };
+    expect(within(row()).getByText('Senza un file la diapositiva non compare.')).toBeTruthy();
+    // Images: every image of the library (logo and sponsor too), never a video.
+    const images = within(row()).getByRole('combobox', { name: `Immagine: ${label}` });
+    await waitFor(() => expect(within(images).getAllByRole('option')).toHaveLength(3));
+    fireEvent.change(images, { target: { value: SPONSOR } });
+    expect(
+      within(row())
+        .getByRole('img', { name: `Anteprima dell’immagine: ${label}` })
+        .getAttribute('src'),
+    ).toBe(`/api/admin/assets/${SPONSOR}/file`);
+    expect(within(row()).queryByRole('checkbox', { name: `Audio del video: ${label}` })).toBeNull();
+    // A video: the image chosen goes, the options of a video come.
+    fireEvent.click(within(row()).getByRole('radio', { name: 'Video' }));
+    const videos = within(row()).getByRole('combobox', { name: `Video: ${label}` });
+    expect(
+      within(videos)
+        .getAllByRole('option')
+        .map((o) => o.getAttribute('value')),
+    ).toEqual(['', VIDEO_ID]);
+    fireEvent.change(videos, { target: { value: VIDEO_ID } });
+    fireEvent.click(within(row()).getByRole('checkbox', { name: `Audio del video: ${label}` }));
+    fireEvent.change(within(row()).getByRole('combobox', { name: `Durata del video: ${label}` }), {
+      target: { value: 'video' },
+    });
+    fireEvent.change(within(row()).getByRole('combobox', { name: `Spazio: ${label}` }), { target: { value: 'cover' } });
+    const title = within(row()).getByRole<HTMLInputElement>('checkbox', { name: `Mostra titolo: ${label}` });
+    expect(title.checked).toBe(true);
+    fireEvent.click(title);
+    expect(within(row()).getByText(/Il titolo della pausa non compare/)).toBeTruthy();
+    save();
+    expect(await screen.findByText(/Pause salvate/)).toBeTruthy();
+    const body = puts('/api/admin/intermissions').at(-1)?.body as TenantIntermissions;
+    expect(body.timeout.slides[0]).toMatchObject({ id: 'sponsor', showTitle: true });
+    expect(body.timeout.slides[1]).toEqual({
+      id: 'media',
+      type: 'media',
+      seconds: 8,
+      enabled: true,
+      showTitle: false,
+      options: { kind: 'video', assetId: VIDEO_ID, fit: 'cover', audio: true, duration: 'video' },
+    });
+  });
+
+  it('«Dopo la partita» with a video of the library: its kind follows the file, sound and fit, PUT', async () => {
+    const { puts } = mockServer({}, 'admin', [video]);
+    renderAt('/admin/studio/pause');
+    await studio();
+    fireEvent.click(screen.getByRole('tab', { name: 'Fine partita' }));
+    const card = screen.getByRole('region', { name: 'Dopo la partita' });
+    fireEvent.click(within(card).getByRole('switch', { name: 'Mostra foto o video dopo la partita' }));
+    const choose = within(card).getByLabelText('Scegli dalla libreria: Foto o video a tutto schermo');
+    // Photos and videos of the whole library.
+    await waitFor(() => expect(within(choose).getAllByRole('option')).toHaveLength(4));
+    fireEvent.change(choose, { target: { value: VIDEO_ID } });
+    await waitFor(() =>
+      expect(within(card).getByRole('checkbox', { name: 'Audio del video: Dopo la partita' })).toBeTruthy(),
+    );
+    fireEvent.click(within(card).getByRole('checkbox', { name: 'Audio del video: Dopo la partita' }));
+    fireEvent.change(within(card).getByRole('combobox', { name: 'Spazio: Dopo la partita' }), {
+      target: { value: 'contain' },
+    });
+    const preview = within(card).getByTestId('anteprima-dopo-partita');
+    expect(preview.querySelector('video')?.getAttribute('src')).toBe(`/api/admin/assets/${VIDEO_ID}/file`);
+    // The preview is silent.
+    expect(preview.querySelector('video')?.dataset.audio).toBe('off');
+    save();
+    expect(await screen.findByText(/Pause salvate/)).toBeTruthy();
+    const body = puts('/api/admin/intermissions').at(-1)?.body as TenantIntermissions;
+    expect(body.afterMatch).toMatchObject({
+      enabled: true,
+      image: VIDEO_ID,
+      kind: 'video',
+      audio: true,
+      fit: 'contain',
+    });
+    // Back to a photo: an image again, no sound option.
+    fireEvent.change(within(card).getByLabelText('Scegli dalla libreria: Foto o video a tutto schermo'), {
+      target: { value: SPONSOR },
+    });
+    await waitFor(() =>
+      expect(within(card).queryByRole('checkbox', { name: 'Audio del video: Dopo la partita' })).toBeNull(),
+    );
+  });
+
+  it('a file no longer in the library is told, to choose another one', async () => {
+    const intermissions = TenantIntermissionsSchema.parse({
+      timeout: {
+        slides: [{ id: 'media', type: 'media', options: { assetId: '00000000-0000-4000-8000-000000000000' } }],
+      },
+    });
+    mockServer({ intermissions });
+    renderAt('/admin/studio/pause');
+    await studio();
+    fireEvent.click(screen.getByRole('tab', { name: 'Time-out' }));
+    expect(await screen.findByText(/Il file scelto non è più nella libreria/)).toBeTruthy();
   });
 });

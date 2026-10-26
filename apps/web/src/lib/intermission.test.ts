@@ -3,7 +3,15 @@ import type { MatchState } from '@arenalive/volley-stats';
 import { describe, expect, it } from 'vitest';
 import { midMatchState, scoreAt } from '../test/fixtures.ts';
 import type { MilestoneMemory } from './intermission.ts';
-import { milestonePause, milestoneStep, pauseTitle, previewState, statPeriod } from './intermission.ts';
+import {
+  milestonePause,
+  milestoneStep,
+  pauseTitle,
+  previewState,
+  slideMediaFiles,
+  statPeriod,
+  visibleSlides,
+} from './intermission.ts';
 
 const mid = midMatchState();
 const SET = mid.live.set;
@@ -118,5 +126,40 @@ describe('«ogni N punti»: the pause', () => {
   it('periods of the statistics: the set given or the match', () => {
     expect(statPeriod('set', 3)).toEqual({ kind: 'set', set: 3 });
     expect(statPeriod('match', 3)).toEqual({ kind: 'match' });
+  });
+});
+
+describe('«Foto o video» slides', () => {
+  const A = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
+  const B = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
+  const pause = TenantIntermissionsSchema.parse({
+    timeout: {
+      slides: [
+        { id: 'a', type: 'media', options: { assetId: A } },
+        { id: 'b', type: 'media', options: { kind: 'video', assetId: B } },
+        { id: 'a2', type: 'media', options: { assetId: A, fit: 'cover' } },
+        { id: 'off', type: 'media', enabled: false, options: { assetId: B } },
+        { id: 'none', type: 'media' },
+      ],
+    },
+  }).timeout;
+  const state = previewState(midMatchState(), 'timeout');
+  const ids = (context: Parameters<typeof visibleSlides>[2]) =>
+    visibleSlides(state, { set: 1, pause }, context).map((s) => s.id);
+
+  it('files to read: each once, of the slides on, no video with reduced motion', () => {
+    expect(slideMediaFiles(pause, false)).toEqual([
+      { kind: 'image', assetId: A },
+      { kind: 'video', assetId: B },
+    ]);
+    expect(slideMediaFiles(pause, true)).toEqual([{ kind: 'image', assetId: A }]);
+    expect(slideMediaFiles(null, false)).toEqual([]);
+  });
+
+  it('shown only with the file ready; a video never with reduced motion', () => {
+    expect(ids({ sponsorLogo: null })).toEqual([]);
+    expect(ids({ sponsorLogo: null, mediaUrl: (id) => `blob:${id}` })).toEqual(['a', 'b', 'a2']);
+    expect(ids({ sponsorLogo: null, mediaUrl: (id) => (id === A ? null : `blob:${id}`) })).toEqual(['b']);
+    expect(ids({ sponsorLogo: null, mediaUrl: (id) => `blob:${id}`, reducedMotion: true })).toEqual(['a', 'a2']);
   });
 });

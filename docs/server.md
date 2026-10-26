@@ -271,6 +271,15 @@ nulla, la fase viaggia nello stato come ogni altro campo. `{}` è valido e vale 
 - **Sponsor e immagini delle diapositive**: gli id `sponsors` delle diapositive `sponsor` (`intermissionSponsorIds`) devono
   essere sponsor di quel cliente e gli `images` (`intermissionImageIds`) immagini di quel cliente, controllati nella stessa
   transazione e sotto lo stesso lock per cliente di caricamenti, eliminazioni, grafica e layout; altrimenti 400. Dopo il salvataggio si svuota la cache degli hostname (`forgetTenants`).
+- **Diapositive «Foto o video»** (`media`): il file di ogni diapositiva (`intermissionMedia`, anche di quelle spente) deve
+  essere un file di quel cliente, di qualsiasi uso della libreria, e del tipo scelto (immagine per `image`, video per
+  `video`): `requireOwnMedia` con `SLIDE_MEDIA_USE`, la stessa verifica degli sfondi degli avvisi, nella stessa
+  transazione e sotto lo stesso lock; altrimenti 400 («file della diapositiva «Foto o video» non trovato», «il tipo del file
+  non corrisponde a quello scelto (immagine o video)»). Una diapositiva senza file (`assetId` null) si salva. Un file usato
+  non si può eliminare: 409 «File in uso nelle pause: toglilo dalla diapositiva «Foto o video» prima di eliminarlo»
+  (`assetUse`). Esportazione e importazione della grafica tolgono il file (`withoutIntermissionMedia`: come per gli sfondi
+  degli avvisi i video non viaggiano; le diapositive restano con le loro opzioni e `assetId` null, e un pacchetto che ne
+  nomina uno non lo porta mai nel cliente che importa).
 - **Rotta pubblica**: `intermissions` è anche in `GET /api/public/tenant` (`PublicTenantResponseSchema`), con i predefiniti
   se il cliente non ha configurato nulla.
 - **Diapositive spente**: ogni diapositiva ha `enabled` (predefinito `true`, quindi i documenti salvati prima restano
@@ -278,9 +287,13 @@ nulla, la fase viaggia nello stato come ogni altro campo. `{}` è valido e vale 
   diapositiva spenta contano comunque «in uso» per i controlli di eliminazione.
 - **Eliminazione di un'immagine**: se è usata in una diapositiva sponsor, `DELETE /api/admin/assets/:id` risponde 409
   «Immagine in uso nelle pause: toglila dalla diapositiva sponsor o da «Dopo la partita» prima di eliminarla».
-- **«Dopo la partita»** (`afterMatch`: `enabled`, `image`, `delayMinutes`; contratto in `docs/architettura.md`): l'immagine
-  rientra in `intermissionImageIds`, quindi il `PUT` la verifica (400 se non è del cliente) e conta «in uso» anche a
-  schermata spenta. L'importazione della grafica (`graphicsTransfer.ts`) rimappa anche questa immagine sui nuovi id.
+- **«Dopo la partita»** (`afterMatch`: `enabled`, `image`, `kind`, `audio`, `fit`, `delayMinutes`; contratto in
+  `docs/architettura.md`): con `kind` `image` (predefinito: i documenti salvati con la sola foto restano validi) il file
+  rientra in `intermissionImageIds`, quindi il `PUT` lo verifica (400 se non è un'immagine del cliente) e l'importazione
+  della grafica (`graphicsTransfer.ts`) lo rimappa sui nuovi id; con `kind` `video` rientra in `intermissionMedia`
+  (`requireOwnMedia`: 400 se non è un video del cliente) e, come i video delle diapositive, non viaggia nel pacchetto
+  (`withoutIntermissionMedia`: `image` null all'esportazione e all'importazione). In tutti e due i casi conta «in uso»
+  anche a schermata spenta (409 all'eliminazione).
   L'orario di fine è salvato dal server (sotto, in «Ingest»), non è nella configurazione.
 
 ### Sponsor (`apps/server/src/routes/sponsors.ts`, `apps/server/src/sponsors.ts`)
@@ -325,8 +338,8 @@ da `@arenalive/volley-stats` (`docs/statistiche.md`) e viaggiano nello stato com
   `PUT /api/admin/overlays`; il corpo del `PUT` è il documento degli avvisi e la risposta è `OverlaysResponse`
   (`tenantName`, `overlays`). Validazione con lo schema condiviso (eventi e segnaposto in lista chiusa, testo senza `<` e `>`,
   durata 2-8 s, priorità 1-10): altrimenti 400. Ogni avviso può avere `background` (`{ kind: 'image' | 'video', assetId }`):
-  il `PUT` verifica (`requireOwnBackgrounds`, sotto il blocco del cliente) che il file sia del cliente, di `kind` `overlay` e
-  del tipo dichiarato (video per `video`, immagine per `image`), altrimenti 400. Un file usato come sfondo non si può
+  il `PUT` verifica (`requireOwnMedia` con `OVERLAY_BACKGROUND_USE`, sotto il blocco del cliente) che il file sia del
+  cliente, di `kind` `overlay` e del tipo dichiarato (video per `video`, immagine per `image`), altrimenti 400. Un file usato come sfondo non si può
   eliminare (`assetUse`, 409 «File in uso come sfondo di un avviso…»). L'esportazione e l'importazione della grafica
   (`graphicsTransfer.ts`) tolgono gli sfondi (`withoutOverlayBackgrounds`): i video fino a 15 MB non viaggiano nel
   pacchetto e gli avvisi restano con il solo testo. Dopo il salvataggio si svuota la cache degli hostname (`forgetTenants`).

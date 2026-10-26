@@ -2,6 +2,7 @@ import type { IntermissionSlide, SlideType } from '@arenalive/shared';
 import type { Side, StatLine } from '@arenalive/volley-stats';
 import { matchMvp, setRecap } from '@arenalive/volley-stats';
 import type { ReactNode } from 'react';
+import { MediaPicture } from '../components/MediaPicture.tsx';
 import { Partials } from '../components/Scoreboard.tsx';
 import { BreakableName } from '../components/ui.tsx';
 import { formatPct, playerName, teamName, teamShort } from '../lib/format.ts';
@@ -34,6 +35,18 @@ export interface SlideEnv extends BlockEnv {
   /** Set the pause is about (set just closed, set of the time-out, last set). */
   set: number;
   sponsorLogo: string | null;
+  /** Address of a file of the library ready to be shown (`SlideContext.mediaUrl`); missing: none. */
+  mediaUrl?: ((assetId: string) => string | null) | undefined;
+  /**
+   * The video of a «Foto o video» slide: `follow` it plays once (the slide follows its length; otherwise it loops),
+   * `muted` never with its sound (the previews), and the length and end of the video for the rotation.
+   */
+  video?: {
+    follow: boolean;
+    muted: boolean;
+    onLength?: (seconds: number | null) => void;
+    onEnd?: () => void;
+  };
 }
 
 /** Names of the slides in the editor «Pause». */
@@ -75,6 +88,10 @@ export const SLIDE_LABELS: Record<SlideType, { label: string; description: strin
   message: { label: 'Messaggio', description: 'Un testo a scelta (senza formattazione).' },
   qr: { label: 'Codice QR', description: 'QR del link di questa pagina.' },
   logo: { label: 'Logo', description: 'Logo del cliente.' },
+  media: {
+    label: 'Foto o video',
+    description: 'Un’immagine o un video della libreria «Immagini e video», a tutto spazio.',
+  },
 };
 
 const TEXT: Record<Side, string> = { home: 'text-home-ink', away: 'text-away-ink' };
@@ -286,6 +303,48 @@ function CompactQr({ env }: { env: SlideEnv }) {
   );
 }
 
+/**
+ * «Foto o video»: the image or video of the library on the whole space of the slide (a small box on the banner line),
+ * as `MediaPicture` draws it for the overlays. Nothing when the file is not ready (the slide is skipped then).
+ */
+function MediaSlide({
+  slide,
+  env,
+  size,
+}: {
+  slide: Extract<IntermissionSlide, { type: 'media' }>;
+  env: SlideEnv;
+  size: SlideSize;
+}) {
+  const { kind, assetId, fit, audio, duration } = slide.options;
+  const url = assetId === null ? null : (env.mediaUrl?.(assetId) ?? null);
+  if (url === null) return null;
+  const once = kind === 'video' && duration === 'video' && env.video?.follow === true;
+  return (
+    <div
+      role="img"
+      aria-label={kind === 'video' ? 'Video' : 'Foto'}
+      data-media-slide={kind}
+      data-fit={fit}
+      className={
+        size === 'full'
+          ? 'absolute inset-0 overflow-hidden'
+          : 'relative aspect-video h-14 max-w-full overflow-hidden rounded-card'
+      }
+    >
+      <MediaPicture
+        kind={kind}
+        url={url}
+        fit={fit}
+        audio={audio && env.video?.muted !== true}
+        once={once}
+        onLength={env.video?.onLength}
+        onEnd={env.video?.onEnd}
+      />
+    </div>
+  );
+}
+
 /** Draws one slide of a pause, full screen or as a banner line. Texts of the client are always plain text. */
 export function renderSlide(slide: IntermissionSlide, env: SlideEnv, size: SlideSize): ReactNode {
   switch (slide.type) {
@@ -385,6 +444,8 @@ export function renderSlide(slide: IntermissionSlide, env: SlideEnv, size: Slide
     case 'logo':
       if (size === 'full') return <LogoBlock options={slide.options} env={env} />;
       return <CompactLogo env={env} variant={slide.options.variant} />;
+    case 'media':
+      return <MediaSlide slide={slide} env={env} size={size} />;
   }
 }
 

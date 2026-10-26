@@ -20,6 +20,7 @@ import {
   resolveIntermissions,
   resolveLayout,
   resolveOverlays,
+  withoutIntermissionMedia,
   withoutOverlayBackgrounds,
 } from '@arenalive/shared';
 import { and, count, eq, inArray, isNull, sql } from 'drizzle-orm';
@@ -130,7 +131,8 @@ async function importSponsors(
 
 /**
  * Export / import of the whole graphics of a client (branding, page, pauses, overlays and the images they use) as one
- * versioned JSON package, to move it from a portal to another.
+ * versioned JSON package, to move it from a portal to another. The backgrounds of the overlays and the files of the
+ * «Foto o video» slides of the pauses (videos up to 15 MB) never travel: the documents arrive without them.
  */
 export function graphicsTransferRoutes(app: FastifyInstance, ctx: AppContext): void {
   const admin = { config: perMinute(ctx.rateLimits.admin), preHandler: requireRole(ctx, 'admin') };
@@ -143,7 +145,9 @@ export function graphicsTransferRoutes(app: FastifyInstance, ctx: AppContext): v
     const docs = {
       branding,
       layout: resolveLayout(tenant.layout, branding.template),
-      intermissions: resolveIntermissions(tenant.intermissions),
+      // As the backgrounds of the overlays, the files of the «Foto o video» slides do not travel: the slides stay
+      // without a file (skipped until one is chosen again).
+      intermissions: withoutIntermissionMedia(resolveIntermissions(tenant.intermissions)),
     };
     const chosen = new Set(graphicsSponsorIds(docs));
     const sponsorList = chosen.size === 0 ? [] : (await listSponsors(ctx.db, tenantId)).filter((s) => chosen.has(s.id));
@@ -235,7 +239,11 @@ export function graphicsTransferRoutes(app: FastifyInstance, ctx: AppContext): v
         }
         const sponsorMap = await importSponsors(tx, tenantId, pkg.sponsors, map);
         const docs = remapGraphicsSponsorIds(
-          remapGraphicsImageIds({ branding: pkg.branding, layout: pkg.layout, intermissions: pkg.intermissions }, map),
+          remapGraphicsImageIds(
+            // A package never brings files of the «Foto o video» slides either (ids of another client).
+            { branding: pkg.branding, layout: pkg.layout, intermissions: withoutIntermissionMedia(pkg.intermissions) },
+            map,
+          ),
           sponsorMap,
         );
         const updated = await tx

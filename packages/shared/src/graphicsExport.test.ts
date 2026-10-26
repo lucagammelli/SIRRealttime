@@ -101,6 +101,13 @@ describe('remapGraphicsImageIds', () => {
     expect(graphicsImageIds(docs).sort()).toEqual([A, B].sort());
   });
 
+  it('leaves alone a video of «Dopo la partita» (it never travels: only images are remapped)', () => {
+    const docs = { branding: defaultBranding(), layout: defaultLayout(), intermissions: defaultIntermissions() };
+    docs.intermissions.afterMatch = { ...docs.intermissions.afterMatch, image: B, kind: 'video' };
+    expect(graphicsImageIds(docs)).toEqual([]);
+    expect(remapGraphicsImageIds(docs, new Map()).intermissions.afterMatch.image).toBe(B);
+  });
+
   it('fails on an id missing from the map', () => {
     const docs = {
       branding: { ...defaultBranding(), logoMain: A },

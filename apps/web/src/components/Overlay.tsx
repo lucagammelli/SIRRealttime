@@ -2,6 +2,7 @@ import type { OverlayPosition, OverlaySize, PublicPlayerMedia, TenantOverlays } 
 import { OVERLAY_VIDEO_MAX_SECONDS } from '@arenalive/shared';
 import type { MatchState, Side } from '@arenalive/volley-stats';
 import { useEffect, useRef, useState } from 'react';
+import { MediaPicture } from './MediaPicture.tsx';
 import type { Device } from '../lib/layout.ts';
 import type { QueuedOverlay } from '../lib/overlay.ts';
 import { enqueue, eventsOf, nextOverlay, overlayFor, unseenEvents, videoHoldSeconds } from '../lib/overlay.ts';
@@ -45,14 +46,6 @@ const TEXT_TONE: Record<Side | 'neutral', string> = {
   away: 'text-on-away',
   neutral: 'text-on-primary',
 };
-/**
- * Full screen: the whole picture fits (never cropped), centred; the sides are filled with the page background colour
- * (a video) or with a blurred copy of the same image (an image). Nothing is laid over the real picture.
- */
-export const FULLSCREEN_MEDIA_CLASS = 'absolute inset-0 size-full object-contain';
-export const FULLSCREEN_FILL_CLASS = 'absolute inset-0 size-full scale-110 object-cover blur-2xl';
-const COVER_MEDIA_CLASS = 'absolute inset-0 size-full object-cover';
-
 /** With a background the box is larger (16:9), so that the image or the video can be seen. */
 const MEDIA_BOX: Record<Device, string> = {
   tv: 'w-[min(56rem,calc(90*var(--sir-vw)))]',
@@ -125,34 +118,16 @@ export function OverlayBanner({
       data-fit={fullscreen ? 'fullscreen' : 'center'}
       className={`${reduced ? '' : 'sir-overlay'} flex items-center justify-center overflow-hidden text-center font-display font-bold uppercase tracking-wide ${box} ${TEXT_TONE[tone]}`}
     >
-      {fullscreen && (
-        <div
-          aria-hidden="true"
-          data-fill={shown.kind === 'image' ? 'blur' : 'color'}
-          className="absolute inset-0 bg-bg"
-        >
-          {shown.kind === 'image' && <img src={shown.url} alt="" className={FULLSCREEN_FILL_CLASS} />}
-        </div>
-      )}
-      {shown.kind === 'video' ? (
-        // A new element for every file: the same <video> with another src may keep showing the first one.
-        <OverlayVideo
-          key={shown.url}
-          url={shown.url}
-          audio={shown.audio === true}
-          once={shown.duration === 'video'}
-          className={fullscreen ? FULLSCREEN_MEDIA_CLASS : COVER_MEDIA_CLASS}
-          onLength={onVideoLength}
-          onEnd={onVideoEnd}
-        />
-      ) : (
-        <img
-          key={shown.url}
-          src={shown.url}
-          alt=""
-          className={fullscreen ? FULLSCREEN_MEDIA_CLASS : COVER_MEDIA_CLASS}
-        />
-      )}
+      {/* On the whole screen the whole picture (sides filled), in the box the whole box (edges cut). */}
+      <MediaPicture
+        kind={shown.kind}
+        url={shown.url}
+        fit={fullscreen ? 'contain' : 'cover'}
+        audio={shown.audio === true}
+        once={shown.duration === 'video'}
+        onLength={onVideoLength}
+        onEnd={onVideoEnd}
+      />
       {/* Image or video as the original file, never covered. The text, when shown, has a band of its own. */}
       <span
         data-player-text={showText ? 'shown' : 'hidden'}
@@ -163,73 +138,6 @@ export function OverlayBanner({
         {text}
       </span>
     </div>
-  );
-}
-
-/**
- * Video behind an overlay: inline, in a loop, no controls. Muted unless `audio`; with `audio` a browser that refuses
- * to start it with its sound (no click on the page yet) plays it muted, without any error.
- */
-function OverlayVideo({
-  url,
-  audio,
-  once,
-  className,
-  onLength,
-  onEnd,
-}: {
-  url: string;
-  className: string;
-  audio: boolean;
-  /** Played once (the overlay follows its length) instead of in a loop. */
-  once: boolean;
-  onLength: ((seconds: number | null) => void) | undefined;
-  onEnd: (() => void) | undefined;
-}) {
-  const ref = useRef<HTMLVideoElement>(null);
-  const callbacks = useRef({ onLength, onEnd });
-  callbacks.current = { onLength, onEnd };
-  useEffect(() => {
-    const video = ref.current;
-    if (!video) return;
-    // React does not always write `muted` as an attribute: set on the element, so that autoplay is allowed.
-    video.muted = !audio;
-    const started = video.play?.();
-    const failed = () => {
-      if (ref.current === video && once) callbacks.current.onLength?.(null);
-    };
-    void started?.catch(() => {
-      if (!audio || ref.current !== video) {
-        failed();
-        return;
-      }
-      video.muted = true;
-      void video.play?.()?.catch(failed);
-    });
-  }, [url, audio, once]);
-  return (
-    <video
-      ref={ref}
-      src={url}
-      aria-hidden="true"
-      muted={!audio}
-      playsInline
-      autoPlay
-      loop={!once}
-      preload="auto"
-      disablePictureInPicture
-      data-audio={audio ? 'on' : 'off'}
-      onLoadedMetadata={(e) => {
-        if (once) callbacks.current.onLength?.(e.currentTarget.duration);
-      }}
-      onError={() => {
-        if (once) callbacks.current.onLength?.(null);
-      }}
-      onEnded={() => {
-        if (once) callbacks.current.onEnd?.();
-      }}
-      className={className}
-    />
   );
 }
 

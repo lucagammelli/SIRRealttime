@@ -21,14 +21,17 @@ import {
   INTERMISSION_MAX_SLIDES,
   intermissionFor,
   intermissionImageIds,
+  intermissionMedia,
   IntermissionSlideSchema,
   PublicTenantResponseSchema,
   resolveIntermissions,
   SLIDE_MAX_SECONDS,
   SLIDE_MIN_SECONDS,
   SLIDE_TYPES,
+  SLIDE_VIDEO_MAX_SECONDS,
   TenantIntermissionsSchema,
   THANKS_MESSAGE,
+  withoutIntermissionMedia,
 } from './index.js';
 
 const IMG_A = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
@@ -355,7 +358,14 @@ describe('pauses of the public page: inheritance and images', () => {
 
 describe('afterMatch («Dopo la partita»)', () => {
   it('is off without an image by default, also for documents saved before it existed', () => {
-    const expected = { enabled: false, image: null, delayMinutes: AFTER_MATCH_DEFAULT_DELAY_MINUTES };
+    const expected = {
+      enabled: false,
+      image: null,
+      kind: 'image',
+      audio: false,
+      fit: 'cover',
+      delayMinutes: AFTER_MATCH_DEFAULT_DELAY_MINUTES,
+    };
     expect(defaultIntermissions().afterMatch).toEqual(expected);
     expect(resolveIntermissions({ timeout: { enabled: false } }).afterMatch).toEqual(expected);
     expect(afterMatchImage(defaultIntermissions().afterMatch)).toBeNull();
@@ -363,7 +373,15 @@ describe('afterMatch («Dopo la partita»)', () => {
 
   it('keeps image and minutes, and checks their limits', () => {
     const on = TenantIntermissionsSchema.parse({ afterMatch: { enabled: true, image: IMG_A, delayMinutes: 0 } });
-    expect(on.afterMatch).toEqual({ enabled: true, image: IMG_A, delayMinutes: 0 });
+    // Saved before the video: the photo, filling the screen, as it always did.
+    expect(on.afterMatch).toEqual({
+      enabled: true,
+      image: IMG_A,
+      kind: 'image',
+      audio: false,
+      fit: 'cover',
+      delayMinutes: 0,
+    });
     expect(afterMatchImage(on.afterMatch)).toBe(IMG_A);
     expect(afterMatchImage({ ...on.afterMatch, enabled: false })).toBeNull();
     for (const delayMinutes of [-1, AFTER_MATCH_MAX_DELAY_MINUTES + 1, 1.5])
@@ -375,5 +393,84 @@ describe('afterMatch («Dopo la partita»)', () => {
   it('lists its image with the images of the pauses, even when off', () => {
     const config = TenantIntermissionsSchema.parse({ afterMatch: { image: IMG_B } });
     expect(intermissionImageIds(config)).toEqual([IMG_B]);
+    expect(intermissionMedia(config)).toEqual([]);
+  });
+
+  it('a video: with its sound and fit; checked as a file of the library, never exported', () => {
+    const config = TenantIntermissionsSchema.parse({
+      afterMatch: { enabled: true, image: IMG_B, kind: 'video', audio: true, fit: 'contain' },
+    });
+    expect(config.afterMatch).toMatchObject({ kind: 'video', audio: true, fit: 'contain' });
+    expect(afterMatchImage(config.afterMatch)).toBe(IMG_B);
+    expect(intermissionImageIds(config)).toEqual([]);
+    expect(intermissionMedia(config)).toEqual([{ kind: 'video', assetId: IMG_B }]);
+    expect(withoutIntermissionMedia(config).afterMatch).toMatchObject({ image: null, kind: 'video', enabled: true });
+    const photo = TenantIntermissionsSchema.parse({ afterMatch: { image: IMG_A } });
+    expect(withoutIntermissionMedia(photo).afterMatch.image).toBe(IMG_A);
+    for (const wrong of [{ kind: 'gif' }, { fit: 'center' }, { audio: 'yes' }])
+      expect(TenantIntermissionsSchema.safeParse({ afterMatch: wrong }).success).toBe(false);
+  });
+});
+
+describe('«Mostra titolo» of every slide', () => {
+  it('is on when missing (documents saved before it) and keeps a saved no', () => {
+    const old = TenantIntermissionsSchema.parse({ setBreak: { slides: [{ id: 'q', type: 'qr', seconds: 8 }] } });
+    expect(old.setBreak.slides[0]?.showTitle).toBe(true);
+    for (const pause of allIntermissions(defaultIntermissions()))
+      expect(pause.slides.every((s) => s.showTitle)).toBe(true);
+    const off = IntermissionSlideSchema.parse({ id: 'q', type: 'qr', showTitle: false });
+    expect(off.showTitle).toBe(false);
+    expect(IntermissionSlideSchema.safeParse({ id: 'q', type: 'qr', showTitle: 'no' }).success).toBe(false);
+  });
+});
+
+describe('«Foto o video» slide (media)', () => {
+  it('is a slide type with the defaults: no file, an image, whole, muted, for its seconds', () => {
+    expect(SLIDE_TYPES).toContain('media');
+    const slide = IntermissionSlideSchema.parse({ id: 'm', type: 'media' });
+    expect(slide.type === 'media' && slide.options).toEqual({
+      kind: 'image',
+      assetId: null,
+      fit: 'contain',
+      audio: false,
+      duration: 'seconds',
+    });
+  });
+
+  it('keeps a video with its options and checks every field', () => {
+    const options = { kind: 'video', assetId: IMG_A, fit: 'cover', audio: true, duration: 'video' } as const;
+    const slide = IntermissionSlideSchema.parse({ id: 'm', type: 'media', options });
+    expect(slide.type === 'media' && slide.options).toEqual(options);
+    for (const wrong of [
+      { kind: 'gif' },
+      { assetId: 'non-un-id' },
+      { fit: 'center' },
+      { duration: 'forever' },
+      { audio: 'yes' },
+      { other: 1 },
+    ])
+      expect(IntermissionSlideSchema.safeParse({ id: 'm', type: 'media', options: wrong }).success).toBe(false);
+  });
+
+  it('follows the video for at most the longest seconds of a slide', () => {
+    expect(SLIDE_VIDEO_MAX_SECONDS).toBe(SLIDE_MAX_SECONDS);
+  });
+
+  it('lists the files of the slides of every pause with their kind, and drops them for an export', () => {
+    const config = TenantIntermissionsSchema.parse({
+      timeout: { slides: [{ id: 'm', type: 'media', options: { kind: 'video', assetId: IMG_A } }] },
+      setBreakBySet: { '3': { slides: [{ id: 'm', type: 'media', enabled: false, options: { assetId: IMG_B } }] } },
+      matchEnd: { slides: [{ id: 'n', type: 'media' }] },
+    });
+    expect(intermissionMedia(config)).toEqual([
+      { kind: 'video', assetId: IMG_A },
+      { kind: 'image', assetId: IMG_B },
+    ]);
+    expect(intermissionImageIds(config)).toEqual([]);
+    const clean = withoutIntermissionMedia(config);
+    expect(intermissionMedia(clean)).toEqual([]);
+    expect(clean.timeout.slides[0]).toMatchObject({ type: 'media', options: { kind: 'video', assetId: null } });
+    expect(intermissionMedia(config)).toHaveLength(2);
+    expect(TenantIntermissionsSchema.safeParse(clean).success).toBe(true);
   });
 });

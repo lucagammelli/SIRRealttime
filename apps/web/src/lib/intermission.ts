@@ -8,6 +8,7 @@ import type {
   IntermissionKind,
   IntermissionSlide,
   MilestoneIntermission,
+  OverlayBackgroundKind,
   PublicSponsor,
   ScheduleResponse,
   StatPeriod,
@@ -95,6 +96,31 @@ export interface SlideContext {
   sponsors?: readonly PublicSponsor[];
   /** Matches and standings of the club (`useSchedule`): «Prossima partita» and «Classifica» need them. */
   schedule?: ScheduleResponse | null;
+  /**
+   * Address of a file of the library ready to be shown (read into memory, see `useMediaFiles`), null when it is not
+   * (not read yet, deleted); missing: none, the «Foto o video» slides are skipped.
+   */
+  mediaUrl?: (assetId: string) => string | null;
+  /** Reduced motion: the «Foto o video» slides of a video are skipped (the video never starts). */
+  reducedMotion?: boolean;
+}
+
+/**
+ * Pure: the files the «Foto o video» slides of `pause` that are on need, each once (none for a video with reduced
+ * motion: it never starts); none without a pause.
+ */
+export function slideMediaFiles(
+  pause: Pick<Intermission, 'slides'> | null,
+  reducedMotion: boolean,
+): { kind: OverlayBackgroundKind; assetId: string }[] {
+  const out = new Map<string, { kind: OverlayBackgroundKind; assetId: string }>();
+  for (const slide of pause?.slides ?? []) {
+    if (!slide.enabled || slide.type !== 'media') continue;
+    const { kind, assetId } = slide.options;
+    if (assetId === null || (reducedMotion && kind === 'video') || out.has(assetId)) continue;
+    out.set(assetId, { kind, assetId });
+  }
+  return [...out.values()];
 }
 
 /** Roles that have a player against player duel in the period (first pair of each role), in the order of the duels. */
@@ -130,7 +156,8 @@ function hasStatistics(state: MatchState, slide: IntermissionSlide, set: number)
  * Slides of a pause that are on and have something to show (a slide off never shows): a sponsor slide needs images (or the sponsor logo of the branding),
  * the summary of the set needs the set, the MVP a player with points; the statistics of a period need the period
  * (aces, blocks, attacks: at least one), a player duel its role. A player duel `rotate` becomes one slide for every
- * role with a duel (id `<id>:<role>`), each for the seconds of the slide.
+ * role with a duel (id `<id>:<role>`), each for the seconds of the slide. A «Foto o video» slide needs its file ready
+ * (`mediaUrl`: none chosen, deleted or not read yet: skipped), and never a video with reduced motion.
  */
 export function visibleSlides(
   state: MatchState,
@@ -147,6 +174,11 @@ export function visibleSlides(
       case 'nextMatch':
       case 'standings':
         return hasScheduleData(slide.type, context.schedule) ? [slide] : [];
+      case 'media': {
+        const { kind, assetId } = slide.options;
+        if (assetId === null || (kind === 'video' && context.reducedMotion === true)) return [];
+        return context.mediaUrl?.(assetId) ? [slide] : [];
+      }
       case 'setSummary':
         return setRecap(state, active.set) !== null ? [slide] : [];
       case 'mvp':

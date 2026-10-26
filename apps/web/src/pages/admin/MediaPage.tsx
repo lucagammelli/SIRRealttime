@@ -18,6 +18,7 @@ import {
   BRANDING_IMAGE_SLOTS,
   IntermissionsResponseSchema,
   intermissionImageIds,
+  intermissionMedia,
   intermissionSponsorIds,
   isVideoMime,
   LayoutResponseSchema,
@@ -56,8 +57,8 @@ export interface SavedDocs {
 
 /**
  * Pure: ids of the files the saved documents use: the logos of the graphics, the images of the sponsor blocks and of the
- * pauses («Sponsor», «Dopo la partita»), the backgrounds of the overlays, and every image of a sponsor chosen by a
- * sponsor block or a sponsor slide.
+ * pauses («Sponsor», «Foto o video», «Dopo la partita»), the backgrounds of the overlays, and every image of a sponsor
+ * chosen by a sponsor block or a sponsor slide.
  */
 export function assetsInUse(saved: SavedDocs, assets: readonly AssetSummary[]): Set<string> {
   const used = new Set<string>();
@@ -67,6 +68,7 @@ export function assetsInUse(saved: SavedDocs, assets: readonly AssetSummary[]): 
   }
   for (const id of layoutImageIds(saved.layout)) used.add(id);
   for (const id of intermissionImageIds(saved.intermissions)) used.add(id);
+  for (const media of intermissionMedia(saved.intermissions)) used.add(media.assetId);
   for (const background of overlayBackgrounds(saved.overlays)) used.add(background.assetId);
   const sponsors = new Set([...layoutSponsorIds(saved.layout), ...intermissionSponsorIds(saved.intermissions)]);
   for (const a of assets) if (a.sponsorId && sponsors.has(a.sponsorId)) used.add(a.id);
@@ -260,7 +262,11 @@ function UploadCard({ sponsors, onUploaded }: { sponsors: readonly Sponsor[]; on
           const asset =
             what === 'video'
               ? await uploadVideo(file, use === 'player' ? 'player' : 'overlay')
-              : await uploadImage(file, use satisfies AssetKind, use === 'sponsor' && sponsorId ? sponsorId : undefined);
+              : await uploadImage(
+                  file,
+                  use satisfies AssetKind,
+                  use === 'sponsor' && sponsorId ? sponsorId : undefined,
+                );
           if (asset) result.uploaded += 1;
           else result.failed.push({ name: file.name, reason: IMAGE_TOO_LARGE });
         } catch (err) {
@@ -359,9 +365,10 @@ function UploadCard({ sponsors, onUploaded }: { sponsors: readonly Sponsor[]; on
           </label>
         </div>
         <p className="text-xs text-muted">
-          Immagini PNG, JPEG, WebP o SVG, al massimo 2 MB. Video MP4, MOV o WebM, al massimo 15 MB: servono come sfondo degli
-          avvisi o come video dei giocatori: il video segue l’uso scelto sopra («Foto e video dei giocatori»; con gli
-          altri usi è per gli avvisi).
+          Immagini PNG, JPEG, WebP o SVG, al massimo 2 MB. Video MP4, MOV o WebM, al massimo 15 MB: servono come sfondo
+          degli avvisi o come video dei giocatori: il video segue l’uso scelto sopra («Foto e video dei giocatori»; con
+          gli altri usi è per gli avvisi). Ogni immagine e ogni video si possono mostrare anche nelle pause, con la
+          diapositiva «Foto o video».
         </p>
         <p role="status" aria-live="polite" className="text-xs text-muted">
           {progress ? `Caricamento ${progress.n} di ${progress.total}…` : ''}

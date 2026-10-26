@@ -12,6 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
 import { assignTemplate, createTenant, createUser, login, startServer, SUPERADMIN } from './helpers.js';
 import { png, svg } from './imageFixtures.js';
+import { mp4 } from './videoFixtures.js';
 
 const HOST_A = 'ga.sir.test';
 const HOST_B = 'gb.sir.test';
@@ -409,5 +410,74 @@ describe('rate limit', () => {
     } finally {
       await strict.close();
     }
+  });
+});
+
+describe('«Foto o video» slides in the package', () => {
+  const HOST_D = 'gd.sir.test';
+  const HOST_E = 'ge.sir.test';
+  const ADMIN_D = { email: 'g-admin-d@sir.test', password: 'password-admin-d' };
+  const ADMIN_E = { email: 'g-admin-e@sir.test', password: 'password-admin-e' };
+  let cookieD: string;
+  let cookieE: string;
+  let photo: AssetSummary;
+
+  beforeAll(async () => {
+    await createUser(server, ADMIN_D, 'admin', await createTenant(server, 'graf-d', [HOST_D]));
+    await createUser(server, ADMIN_E, 'admin', await createTenant(server, 'graf-e', [HOST_E]));
+    cookieD = await login(server.app, ADMIN_D, HOST_D);
+    cookieE = await login(server.app, ADMIN_E, HOST_E);
+    photo = await upload(HOST_D, cookieD, 'sponsor', png(160, 90));
+    const slide = { id: 'm', type: 'media', showTitle: false, options: { assetId: photo.id, fit: 'cover' } };
+    expect((await put(HOST_D, cookieD, 'intermissions', { timeout: { slides: [slide] } })).statusCode).toBe(200);
+  });
+
+  it('are exported without their file (it does not travel), with their options', async () => {
+    const pkg = (await exportOf(HOST_D, cookieD)).json<GraphicsExport>();
+    expect(pkg.images).toEqual([]);
+    expect(pkg.intermissions.timeout.slides[0]).toMatchObject({
+      type: 'media',
+      showTitle: false,
+      options: { kind: 'image', assetId: null, fit: 'cover' },
+    });
+    expect(JSON.stringify(pkg)).not.toContain(photo.id);
+  });
+
+  it('are imported without a file even when the package names one (an id of another client)', async () => {
+    const pkg = (await exportOf(HOST_D, cookieD)).json<GraphicsExport>();
+    const slide = pkg.intermissions.timeout.slides[0];
+    if (slide?.type === 'media') slide.options.assetId = photo.id;
+    expect((await importTo(HOST_E, cookieE, pkg)).statusCode).toBe(200);
+    const pub = await publicTenant(HOST_E);
+    expect(pub.intermissions.timeout.slides[0]).toMatchObject({ type: 'media', options: { assetId: null } });
+    expect(JSON.stringify(pub)).not.toContain(photo.id);
+  });
+
+  it('«Dopo la partita»: a photo travels, a video does not (exported and imported without the file)', async () => {
+    const clip = (
+      await call(HOST_D, cookieD, {
+        method: 'POST',
+        url: '/api/admin/assets/video',
+        headers: { 'content-type': 'application/octet-stream' },
+        payload: mp4(320, 180),
+      })
+    ).json<AssetSummary>();
+    const withVideo = { afterMatch: { enabled: true, image: clip.id, kind: 'video' } };
+    expect((await put(HOST_D, cookieD, 'intermissions', withVideo)).statusCode).toBe(200);
+    const pkg = (await exportOf(HOST_D, cookieD)).json<GraphicsExport>();
+    expect(pkg.intermissions.afterMatch).toMatchObject({ enabled: true, image: null, kind: 'video' });
+    expect(pkg.images).toEqual([]);
+    pkg.intermissions.afterMatch.image = clip.id;
+    expect((await importTo(HOST_E, cookieE, pkg)).statusCode).toBe(200);
+    expect((await publicTenant(HOST_E)).intermissions.afterMatch.image).toBeNull();
+    const withPhoto = { afterMatch: { enabled: true, image: photo.id } };
+    expect((await put(HOST_D, cookieD, 'intermissions', withPhoto)).statusCode).toBe(200);
+    const again = (await exportOf(HOST_D, cookieD)).json<GraphicsExport>();
+    expect(again.images.map((i) => i.id)).toEqual([photo.id]);
+    expect((await importTo(HOST_E, cookieE, again)).statusCode).toBe(200);
+    const imported = (await publicTenant(HOST_E)).intermissions.afterMatch;
+    expect(imported).toMatchObject({ kind: 'image', enabled: true });
+    expect(imported.image).not.toBeNull();
+    expect(imported.image).not.toBe(photo.id);
   });
 });

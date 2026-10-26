@@ -1,8 +1,11 @@
-import { defaultIntermission, defaultIntermissions } from '@arenalive/shared';
+import type { AssetSummary } from '@arenalive/shared';
+import { defaultIntermission, defaultIntermissions, IntermissionSlideSchema } from '@arenalive/shared';
 import { describe, expect, it } from 'vitest';
+import type { MediaSlide } from './intermissionEditor.ts';
 import {
   addSlide,
   freeSlideId,
+  mediaSlideFiles,
   moveSlide,
   pauseAt,
   pauseProblems,
@@ -10,6 +13,8 @@ import {
   resetPause,
   setOwnPause,
   targetSet,
+  withMediaKind,
+  withMediaOptions,
   withPause,
 } from './intermissionEditor.ts';
 
@@ -52,8 +57,69 @@ describe('editing helpers of the pauses', () => {
     const own = setOwnPause(config, '4', true);
     const broken = withPause(own, 'setBreak-4', {
       ...config.setBreak,
-      slides: [{ id: 'm', type: 'message', seconds: 8, enabled: true, options: { text: ' ', size: 'normal' } }],
+      slides: [
+        {
+          id: 'm',
+          type: 'message',
+          seconds: 8,
+          enabled: true,
+          showTitle: true,
+          options: { text: ' ', size: 'normal' },
+        },
+      ],
     });
     expect(pauseProblems(broken)).toEqual(new Set(['setBreak-4']));
+  });
+});
+
+describe('editing a «Foto o video» slide', () => {
+  const IMAGE = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
+  const VIDEO = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
+  const asset = (id: string, mime: string, kind: AssetSummary['kind']): AssetSummary => ({
+    id,
+    kind,
+    mime: mime as AssetSummary['mime'],
+    width: 10,
+    height: 10,
+    bytes: 100,
+    sha256: 'a'.repeat(64),
+    name: null,
+    sponsorId: null,
+    url: `/api/admin/assets/${id}`,
+    createdAt: '2026-10-26T10:00:00.000Z',
+  });
+  const media = (): MediaSlide => {
+    const slide = addSlide({ ...defaultIntermission('timeout'), slides: [] }, 'media').slides[0];
+    if (slide?.type !== 'media') throw new Error('not a media slide');
+    return slide;
+  };
+
+  it('is added with no file, an image, whole, muted and its title shown', () => {
+    expect(media()).toMatchObject({
+      id: 'media',
+      showTitle: true,
+      options: { kind: 'image', assetId: null, fit: 'contain', audio: false, duration: 'seconds' },
+    });
+  });
+
+  it('offers the images or the videos of the whole library', () => {
+    const list = [
+      asset(IMAGE, 'image/png', 'sponsor'),
+      asset(VIDEO, 'video/mp4', 'overlay'),
+      asset('11111111-0000-4000-8000-000000000000', 'image/jpeg', 'player'),
+    ];
+    expect(mediaSlideFiles(list, 'image').map((a) => a.id)).toEqual([IMAGE, '11111111-0000-4000-8000-000000000000']);
+    expect(mediaSlideFiles(list, 'video').map((a) => a.id)).toEqual([VIDEO]);
+  });
+
+  it('changes the file and the options; another kind drops the file', () => {
+    const chosen = withMediaOptions(media(), { assetId: IMAGE, fit: 'cover' });
+    expect(chosen.options).toMatchObject({ kind: 'image', assetId: IMAGE, fit: 'cover' });
+    expect(withMediaKind(chosen, 'image')).toBe(chosen);
+    const video = withMediaKind(chosen, 'video');
+    expect(video.options).toMatchObject({ kind: 'video', assetId: null, fit: 'cover' });
+    const follows = withMediaOptions(withMediaOptions(video, { assetId: VIDEO }), { audio: true, duration: 'video' });
+    expect(IntermissionSlideSchema.parse(follows)).toEqual(follows);
+    expect(chosen.options.assetId).toBe(IMAGE);
   });
 });

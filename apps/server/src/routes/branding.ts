@@ -29,6 +29,7 @@ import {
   BRANDING_IMAGE_SLOTS,
   IdParamSchema,
   intermissionImageIds,
+  intermissionMedia,
   intermissionSponsorIds,
   isCustomTemplate,
   layoutImageIds,
@@ -207,11 +208,33 @@ async function requireOwnImages(tx: Tx, tenantId: string, ids: string[]): Promis
     throw badRequest('Richiesta non valida: immagine non trovata');
 }
 
+/** Where a file of a document is used: which uses of the library it may have, and the error when it is not found. */
+interface MediaUse {
+  /** Uses (`assets.kind`) the file may have; null: any file of the library of the client. */
+  kinds: readonly AssetKind[] | null;
+  notFound: string;
+}
+/** Backgrounds of the overlays: files uploaded for the overlays. */
+const OVERLAY_BACKGROUND_USE: MediaUse = {
+  kinds: ['overlay'],
+  notFound: 'Richiesta non valida: sfondo dell’avviso non trovato',
+};
+/** «Foto o video» slides and the video of «Dopo la partita» of the pauses: any image or video of the library. */
+const SLIDE_MEDIA_USE: MediaUse = {
+  kinds: null,
+  notFound: 'Richiesta non valida: file delle pause («Foto o video», «Dopo la partita») non trovato',
+};
+
 /**
- * Under the lock of the client: every background of the overlays is a file of this client uploaded for the overlays
- * (kind `overlay`), an image for `image` and a video for `video` (400 otherwise).
+ * Under the lock of the client: every file of `list` is a file of this client with one of the uses of `use`, an image
+ * for `image` and a video for `video` (400 otherwise): the backgrounds of the overlays, the «Foto o video» slides.
  */
-async function requireOwnBackgrounds(tx: Tx, tenantId: string, list: { kind: string; assetId: string }[]) {
+async function requireOwnMedia(
+  tx: Tx,
+  tenantId: string,
+  list: { kind: string; assetId: string }[],
+  use: MediaUse,
+): Promise<void> {
   if (list.length === 0) return;
   const ids = [...new Set(list.map((b) => b.assetId))];
   const rows = await tx
@@ -219,11 +242,11 @@ async function requireOwnBackgrounds(tx: Tx, tenantId: string, list: { kind: str
     .from(assets)
     .where(tenantScope(assets, tenantId, inArray(assets.id, ids)));
   const byId = new Map(rows.map((r) => [r.id, r]));
-  for (const background of list) {
-    const row = byId.get(background.assetId);
-    if (!row || row.kind !== 'overlay') throw badRequest('Richiesta non valida: sfondo dell’avviso non trovato');
-    if (isVideoMime(row.mime) !== (background.kind === 'video'))
-      throw badRequest('Richiesta non valida: il tipo dello sfondo non corrisponde al file');
+  for (const item of list) {
+    const row = byId.get(item.assetId);
+    if (!row || (use.kinds !== null && !use.kinds.includes(row.kind))) throw badRequest(use.notFound);
+    if (isVideoMime(row.mime) !== (item.kind === 'video'))
+      throw badRequest('Richiesta non valida: il tipo del file non corrisponde a quello scelto (immagine o video)');
   }
 }
 
@@ -246,7 +269,7 @@ async function giveToSponsor(tx: Tx, tenantId: string, row: AssetRow, sponsorId:
 
 /**
  * Under the lock of the client: why an image cannot be deleted (used by the branding, a sponsor block, a sponsor
- * slide or a match of the calendar), as the text of the 409; null when nothing uses it.
+ * slide, a «Foto o video» slide or a match of the calendar), as the text of the 409; null when nothing uses it.
  */
 export async function assetUse(tx: Tx, tenantId: string, id: string): Promise<string | null> {
   const [tenant] = await tx
@@ -264,6 +287,8 @@ export async function assetUse(tx: Tx, tenantId: string, id: string): Promise<st
     return 'Immagine in uso nella pagina pubblica: toglila dal blocco sponsor prima di eliminarla';
   if (intermissionImageIds(resolveIntermissions(tenant?.intermissions)).includes(id))
     return 'Immagine in uso nelle pause: toglila dalla diapositiva sponsor o da «Dopo la partita» prima di eliminarla';
+  if (intermissionMedia(resolveIntermissions(tenant?.intermissions)).some((m) => m.assetId === id))
+    return 'File in uso nelle pause: toglilo dalla diapositiva «Foto o video» o da «Dopo la partita» prima di eliminarlo';
   if (overlayBackgrounds(resolveOverlays(tenant?.overlays)).some((b) => b.assetId === id))
     return 'File in uso come sfondo di un avviso: toglilo dall’avviso prima di eliminarlo';
   const [player] = await playersUsingAsset(tx, tenantId, id);
@@ -507,7 +532,8 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
 
   /**
    * Replaces the pauses of the public page (closed list of slide types, options, durations and delays checked by the
-   * shared schema); every image and sponsor of the sponsor slides must be of this client.
+   * shared schema); every image and sponsor of the sponsor slides must be of this client, and every file of a «Foto o
+   * video» slide (and the video of «Dopo la partita») a file of this client of the kind chosen (image or video).
    */
   app.put('/api/admin/intermissions', admin, async (request): Promise<IntermissionsResponse> => {
     const tenantId = adminTenantId(request);
@@ -516,6 +542,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     await ctx.db.transaction(async (tx) => {
       await lockClientAssets(tx, tenantId);
       await requireOwnImages(tx, tenantId, images);
+      await requireOwnMedia(tx, tenantId, intermissionMedia(intermissions), SLIDE_MEDIA_USE);
       await requireOwnSponsors(tx, tenantId, intermissionSponsorIds(intermissions));
       const updated = await tx
         .update(tenants)
@@ -549,7 +576,7 @@ export function brandingAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const overlays = validate(TenantOverlaysSchema, request.body);
     await ctx.db.transaction(async (tx) => {
       await lockClientAssets(tx, tenantId);
-      await requireOwnBackgrounds(tx, tenantId, overlayBackgrounds(overlays));
+      await requireOwnMedia(tx, tenantId, overlayBackgrounds(overlays), OVERLAY_BACKGROUND_USE);
       const updated = await tx
         .update(tenants)
         .set({ overlays })

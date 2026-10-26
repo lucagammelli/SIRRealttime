@@ -1,9 +1,12 @@
 import type {
+  AssetSummary,
   Intermission,
   IntermissionKind,
   IntermissionSlide,
   MilestoneIntermission,
+  OverlayBackgroundKind,
   SetBreakSet,
+  SlideOptions,
   SlideType,
   TenantIntermissions,
 } from '@arenalive/shared';
@@ -11,6 +14,7 @@ import {
   defaultIntermission,
   INTERMISSION_MAX_SLIDES,
   IntermissionSlideSchema,
+  isVideoMime,
   SET_BREAK_SETS,
   TenantIntermissionsSchema,
 } from '@arenalive/shared';
@@ -102,6 +106,31 @@ export function updateSlide(
   change: (slide: IntermissionSlide) => IntermissionSlide,
 ): Intermission {
   return { ...pause, slides: pause.slides.map((s) => (s.id === id ? change(s) : s)) };
+}
+
+/** A «Foto o video» slide. */
+export type MediaSlide = Extract<IntermissionSlide, { type: 'media' }>;
+
+/** Pure: the files of the library a «Foto o video» slide of `kind` can show: its images, or its videos (any use). */
+export function mediaSlideFiles(assets: readonly AssetSummary[], kind: OverlayBackgroundKind): AssetSummary[] {
+  return assets.filter((a) => isVideoMime(a.mime) === (kind === 'video'));
+}
+
+/**
+ * Pure: the slide showing an image or a video (`kind`): the file stays when it is of that kind, otherwise none is
+ * chosen (a file of the other kind would be refused by the server).
+ */
+export function withMediaKind(slide: MediaSlide, kind: OverlayBackgroundKind): MediaSlide {
+  if (slide.options.kind === kind) return slide;
+  return { ...slide, options: { ...slide.options, kind, assetId: null } };
+}
+
+/** Pure: the slide with some of its options changed (file, fit, sound, duration); the rest stays. */
+export function withMediaOptions(
+  slide: MediaSlide,
+  options: Partial<Pick<SlideOptions<'media'>, 'assetId' | 'fit' | 'audio' | 'duration'>>,
+): MediaSlide {
+  return { ...slide, options: { ...slide.options, ...options } };
 }
 
 /** Targets with a problem (empty text, active pause without slides, ...); empty when the document can be saved. */

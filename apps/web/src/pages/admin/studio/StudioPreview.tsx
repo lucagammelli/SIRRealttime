@@ -14,7 +14,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { BlockBrand } from '../../../blocks/env.ts';
 import { PaletteScopeContext } from '../../../charts/usePalette.ts';
 import { SAMPLE_SCHEDULE } from '../../../blocks/sampleSchedule.ts';
-import { AfterMatchScreen } from '../../../components/AfterMatchScreen.tsx';
+import { afterMatchFile, AfterMatchScreen } from '../../../components/AfterMatchScreen.tsx';
 import { Intermission } from '../../../components/Intermission.tsx';
 import { OVERLAY_REGION_CLASSES, OverlayBanner } from '../../../components/Overlay.tsx';
 import { PreviewFullscreen } from '../../../components/PreviewDock.tsx';
@@ -215,18 +215,20 @@ function Stage({
       ? visibleSlides(
           shown,
           { set: set ? Number(set) : shown.live.set, pause },
-          { sponsorLogo, schedule: SAMPLE_SCHEDULE, sponsors: look?.sponsors ?? [] },
+          // The files of the «Foto o video» slides are read from the reserved area, as the preview shows them.
+          { sponsorLogo, schedule: SAMPLE_SCHEDULE, sponsors: look?.sponsors ?? [], mediaUrl: adminAssetPath },
         )
       : [];
   let notice: string | null = null;
   if (pause && !pause.enabled) notice = 'Pausa disattivata: gli spettatori non la vedono.';
   else if (pause && slides.length === 0)
-    notice = 'Nessuna diapositiva da mostrare (uno sponsor senza immagini?): la pausa non compare.';
+    notice =
+      'Nessuna diapositiva da mostrare (uno sponsor senza immagini, una «Foto o video» senza file?): la pausa non compare.';
   const afterMatch = docs.intermissions.afterMatch;
   const afterMatchPhoto = scene === 'afterMatch' ? afterMatch.image : null;
   if (scene === 'afterMatch' && afterMatchPhoto === null)
     notice =
-      'Dopo la partita: scegli una foto e accendi «Mostra la foto dopo la partita», altrimenti la schermata non compare.';
+      'Dopo la partita: scegli una foto o un video e accendi «Mostra foto o video dopo la partita», altrimenti la schermata non compare.';
   else if (scene === 'afterMatch' && !afterMatch.enabled)
     notice = 'Dopo la partita è spento: gli spettatori non lo vedono (qui lo vedi comunque).';
   if (scene === 'overlay' && !overlay.enabled) notice = 'Avviso spento: gli spettatori non lo vedono.';
@@ -261,7 +263,10 @@ function Stage({
       )}
       {scene === 'afterMatch' && (docs.intermissions.afterMatch.image ?? null) !== null && (
         <AfterMatchScreen
-          imageUrl={adminAssetPath(docs.intermissions.afterMatch.image ?? '')}
+          file={afterMatchFile(
+            docs.intermissions.afterMatch,
+            adminAssetPath(docs.intermissions.afterMatch.image ?? ''),
+          )}
           fixture={nextFixture(SAMPLE_SCHEDULE)}
           device={device}
           contained

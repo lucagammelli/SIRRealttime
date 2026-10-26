@@ -1,7 +1,9 @@
-import type { ScheduleFixture } from '@arenalive/shared';
+import type { AfterMatch, ScheduleFixture } from '@arenalive/shared';
 import { formatFixtureDate } from '../lib/format.ts';
 import type { Device } from '../lib/layout.ts';
 import { teamColorVars } from '../lib/teamColors.ts';
+import { useReducedMotion } from '../lib/theme.ts';
+import { MediaPicture } from './MediaPicture.tsx';
 import { countdownTo, CountdownView, useNow } from './NextMatch.tsx';
 
 /** Countdown to the next match over the photo: teams, date and time, days/hours/minutes/seconds left. */
@@ -44,23 +46,44 @@ function NextMatchCountdown({ fixture, big }: { fixture: ScheduleFixture; big: b
   );
 }
 
+/** The file of «Dopo la partita» to draw: its address and the options of the screen (`AfterMatch`). */
+export interface AfterMatchFile {
+  url: string;
+  kind: AfterMatch['kind'];
+  fit: AfterMatch['fit'];
+  audio: boolean;
+}
+
+/** Pure: the file of «Dopo la partita» at `url`, with its kind, fit and sound. */
+export const afterMatchFile = (config: AfterMatch, url: string): AfterMatchFile => ({
+  url,
+  kind: config.kind,
+  fit: config.fit,
+  audio: config.audio,
+});
+
 /**
- * «Dopo la partita»: the photo chosen by the client full screen (cropped to fill it) and, over it, the countdown to
- * the next match of the club; only the photo when there is none. Nothing to tap or click (it works the same with
- * «Touch» off); no animation. `contained`: inside its parent instead of over the page (preview of the Studio).
+ * «Dopo la partita»: the photo or video chosen by the client full screen («Riempi»: cropped to fill it, as the photo
+ * always was; «Intero»: whole, the sides filled) and, over it, the countdown to the next match of the club; only the
+ * file when there is none. A video loops as long as the screen is on, muted unless its sound is on (`MediaPicture`, the
+ * component of the overlays and of the «Foto o video» slides); with reduced motion no video (there is no poster): the
+ * screen with the countdown only. Nothing to tap or click (it works the same with «Touch» off); no animation.
+ * `contained`: inside its parent instead of over the page (preview of the Studio, always muted).
  */
 export function AfterMatchScreen({
-  imageUrl,
+  file,
   fixture,
   device,
   contained = false,
 }: {
-  imageUrl: string;
+  file: AfterMatchFile;
   fixture: ScheduleFixture | null;
   device: Device;
   contained?: boolean;
 }) {
+  const reduced = useReducedMotion();
   const big = device === 'tv';
+  const shown = !(reduced && file.kind === 'video');
   return (
     <div
       data-testid="dopo-partita"
@@ -68,7 +91,11 @@ export function AfterMatchScreen({
       aria-label="Dopo la partita"
       className={`${contained ? 'absolute' : 'fixed'} inset-0 z-50 overflow-hidden bg-bg ${big ? 'p-8' : 'p-3 sm:p-6'}`}
     >
-      <img src={imageUrl} alt="" className="absolute inset-0 size-full object-cover" />
+      {shown && (
+        <div data-after-match={file.kind} data-fit={file.fit} className="absolute inset-0">
+          <MediaPicture kind={file.kind} url={file.url} fit={file.fit} audio={file.audio && !contained} />
+        </div>
+      )}
       {fixture && (
         <div className="relative">
           <NextMatchCountdown fixture={fixture} big={big} />

@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TestServer } from './helpers.js';
 import { createTenant, createUser, login, startServer, SUPERADMIN } from './helpers.js';
 import { png } from './imageFixtures.js';
+import { mp4 } from './videoFixtures.js';
 
 const HOST_A = 'pa.sir.test';
 const HOST_B = 'pb.sir.test';
@@ -78,8 +79,9 @@ describe('pauses of the public page', () => {
       id: 'sp',
       type: 'sponsor',
       seconds: 6,
-      // Saved without the field: the slide is on.
+      // Saved without the fields: the slide is on, with the title of the pause.
       enabled: true,
+      showTitle: true,
       options: { sponsors: [], images: [sponsor.id], seconds: 4, display: 'rotate' },
     });
     expect((await call(HOST_A, cookieA, { url: URL })).json<IntermissionsResponse>().intermissions).toEqual(saved);
@@ -110,6 +112,7 @@ describe('pauses of the public page', () => {
       type: 'roleDuel',
       seconds: 8,
       enabled: true,
+      showTitle: true,
       options: { role: 'libero', period: 'match' },
     });
     expect(saved.setBreak.slides[1]?.options).toEqual({ period: 'set', limit: 2 });
@@ -187,8 +190,83 @@ describe('pauses of the public page', () => {
     expect((await putPauses(HOST_A, cookieA, afterMatch(MISSING))).statusCode).toBe(400);
     expect((await putPauses(HOST_A, cookieA, { afterMatch: { delayMinutes: 241 } })).statusCode).toBe(400);
     expect((await putPauses(HOST_A, cookieA, afterMatch(own.id))).statusCode).toBe(200);
-    expect((await publicPauses(HOST_A)).afterMatch).toEqual({ enabled: true, image: own.id, delayMinutes: 45 });
+    expect((await publicPauses(HOST_A)).afterMatch).toEqual({
+      enabled: true,
+      image: own.id,
+      kind: 'image',
+      audio: false,
+      fit: 'cover',
+      delayMinutes: 45,
+    });
     const del = () => call(HOST_A, cookieA, { method: 'DELETE', url: `/api/admin/assets/${own.id}` });
+    const refused = await del();
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json<{ error: string }>().error).toContain('Dopo la partita');
+    expect((await putPauses(HOST_A, cookieA, {})).statusCode).toBe(200);
+    expect((await del()).statusCode).toBe(204);
+  });
+
+  it('«Foto o video»: saves an own image or video of the library, refuses another client, a wrong kind, a missing file', async () => {
+    const image = await uploadSponsor(HOST_A, cookieA, 146);
+    const video = (
+      await call(HOST_A, cookieA, {
+        method: 'POST',
+        url: '/api/admin/assets/video',
+        headers: { 'content-type': 'application/octet-stream' },
+        payload: mp4(640, 360),
+      })
+    ).json<AssetSummary>();
+    const other = await uploadSponsor(HOST_B, cookieB, 147);
+    const media = (options: Record<string, unknown>) => ({
+      timeout: { slides: [{ id: 'm', type: 'media', showTitle: false, options }] },
+    });
+    // Another client, a missing file, an image chosen as a video and a video chosen as an image: 400.
+    expect((await putPauses(HOST_A, cookieA, media({ kind: 'image', assetId: other.id }))).statusCode).toBe(400);
+    expect((await putPauses(HOST_A, cookieA, media({ kind: 'image', assetId: MISSING }))).statusCode).toBe(400);
+    expect((await putPauses(HOST_A, cookieA, media({ kind: 'video', assetId: image.id }))).statusCode).toBe(400);
+    const wrong = await putPauses(HOST_A, cookieA, media({ kind: 'image', assetId: video.id }));
+    expect(wrong.statusCode).toBe(400);
+    expect(wrong.json<{ error: string }>().error).toContain('immagine o video');
+    // No file chosen yet: saved, the slide is skipped.
+    expect((await putPauses(HOST_A, cookieA, media({}))).statusCode).toBe(200);
+    const options = { kind: 'video', assetId: video.id, fit: 'cover', audio: true, duration: 'video' };
+    expect((await putPauses(HOST_A, cookieA, media(options))).statusCode).toBe(200);
+    expect((await publicPauses(HOST_A)).timeout.slides[0]).toMatchObject({ type: 'media', showTitle: false, options });
+    expect((await putPauses(HOST_A, cookieA, media({ kind: 'image', assetId: image.id }))).statusCode).toBe(200);
+    // In use: not deleted until the slide lets it go.
+    const del = () => call(HOST_A, cookieA, { method: 'DELETE', url: `/api/admin/assets/${image.id}` });
+    const refused = await del();
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json<{ error: string }>().error).toContain('Foto o video');
+    expect((await putPauses(HOST_A, cookieA, {})).statusCode).toBe(200);
+    expect((await del()).statusCode).toBe(204);
+  });
+
+  it('«Dopo la partita» with a video: own video only, of the right kind, kept from being deleted', async () => {
+    const upload = (host: string, cookie: string, w: number) =>
+      call(host, cookie, {
+        method: 'POST',
+        url: '/api/admin/assets/video',
+        headers: { 'content-type': 'application/octet-stream' },
+        payload: mp4(w, 360),
+      });
+    const video = (await upload(HOST_A, cookieA, 642)).json<AssetSummary>();
+    const otherVideo = (await upload(HOST_B, cookieB, 644)).json<AssetSummary>();
+    const photo = await uploadSponsor(HOST_A, cookieA, 148);
+    const afterMatch = (image: string, kind: string) => ({
+      afterMatch: { enabled: true, image, kind, audio: true, fit: 'contain' },
+    });
+    expect((await putPauses(HOST_A, cookieA, afterMatch(otherVideo.id, 'video'))).statusCode).toBe(400);
+    expect((await putPauses(HOST_A, cookieA, afterMatch(photo.id, 'video'))).statusCode).toBe(400);
+    expect((await putPauses(HOST_A, cookieA, afterMatch(video.id, 'image'))).statusCode).toBe(400);
+    expect((await putPauses(HOST_A, cookieA, afterMatch(video.id, 'video'))).statusCode).toBe(200);
+    expect((await publicPauses(HOST_A)).afterMatch).toMatchObject({
+      image: video.id,
+      kind: 'video',
+      audio: true,
+      fit: 'contain',
+    });
+    const del = () => call(HOST_A, cookieA, { method: 'DELETE', url: `/api/admin/assets/${video.id}` });
     const refused = await del();
     expect(refused.statusCode).toBe(409);
     expect(refused.json<{ error: string }>().error).toContain('Dopo la partita');

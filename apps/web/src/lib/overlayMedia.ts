@@ -115,8 +115,8 @@ const fetchObjectUrl: MediaLoader = async (path, signal) => {
 
 /**
  * The backgrounds of the overlays read into memory as soon as the page knows them (an overlay lasts a few seconds:
- * its video must start at once), by asset id. A file no longer wanted is dropped and its object URL revoked, all of
- * them when the component goes away. One not read yet is missing: the overlay shows its text only.
+ * its video must start at once), by asset id (see `useMediaFiles`). One not read yet is missing: the overlay shows its
+ * text only.
  */
 export function useOverlayMedia(
   config: TenantOverlays | null,
@@ -126,7 +126,28 @@ export function useOverlayMedia(
   /** The players of our team in play: their photos and videos are kept ready for the overlays that show them. */
   preload?: PlayerPreload,
 ): ReadonlyMap<string, OverlayMedia> {
-  const wanted = wantedBackgrounds(config, device, reducedMotion, preload);
+  return useMediaFiles(wantedBackgrounds(config, device, reducedMotion, preload), load);
+}
+
+/** Frees an object URL made here (an address used as it is, see `directMediaUrl`, has nothing to free). */
+const revoke = (url: string): void => {
+  if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+};
+
+/** Loader that reads nothing: the address of the file is used as it is (the previews of the reserved area). */
+export const directMediaUrl: MediaLoader = (path) => Promise.resolve(path);
+
+/**
+ * Files of the client (images and videos: backgrounds of the overlays, «Foto o video» slides of the pauses) read into
+ * memory with `load` from the address `pathOf` gives (the public one by default), by asset id. A file no longer wanted
+ * is dropped and its object URL revoked, all of them when the component goes away. One not read yet, or that cannot
+ * be read (deleted: 404), is missing.
+ */
+export function useMediaFiles(
+  wanted: readonly { kind: OverlayBackgroundKind; assetId: string }[],
+  load: MediaLoader = fetchObjectUrl,
+  pathOf: (assetId: string) => string = publicAssetPath,
+): ReadonlyMap<string, OverlayMedia> {
   const key = wanted.map((b) => `${b.kind}:${b.assetId}`).join(',');
   const [ready, setReady] = useState<ReadonlyMap<string, OverlayMedia>>(() => new Map());
   /** Object URLs made here, by asset id (also the ones still loading: their controller). */
@@ -145,7 +166,7 @@ export function useOverlayMedia(
     for (const [id, entry] of current) {
       if (keep.get(id) === entry.kind) continue;
       entry.abort.abort();
-      if (entry.url) URL.revokeObjectURL(entry.url);
+      if (entry.url) revoke(entry.url);
       current.delete(id);
     }
     const publish = (): void => {
@@ -158,10 +179,10 @@ export function useOverlayMedia(
       if (current.has(id)) continue;
       const entry = { kind, url: null as string | null, abort: new AbortController() };
       current.set(id, entry);
-      load(publicAssetPath(id), entry.abort.signal).then(
+      load(pathOf(id), entry.abort.signal).then(
         (url) => {
           if (current.get(id) !== entry || entry.abort.signal.aborted) {
-            if (url) URL.revokeObjectURL(url);
+            if (url) revoke(url);
             return;
           }
           entry.url = url;
@@ -170,7 +191,7 @@ export function useOverlayMedia(
         () => undefined,
       );
     }
-  }, [key, load]);
+  }, [key, load, pathOf]);
 
   // Everything goes with the component.
   useEffect(() => {
@@ -178,7 +199,7 @@ export function useOverlayMedia(
     return () => {
       for (const entry of current.values()) {
         entry.abort.abort();
-        if (entry.url) URL.revokeObjectURL(entry.url);
+        if (entry.url) revoke(entry.url);
       }
       current.clear();
     };

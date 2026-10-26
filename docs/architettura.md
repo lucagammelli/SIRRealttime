@@ -290,7 +290,12 @@ tolti; predefinito vuoto = titolo automatico del portale, anche per i documenti 
 (al massimo `INTERMISSION_MAX_SLIDES` = 12, id unici). Una pausa attiva ha almeno una diapositiva. Tipi di diapositiva
 (`SLIDE_TYPES`): `setSummary`, `finalResult`, `mvp`, `setScores` (senza opzioni) e `setScorers`, `aces`, `blocks`,
 `attack`, `roleDuel`, `teamDuel`, `nextMatch`, `standings`, `sponsor`, `message`, `qr`, `logo` (le stesse opzioni dei blocchi omonimi,
-`SLIDE_OPTIONS` da `BLOCK_OPTIONS`; per le statistiche `period` è il set della pausa o la partita); ogni diapositiva ha `enabled` (predefinito `true`, i documenti salvati prima restano validi) e `seconds` (3-60,
+`SLIDE_OPTIONS` da `BLOCK_OPTIONS`; per le statistiche `period` è il set della pausa o la partita) e `media` («Foto o
+video», `MediaSlideOptionsSchema`, strict: `kind` `image` | `video` (`OVERLAY_BACKGROUND_KINDS`, predefinito `image`),
+`assetId` (`AssetId` di qualsiasi uso della libreria o `null`, predefinito: nessun file, la diapositiva si salta), `fit`
+(`SLIDE_MEDIA_FITS`: `contain` «Intero», predefinito, o `cover` «Riempi»), e da `OverlayBackgroundSchema` `audio`
+(predefinito `false`) e `duration` (`seconds` predefinito | `video`: finché il video finisce, al massimo
+`SLIDE_VIDEO_MAX_SECONDS` = `SLIDE_MAX_SECONDS` = 60)); ogni diapositiva ha `enabled` (predefinito `true`, i documenti salvati prima restano validi), `showTitle` (il titolo della pausa compare mentre è a video; predefinito `true`, i documenti salvati prima restano come erano) e `seconds` (3-60,
 predefinito 8: `SLIDE_MIN_SECONDS`, `SLIDE_MAX_SECONDS`, `SLIDE_DEFAULT_SECONDS`). `setBreakBySet` (chiavi `'1'`-`'4'`,
 `SET_BREAK_SETS`) dà a un set una pausa propria che **sostituisce per intero** quella generica `setBreak`, senza fonderla;
 il 5° set chiude la partita e usa `matchEnd`. Il ritorno alla partita non è configurabile: avviene alla prima azione.
@@ -307,13 +312,17 @@ contratto); predefiniti: attiva per tutti i clienti, banda su tablet e telefono 
 diapositive `setScorers` e `teamDuel` del set in corso. Funzioni pure:
 `resolveIntermissions` (un documento non valido vale i predefiniti), `intermissionFor(config, kind, set?)` (la pausa da
 usare, null se spenta o senza diapositive attive), `allIntermissions`, `intermissionImageIds` (immagini singole) e `intermissionSponsorIds` (sponsor scelti) delle diapositive
-sponsor, per i controlli del server (`intermissionImageIds` include anche l'immagine di «Dopo la partita», anche se spenta).
+sponsor, per i controlli del server (`intermissionImageIds` include anche l'immagine di «Dopo la partita», anche se spenta,
+quando `kind` è `image`); `intermissionMedia` (file con il tipo chiesto delle diapositive `media`, anche spente, e il video
+di «Dopo la partita») e `withoutIntermissionMedia` (copia senza quei file, `assetId`/`image` a `null`: i video non
+viaggiano nei pacchetti della grafica).
 «Dopo la partita» (`afterMatch` nel documento, `AfterMatchSchema`, strict): `enabled` (predefinito `false`), `image`
-(`AssetId` o `null`) e `delayMinutes` (minuti dopo la fine della partita, da 0 a 240, predefinito 30; limiti in
-`intermissions.ts`); `afterMatchImage(config)` dà l'immagine solo se la schermata è accesa, altrimenti `null`. Un
-documento salvato prima prende i predefiniti. Il messaggio `state` ha il campo facoltativo `finishedAt` (ISO UTC, ora di
+(il file, `AssetId` o `null`), `kind` (`image` predefinito | `video`), `audio` (predefinito `false`), `fit`
+(`SLIDE_MEDIA_FITS`, predefinito `cover`, come la sola foto di prima) e `delayMinutes` (minuti dopo la fine della
+partita, da 0 a 240, predefinito 30; limiti in `intermissions.ts`); `afterMatchImage(config)` dà il file solo se la
+schermata è accesa, altrimenti `null`. Un documento salvato prima (con la sola foto) prende i predefiniti. Il messaggio `state` ha il campo facoltativo `finishedAt` (ISO UTC, ora di
 fine partita, solo con la partita finita; `docs/server.md`, «Ingest»). L'esportazione/importazione della grafica rimappa
-anche `afterMatch.image` (`graphicsExport.ts`). `IntermissionsResponseSchema` (`GET`/`PUT /api/admin/intermissions`);
+anche `afterMatch.image` quando è una foto (`graphicsExport.ts`). `IntermissionsResponseSchema` (`GET`/`PUT /api/admin/intermissions`);
 `PublicTenantResponseSchema` contiene anche `intermissions`. Server in `docs/server.md` («Pause della partita»),
 schermate ed editor in `docs/portale.md`, fase e riepiloghi in `docs/statistiche.md`.
 

@@ -25,7 +25,7 @@ import { advanceSeasons } from './leagues/seasons.js';
 import { LeagueService } from './leagues/sync.js';
 import { TtlCache } from './lib/ttlCache.js';
 import { adminRoutes } from './routes/admin.js';
-import { agentDownloadRoutes } from './routes/agentDownload.js';
+import { agentDownloadRoutes, playerImageRoutes } from './routes/agentDownload.js';
 import { authRoutes } from './routes/auth.js';
 import { brandingAdminRoutes, brandingPublicRoutes } from './routes/branding.js';
 import { graphicsTransferRoutes } from './routes/graphicsTransfer.js';
@@ -281,6 +281,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     rosterRoutes(scope, ctx);
     systemLogoAdminRoutes(scope, ctx);
     agentDownloadRoutes(scope, ctx);
+    playerImageRoutes(scope, ctx);
     leagueRoutes(scope, ctx);
     clubRoutes(scope, ctx);
     clubLeagueRoutes(scope, ctx);

@@ -128,8 +128,10 @@ binario della piattaforma come dipendenza opzionale.
 - Volume `downloads` (o cartella dell'host `AGENT_DOWNLOAD_HOST_DIR`): montato **in sola lettura** su `/data/downloads` nel
   servizio `server`, con `AGENT_DOWNLOAD_DIR=/data/downloads`. Lo riempiono solo gli script di costruzione: in produzione `scripts/pubblica-agente-produzione.sh` (agente C#, passo 8), a mano `scripts/costruisci-agente.sh` (agente Node, sotto);
   vuoto, il portale dice che l'agente non è pubblicato. Il server non lo scrive mai.
-  La stessa cartella ospita il software dei Player (`arenalive-player.deb` e `arenalive-player.json`, costruiti dal repository
-  `ArenaLive-Player`, fase 2): `PLAYER_DOWNLOAD_DIR` ne è la cartella e, se non è impostata, vale `AGENT_DOWNLOAD_DIR`
+  La stessa cartella ospita il software dei Player (`arenalive-player.deb` e `arenalive-player.json`) e l'immagine della
+  scheda SD (`arenalive-player.img.xz` e `arenalive-player-image.json`), costruiti dal repository `ArenaLive-Player` e
+  copiati con i suoi script `pubblica-sul-server.sh` e `pubblica-immagine-sul-server.sh`; nginx passa l'immagine senza
+  buffer su disco (`location = /api/admin/player/image`): `PLAYER_DOWNLOAD_DIR` ne è la cartella e, se non è impostata, vale `AGENT_DOWNLOAD_DIR`
   (nel container `/data/downloads`, quindi `AGENT_DOWNLOAD_HOST_DIR`). Vuota, i player non vedono aggiornamenti
   (`docs/server.md`, «Player per i maxischermi»).
 - Campionati: il servizio `server` di `docker-compose.yml` passa `LEAGUE_SYNC` (default `on`), `LEAGUE_CONTACT` (vuoto: il

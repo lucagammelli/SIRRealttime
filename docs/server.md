@@ -372,7 +372,7 @@ clienti**, costruito da `scripts/pubblica-agente-produzione.sh` (agente C#, via 
 Un Raspberry Pi 5 collegato a un maxischermo apre da solo, all'accensione, `https://<host del cliente>/schermo#<token>` in
 Chromium kiosk. Dal portale («Player», `docs/portale.md`) si crea il player, si scarica il suo `arenalive-player.json`
 da copiare nella partizione `bootfs` della scheda SD, si sceglie cosa mostra e si mandano i comandi. Il software del
-Raspberry sta nel repository separato `ArenaLive-Player` (fase 2, non ancora fatta). Nel codice si chiama **display**,
+Raspberry sta nel repository separato `ArenaLive-Player`. Nel codice si chiama **display**,
 perché «player» vuol già dire giocatore. Contratti in `packages/shared/src/display.ts` (`docs/architettura.md`).
 
 - **Tabella `displays`** (vedi «Database»): il token è salvato solo come sha256, unico e nullo finché non si scarica la
@@ -413,6 +413,21 @@ perché «player» vuol già dire giocatore. Contratti in `packages/shared/src/d
 - **Software del player**: `AgentReleaseStore` è generalizzato (`ReleaseFiles`): oltre ad `arenalive-agent.exe`, serve
   `arenalive-player.deb` con il manifest `arenalive-player.json` (`version`, `builtAt`, `sha256`, come quello dell'agente) da
   `PLAYER_DOWNLOAD_DIR` (`PLAYER_FILES`). Il `.deb` è offerto solo se lo sha256 coincide con il manifest.
+- **Immagine della scheda SD** (`playerImageRoutes` in `routes/agentDownload.ts`, solo admin come l'agente: chi prepara un
+  player lo crea e ne scarica la configurazione, cose che il viewer non fa; ogni download pesa circa 750 MB): da
+  `PLAYER_DOWNLOAD_DIR`, `arenalive-player.img.xz` con il manifest `arenalive-player-image.json` (`version`, `builtAt`,
+  `sha256`, `size`; il server usa lo sha256, la dimensione la misura sul file) letti con lo stesso store
+  (`PLAYER_IMAGE_FILES`): offerta solo se lo sha256 coincide (calcolato una volta per versione del file).
+  - `GET /api/admin/player/image/info` → `PlayerImageInfo`: `{ available: false }` oppure `available`, `version`, `builtAt`,
+    `bytes`, `sha256`, `fileName` (`playerImageFileName`: `arenalive-player-<versione>.img.xz`); `no-store`.
+  - `GET /api/admin/player/image` (`PLAYER_IMAGE_PATH`) → il file in streaming come allegato
+    `arenalive-player-<versione>.img.xz` (`application/x-xz`, `content-length`, `no-store`); 404 «Immagine non ancora
+    pubblicata sul server» se manca. Limite `RATE_LIMIT_AGENT_DOWNLOAD` al minuto per IP, come lo zip dell'agente.
+  - Nel percorso nginx → server la rotta passa per `location /api/`, che ha il buffering del proxy attivo: nginx
+    copia la risposta su disco nel container (fino a `proxy_max_temp_file_size`, 1 GB di default) invece di passarla
+    direttamente come fa `location = /api/admin/agent/download` (`proxy_buffering off`). Funziona per 750 MB, ma per
+    file più grandi o download contemporanei serve una `location` dedicata (da fare in Infrastruttura). Caddy
+    (`flush_interval -1`) non ha limiti né timeout sulla risposta.
 
 ### Campionati (`apps/server/src/leagues/`, `src/routes/leagues.ts`)
 Il server scarica dai **siti ufficiali** calendario, classifica, squadre e loghi dei campionati. Oggi c'è un solo
@@ -1133,6 +1148,8 @@ server scrive `dist/build-info.json` (`version` e `commit` corto, da `ARENALIVE_
 | DELETE | `/api/admin/assets/:id` | sessione | admin |
 | GET | `/api/admin/agent/info` | sessione | admin |
 | GET | `/api/admin/agent/download` | sessione, limite proprio `RATE_LIMIT_AGENT_DOWNLOAD` | admin |
+| GET | `/api/admin/player/image/info` | sessione | admin |
+| GET | `/api/admin/player/image` | sessione, limite proprio `RATE_LIMIT_AGENT_DOWNLOAD` | admin |
 | GET | `/api/public/system-logos` | rate limit pubblico (cache 30 s, uguale per ogni hostname) | - |
 | GET | `/api/public/system-logos/:id` | rate limit pubblico (file di un logo di sistema) | - |
 | PUT | `/api/admin/system-logos/:slot/:variant` | sessione (corpo fino a ~2,7 MB) | superadmin |
@@ -1348,12 +1365,12 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `MATCH_MAX_LINES` | `20000` | righe scout massime per partita (massimo 1.000.000); oltre, 413 |
 | `ASSETS_DIR` | `data/assets` (container: `/data/assets`) | cartella delle immagini dei clienti, una sottocartella per cliente; nel compose è il volume `assets` |
 | `ASSETS_QUOTA_MB` | `50` | spazio massimo delle immagini di ogni cliente, in MB (intero da 1 a 1000); oltre, 409 |
-| `RATE_LIMIT_AGENT_DOWNLOAD` | `10` | richieste al minuto per IP su `GET /api/admin/agent/download` (intero da 1 a 100000) |
+| `RATE_LIMIT_AGENT_DOWNLOAD` | `10` | richieste al minuto per IP su `GET /api/admin/agent/download` e `GET /api/admin/player/image` (intero da 1 a 100000) |
 | `AGENT_DOWNLOAD_DIR` | `data/downloads` (container: `/data/downloads`) | cartella con `arenalive-agent.exe` e `arenalive-agent.json` (da `scripts/costruisci-agente.sh`); relativa alla cartella di avvio; vuota: il portale dice che l'agente non è pubblicato |
 | `RATE_LIMIT_DISPLAY` | `240` | richieste al minuto per IP su `POST /api/displays/heartbeat` e `GET /api/displays/update` (intero da 1 a 100000) |
 | `RATE_LIMIT_DISPLAY_WS` | `60` | aperture al minuto per IP di `/ws/display`, riconnessioni comprese (intero da 1 a 100000) |
 | `RATE_LIMIT_DISPLAY_INVALID` | `20` | token di player sbagliati o mancanti al minuto per IP (rotte `/api/displays/*` e `/ws/display`); oltre, 429 fino alla fine del minuto (intero da 1 a 100000) |
-| `PLAYER_DOWNLOAD_DIR` | uguale a `AGENT_DOWNLOAD_DIR` | cartella con `arenalive-player.deb` e `arenalive-player.json` (il software dei player, dal repository `ArenaLive-Player`); vuota: i player non vedono aggiornamenti e `GET /api/displays/update` dà 404 |
+| `PLAYER_DOWNLOAD_DIR` | uguale a `AGENT_DOWNLOAD_DIR` | cartella con `arenalive-player.deb` e `arenalive-player.json` (il software dei player, dal repository `ArenaLive-Player`) e con `arenalive-player.img.xz` e `arenalive-player-image.json` (l'immagine della scheda SD); senza i primi due i player non vedono aggiornamenti e `GET /api/displays/update` dà 404, senza gli altri due la pagina «Player» dice «Immagine non ancora pubblicata sul server» |
 | `RATE_LIMIT_LEAGUE_SYNC` | `6` | «Aggiorna ora» dei campionati al minuto per IP su `POST /api/admin/leagues/:id/sync` (intero da 1 a 100000) |
 | `RATE_LIMIT_ROSTER_IMPORT` | `3` | importazioni della rosa dal sito della Lega al minuto per IP su `POST /api/admin/roster/import` (intero da 1 a 100000) |
 | `RATE_LIMIT_PASSWORD_RESET` | `10` | richieste al minuto per IP su `/api/auth/links/:token`, `/api/auth/invite/accept`, `/api/auth/password-reset/request` e `/confirm` (intero da 1 a 100000) |

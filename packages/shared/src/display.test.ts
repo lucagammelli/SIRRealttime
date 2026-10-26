@@ -109,3 +109,21 @@ describe('socket of the player', () => {
     );
   });
 });
+
+describe('image of the SD card', () => {
+  it('describes the file on offer, or its absence', async () => {
+    const { PlayerImageInfoSchema, playerImageFileName } = await import('./index.js');
+    expect(playerImageFileName('0.1.0')).toBe('arenalive-player-0.1.0.img.xz');
+    expect(PlayerImageInfoSchema.parse({ available: false })).toEqual({ available: false });
+    const info = {
+      available: true,
+      version: '0.1.0',
+      builtAt: '2026-10-26T10:00:00.000Z',
+      bytes: 1,
+      sha256: 'a'.repeat(64),
+      fileName: 'arenalive-player-0.1.0.img.xz',
+    };
+    expect(PlayerImageInfoSchema.parse(info)).toEqual(info);
+    expect(PlayerImageInfoSchema.safeParse({ ...info, sha256: 'x' }).success).toBe(false);
+  });
+});

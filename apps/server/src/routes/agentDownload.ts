@@ -1,4 +1,4 @@
-import type { AgentDownloadInfo, AgentRelease, TenantBranding } from '@arenalive/shared';
+import type { AgentDownloadInfo, AgentRelease, PlayerImageInfo, TenantBranding } from '@arenalive/shared';
 import {
   AGENT_LOGO_FILES,
   AGENT_LOGO_MAX_BYTES,
@@ -7,11 +7,13 @@ import {
   agentBranding,
   agentDownloadConfig,
   agentDownloadFileName,
+  PLAYER_IMAGE_PATH,
+  playerImageFileName,
   resolveBranding,
 } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
-import { AgentReleaseStore } from '../agentRelease.js';
+import { AgentReleaseStore, PLAYER_IMAGE_FILES } from '../agentRelease.js';
 import { readAssetFile } from '../assetStore.js';
 import type { AppContext } from '../context.js';
 import { perMinute } from '../context.js';
@@ -153,5 +155,46 @@ export function agentDownloadRoutes(app: FastifyInstance, ctx: AppContext): void
       await file.close().catch(() => undefined);
       throw err;
     }
+  });
+}
+
+const imageNotPublished = (): HttpError =>
+  new HttpError(404, 'PLAYER_IMAGE_NOT_PUBLISHED', 'Immagine non ancora pubblicata sul server');
+
+/**
+ * Image of the SD card of the players (page «Player»), the same for every client: what is on offer and the file,
+ * streamed as it is (about 750 MB, never in memory). Admin only, as the agent: who prepares a player also creates
+ * it and downloads its configuration (a viewer cannot), and every download is heavy for the server.
+ */
+export function playerImageRoutes(app: FastifyInstance, ctx: AppContext): void {
+  const admin = { config: perMinute(ctx.rateLimits.admin), preHandler: requireRole(ctx, 'admin') };
+  const store = new AgentReleaseStore(ctx.config.playerDownloadDir, PLAYER_IMAGE_FILES);
+
+  app.get(`${PLAYER_IMAGE_PATH}/info`, admin, async (request, reply): Promise<PlayerImageInfo> => {
+    void reply.header('cache-control', 'no-store');
+    const opened = await store.open(request.log);
+    if (!opened) return { available: false };
+    await opened.file.close();
+    return {
+      available: true,
+      version: opened.release.version,
+      builtAt: opened.release.builtAt,
+      bytes: opened.bytes,
+      sha256: opened.release.sha256,
+      fileName: playerImageFileName(opened.release.version),
+    };
+  });
+
+  app.get(PLAYER_IMAGE_PATH, { ...admin, config: perMinute(ctx.rateLimits.agentDownload) }, async (request, reply) => {
+    const opened = await store.open(request.log);
+    if (!opened) throw imageNotPublished();
+    const { release, file, bytes } = opened;
+    request.log.info({ tenantId: request.adminTenantId, version: release.version }, 'immagine del player scaricata');
+    return reply
+      .header('content-type', 'application/x-xz')
+      .header('content-disposition', `attachment; filename="${playerImageFileName(release.version)}"`)
+      .header('content-length', String(bytes))
+      .header('cache-control', 'no-store')
+      .send(file.createReadStream({ autoClose: true }));
   });
 }

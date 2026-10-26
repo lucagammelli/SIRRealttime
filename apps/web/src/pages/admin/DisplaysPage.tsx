@@ -6,13 +6,15 @@ import {
   DISPLAY_CONFIG_FILE_NAME,
   DisplayConfigFileSchema,
   DisplaySummarySchema,
+  PLAYER_IMAGE_PATH,
+  PlayerImageInfoSchema,
 } from '@arenalive/shared';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { z } from 'zod';
-import { Button, Card, Empty, ErrorBox, Spinner } from '../../components/ui.tsx';
+import { Button, buttonClass, Card, CopyButton, Empty, ErrorBox, Spinner } from '../../components/ui.tsx';
 import { apiCommand, apiRequest } from '../../lib/api.ts';
-import { formatDateTime } from '../../lib/format.ts';
+import { formatDateTime, megabytes } from '../../lib/format.ts';
 import { useAsync } from '../../lib/useAsync.ts';
 import { useRefresh } from '../../lib/useRefresh.ts';
 import { READ_ONLY_TEXT, useCanEdit } from '../../lib/useCanEdit.ts';
@@ -26,8 +28,42 @@ const DisplayListSchema = z.array(DisplaySummarySchema);
 /** While the page is open the players are read again this often (they send a heartbeat every 15 s). */
 export const DISPLAYS_REFRESH_MS = 5000;
 
-/** Text of the image of the SD card (the link comes with the software of the player). */
+/** Link of the image of the SD card. */
 export const IMAGE_TEXT = 'Scarica l’immagine ArenaLive Player';
+/** The server has no image to offer yet. */
+export const IMAGE_MISSING_TEXT = 'Immagine non ancora pubblicata sul server';
+
+/**
+ * Image of the SD card offered by the server (admins only, as the download): a plain link (about 750 MB, never in
+ * the memory of the page) with version, size and sha256 to check it; the text of the missing image otherwise.
+ */
+function ImageDownload() {
+  const errorMessage = useApiError();
+  const load = useCallback(
+    (signal: AbortSignal) => apiRequest(`${PLAYER_IMAGE_PATH}/info`, PlayerImageInfoSchema, { signal }),
+    [],
+  );
+  const info = useAsync(load);
+  const data = info.data;
+  if (info.loading && !data) return <Spinner label="Caricamento dell’immagine…" />;
+  if (info.error !== null) return <ErrorBox onRetry={info.reload}>{errorMessage(info.error)}</ErrorBox>;
+  if (!data?.available) return <p className="text-sm font-medium text-text">{IMAGE_MISSING_TEXT}.</p>;
+  return (
+    <div className="space-y-2 text-sm">
+      <a href={PLAYER_IMAGE_PATH} download={data.fileName} className={buttonClass('primary')}>
+        {IMAGE_TEXT}
+      </a>
+      <p className="text-muted" data-testid="player-image">
+        Versione <span className="font-mono text-text">{data.version}</span> · {formatDateTime(data.builtAt)} ·{' '}
+        {megabytes(data.bytes)} MB
+      </p>
+      <p className="break-all text-xs text-muted">
+        sha256 <span className="font-mono text-text">{data.sha256}</span>
+      </p>
+      <CopyButton text={data.sha256} label="Copia sha256" />
+    </div>
+  );
+}
 
 /** Saves `text` as a file named `name` (the browser download, from memory). */
 function saveFile(name: string, text: string): void {
@@ -248,9 +284,15 @@ export function DisplaysPage() {
           </Card>
         )}
         <Card title="Scheda SD del player">
+          {canEdit && (
+            <div className="mb-3">
+              <ImageDownload />
+            </div>
+          )}
           <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
             <li>
-              <span className="text-text">{IMAGE_TEXT}</span> e scrivila sulla scheda SD con Raspberry Pi Imager.
+              Scarica l’immagine ArenaLive Player e scrivila sulla scheda SD con Raspberry Pi Imager («Usa file
+              personalizzato»).
             </li>
             <li>Crea il player qui e premi «Scarica configurazione».</li>
             <li>

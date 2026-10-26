@@ -837,7 +837,7 @@ il browser non ha l'API non succede nulla.
 ### Player per i maxischermi (`pages/DisplayPage.tsx`, `pages/admin/DisplaysPage.tsx`, rotte `/schermo` e `/admin/player`)
 Un Raspberry Pi 5 collegato a un maxischermo apre da solo, all'accensione, `https://<host del cliente>/schermo#<token>` in
 Chromium kiosk. Il portale decide cosa mostra e gli manda i comandi; il software del Raspberry sta nel repository separato
-`ArenaLive-Player` (fase 2, non ancora fatta). Nel codice si chiama «display»: «player» vuol già dire giocatore. API e
+`ArenaLive-Player`. Nel codice si chiama «display»: «player» vuol già dire giocatore. API e
 tabella in `docs/server.md` («Player per i maxischermi»); messaggi in `docs/architettura.md`.
 
 **Pagina `/schermo#<token>`** (`DisplayPage`, senza sessione):
@@ -871,8 +871,12 @@ viewer vede la lista ma non può modificare, `READ_ONLY_TEXT`). La lista si rile
   funzionare), campi facoltativi «Rete Wi-Fi (facoltativa)» (vuota: cavo), «Password del Wi-Fi» (8-63 caratteri, vuota per
   una rete aperta; non resta sul server) e «Paese» (due lettere, `IT`), bottone «Scarica il file del player»: il browser
   salva `arenalive-player.json`, da copiare nella partizione `bootfs` della scheda SD.
-- Riquadro «Scheda SD del player»: i quattro passi e «Scarica l’immagine ArenaLive Player» (`IMAGE_TEXT`), **senza link**
-  fino alla fase 2.
+- Riquadro «Scheda SD del player»: per l'admin, in alto l'immagine della scheda SD (`ImageDownload`, da
+  `GET /api/admin/player/image/info`): se il server la offre, il link «Scarica l’immagine ArenaLive Player» (`IMAGE_TEXT`,
+  `<a href="/api/admin/player/image" download>`: link diretto con il cookie di sessione, circa 750 MB, mai in memoria
+  nella pagina) con versione, data, dimensione in MB, sha256 e «Copia sha256»; altrimenti «Immagine non ancora
+  pubblicata sul server» (`IMAGE_MISSING_TEXT`). Il viewer non lo vede (la rotta è solo admin). Sotto, i quattro passi
+  (immagine con Raspberry Pi Imager, «Usa file personalizzato»; «Scarica configurazione»; copia in bootfs; accensione).
 - «Revoca» (con conferma): il token smette di valere e il maxischermo mostra «Player non valido».
 - La guida ha la sezione «Il maxischermo con il Player» (`pages/admin/guide/content.ts`).
 

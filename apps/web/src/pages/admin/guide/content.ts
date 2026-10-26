@@ -319,7 +319,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       {
         kind: 'steps',
         items: [
-          'Scrivi l’immagine ArenaLive Player sulla scheda SD con Raspberry Pi Imager.',
+          'Nella pagina «Player» premi «Scarica l’immagine ArenaLive Player» e scrivila sulla scheda SD con Raspberry Pi Imager.',
           'Apri la pagina «Player», scrivi un nome (per esempio «Maxischermo tribuna») e premi «Crea player».',
           'Premi «Scarica configurazione». Se il Player usa il Wi-Fi scrivi il nome della rete e la password, poi premi «Scarica il file del player».',
           'Copia il file scaricato nella parte «bootfs» della scheda SD, accanto agli altri file.',

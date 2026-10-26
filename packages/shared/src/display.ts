@@ -207,3 +207,28 @@ export type DisplaySocketMessage = z.infer<typeof DisplaySocketMessageSchema>;
 export const DISPLAY_CLOSE_INVALID = 4404;
 /** Close code of `/ws/display` when the first message is not a valid `auth` in time. */
 export const DISPLAY_CLOSE_NO_AUTH = 4401;
+
+/**
+ * `GET /api/admin/player/image/info`: the image of the SD card of the players offered by the server
+ * (`arenalive-player.img.xz` described by `arenalive-player-image.json` in PLAYER_DOWNLOAD_DIR), if any.
+ */
+export const PlayerImageInfoSchema = z.discriminatedUnion('available', [
+  z.object({ available: z.literal(false) }),
+  z.object({
+    available: z.literal(true),
+    version: AgentVersionSchema,
+    builtAt: z.iso.datetime(),
+    /** Bytes of the `.img.xz`. */
+    bytes: z.int().positive(),
+    sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    /** Name of the downloaded file. */
+    fileName: z.string(),
+  }),
+]);
+export type PlayerImageInfo = z.infer<typeof PlayerImageInfoSchema>;
+
+/** Name of the downloaded image (the version is already safe for a file name). */
+export const playerImageFileName = (version: string): string => `arenalive-player-${version}.img.xz`;
+
+/** Address of the download of the image (a plain link: the session cookie is enough, same origin). */
+export const PLAYER_IMAGE_PATH = '/api/admin/player/image';

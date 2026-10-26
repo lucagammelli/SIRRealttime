@@ -335,6 +335,21 @@ paths:
       responses:
         '200': { description: arenalive-player.json in allegato con un nuovo token }
         '404': { description: non trovato o revocato }
+  /api/admin/player/image/info:
+    get:
+      responses:
+        '200': { description: 'immagine della scheda SD dei player pubblicata (versione, data, dimensione, sha256) o available: false' }
+        '403': { description: ruolo insufficiente (serve admin) }
+  /api/admin/player/image:
+    get:
+      responses:
+        '200':
+          description: immagine della scheda SD dei player (arenalive-player-<versione>.img.xz)
+          content:
+            application/x-xz:
+              schema: { type: string, format: binary }
+        '403': { description: ruolo insufficiente (serve admin) }
+        '404': { description: immagine non ancora pubblicata sul server }
   /api/admin/agent/info:
     get:
       responses:

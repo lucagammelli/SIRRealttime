@@ -14,6 +14,10 @@ export const AGENT_RELEASE_FILE = 'arenalive-agent.json';
 export const PLAYER_DEB_FILE = 'arenalive-player.deb';
 export const PLAYER_RELEASE_FILE = 'arenalive-player.json';
 
+/** Image of the SD card of the players and its manifest (`version`, `builtAt`, `sha256`, `size`), in PLAYER_DOWNLOAD_DIR. */
+export const PLAYER_IMAGE_FILE = 'arenalive-player.img.xz';
+export const PLAYER_IMAGE_RELEASE_FILE = 'arenalive-player-image.json';
+
 /** The file on offer and the manifest that describes it, in the folder of the store. */
 export interface ReleaseFiles {
   binary: string;
@@ -22,6 +26,8 @@ export interface ReleaseFiles {
 const AGENT_FILES: ReleaseFiles = { binary: AGENT_EXE_FILE, release: AGENT_RELEASE_FILE };
 /** Software of the players: the `.deb` and its manifest (same fields of `arenalive-agent.json`). */
 export const PLAYER_FILES: ReleaseFiles = { binary: PLAYER_DEB_FILE, release: PLAYER_RELEASE_FILE };
+/** Image of the SD card (about 750 MB): its sha256 is computed once per version of the file, as for the others. */
+export const PLAYER_IMAGE_FILES: ReleaseFiles = { binary: PLAYER_IMAGE_FILE, release: PLAYER_IMAGE_RELEASE_FILE };
 
 /** Largest manifest (`arenalive-agent.json`) read. */
 const MAX_RELEASE_BYTES = 4096;

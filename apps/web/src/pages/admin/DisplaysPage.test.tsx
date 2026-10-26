@@ -3,7 +3,8 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminApp } from './AdminApp.tsx';
-import { IMAGE_TEXT } from './DisplaysPage.tsx';
+import type { PlayerImageInfo } from '@arenalive/shared';
+import { IMAGE_MISSING_TEXT, IMAGE_TEXT } from './DisplaysPage.tsx';
 
 const USER_ID = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
 const DISPLAY_ID = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
@@ -31,7 +32,7 @@ interface Call {
   body: unknown;
 }
 
-function mockServer(role: 'admin' | 'viewer' = 'admin') {
+function mockServer(role: 'admin' | 'viewer' = 'admin', image: PlayerImageInfo = { available: false }) {
   let row = display();
   const calls: Call[] = [];
   const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
@@ -43,6 +44,7 @@ function mockServer(role: 'admin' | 'viewer' = 'admin') {
       calls.push({ url, method, body });
       if (url === '/api/auth/me') return json({ id: USER_ID, email: 'a@b.it', role, tenant: null });
       if (url === '/api/admin/displays' && method === 'GET') return json([row]);
+      if (url === '/api/admin/player/image/info') return json(image);
       if (url === `/api/admin/displays/${DISPLAY_ID}` && method === 'PATCH') {
         row = { ...row, ...(body as Partial<DisplaySummary>) };
         return json(row);
@@ -93,7 +95,8 @@ describe('page «Player»', () => {
     expect(within(row).getByText('Maxischermo tribuna')).toBeTruthy();
     expect(within(row).getByText('In linea')).toBeTruthy();
     expect(within(row).getByText(/versione 1\.0\.0 · schermo 1920x1080/)).toBeTruthy();
-    expect(screen.getByText(IMAGE_TEXT)).toBeTruthy();
+    expect(await screen.findByText(`${IMAGE_MISSING_TEXT}.`)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: IMAGE_TEXT })).toBeNull();
     expect(screen.getByRole('link', { name: 'Player' })).toBeTruthy();
   });
 
@@ -148,6 +151,25 @@ describe('page «Player»', () => {
     expect(within(form).getByText(/partizione/).textContent).toMatch(/bootfs/);
   });
 
+  it('links the image of the SD card with version, size and sha256', async () => {
+    const sha = 'ab'.repeat(32);
+    mockServer('admin', {
+      available: true,
+      version: '0.1.0',
+      builtAt: '2026-10-26T10:00:00.000Z',
+      bytes: 750 * 1024 * 1024,
+      sha256: sha,
+      fileName: 'arenalive-player-0.1.0.img.xz',
+    });
+    renderPage();
+    const link = await screen.findByRole('link', { name: IMAGE_TEXT });
+    expect(link.getAttribute('href')).toBe('/api/admin/player/image');
+    expect(link.getAttribute('download')).toBe('arenalive-player-0.1.0.img.xz');
+    expect(screen.getByTestId('player-image').textContent).toMatch(/0\.1\.0 · .* · 750 MB/);
+    expect(screen.getByText(sha)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copia sha256' })).toBeTruthy();
+  });
+
   it('is read-only for a viewer', async () => {
     mockServer('viewer');
     renderPage();
@@ -155,5 +177,6 @@ describe('page «Player»', () => {
     expect(within(row).queryByRole('button', { name: 'Ricarica' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Crea player' })).toBeNull();
     expect(screen.getByText(/Sola lettura/)).toBeTruthy();
+    expect(screen.queryByText(`${IMAGE_MISSING_TEXT}.`)).toBeNull();
   });
 });

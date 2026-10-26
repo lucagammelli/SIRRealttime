@@ -208,9 +208,13 @@ export const DISPLAY_CLOSE_INVALID = 4404;
 /** Close code of `/ws/display` when the first message is not a valid `auth` in time. */
 export const DISPLAY_CLOSE_NO_AUTH = 4401;
 
+const Sha256HexSchema = z.string().regex(/^[0-9a-f]{64}$/);
+
 /**
- * `GET /api/admin/player/image/info`: the image of the SD card of the players offered by the server
- * (`arenalive-player.img.xz` described by `arenalive-player-image.json` in PLAYER_DOWNLOAD_DIR), if any.
+ * `GET /api/admin/player/image/info`: the image of the SD card of the players offered by the server, if any. Two
+ * layouts in PLAYER_DOWNLOAD_DIR, both described by `arenalive-player-image.json`: the three parts of
+ * PlayerImageManifestSchema (`format: 2`, downloaded as one `.img.gz`, and `ready`: an image ready for each player)
+ * or, before, `arenalive-player.img.xz` alone (`ready: false`).
  */
 export const PlayerImageInfoSchema = z.discriminatedUnion('available', [
   z.object({ available: z.literal(false) }),
@@ -218,17 +222,109 @@ export const PlayerImageInfoSchema = z.discriminatedUnion('available', [
     available: z.literal(true),
     version: AgentVersionSchema,
     builtAt: z.iso.datetime(),
-    /** Bytes of the `.img.xz`. */
+    /** Bytes of the downloaded file (`.img.xz` or `.img.gz`). */
     bytes: z.int().positive(),
-    sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    sha256: Sha256HexSchema,
+    /** What `sha256` is of: the downloaded file (`.img.xz`) or the uncompressed image (the `.img` in the `.img.gz`). */
+    sha256Of: z.enum(['file', 'image']),
     /** Name of the downloaded file. */
     fileName: z.string(),
+    /** true: `POST /api/admin/displays/:id/image` gives an image ready for one player (format 2 only). */
+    ready: z.boolean(),
   }),
 ]);
 export type PlayerImageInfo = z.infer<typeof PlayerImageInfoSchema>;
 
-/** Name of the downloaded image (the version is already safe for a file name). */
-export const playerImageFileName = (version: string): string => `arenalive-player-${version}.img.xz`;
+/** Name of the downloaded generic image (the version is already safe for a file name). */
+export const playerImageFileName = (version: string, compression: 'xz' | 'gz'): string =>
+  `arenalive-player-${version}.img.${compression}`;
 
 /** Address of the download of the image (a plain link: the session cookie is enough, same origin). */
 export const PLAYER_IMAGE_PATH = '/api/admin/player/image';
+
+/** Bytes of the slot of the configuration in the bootfs of the image: the JSON, then spaces up to exactly this size. */
+export const PLAYER_IMAGE_SLOT_SIZE = 8192;
+
+/**
+ * The three parts of the image (format 2) in PLAYER_DOWNLOAD_DIR, each one a gzip member: the bytes before the slot,
+ * the slot with the placeholder (generic image), the bytes after it. Their concatenation is one valid `.img.gz`.
+ */
+export const PLAYER_IMAGE_PART_FILES = [
+  'arenalive-player-image-1.gz',
+  'arenalive-player-image-2.gz',
+  'arenalive-player-image-3.gz',
+] as const;
+
+const imagePart = (file: (typeof PLAYER_IMAGE_PART_FILES)[number]) =>
+  z.object({
+    /** Only the fixed names: no path ever comes from the manifest. */
+    file: z.literal(file),
+    /** Bytes of the `.gz`. */
+    size: z.int().positive(),
+    /** sha256 of the `.gz`. */
+    sha256: Sha256HexSchema,
+  });
+
+/**
+ * `arenalive-player-image.json` of format 2, written by the build of the player (`ArenaLive-Player`): the
+ * uncompressed image is `imageSize` bytes, its slot of `slotSize` bytes starts at `slotOffset` (a sector boundary).
+ */
+export const PlayerImageManifestSchema = z
+  .object({
+    format: z.literal(2),
+    version: AgentVersionSchema,
+    builtAt: z.iso.datetime(),
+    imageSize: z.int().positive(),
+    imageSha256: Sha256HexSchema,
+    slotOffset: z.int().positive().multipleOf(512),
+    slotSize: z.literal(PLAYER_IMAGE_SLOT_SIZE),
+    parts: z.tuple([
+      imagePart(PLAYER_IMAGE_PART_FILES[0]),
+      imagePart(PLAYER_IMAGE_PART_FILES[1]),
+      imagePart(PLAYER_IMAGE_PART_FILES[2]),
+    ]),
+  })
+  .refine((m) => m.slotOffset + m.slotSize <= m.imageSize, { message: 'slot fuori dall’immagine' });
+export type PlayerImageManifest = z.infer<typeof PlayerImageManifestSchema>;
+
+/**
+ * Pure: name of the image ready for one player, `arenalive-player-<name>-<version>.img.gz` (the name in lower case,
+ * accents removed, anything else than a-z and 0-9 as one `-`, at most 40 characters; `player` when nothing is left).
+ */
+export function playerReadyImageFileName(displayName: string, version: string): string {
+  const slug =
+    displayName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .slice(0, 40)
+      .replace(/^-+|-+$/g, '') || 'player';
+  return `arenalive-player-${slug}-${version}.img.gz`;
+}
+
+/**
+ * `POST /api/admin/displays/:id/image`: an image ready for one player, with a new token as `…/config` (the previous
+ * SD card stops working); the Wi-Fi goes only into the image.
+ */
+export const DisplayImageRequestSchema = DisplayConfigRequestSchema;
+export type DisplayImageRequest = z.infer<typeof DisplayImageRequestSchema>;
+
+/** Minutes a ticket of `POST /api/admin/displays/:id/image` can be used (once). */
+export const DISPLAY_IMAGE_TICKET_MINUTES = 10;
+
+/** Ticket of the download (random, base64url as the tokens): it goes in the path, never in the logs. */
+export const DisplayImageTicketParamSchema = z.strictObject({ ticket: DisplayTokenSchema });
+
+/** Answer of `POST /api/admin/displays/:id/image`: the ticket to download the image once, before `expiresAt`. */
+export const DisplayImageTicketSchema = z.object({
+  ticket: DisplayTokenSchema,
+  expiresAt: z.iso.datetime(),
+  fileName: z.string(),
+  /** Bytes of the `.img.gz`. */
+  size: z.int().positive(),
+});
+export type DisplayImageTicket = z.infer<typeof DisplayImageTicketSchema>;
+
+/** Address of the download of the ready image (a plain link with the session cookie, same origin). */
+export const displayImagePath = (ticket: string): string => `/api/admin/displays/image/${encodeURIComponent(ticket)}`;

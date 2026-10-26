@@ -1,10 +1,12 @@
-import type { ClubFixture, DisplayCommand, DisplaySummary, DisplayTarget } from '@arenalive/shared';
+import type { ClubFixture, DisplayCommand, DisplaySummary, DisplayTarget, PlayerImageInfo } from '@arenalive/shared';
 import {
   CalendarResponseSchema,
   ClubResponseSchema,
   CreateDisplayRequestSchema,
   DISPLAY_CONFIG_FILE_NAME,
   DisplayConfigFileSchema,
+  displayImagePath,
+  DisplayImageTicketSchema,
   DisplaySummarySchema,
   PLAYER_IMAGE_PATH,
   PlayerImageInfoSchema,
@@ -15,6 +17,7 @@ import { z } from 'zod';
 import { Button, buttonClass, Card, CopyButton, Empty, ErrorBox, Spinner } from '../../components/ui.tsx';
 import { apiCommand, apiRequest } from '../../lib/api.ts';
 import { formatDateTime, megabytes } from '../../lib/format.ts';
+import type { AsyncState } from '../../lib/useAsync.ts';
 import { useAsync } from '../../lib/useAsync.ts';
 import { useRefresh } from '../../lib/useRefresh.ts';
 import { READ_ONLY_TEXT, useCanEdit } from '../../lib/useCanEdit.ts';
@@ -28,41 +31,60 @@ const DisplayListSchema = z.array(DisplaySummarySchema);
 /** While the page is open the players are read again this often (they send a heartbeat every 15 s). */
 export const DISPLAYS_REFRESH_MS = 5000;
 
-/** Link of the image of the SD card. */
+/** Link of the generic image of the SD card. */
 export const IMAGE_TEXT = 'Scarica l’immagine ArenaLive Player';
 /** The server has no image to offer yet. */
 export const IMAGE_MISSING_TEXT = 'Immagine non ancora pubblicata sul server';
+/** Main button of the configuration of a player: the image ready for it. */
+export const READY_IMAGE_TEXT = 'Scarica l’immagine pronta';
+/** Button of the configuration file alone. */
+export const CONFIG_ONLY_TEXT = 'Solo il file di configurazione';
+/** How to use the ready image. */
+export const READY_IMAGE_HELP =
+  'Scrivila sulla scheda SD con Raspberry Pi Imager («Usa file personalizzato»), rispondi No alla personalizzazione, inserisci la scheda e accendi.';
+/** The server offers only the generic image (or none): no ready image. */
+export const READY_IMAGE_MISSING_TEXT =
+  'L’immagine pronta non è disponibile sul server: scarica il file di configurazione e copialo sulla scheda SD.';
 
 /**
- * Image of the SD card offered by the server (admins only, as the download): a plain link (about 750 MB, never in
- * the memory of the page) with version, size and sha256 to check it; the text of the missing image otherwise.
+ * Generic image of the SD card offered by the server (admins only, as the download): a plain link (about 750 MB,
+ * never in the memory of the page) with version, size and sha256 to check it; the text of the missing image otherwise.
  */
-function ImageDownload() {
+function ImageDownload({ info }: { info: AsyncState<PlayerImageInfo> }) {
   const errorMessage = useApiError();
-  const load = useCallback(
-    (signal: AbortSignal) => apiRequest(`${PLAYER_IMAGE_PATH}/info`, PlayerImageInfoSchema, { signal }),
-    [],
-  );
-  const info = useAsync(load);
   const data = info.data;
   if (info.loading && !data) return <Spinner label="Caricamento dell’immagine…" />;
   if (info.error !== null) return <ErrorBox onRetry={info.reload}>{errorMessage(info.error)}</ErrorBox>;
   if (!data?.available) return <p className="text-sm font-medium text-text">{IMAGE_MISSING_TEXT}.</p>;
   return (
     <div className="space-y-2 text-sm">
-      <a href={PLAYER_IMAGE_PATH} download={data.fileName} className={buttonClass('primary')}>
+      <a href={PLAYER_IMAGE_PATH} download={data.fileName} className={buttonClass(data.ready ? 'ghost' : 'primary')}>
         {IMAGE_TEXT}
       </a>
+      {data.ready && (
+        <p className="text-xs text-muted">Generica, senza configurazione: per un player usa «{READY_IMAGE_TEXT}».</p>
+      )}
       <p className="text-muted" data-testid="player-image">
         Versione <span className="font-mono text-text">{data.version}</span> · {formatDateTime(data.builtAt)} ·{' '}
         {megabytes(data.bytes)} MB
       </p>
       <p className="break-all text-xs text-muted">
-        sha256 <span className="font-mono text-text">{data.sha256}</span>
+        {data.sha256Of === 'image' ? 'sha256 dell’immagine decompressa' : 'sha256'}{' '}
+        <span className="font-mono text-text">{data.sha256}</span>
       </p>
       <CopyButton text={data.sha256} label="Copia sha256" />
     </div>
   );
+}
+
+/** Starts the download of `url` as `name` with a plain link (the file never goes into the memory of the page). */
+function downloadLink(url: string, name: string): void {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  a.remove();
 }
 
 /** Saves `text` as a file named `name` (the browser download, from memory). */
@@ -78,20 +100,20 @@ function saveFile(name: string, text: string): void {
 }
 
 /**
- * «Scarica configurazione» of a player: optional Wi-Fi (never kept by the server), warning that the previous file
- * stops working, download of `arenalive-player.json` and where to copy it.
+ * «Scarica configurazione» of a player: optional Wi-Fi (never kept by the server), warning that the previous download
+ * stops working, then the image ready for the player (`ready`: the server has the image in three parts; a ticket,
+ * then a plain link) or `arenalive-player.json` alone and where to copy it.
  */
-function ConfigDownload({ display, onDone }: { display: DisplaySummary; onDone: () => void }) {
+function ConfigDownload({ display, ready, onDone }: { display: DisplaySummary; ready: boolean; onDone: () => void }) {
   const errorMessage = useApiError();
   const [ssid, setSsid] = useState('');
   const [password, setPassword] = useState('');
   const [country, setCountry] = useState('IT');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<'image' | 'file' | null>(null);
 
-  const submit = async (e: FormEvent): Promise<void> => {
-    e.preventDefault();
+  const run = async (what: 'image' | 'file'): Promise<void> => {
     setError(null);
     const wifi = wifiOf({ ssid, password, country });
     if ('error' in wifi) {
@@ -99,15 +121,18 @@ function ConfigDownload({ display, onDone }: { display: DisplaySummary; onDone: 
       return;
     }
     setBusy(true);
+    const path = `/api/admin/displays/${encodeURIComponent(display.id)}`;
+    const body = wifi.wifi ? { wifi: wifi.wifi } : {};
     try {
-      const file = await apiRequest(
-        `/api/admin/displays/${encodeURIComponent(display.id)}/config`,
-        DisplayConfigFileSchema,
-        { method: 'POST', body: wifi.wifi ? { wifi: wifi.wifi } : {} },
-      );
-      saveFile(DISPLAY_CONFIG_FILE_NAME, `${JSON.stringify(file, null, 2)}\n`);
+      if (what === 'image') {
+        const t = await apiRequest(`${path}/image`, DisplayImageTicketSchema, { method: 'POST', body });
+        downloadLink(displayImagePath(t.ticket), t.fileName);
+      } else {
+        const file = await apiRequest(`${path}/config`, DisplayConfigFileSchema, { method: 'POST', body });
+        saveFile(DISPLAY_CONFIG_FILE_NAME, `${JSON.stringify(file, null, 2)}\n`);
+      }
       setPassword('');
-      setSaved(true);
+      setSaved(what);
       onDone();
     } catch (err) {
       setError(errorMessage(err));
@@ -116,16 +141,21 @@ function ConfigDownload({ display, onDone }: { display: DisplaySummary; onDone: 
     }
   };
 
+  const submit = (e: FormEvent): void => {
+    e.preventDefault();
+    void run(ready ? 'image' : 'file');
+  };
+
   return (
     <form
-      onSubmit={(e) => void submit(e)}
+      onSubmit={submit}
       className="space-y-3 rounded-card border border-border p-3"
       noValidate
       aria-label={`Configurazione di ${display.name}`}
     >
       {display.configured && (
         <p className="text-sm text-warn">
-          Un nuovo file sostituisce il precedente: la scheda SD con il file vecchio smette di funzionare.
+          Il download precedente smette di valere: la scheda SD preparata prima smette di funzionare.
         </p>
       )}
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_6rem]">
@@ -147,17 +177,37 @@ function ConfigDownload({ display, onDone }: { display: DisplaySummary; onDone: 
         </Field>
       </div>
       {error && <ErrorBox>{error}</ErrorBox>}
-      <Button type="submit" variant="primary" disabled={busy}>
-        {busy ? 'Preparazione…' : 'Scarica il file del player'}
-      </Button>
-      {saved && (
+      {!ready && <p className="text-sm text-muted">{READY_IMAGE_MISSING_TEXT}</p>}
+      <div className="flex flex-wrap gap-2">
+        {ready && (
+          <Button type="submit" variant="primary" disabled={busy}>
+            {busy ? 'Preparazione…' : READY_IMAGE_TEXT}
+          </Button>
+        )}
+        <Button
+          type={ready ? 'button' : 'submit'}
+          variant={ready ? 'ghost' : 'primary'}
+          disabled={busy}
+          onClick={ready ? () => void run('file') : undefined}
+        >
+          {busy && !ready ? 'Preparazione…' : CONFIG_ONLY_TEXT}
+        </Button>
+      </div>
+      {saved === 'image' && (
+        <p className="text-sm text-text" role="status">
+          Download dell’immagine avviato.
+        </p>
+      )}
+      {saved === 'file' && (
         <p className="text-sm text-text" role="status">
           File {DISPLAY_CONFIG_FILE_NAME} scaricato.
         </p>
       )}
+      {ready && <p className="text-xs text-muted">{READY_IMAGE_HELP}</p>}
       <p className="text-xs text-muted">
-        Copia il file nella partizione <span className="font-semibold text-text">bootfs</span> della scheda SD del
-        Raspberry, accanto agli altri file. All’accensione il player lo legge da solo e apre la pagina.
+        {ready ? 'Con il solo file di configurazione: copialo' : 'Copia il file'} nella partizione{' '}
+        <span className="font-semibold text-text">bootfs</span> della scheda SD con l’immagine generica, accanto agli
+        altri file. All’accensione il player lo legge da solo e apre la pagina.
       </p>
     </form>
   );
@@ -194,6 +244,15 @@ export function DisplaysPage() {
     [],
   );
   const calendar = useAsync(loadCalendar);
+  const loadImage = useCallback(
+    (signal: AbortSignal): Promise<PlayerImageInfo> =>
+      canEdit
+        ? apiRequest(`${PLAYER_IMAGE_PATH}/info`, PlayerImageInfoSchema, { signal })
+        : Promise.resolve({ available: false }),
+    [canEdit],
+  );
+  const image = useAsync(loadImage);
+  const ready = image.data?.available === true && image.data.ready;
   useRefresh(displays.reload, DISPLAYS_REFRESH_MS);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -286,21 +345,32 @@ export function DisplaysPage() {
         <Card title="Scheda SD del player">
           {canEdit && (
             <div className="mb-3">
-              <ImageDownload />
+              <ImageDownload info={image} />
             </div>
           )}
-          <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
-            <li>
-              Scarica l’immagine ArenaLive Player e scrivila sulla scheda SD con Raspberry Pi Imager («Usa file
-              personalizzato»).
-            </li>
-            <li>Crea il player qui e premi «Scarica configurazione».</li>
-            <li>
-              Copia <code className="font-mono text-text">{DISPLAY_CONFIG_FILE_NAME}</code> nella partizione bootfs
-              della scheda SD, accanto agli altri file.
-            </li>
-            <li>Inserisci la scheda nel Raspberry e accendilo: dopo poco qui risulta «In linea».</li>
-          </ol>
+          {ready ? (
+            <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
+              <li>Crea il player qui e premi «Scarica configurazione».</li>
+              <li>
+                Premi «{READY_IMAGE_TEXT}» e scrivila sulla scheda SD con Raspberry Pi Imager («Usa file
+                personalizzato»), rispondendo No alla personalizzazione.
+              </li>
+              <li>Inserisci la scheda nel Raspberry e accendilo: dopo poco qui risulta «In linea».</li>
+            </ol>
+          ) : (
+            <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
+              <li>
+                Scarica l’immagine ArenaLive Player e scrivila sulla scheda SD con Raspberry Pi Imager («Usa file
+                personalizzato»).
+              </li>
+              <li>Crea il player qui e premi «Scarica configurazione».</li>
+              <li>
+                Copia <code className="font-mono text-text">{DISPLAY_CONFIG_FILE_NAME}</code> nella partizione bootfs
+                della scheda SD, accanto agli altri file.
+              </li>
+              <li>Inserisci la scheda nel Raspberry e accendilo: dopo poco qui risulta «In linea».</li>
+            </ol>
+          )}
         </Card>
       </div>
 
@@ -387,7 +457,7 @@ export function DisplaysPage() {
                           Scarica configurazione
                         </Button>
                       </div>
-                      {configOpen === d.id && <ConfigDownload display={d} onDone={displays.reload} />}
+                      {configOpen === d.id && <ConfigDownload display={d} ready={ready} onDone={displays.reload} />}
                     </>
                   )}
                 </li>

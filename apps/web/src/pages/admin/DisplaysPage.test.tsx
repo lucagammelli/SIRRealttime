@@ -4,7 +4,14 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminApp } from './AdminApp.tsx';
 import type { PlayerImageInfo } from '@arenalive/shared';
-import { IMAGE_MISSING_TEXT, IMAGE_TEXT } from './DisplaysPage.tsx';
+import {
+  CONFIG_ONLY_TEXT,
+  IMAGE_MISSING_TEXT,
+  IMAGE_TEXT,
+  READY_IMAGE_HELP,
+  READY_IMAGE_MISSING_TEXT,
+  READY_IMAGE_TEXT,
+} from './DisplaysPage.tsx';
 
 const USER_ID = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11';
 const DISPLAY_ID = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
@@ -32,8 +39,25 @@ interface Call {
   body: unknown;
 }
 
-function mockServer(role: 'admin' | 'viewer' = 'admin', image: PlayerImageInfo = { available: false }) {
-  let row = display();
+const TICKET = 'T'.repeat(43);
+const READY_FILE = 'arenalive-player-maxischermo-tribuna-0.2.0.img.gz';
+const READY_INFO: PlayerImageInfo = {
+  available: true,
+  version: '0.2.0',
+  builtAt: '2026-10-27T10:00:00.000Z',
+  bytes: 750 * 1024 * 1024,
+  sha256: 'cd'.repeat(32),
+  sha256Of: 'image',
+  fileName: 'arenalive-player-0.2.0.img.gz',
+  ready: true,
+};
+
+function mockServer(
+  role: 'admin' | 'viewer' = 'admin',
+  image: PlayerImageInfo = { available: false },
+  over: Partial<DisplaySummary> = {},
+) {
+  let row = display(over);
   const calls: Call[] = [];
   const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
   vi.stubGlobal(
@@ -57,6 +81,8 @@ function mockServer(role: 'admin' | 'viewer' = 'admin', image: PlayerImageInfo =
         };
         return json(row);
       }
+      if (url === `/api/admin/displays/${DISPLAY_ID}/image`)
+        return json({ ticket: TICKET, expiresAt: '2026-10-27T10:10:00.000Z', fileName: READY_FILE, size: 1000 });
       if (url === `/api/admin/displays/${DISPLAY_ID}/config`)
         return json({ version: 1, serverUrl: 'https://club.example.it', token: TOKEN, name: row.name });
       return json([]);
@@ -136,10 +162,12 @@ describe('page «Player»', () => {
     const form = within(row).getByRole('form', { name: /Configurazione di/ });
     fireEvent.change(within(form).getByLabelText(/Rete Wi-Fi/), { target: { value: 'Palestra' } });
     fireEvent.change(within(form).getByLabelText(/Password del Wi-Fi/), { target: { value: 'corta' } });
-    fireEvent.click(within(form).getByRole('button', { name: 'Scarica il file del player' }));
+    expect(within(form).getByText(READY_IMAGE_MISSING_TEXT)).toBeTruthy();
+    expect(within(form).queryByRole('button', { name: READY_IMAGE_TEXT })).toBeNull();
+    fireEvent.click(within(form).getByRole('button', { name: CONFIG_ONLY_TEXT }));
     expect(await within(form).findByText(/da 8 a 63 caratteri/)).toBeTruthy();
     fireEvent.change(within(form).getByLabelText(/Password del Wi-Fi/), { target: { value: 'segreta-123' } });
-    fireEvent.click(within(form).getByRole('button', { name: 'Scarica il file del player' }));
+    fireEvent.click(within(form).getByRole('button', { name: CONFIG_ONLY_TEXT }));
     await waitFor(() =>
       expect(server.calls).toContainEqual({
         url: `/api/admin/displays/${DISPLAY_ID}/config`,
@@ -159,7 +187,9 @@ describe('page «Player»', () => {
       builtAt: '2026-10-26T10:00:00.000Z',
       bytes: 750 * 1024 * 1024,
       sha256: sha,
+      sha256Of: 'file',
       fileName: 'arenalive-player-0.1.0.img.xz',
+      ready: false,
     });
     renderPage();
     const link = await screen.findByRole('link', { name: IMAGE_TEXT });
@@ -170,13 +200,55 @@ describe('page «Player»', () => {
     expect(screen.getByRole('button', { name: 'Copia sha256' })).toBeTruthy();
   });
 
+  it('downloads the image ready for the player with a link to the ticket, or the file alone', async () => {
+    const server = mockServer('admin', READY_INFO, { configured: true });
+    const clicked: { href: string; download: string }[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      clicked.push({ href: this.getAttribute('href') ?? '', download: this.download });
+    });
+    renderPage();
+    const row = await item();
+    fireEvent.click(within(row).getByRole('button', { name: 'Scarica configurazione' }));
+    const form = within(row).getByRole('form', { name: /Configurazione di/ });
+    expect(within(form).getByText(/Il download precedente smette di valere/)).toBeTruthy();
+    expect(within(form).getByText(READY_IMAGE_HELP)).toBeTruthy();
+    expect(within(form).queryByText(READY_IMAGE_MISSING_TEXT)).toBeNull();
+    fireEvent.change(within(form).getByLabelText(/Rete Wi-Fi/), { target: { value: 'Palestra' } });
+    fireEvent.change(within(form).getByLabelText(/Password del Wi-Fi/), { target: { value: 'segreta-123' } });
+    fireEvent.click(within(form).getByRole('button', { name: READY_IMAGE_TEXT }));
+    await waitFor(() =>
+      expect(server.calls).toContainEqual({
+        url: `/api/admin/displays/${DISPLAY_ID}/image`,
+        method: 'POST',
+        body: { wifi: { ssid: 'Palestra', password: 'segreta-123', country: 'IT' } },
+      }),
+    );
+    expect(await within(form).findByText('Download dell’immagine avviato.')).toBeTruthy();
+    expect(clicked).toEqual([{ href: `/api/admin/displays/image/${TICKET}`, download: READY_FILE }]);
+    fireEvent.click(within(form).getByRole('button', { name: CONFIG_ONLY_TEXT }));
+    await waitFor(() =>
+      expect(server.calls).toContainEqual({
+        url: `/api/admin/displays/${DISPLAY_ID}/config`,
+        method: 'POST',
+        // The password is cleared after a download: an open network with the same name.
+        body: { wifi: { ssid: 'Palestra', country: 'IT' } },
+      }),
+    );
+    // The generic image stays, as a secondary link.
+    expect((await screen.findByRole('link', { name: IMAGE_TEXT })).getAttribute('download')).toBe(
+      'arenalive-player-0.2.0.img.gz',
+    );
+    expect(screen.getByText(/sha256 dell’immagine decompressa/)).toBeTruthy();
+  });
+
   it('is read-only for a viewer', async () => {
-    mockServer('viewer');
+    const server = mockServer('viewer');
     renderPage();
     const row = await item();
     expect(within(row).queryByRole('button', { name: 'Ricarica' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Crea player' })).toBeNull();
     expect(screen.getByText(/Sola lettura/)).toBeTruthy();
     expect(screen.queryByText(`${IMAGE_MISSING_TEXT}.`)).toBeNull();
+    expect(server.calls.some((c) => c.url.startsWith('/api/admin/player/image'))).toBe(false);
   });
 });

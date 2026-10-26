@@ -387,6 +387,7 @@ perché «player» vuol già dire giocatore. Contratti in `packages/shared/src/d
   - `DELETE` **revoca**: `revoked`, token e comando azzerati, socket chiusi con 4404 (`closeDisplay`);
   - `POST /:id/command`: `reload`, `reboot`, `screenOff` o `screenOn`. C'è **un solo comando pendente**: uno nuovo sostituisce il
     precedente e fa salire `commandSeq` di 1. `reload` va subito anche alle pagine aperte (`sendReload`);
+  - `POST /:id/image`: come `/config` ma per l'**immagine pronta** della scheda SD (vedi «Immagine della scheda SD»);
   - `POST /:id/config`: genera un **token nuovo a ogni download**, quindi il file precedente smette di valere e le pagine
     aperte col token vecchio sono chiuse (4404). Risposta `DisplayConfigFile` come allegato `arenalive-player.json`,
     `cache-control: no-store`. `serverUrl` è l'URL pubblico del cliente (`publicBaseUrlFor`), mai ricavato dall'header
@@ -413,20 +414,51 @@ perché «player» vuol già dire giocatore. Contratti in `packages/shared/src/d
 - **Software del player**: `AgentReleaseStore` è generalizzato (`ReleaseFiles`): oltre ad `arenalive-agent.exe`, serve
   `arenalive-player.deb` con il manifest `arenalive-player.json` (`version`, `builtAt`, `sha256`, come quello dell'agente) da
   `PLAYER_DOWNLOAD_DIR` (`PLAYER_FILES`). Il `.deb` è offerto solo se lo sha256 coincide con il manifest.
-- **Immagine della scheda SD** (`playerImageRoutes` in `routes/agentDownload.ts`, solo admin come l'agente: chi prepara un
-  player lo crea e ne scarica la configurazione, cose che il viewer non fa; ogni download pesa circa 750 MB): da
-  `PLAYER_DOWNLOAD_DIR`, `arenalive-player.img.xz` con il manifest `arenalive-player-image.json` (`version`, `builtAt`,
-  `sha256`, `size`; il server usa lo sha256, la dimensione la misura sul file) letti con lo stesso store
-  (`PLAYER_IMAGE_FILES`): offerta solo se lo sha256 coincide (calcolato una volta per versione del file).
+- **Immagine della scheda SD** (`playerImageRoutes` in `routes/agentDownload.ts`, `PlayerImageStore` in `playerImage.ts`;
+  solo admin come l'agente: chi prepara un player lo crea e ne scarica la configurazione, cose che il viewer non fa; ogni
+  download pesa circa 750 MB). Sta in `PLAYER_DOWNLOAD_DIR`, descritta da `arenalive-player-image.json`, in due formati:
+  - **formato 2** (`format: 2`, `PlayerImageManifestSchema`): tre pezzi gzip `arenalive-player-image-1.gz`, `-2.gz`, `-3.gz`
+    (`PLAYER_IMAGE_PART_FILES`; nessun nome viene dal manifest). Il manifest ha `version`, `builtAt`, `imageSize` e
+    `imageSha256` (dell'immagine decompressa), `slotOffset` (multiplo di 512), `slotSize` (8192, `PLAYER_IMAGE_SLOT_SIZE`)
+    e `parts` con `size` e `sha256` calcolati sui `.gz`. Lo **slot** è il file `arenalive-player-incorporata.json` nella
+    partizione bootfs (nome e posizione li decide la build di `ArenaLive-Player`: il server conosce solo `slotOffset` e
+    `slotSize`): nell'immagine generica è un segnaposto di 8192 byte (pezzo 2); il server ci scrive il JSON della
+    configurazione (`configSlot`, lo stesso testo del download `…/config`) e riempie il resto di spazi. Un gzip può avere più
+    membri, quindi il download è la **concatenazione** pezzo 1 + slot compresso al volo (`compressSlot`) + pezzo 3 e forma
+    un solo `.img.gz` valido, senza ricomprimere i 750 MB (`imageStream`, `Content-Length` esatto: Raspberry Pi Imager lo
+    legge). Il pezzo 2 deve essere un gzip di esattamente 8192 byte (e non più di 64 KB compresso), altrimenti l'immagine è «non pubblicata»;
+  - **formato 1** (manifest senza `format`: `version`, `builtAt`, `sha256`, `arenalive-player.img.xz`): resta servito come
+    immagine generica, con `ready: false` (nessuna immagine pronta per un player).
+  - **Controlli** (`PlayerImageStore.open`, a ogni apertura): dimensione e sha256 di **ogni pezzo** contro il manifest
+    (gli sha256 sono in cache per versione del file, `DigestCache` in `agentRelease.ts`). Un insieme misto, per esempio
+    durante una pubblicazione, dà «non pubblicata» e mai un'immagine sbagliata. I file aperti restano quelli letti, anche se
+    nel frattempo ne viene pubblicata una nuova.
   - `GET /api/admin/player/image/info` → `PlayerImageInfo`: `{ available: false }` oppure `available`, `version`, `builtAt`,
-    `bytes`, `sha256`, `fileName` (`playerImageFileName`: `arenalive-player-<versione>.img.xz`); `no-store`.
-  - `GET /api/admin/player/image` (`PLAYER_IMAGE_PATH`) → il file in streaming come allegato
-    `arenalive-player-<versione>.img.xz` (`application/x-xz`, `content-length`, `no-store`); 404 «Immagine non ancora
-    pubblicata sul server» se manca. Limite `RATE_LIMIT_AGENT_DOWNLOAD` al minuto per IP, come lo zip dell'agente.
-  - Nel percorso nginx → server la rotta passa per `location /api/`, che ha il buffering del proxy attivo: nginx
-    copia la risposta su disco nel container (fino a `proxy_max_temp_file_size`, 1 GB di default) invece di passarla
-    direttamente come fa `location = /api/admin/agent/download` (`proxy_buffering off`). Funziona per 750 MB, ma per
-    file più grandi o download contemporanei serve una `location` dedicata (da fare in Infrastruttura). Caddy
+    `bytes`, `sha256`, `sha256Of` (`file` per l'`.img.xz`, `image` per l'immagine decompressa del formato 2), `fileName`
+    (`playerImageFileName`: `arenalive-player-<versione>.img.gz` o `.img.xz`) e `ready` (vero solo con il formato 2); `no-store`.
+  - `GET /api/admin/player/image` (`PLAYER_IMAGE_PATH`) → l'immagine **generica** in streaming come allegato:
+    `.img.gz` (pezzi 1+2+3, `application/gzip`) con il formato 2, `.img.xz` (`application/x-xz`) con il formato 1;
+    `content-length`, `no-store`; 404 «Immagine non ancora pubblicata sul server» se manca. Limite
+    `RATE_LIMIT_AGENT_DOWNLOAD` al minuto per IP, come lo zip dell'agente.
+  - `POST /api/admin/displays/:id/image` (admin, corpo JSON `{ wifi? }` come `…/config`): **immagine pronta per un player**
+    (solo formato 2; altrimenti 404 «L’immagine pronta non è disponibile sul server…»). Ruota il token come `…/config`
+    (`rotateDisplayConfig` in `displays.ts`, in transazione: il file precedente e le pagine aperte con il token vecchio
+    smettono di valere), costruisce lo slot (400 se il JSON non ci sta in 8192 byte) e risponde `DisplayImageTicket`:
+    `{ ticket, expiresAt, fileName, size }`, con `fileName` `arenalive-player-<nome>-<versione>.img.gz`
+    (`playerReadyImageFileName`).
+  - `GET /api/admin/displays/image/:ticket` (admin, limite `RATE_LIMIT_AGENT_DOWNLOAD`): scarica l'immagine pronta, in streaming
+    con `Content-Length` esatto. Il **biglietto** (`DisplayImageTickets`, `displayImageTickets.ts`) è casuale, **monouso**,
+    vale 10 minuti (`DISPLAY_IMAGE_TICKET_MINUTES`), è legato a cliente e utente e vive **solo in memoria** (al massimo 200,
+    `DISPLAY_IMAGE_TICKET_LIMIT`: oltre, il più vecchio è scartato; un riavvio del server li dimentica; lo slot di un biglietto
+    scartato o usato viene azzerato). 404 «Download scaduto o già usato: prepara di nuovo l’immagine» se il biglietto è
+    sconosciuto, usato, scaduto o di un altro utente o cliente; **410** «Il player è stato revocato o ha una configurazione più
+    recente: prepara di nuovo l’immagine» se nel frattempo il player è stato revocato o ha un token diverso.
+  - **Perché in memoria**: lo slot contiene il token e la password del Wi-Fi in chiaro, che non devono toccare il database; e
+    il file è troppo grande per un blob e la guardia delle rotte admin accetta solo corpi JSON, quindi il download è una `GET`
+    con il biglietto nel percorso. Per questo il biglietto è **mascherato** nei log del server (`/api/admin/displays/image/[ticket]`,
+    in `app.ts`) e nginx non lo scrive nell'access log.
+  - Nel percorso nginx → server le due rotte di download hanno una `location` dedicata con `proxy_buffering off` (nginx non
+    copia 750 MB su disco), il biglietto una anche con `access_log off`: `docs/infrastruttura.md`. Caddy
     (`flush_interval -1`) non ha limiti né timeout sulla risposta.
 
 ### Campionati (`apps/server/src/leagues/`, `src/routes/leagues.ts`)
@@ -1150,6 +1182,8 @@ server scrive `dist/build-info.json` (`version` e `commit` corto, da `ARENALIVE_
 | GET | `/api/admin/agent/download` | sessione, limite proprio `RATE_LIMIT_AGENT_DOWNLOAD` | admin |
 | GET | `/api/admin/player/image/info` | sessione | admin |
 | GET | `/api/admin/player/image` | sessione, limite proprio `RATE_LIMIT_AGENT_DOWNLOAD` | admin |
+| POST | `/api/admin/displays/:id/image` | sessione (token nuovo; risposta `{ ticket, expiresAt, fileName, size }`) | admin |
+| GET | `/api/admin/displays/image/:ticket` | sessione + biglietto monouso, limite proprio `RATE_LIMIT_AGENT_DOWNLOAD` | admin |
 | GET | `/api/public/system-logos` | rate limit pubblico (cache 30 s, uguale per ogni hostname) | - |
 | GET | `/api/public/system-logos/:id` | rate limit pubblico (file di un logo di sistema) | - |
 | PUT | `/api/admin/system-logos/:slot/:variant` | sessione (corpo fino a ~2,7 MB) | superadmin |
@@ -1370,7 +1404,7 @@ vuota vale come assente. Se qualcuna non è valida l'avvio fallisce e il messagg
 | `RATE_LIMIT_DISPLAY` | `240` | richieste al minuto per IP su `POST /api/displays/heartbeat` e `GET /api/displays/update` (intero da 1 a 100000) |
 | `RATE_LIMIT_DISPLAY_WS` | `60` | aperture al minuto per IP di `/ws/display`, riconnessioni comprese (intero da 1 a 100000) |
 | `RATE_LIMIT_DISPLAY_INVALID` | `20` | token di player sbagliati o mancanti al minuto per IP (rotte `/api/displays/*` e `/ws/display`); oltre, 429 fino alla fine del minuto (intero da 1 a 100000) |
-| `PLAYER_DOWNLOAD_DIR` | uguale a `AGENT_DOWNLOAD_DIR` | cartella con `arenalive-player.deb` e `arenalive-player.json` (il software dei player, dal repository `ArenaLive-Player`) e con `arenalive-player.img.xz` e `arenalive-player-image.json` (l'immagine della scheda SD); senza i primi due i player non vedono aggiornamenti e `GET /api/displays/update` dà 404, senza gli altri due la pagina «Player» dice «Immagine non ancora pubblicata sul server» |
+| `PLAYER_DOWNLOAD_DIR` | uguale a `AGENT_DOWNLOAD_DIR` | cartella con `arenalive-player.deb` e `arenalive-player.json` (il software dei player, dal repository `ArenaLive-Player`) e con l'immagine della scheda SD: `arenalive-player-image.json` più i tre pezzi `arenalive-player-image-1.gz`, `-2.gz`, `-3.gz` (formato 2) oppure, nel formato 1, `arenalive-player.img.xz`; senza i primi due i player non vedono aggiornamenti e `GET /api/displays/update` dà 404, senza gli altri la pagina «Player» dice «Immagine non ancora pubblicata sul server» |
 | `RATE_LIMIT_LEAGUE_SYNC` | `6` | «Aggiorna ora» dei campionati al minuto per IP su `POST /api/admin/leagues/:id/sync` (intero da 1 a 100000) |
 | `RATE_LIMIT_ROSTER_IMPORT` | `3` | importazioni della rosa dal sito della Lega al minuto per IP su `POST /api/admin/roster/import` (intero da 1 a 100000) |
 | `RATE_LIMIT_PASSWORD_RESET` | `10` | richieste al minuto per IP su `/api/auth/links/:token`, `/api/auth/invite/accept`, `/api/auth/password-reset/request` e `/confirm` (intero da 1 a 100000) |
@@ -1667,7 +1701,9 @@ Un difetto vero è emerso dai log: un NUL in un corpo JSON dava 500. È corretto
   `acknowledgeCommand`, `showDisplay`, `sendReload`, `refreshDisplays`, `hubTargetOf`), `src/routes/display.ts`
   (`displayRoutes`, `DISPLAY_AUTH_TIMEOUT_MS`), `src/routes/admin.ts` (rotte `/api/admin/displays`), `src/security.ts`
   (`findDisplay`, `authenticateDisplay`), `src/hub.ts` (`displaySockets`, `closeDisplay`), `src/agentRelease.ts`
-  (`PLAYER_FILES`), `src/db/schema.ts` (`displays`), `drizzle/0025_player.sql`, `packages/shared/src/display.ts`
+  (`PLAYER_FILES`, `DigestCache`), `src/playerImage.ts` (`PlayerImageStore`, `configSlot`, `compressSlot`, `imageStream`,
+  `imageBytes`), `src/displayImageTickets.ts` (`DisplayImageTickets`), `src/routes/agentDownload.ts` (`playerImageRoutes`),
+  `src/displays.ts` (`rotateDisplayConfig`), `src/db/schema.ts` (`displays`), `drizzle/0025_player.sql`, `packages/shared/src/display.ts`
   (`docs/architettura.md`); pagina in `docs/portale.md`
 - Campionati: `src/leagues/` (`html.ts` lettore HTML, `romeTime.ts` ora italiana, `legavolley.ts` URL e parser
   `parseCalendar`/`parseStandings`/`parseTeam`, `fetcher.ts` `LeagueFetcher`, `sync.ts` `LeagueService`, `scheduler.ts`

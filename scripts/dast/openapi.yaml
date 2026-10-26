@@ -335,17 +335,47 @@ paths:
       responses:
         '200': { description: arenalive-player.json in allegato con un nuovo token }
         '404': { description: non trovato o revocato }
+  /api/admin/displays/{id}/image:
+    post:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid, example: 00000000-0000-4000-8000-000000000000 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, example: { wifi: { ssid: Palestra, password: password-wifi, country: IT } } }
+      responses:
+        '200': { description: 'biglietto monouso (10 minuti) per scaricare l''immagine pronta, con un nuovo token del player' }
+        '400': { description: richiesta non valida o configurazione troppo lunga per l'immagine }
+        '403': { description: ruolo insufficiente (serve admin) }
+        '404': { description: player non trovato o revocato, o immagine pronta non disponibile }
+  /api/admin/displays/image/{ticket}:
+    get:
+      parameters:
+        - { name: ticket, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9_-]{20,200}$', example: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA } }
+      responses:
+        '200':
+          description: immagine della scheda SD pronta per il player (arenalive-player-<nome>-<versione>.img.gz)
+          content:
+            application/gzip:
+              schema: { type: string, format: binary }
+        '400': { description: biglietto non valido }
+        '403': { description: ruolo insufficiente (serve admin) }
+        '404': { description: biglietto scaduto, già usato o di un altro utente; immagine pronta non disponibile }
+        '410': { description: player revocato o con una configurazione più recente }
   /api/admin/player/image/info:
     get:
       responses:
-        '200': { description: 'immagine della scheda SD dei player pubblicata (versione, data, dimensione, sha256) o available: false' }
+        '200': { description: 'immagine della scheda SD dei player pubblicata (versione, data, dimensione, sha256, immagine pronta disponibile) o available: false' }
         '403': { description: ruolo insufficiente (serve admin) }
   /api/admin/player/image:
     get:
       responses:
         '200':
-          description: immagine della scheda SD dei player (arenalive-player-<versione>.img.xz)
+          description: immagine generica della scheda SD dei player (arenalive-player-<versione>.img.gz, prima .img.xz)
           content:
+            application/gzip:
+              schema: { type: string, format: binary }
             application/x-xz:
               schema: { type: string, format: binary }
         '403': { description: ruolo insufficiente (serve admin) }

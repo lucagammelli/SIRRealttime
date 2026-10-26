@@ -185,6 +185,7 @@ describe('redactUrl', () => {
     expect(redactUrl('/api/auth/links/abcDEF_123-xyz')).toBe('/api/auth/links/[token]');
     expect(redactUrl('/admin/invito/abcDEF_123-xyz')).toBe('/admin/invito/[token]');
     expect(redactUrl('/admin/reimposta-password/abcDEF_123-xyz?x=1')).toBe('/admin/reimposta-password/[token]?x=1');
+    expect(redactUrl('/api/admin/displays/image/abcDEF_123-xyz')).toBe('/api/admin/displays/image/[ticket]');
   });
 
   it('keeps the graphics routes of the client readable', () => {

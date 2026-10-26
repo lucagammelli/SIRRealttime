@@ -319,12 +319,15 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       {
         kind: 'steps',
         items: [
-          'Nella pagina «Player» premi «Scarica l’immagine ArenaLive Player» e scrivila sulla scheda SD con Raspberry Pi Imager.',
           'Apri la pagina «Player», scrivi un nome (per esempio «Maxischermo tribuna») e premi «Crea player».',
-          'Premi «Scarica configurazione». Se il Player usa il Wi-Fi scrivi il nome della rete e la password, poi premi «Scarica il file del player».',
-          'Copia il file scaricato nella parte «bootfs» della scheda SD, accanto agli altri file.',
+          'Premi «Scarica configurazione». Se il Player usa il Wi-Fi scrivi il nome della rete e la password (con il cavo di rete lascia vuoto), poi premi «Scarica l’immagine pronta».',
+          'Scrivi l’immagine scaricata sulla scheda SD con Raspberry Pi Imager («Usa file personalizzato») e rispondi «No» quando chiede se applicare la personalizzazione.',
           'Metti la scheda nel Raspberry e accendilo: dopo poco nella pagina «Player» compare «In linea».',
         ],
+      },
+      {
+        kind: 'text',
+        text: 'Se l’immagine pronta non c’è, o se preferisci, premi «Solo il file di configurazione»: scrivi sulla scheda l’immagine generica («Scarica l’immagine ArenaLive Player») e copia il file scaricato nella parte «bootfs» della scheda, accanto agli altri file.',
       },
       {
         kind: 'text',
@@ -340,7 +343,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       },
       {
         kind: 'note',
-        text: 'Ogni volta che scarichi di nuovo il file, quello vecchio smette di funzionare: copia sempre l’ultimo sulla scheda. Con «Revoca» il Player smette subito di mostrare la partita. La password del Wi-Fi resta solo nel file.',
+        text: 'Ogni volta che scarichi di nuovo l’immagine pronta o il file, il download precedente smette di valere: usa sempre l’ultimo. Il link dell’immagine pronta vale una volta sola e per 10 minuti. Con «Revoca» il Player smette subito di mostrare la partita. La password del Wi-Fi resta solo nell’immagine o nel file.',
       },
     ],
     links: [{ label: 'Vai a Player', to: '/admin/player' }],

@@ -1,4 +1,10 @@
-import type { AgentDownloadInfo, AgentRelease, PlayerImageInfo, TenantBranding } from '@arenalive/shared';
+import type {
+  AgentDownloadInfo,
+  AgentRelease,
+  DisplayImageTicket,
+  PlayerImageInfo,
+  TenantBranding,
+} from '@arenalive/shared';
 import {
   AGENT_LOGO_FILES,
   AGENT_LOGO_MAX_BYTES,
@@ -7,18 +13,26 @@ import {
   agentBranding,
   agentDownloadConfig,
   agentDownloadFileName,
+  DisplayImageRequestSchema,
+  DisplayImageTicketParamSchema,
+  IdParamSchema,
   PLAYER_IMAGE_PATH,
   playerImageFileName,
+  playerReadyImageFileName,
   resolveBranding,
 } from '@arenalive/shared';
 import { eq } from 'drizzle-orm';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
-import { AgentReleaseStore, PLAYER_IMAGE_FILES } from '../agentRelease.js';
+import { AgentReleaseStore } from '../agentRelease.js';
 import { readAssetFile } from '../assetStore.js';
 import type { AppContext } from '../context.js';
 import { perMinute } from '../context.js';
-import { assets } from '../db/index.js';
-import { HttpError, notFound } from '../lib/errors.js';
+import { assets, displays } from '../db/index.js';
+import { rotateDisplayConfig } from '../displays.js';
+import { DisplayImageTickets } from '../displayImageTickets.js';
+import { badRequest, HttpError, notFound } from '../lib/errors.js';
+import { validate } from '../lib/validate.js';
+import { closeImage, compressSlot, configSlot, imageBytes, imageStream, PlayerImageStore } from '../playerImage.js';
 import type { ZipEntry } from '../lib/zip.js';
 import { zipStream } from '../lib/zip.js';
 import { requireRole } from '../security.js';
@@ -160,41 +174,161 @@ export function agentDownloadRoutes(app: FastifyInstance, ctx: AppContext): void
 
 const imageNotPublished = (): HttpError =>
   new HttpError(404, 'PLAYER_IMAGE_NOT_PUBLISHED', 'Immagine non ancora pubblicata sul server');
+const readyNotAvailable = (): HttpError =>
+  new HttpError(404, 'PLAYER_IMAGE_NOT_READY', 'L’immagine pronta non è disponibile sul server: scarica solo il file');
+const ticketNotFound = (): HttpError =>
+  new HttpError(404, 'TICKET_NOT_FOUND', 'Download scaduto o già usato: prepara di nuovo l’immagine');
+const displayGone = (): HttpError =>
+  new HttpError(
+    410,
+    'DISPLAY_GONE',
+    'Il player è stato revocato o ha una configurazione più recente: prepara di nuovo l’immagine',
+  );
+
+/** Headers of a downloaded image. */
+const imageHeaders = (type: string, fileName: string, bytes: number) => ({
+  'content-type': type,
+  'content-disposition': `attachment; filename="${fileName}"`,
+  'content-length': String(bytes),
+  'cache-control': 'no-store',
+});
 
 /**
- * Image of the SD card of the players (page «Player»), the same for every client: what is on offer and the file,
- * streamed as it is (about 750 MB, never in memory). Admin only, as the agent: who prepares a player also creates
+ * Image of the SD card of the players (page «Player»). Admin only, as the agent: who prepares a player also creates
  * it and downloads its configuration (a viewer cannot), and every download is heavy for the server.
+ * - generic, the same for every client: what is on offer and the file, streamed (about 750 MB, never in memory):
+ *   the three parts of format 2 one after the other (one `.img.gz`), or the `.img.xz` of before;
+ * - ready for one player (format 2 only): `POST …/displays/:id/image` gives the player a new token as `…/config`
+ *   and a ticket (memory only, used once, 10 minutes, same client and user); `GET …/displays/image/:ticket` streams
+ *   the first part, the slot with `arenalive-player.json` compressed now, and the third part.
  */
 export function playerImageRoutes(app: FastifyInstance, ctx: AppContext): void {
   const admin = { config: perMinute(ctx.rateLimits.admin), preHandler: requireRole(ctx, 'admin') };
-  const store = new AgentReleaseStore(ctx.config.playerDownloadDir, PLAYER_IMAGE_FILES);
+  const download = { ...admin, config: perMinute(ctx.rateLimits.agentDownload) };
+  const store = new PlayerImageStore(ctx.config.playerDownloadDir);
+  const tickets = new DisplayImageTickets(() => ctx.now().getTime());
 
   app.get(`${PLAYER_IMAGE_PATH}/info`, admin, async (request, reply): Promise<PlayerImageInfo> => {
     void reply.header('cache-control', 'no-store');
-    const opened = await store.open(request.log);
-    if (!opened) return { available: false };
-    await opened.file.close();
+    const image = await store.open(request.log);
+    if (!image) return { available: false };
+    await closeImage(image);
+    if (image.format === 1)
+      return {
+        available: true,
+        version: image.version,
+        builtAt: image.builtAt,
+        bytes: image.bytes,
+        sha256: image.sha256,
+        sha256Of: 'file',
+        fileName: playerImageFileName(image.version, 'xz'),
+        ready: false,
+      };
+    const { manifest } = image;
     return {
       available: true,
-      version: opened.release.version,
-      builtAt: opened.release.builtAt,
-      bytes: opened.bytes,
-      sha256: opened.release.sha256,
-      fileName: playerImageFileName(opened.release.version),
+      version: manifest.version,
+      builtAt: manifest.builtAt,
+      bytes: imageBytes(image, image.slotPart),
+      sha256: manifest.imageSha256,
+      sha256Of: 'image',
+      fileName: playerImageFileName(manifest.version, 'gz'),
+      ready: true,
     };
   });
 
-  app.get(PLAYER_IMAGE_PATH, { ...admin, config: perMinute(ctx.rateLimits.agentDownload) }, async (request, reply) => {
-    const opened = await store.open(request.log);
-    if (!opened) throw imageNotPublished();
-    const { release, file, bytes } = opened;
-    request.log.info({ tenantId: request.adminTenantId, version: release.version }, 'immagine del player scaricata');
+  app.get(PLAYER_IMAGE_PATH, download, async (request, reply) => {
+    const image = await store.open(request.log);
+    if (!image) throw imageNotPublished();
+    const tenantId = request.adminTenantId;
+    if (image.format === 1) {
+      request.log.info({ tenantId, version: image.version }, 'immagine del player scaricata');
+      return reply
+        .headers(imageHeaders('application/x-xz', playerImageFileName(image.version, 'xz'), image.bytes))
+        .send(image.file.createReadStream({ start: 0, autoClose: true }));
+    }
+    const { version } = image.manifest;
+    request.log.info({ tenantId, version }, 'immagine del player scaricata');
     return reply
-      .header('content-type', 'application/x-xz')
-      .header('content-disposition', `attachment; filename="${playerImageFileName(release.version)}"`)
-      .header('content-length', String(bytes))
-      .header('cache-control', 'no-store')
-      .send(file.createReadStream({ autoClose: true }));
+      .headers(imageHeaders('application/gzip', playerImageFileName(version, 'gz'), imageBytes(image, image.slotPart)))
+      .send(imageStream(image, image.slotPart));
+  });
+
+  app.post('/api/admin/displays/:id/image', admin, async (request, reply): Promise<DisplayImageTicket> => {
+    const tenantId = adminTenantId(request);
+    const userId = request.user?.id;
+    if (!userId) throw notFound();
+    const { id } = validate(IdParamSchema, request.params);
+    const { wifi } = validate(DisplayImageRequestSchema, request.body ?? {});
+    const image = await store.open(request.log);
+    if (!image || image.format !== 2) {
+      if (image) await closeImage(image);
+      throw readyNotAvailable();
+    }
+    try {
+      const rotated = await rotateDisplayConfig(ctx, tenantId, id, wifi, (file) => {
+        const slot = configSlot(file);
+        if (!slot) throw badRequest('La configurazione è troppo lunga per l’immagine: accorcia il nome o il Wi-Fi');
+        return slot;
+      });
+      const slot = rotated.value;
+      const { ticket, expiresAt } = tickets.issue({
+        tenantId,
+        userId,
+        displayId: rotated.displayId,
+        displayName: rotated.name,
+        tokenHash: rotated.tokenHash,
+        slot,
+      });
+      request.log.info(
+        { displayId: rotated.displayId, wifi: wifi !== undefined, userId },
+        'immagine pronta del player preparata',
+      );
+      void reply.header('cache-control', 'no-store');
+      return {
+        ticket,
+        expiresAt: expiresAt.toISOString(),
+        fileName: playerReadyImageFileName(rotated.name, image.manifest.version),
+        size: imageBytes(image, compressSlot(slot)),
+      };
+    } finally {
+      await closeImage(image);
+    }
+  });
+
+  app.get('/api/admin/displays/image/:ticket', download, async (request, reply) => {
+    const tenantId = adminTenantId(request);
+    const userId = request.user?.id;
+    const { ticket } = validate(DisplayImageTicketParamSchema, request.params);
+    const grant = userId ? tickets.take(ticket, tenantId, userId) : null;
+    if (!grant) throw ticketNotFound();
+    let middle: Buffer;
+    try {
+      const [row] = await ctx.db
+        .select({ revoked: displays.revoked, tokenHash: displays.tokenHash })
+        .from(displays)
+        .where(tenantScope(displays, tenantId, eq(displays.id, grant.displayId)))
+        .limit(1);
+      if (!row || row.revoked || row.tokenHash !== grant.tokenHash) throw displayGone();
+      middle = compressSlot(grant.slot);
+    } finally {
+      grant.slot.fill(0);
+    }
+    const image = await store.open(request.log);
+    if (!image || image.format !== 2) {
+      if (image) await closeImage(image);
+      throw readyNotAvailable();
+    }
+    const { version } = image.manifest;
+    request.log.info({ displayId: grant.displayId, userId, version }, 'immagine pronta del player scaricata');
+    return reply
+      .headers(
+        imageHeaders(
+          'application/gzip',
+          playerReadyImageFileName(grant.displayName, version),
+          imageBytes(image, middle),
+        ),
+      )
+      .send(imageStream(image, middle));
   });
 }

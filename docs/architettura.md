@@ -382,7 +382,7 @@ apre `/schermo#<token>` e parla con il server in due modi: HTTP con Bearer per i
   `DISPLAY_CONFIG_VERSION` (1), `DISPLAY_CLOSE_NO_AUTH` (4401), `DISPLAY_CLOSE_INVALID` (4404).
 - Token e file: `DisplayTokenSchema` (base64url, 20-200 caratteri); `DisplayConfigFileSchema` (strict: `version`, `serverUrl`
   senza `/` finale, `token`, `name`, `wifi` facoltativo) con `DisplayWifiSchema` (`ssid` fino a 32, `password` 8-63 facoltativa,
-  `country` di due lettere maiuscole). Il Wi-Fi esiste solo nel file scaricato, mai sul server.
+  `country` di due lettere maiuscole). Il Wi-Fi esiste solo nel file scaricato o nello slot dell'immagine pronta, mai nel database.
 - Bersaglio e comandi: `DisplayTargetSchema` (`none`, `channel`, `match` con `matchId`, `fixture` con `clientFixtureId`: gli
   stessi casi dei link pubblici, ma salvati sul player e non su un link) e `DisplayCommandSchema` (`reload`, `reboot`,
   `screenOff`, `screenOn`).
@@ -393,6 +393,22 @@ apre `/schermo#<token>` e parla con il server in due modi: HTTP con Bearer per i
   `DisplayHeartbeatResponseSchema` (`command` o null, `commandSeq`, `update` facoltativo: `DisplayUpdateSchema` con `version`,
   `sha256`, `size`) e la funzione pura `displayUpdateWanted(corrente, disponibile)`: con due versioni `X.Y.Z` solo se la
   disponibile è maggiore, altrimenti se è diversa.
+- **Immagine della scheda SD** (`PlayerImageInfoSchema`, `PlayerImageManifestSchema`):
+  - `PlayerImageInfoSchema` (`GET /api/admin/player/image/info`): `available` e, se vero, `version`, `builtAt`, `bytes`, `sha256`,
+    `sha256Of` (`file` = l'`.img.xz`, `image` = l'immagine decompressa), `fileName`, `ready` (c'è l'immagine pronta per un
+    player); `PLAYER_IMAGE_PATH`, `playerImageFileName(versione, 'xz' | 'gz')`.
+  - **Formato 2 del manifest** `arenalive-player-image.json` (`PlayerImageManifestSchema`): `format: 2`, `version`, `builtAt`,
+    `imageSize`, `imageSha256`, `slotOffset` (multiplo di 512), `slotSize` (sempre `PLAYER_IMAGE_SLOT_SIZE` = 8192; lo slot sta
+    dentro l'immagine) e `parts`, tre voci fisse (`PLAYER_IMAGE_PART_FILES`: `arenalive-player-image-1.gz`, `-2.gz`, `-3.gz`) con
+    `size` e `sha256` calcolati sui `.gz`. Il formato 1 (`arenalive-player.img.xz`, manifest senza `format`) non ha schema qui.
+  - **Formato dello slot**: l'immagine non compressa ha, a `slotOffset`, 8192 byte riservati (il file di bootfs
+    `arenalive-player-incorporata.json`, fissato dalla build di `ArenaLive-Player`): il server ci scrive il JSON di
+    `DisplayConfigFileSchema` (lo stesso del download `…/config`, indentato, con `\n` finale) e riempie il resto di spazi, così la
+    dimensione non cambia. Pezzo 1 = byte prima dello slot, pezzo 2 = lo slot segnaposto, pezzo 3 = il resto; ognuno è un membro
+    gzip, e la concatenazione 1 + slot compresso al volo + 3 è un solo `.img.gz` valido.
+  - Immagine pronta: `DisplayImageRequestSchema` (= `DisplayConfigRequestSchema`), `DisplayImageTicketSchema` (`ticket`,
+    `expiresAt`, `fileName`, `size`), `DisplayImageTicketParamSchema`, `DISPLAY_IMAGE_TICKET_MINUTES` (10), `displayImagePath`,
+    `playerReadyImageFileName(nome, versione)`.
 - **Protocollo `/ws/display`**: il token **non** sta nell'URL. Il client manda per primo `DisplayAuthMessageSchema`
   (`{ type: 'auth', token }`) entro 10 s; altrimenti il server chiude con 4401, con 4404 se il token è errato, revocato,
   sostituito da un nuovo download o di un altro hostname. Poi il server manda `DisplaySocketMessageSchema`: i messaggi dei

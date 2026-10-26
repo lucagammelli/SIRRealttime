@@ -4,6 +4,15 @@ Le versioni seguono il versionamento semantico (`vX.Y.Z`); la fonte della versio
 `package.json` alla radice. Le sezioni nuove le aggiunge `scripts/rilascia.sh` con i titoli dei commit dal tag
 precedente; le note della release su GitHub sono la sezione della versione (`docs/regole/test-job-rilasci.md`).
 
+## [2.10.0] - 2026-10-26
+
+- Pause: titolo facoltativo, diapositiva foto o video e video dopo la partita
+- Player: corretto il test del link all'immagine dopo l'allineamento
+- Player: la simulazione del cliente si può mostrare sul maxischermo
+- Produzione: pubblicazione automatica del Player a ogni aggiornamento
+- Player: immagine della scheda SD già pronta per ogni player
+- Pause: dimensione giusta dal primo istante
+
 ## [2.9.0] - 2026-10-26
 
 - Player: download dell'immagine della scheda SD dal portale

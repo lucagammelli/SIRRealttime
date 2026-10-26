@@ -101,7 +101,10 @@ function renderPage() {
   );
 }
 
-const item = async () => screen.findByTestId('display');
+/** The first wait of a test includes the load of the page (lazy chunk, session, lists): slow when the CI is busy. */
+const FIRST_WAIT = { timeout: 5000 };
+
+const item = async () => screen.findByTestId('display', {}, FIRST_WAIT);
 
 beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -201,7 +204,7 @@ describe('page «Player»', () => {
       ready: false,
     });
     renderPage();
-    const link = await screen.findByRole('link', { name: IMAGE_TEXT });
+    const link = await screen.findByRole('link', { name: IMAGE_TEXT }, FIRST_WAIT);
     expect(link.getAttribute('href')).toBe('/api/admin/player/image');
     expect(link.getAttribute('download')).toBe('arenalive-player-0.1.0.img.xz');
     expect(screen.getByTestId('player-image').textContent).toMatch(/0\.1\.0 · .* · 750 MB/);

@@ -173,7 +173,9 @@ describe('LivePage devices', () => {
     const { container } = renderAt('?tv=1');
     const root = container.querySelector('[data-device]');
     expect(root?.getAttribute('data-device')).toBe('tv');
-    expect(root?.className).toContain('h-dvh');
+    expect(root?.className).toContain('h-full');
+    // Drawn on the fixed canvas, whatever the size of the window.
+    expect(container.querySelector('[data-tv-canvas]')).not.toBeNull();
     expect(root?.className).toContain('overflow-hidden');
     expect(document.documentElement.classList.contains(TV_ROOT_CLASS)).toBe(true);
     expect(request).toHaveBeenCalledWith('screen');
@@ -530,8 +532,8 @@ describe('LivePage: loghi di sistema', () => {
     expect(left?.dataset.systemLogo).toBe('sinistra');
     expect(right?.getAttribute('src')).toBe(RIGHT.url);
     expect(right?.dataset.systemLogo).toBe('destra');
-    expect(left?.className).toContain('max-w-[min(150px,25vw)]');
-    expect(left?.className).toContain('max-h-[min(50px,8.33vw)]');
+    expect(left?.className).toContain('max-w-[min(150px,calc(25*var(--sir-vw)))]');
+    expect(left?.className).toContain('max-h-[min(50px,calc(8.33*var(--sir-vw)))]');
     expect(left?.className).toContain('object-contain');
     phone.unmount();
     setWidth(1920);

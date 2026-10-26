@@ -72,7 +72,7 @@ export const SHORT_ROW: Record<TeamDuelKey, string> = {
  */
 const TYPE = {
   full: {
-    team: 'text-xl lg:text-4xl lg:[@media(max-height:820px)]:text-2xl',
+    team: 'text-xl lg:text-4xl lg:short:text-2xl',
     score: 'text-5xl lg:text-7xl',
     huge: 'text-6xl lg:text-8xl',
     value: 'text-2xl lg:text-4xl',
@@ -135,7 +135,7 @@ function TitleBand({ title, period, size }: { title: string; period: Period; siz
   if (size === 'card') return null;
   return (
     <p className="flex justify-center">
-      <span className="rounded-card bg-primary px-5 py-1.5 font-display text-lg font-bold uppercase tracking-wide text-on-primary lg:text-3xl lg:[@media(max-height:820px)]:text-xl">
+      <span className="rounded-card bg-primary px-5 py-1.5 font-display text-lg font-bold uppercase tracking-wide text-on-primary lg:text-3xl lg:short:text-xl">
         {title}
         <span className="opacity-80"> · {periodLabel(period)}</span>
       </span>
@@ -333,9 +333,7 @@ function Frame({ size, title, children }: { size: StatSize; title: string; child
   // At least as tall as the slide (centred), taller when its rows need it (the slide scrolls); less space between the
   // parts on low screens.
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col justify-center gap-6 [@media(max-height:820px)]:gap-3">
-      {children}
-    </div>
+    <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col justify-center gap-6 short:gap-3">{children}</div>
   );
 }
 

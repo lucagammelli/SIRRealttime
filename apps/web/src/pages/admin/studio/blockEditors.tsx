@@ -17,7 +17,7 @@ import {
   TOP_PLAYERS_MAX,
 } from '@arenalive/shared';
 import type { MatchState } from '@arenalive/volley-stats';
-import type { ReactNode, RefObject } from 'react';
+import type { CSSProperties, ReactNode, RefObject } from 'react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import type { BlockBrand } from '../../../blocks/env.ts';
@@ -26,6 +26,7 @@ import { SAMPLE_SCHEDULE } from '../../../blocks/sampleSchedule.ts';
 import { MatchView } from '../../../components/MatchView.tsx';
 import { publicSponsorsOf } from '../../../lib/sponsors.ts';
 import { useTemplate } from '../../../lib/branding.ts';
+import { TV_CANVAS_HEIGHT, TV_CANVAS_WIDTH, tvCanvasUnits } from '../../../lib/tvCanvas.ts';
 import { TV_FONT_VAR, tvRemPx } from '../../../lib/tvScreen.ts';
 import { LayoutScaleContext, rootFontPx, TouchContext, useElementSize } from '../../../lib/useLayout.ts';
 import { CalendarOptionsFields } from '../CalendarOptionsFields.tsx';
@@ -42,7 +43,7 @@ import { DEVICE_LABELS } from './model.ts';
 
 /** Page drawn in the preview (CSS px) and proportions of its frame: 16:9, 4:3, 9:19.5. */
 const VIRTUAL: Record<LayoutDevice, { width: number; height: number; frame: string }> = {
-  tv: { width: 1920, height: 1080, frame: 'w-full' },
+  tv: { width: TV_CANVAS_WIDTH, height: TV_CANVAS_HEIGHT, frame: 'w-full' },
   tablet: { width: 1024, height: 768, frame: 'w-full max-w-xl' },
   phone: { width: 390, height: 845, frame: 'w-full max-w-[15rem]' },
 };
@@ -128,7 +129,7 @@ export function DevicePreview({
       return;
     }
     const raw = getComputedStyle(el).getPropertyValue(TV_FONT_VAR);
-    setRemRatio(rootFontPx() / tvRemPx(raw, VIRTUAL.tv.width, VIRTUAL.tv.height));
+    setRemRatio(rootFontPx() / tvRemPx(raw, TV_CANVAS_WIDTH, TV_CANVAS_HEIGHT));
   }, [device, template]);
   const base = VIRTUAL[device];
   const size = { ...base, width: base.width * remRatio, height: base.height * remRatio };
@@ -164,10 +165,18 @@ export function DevicePreview({
           <div
             inert
             data-studio-page=""
+            {...(tv ? { 'data-tv-canvas': '' } : {})}
             className={`absolute left-0 top-0 bg-bg text-text ${template === 'standard' ? 'border-t-4 border-accent' : ''} ${
               screens ? `flex flex-col overflow-hidden ${tv ? 'p-5' : 'p-3'}` : 'overflow-y-auto p-3'
             }`}
-            style={{ width: size.width, height: size.height, transform: `scale(${scale})`, transformOrigin: '0 0' }}
+            style={{
+              width: size.width,
+              height: size.height,
+              transform: `scale(${scale})`,
+              transformOrigin: '0 0',
+              // 1vw / 1vh of the page = 1 % of the canvas, as on the TV (the box is `remRatio` times smaller).
+              ...(tv ? (tvCanvasUnits(remRatio) as CSSProperties) : {}),
+            }}
           >
             <LayoutScaleContext.Provider value={scale}>
               <div className={screens ? 'min-h-0 flex-1' : ''}>

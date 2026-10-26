@@ -190,7 +190,7 @@
       "--sir-table-border": "#303036",
       "--sir-chart-axis": "#55555c",
       "--sir-chart-secondary": "#77777f",
-      "--sir-tv-font-size": "clamp(14px, min(0.9vw, 1.6vh), 36px)",
+      "--sir-tv-font-size": "clamp(14px, min(calc(0.9 * var(--sir-vw)), calc(1.6 * var(--sir-vh))), 36px)",
       "--sir-page-pad": "24px",
       "--sir-gap": "16px",
       "--sir-card-pad": "16px",
@@ -257,8 +257,8 @@
       }
     ],
     "tvVars": {
-      "--sir-score-size": "min(13vh, 8rem)",
-      "--sir-team-size": "min(4.2vh, 2.5rem)"
+      "--sir-score-size": "min(calc(13 * var(--sir-vh)), 8rem)",
+      "--sir-team-size": "min(calc(4.2 * var(--sir-vh)), 2.5rem)"
     },
     "rules": [
       {

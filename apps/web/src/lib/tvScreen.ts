@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
+import { SIR_VH_VAR, SIR_VW_VAR, tvCanvasUnits } from './tvCanvas.ts';
 
 /** Inactivity after which the big screen hides the mouse pointer and the buttons. */
 export const IDLE_CURSOR_MS = 3000;
 
-/** Class on <html> that scales the text of the big screen with the viewport (styles/index.css). */
+/** Class on <html> that sets the text size of the big screen from the fixed canvas (styles/index.css). */
 export const TV_ROOT_CLASS = 'sir-tv';
 
 /** Variable of the font size of the big screen (tokens.css, one value per graphic template). */
@@ -13,12 +14,23 @@ const TV_FONT_FALLBACK = 'clamp(16px, min(1.25vw, 2.2vh), 48px)';
 const TV_FONT_CLAMP = /clamp\(\s*([\d.]+)px\s*,\s*min\(\s*([\d.]+)vw\s*,\s*([\d.]+)vh\s*\)\s*,\s*([\d.]+)px\s*\)/;
 
 /**
+ * The token may be written `Xvw` or `calc(X * var(--sir-vw))` (the page redefines the variable on the TV; the browser
+ * returns `calc(X * 1vw)` when it reads the value): all become `Xvw` / `Xvh`.
+ */
+function plainViewportUnits(raw: string): string {
+  return raw.replace(
+    /calc\(\s*([\d.]+)\s*\*\s*(?:var\(--sir-v([wh])\)|1v([wh]))\s*\)/g,
+    (_m, n: string, a?: string, b?: string) => `${n}v${a ?? b ?? 'w'}`,
+  );
+}
+
+/**
  * Pure: 1 rem (px) of the big screen for a viewport of `width` × `height` px, from the text of the variable
  * `--sir-tv-font-size` (`clamp(min, min(Xvw, Yvh), max)`); the default theme's value when the text is not that form.
- * The preview of the Studio uses it for a 1920 × 1080 screen: the viewport of the reserved area is not the screen.
+ * The real page and the preview of the Studio use it with the canvas (`TV_CANVAS_WIDTH` × `TV_CANVAS_HEIGHT`).
  */
 export function tvRemPx(raw: string | null | undefined, width: number, height: number): number {
-  const m = TV_FONT_CLAMP.exec(raw ?? '') ?? TV_FONT_CLAMP.exec(TV_FONT_FALLBACK);
+  const m = TV_FONT_CLAMP.exec(plainViewportUnits(raw ?? '')) ?? TV_FONT_CLAMP.exec(TV_FONT_FALLBACK);
   if (!m) return 16;
   const [lo, vw, vh, hi] = [m[1], m[2], m[3], m[4]].map(Number) as [number, number, number, number];
   return Math.min(hi, Math.max(lo, Math.min((vw * width) / 100, (vh * height) / 100)));
@@ -93,12 +105,22 @@ export function useWakeLock(enabled: boolean): void {
   }, [enabled]);
 }
 
-/** Puts the class of the big screen on <html> while `enabled` (fluid text size). */
+/**
+ * Puts the class of the big screen on <html> while `enabled`, and makes `1vw` / `1vh` of the page (`--sir-vw`,
+ * `--sir-vh`) 1 % of the fixed canvas, so the text size (rem) and every measure in vw / vh are those of the canvas.
+ */
 export function useTvRootClass(enabled: boolean): void {
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!enabled) return;
     const root = document.documentElement;
     root.classList.add(TV_ROOT_CLASS);
-    return () => root.classList.remove(TV_ROOT_CLASS);
+    const units = tvCanvasUnits();
+    root.style.setProperty(SIR_VW_VAR, units[SIR_VW_VAR]);
+    root.style.setProperty(SIR_VH_VAR, units[SIR_VH_VAR]);
+    return () => {
+      root.classList.remove(TV_ROOT_CLASS);
+      root.style.removeProperty(SIR_VW_VAR);
+      root.style.removeProperty(SIR_VH_VAR);
+    };
   }, [enabled]);
 }

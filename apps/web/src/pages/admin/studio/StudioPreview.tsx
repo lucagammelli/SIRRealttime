@@ -105,7 +105,18 @@ export function pickBoxes(root: Element): PickBox[] {
  * and the theme of the draft, the palette of the draft and the colours of «nostra squadra» of the draft), so the real
  * components of the public page show the draft and the reserved area around keeps its own.
  */
-function BrandScope({ docs, state, children }: { docs: StudioDocs; state: MatchState; children: ReactNode }) {
+function BrandScope({
+  docs,
+  state,
+  tv,
+  children,
+}: {
+  docs: StudioDocs;
+  state: MatchState;
+  /** Preview of the big screen: its tokens do not follow the width of the window (fixed canvas). */
+  tv: boolean;
+  children: ReactNode;
+}) {
   const resolved = useResolvedTheme();
   const { template, colors, ourTeam } = docs.branding;
   const theme = templateOf(template).forcedTheme ?? resolved;
@@ -128,6 +139,7 @@ function BrandScope({ docs, state, children }: { docs: StudioDocs; state: MatchS
       data-sir-scope=""
       data-template={template}
       data-theme={theme}
+      {...(tv ? { 'data-tv-canvas': '' } : {})}
       style={style}
       className="h-full w-full font-sans text-text"
     >
@@ -400,7 +412,7 @@ export function StudioPreview({
     s === 'overlay' ? `Avviso «${OVERLAY_LABELS[trial?.kind ?? overlayKind].label}»` : SCENE_LABELS[s];
   const stage = (full: boolean) =>
     state ? (
-      <BrandScope docs={docs} state={state}>
+      <BrandScope docs={docs} state={state} tv={device === 'tv'}>
         <Stage
           device={device}
           scene={scene}

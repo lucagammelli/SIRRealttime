@@ -8,6 +8,7 @@ import { Intermission } from '../components/Intermission.tsx';
 import { LiveMatch, screensFor } from '../components/LiveMatch.tsx';
 import { Overlay } from '../components/Overlay.tsx';
 import { StatusScreen } from '../components/StatusScreen.tsx';
+import { TvCanvas } from '../components/TvCanvas.tsx';
 import { SystemLogosBar } from '../components/SystemLogosBar.tsx';
 import { useAfterMatchImage } from '../lib/afterMatch.ts';
 import { nextFixture, useSchedule } from '../lib/schedule.ts';
@@ -166,13 +167,14 @@ export function LivePage() {
   };
 
   if (!valid) {
-    return (
+    const invalid = (
       <main className="mx-auto max-w-7xl p-4">
         <StatusScreen title="Link non valido o scaduto" tone="error">
           Controlla di aver copiato il link per intero.
         </StatusScreen>
       </main>
     );
+    return tv ? <TvCanvas>{invalid}</TvCanvas> : invalid;
   }
 
   // «Touch» of the device chosen by the client: without it nothing on the page can be tapped or clicked.
@@ -245,11 +247,12 @@ export function LivePage() {
   const systemLogos = useSystemLogos();
   const showBrand = !hasSystemLogo(systemLogos.left) && !hasSystemLogo(systemLogos.right);
 
-  return (
+  const page = (
     <TouchContext.Provider value={touchReady}>
       <div
         className={`${template.id === 'standard' ? 'border-t-4 border-accent' : ''} ${
-          screens ? 'flex h-dvh flex-col overflow-hidden p-3 lg:p-5' : 'flex min-h-dvh flex-col'
+          // Big screen: the page fills the fixed canvas (1920 × 1080), not the window.
+          screens ? 'flex h-full w-full flex-col overflow-hidden p-3 lg:p-5' : 'flex min-h-dvh flex-col'
         } ${idle ? 'cursor-none' : ''}`}
         data-device={device}
       >
@@ -305,4 +308,6 @@ export function LivePage() {
       </div>
     </TouchContext.Provider>
   );
+  // Big screen: always drawn on the fixed canvas and scaled to the real screen (same pages on every TV).
+  return tv ? <TvCanvas>{page}</TvCanvas> : page;
 }

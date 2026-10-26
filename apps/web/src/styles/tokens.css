@@ -15,6 +15,12 @@
  * squadra») is on court, lib/branding.ts points them to `--sir-our*` and `--sir-opponent*` (see `teamColorVars`), so
  * every view follows. `-ink`: the team colour as small text (4.5:1 on every panel), `-soft`: a background tint.
  */
+:root {
+  /* 1vw and 1vh of the page; on the big screen (class `sir-tv`) they become 1 % of the canvas (lib/tvScreen.ts). */
+  --sir-vw: 1vw;
+  --sir-vh: 1vh;
+}
+
 :root,
 [data-sir-scope] {
   --sir-font-sans:
@@ -123,8 +129,8 @@
   --sir-chart-axis: var(--sir-border);
   --sir-chart-secondary: #b9c0cb;
 
-  /* Big screen: 1 rem scales with the screen (readable at 4-5 m). */
-  --sir-tv-font-size: clamp(16px, min(1.25vw, 2.2vh), 48px);
+  /* Big screen: 1 rem scales with the fixed canvas of 1920 × 1080 px (readable at 4-5 m); --sir-vw / --sir-vh are 1 % of it. */
+  --sir-tv-font-size: clamp(16px, min(calc(1.25 * var(--sir-vw)), calc(2.2 * var(--sir-vh))), 48px);
   color-scheme: light;
 }
 
@@ -349,5 +355,5 @@
   --sir-glow-soft: transparent;
   --sir-home-glow: transparent;
   --sir-away-glow: transparent;
-  --sir-tv-font-size: clamp(18px, min(1.5vw, 2.6vh), 56px);
+  --sir-tv-font-size: clamp(18px, min(calc(1.5 * var(--sir-vw)), calc(2.6 * var(--sir-vh))), 56px);
 }

@@ -4,7 +4,8 @@ import { useRef } from 'react';
 import { useBackgroundBehind } from '../lib/backgroundTone.ts';
 
 /** Size of a system logo in a header row: at most 150 × 50 px, at most a quarter of the screen wide (360 px phones). */
-export const SYSTEM_LOGO_ROW_SIZE = 'max-h-[min(50px,8.33vw)] max-w-[min(150px,25vw)]';
+export const SYSTEM_LOGO_ROW_SIZE =
+  'max-h-[min(50px,calc(8.33*var(--sir-vw)))] max-w-[min(150px,calc(25*var(--sir-vw)))]';
 /** Size of a system logo in its full box (150 × 50 px, the limit of the upload). */
 export const SYSTEM_LOGO_FULL_SIZE = 'max-h-[50px] max-w-[150px]';
 

@@ -138,7 +138,8 @@ function TvLayout({
 }) {
   const area = useRef<HTMLDivElement>(null);
   const scale = useContext(LayoutScaleContext) || 1;
-  const size = useElementSize(area);
+  // The measure is on the screen: it is taken again when the scale of the canvas changes (window, full screen, bars).
+  const size = useElementSize(area, scale);
   const heightPx = size.height / scale;
   const blocks = given;
   const reduced = useReducedMotion();

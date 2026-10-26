@@ -95,7 +95,9 @@ export const BLOCKS: Registry = {
         state={env.state}
         orientation={b.options.orientation}
         className={TV_CARD}
-        chartClassName={b.options.orientation === 'vertical' ? 'min-h-24 flex-1' : 'h-[min(28vh,14rem)]'}
+        chartClassName={
+          b.options.orientation === 'vertical' ? 'min-h-24 flex-1' : 'h-[min(calc(28*var(--sir-vh)),14rem)]'
+        }
       />
     ) : (
       <Rotations state={env.state} orientation={b.options.orientation} className="h-full" />

@@ -34,7 +34,7 @@ const SIZES = {
     logo: 'scoreboardTablet',
   },
   tv: {
-    score: 'text-[min(20vh,10rem)]',
+    score: 'text-[length:min(calc(20*var(--sir-vh)),10rem)]',
     colon: 'text-7xl',
     sets: 'text-6xl',
     name: 'text-4xl',

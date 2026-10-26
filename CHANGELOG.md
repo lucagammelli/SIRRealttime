@@ -4,6 +4,11 @@ Le versioni seguono il versionamento semantico (`vX.Y.Z`); la fonte della versio
 `package.json` alla radice. Le sezioni nuove le aggiunge `scripts/rilascia.sh` con i titoli dei commit dal tag
 precedente; le note della release su GitHub sono la sezione della versione (`docs/regole/test-job-rilasci.md`).
 
+## [2.9.0] - 2026-10-26
+
+- Player: download dell'immagine della scheda SD dal portale
+- Player per i maxischermi: gestione dal portale e pagina /schermo
+
 ## [2.8.0] - 2026-10-26
 
 - Tela TV: il punteggio ridotto per finestre basse in orizzontale non vale sulla TV

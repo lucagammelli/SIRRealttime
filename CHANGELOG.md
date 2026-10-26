@@ -4,6 +4,25 @@ Le versioni seguono il versionamento semantico (`vX.Y.Z`); la fonte della versio
 `package.json` alla radice. Le sezioni nuove le aggiunge `scripts/rilascia.sh` con i titoli dei commit dal tag
 precedente; le note della release su GitHub sono la sezione della versione (`docs/regole/test-job-rilasci.md`).
 
+## [2.8.0] - 2026-10-26
+
+- Tela TV: il punteggio ridotto per finestre basse in orizzontale non vale sulla TV
+- TV: rimisura al cambio di scala, varianti di larghezza e regole max-width dei modelli sulla tela, link non valido nella tela
+- TV: tela fissa 1920x1080 scalata allo schermo, pagine uguali su ogni televisore
+- CI veloce: esiti di lint e typecheck dai PID, registrazione solo su tree pulito e invariato, correzioni minori e skill coordina
+- CI più veloce: una CI per job, ambito sui pacchetti toccati, lint e typecheck in parallelo, turno per test e build, job.sh pr
+- Prossime partite: documentata la regola e testato il caso di una partita che inizia dopo la fine del file
+- Prossime partite: la partita appena giocata non resta «prossima» anche se il .dvw non è abbinato (pausa di fine partita)
+- Touch spento: i parziali della fascia di pausa seguono il dispositivo reale (TV a capo, telefono scorre); test dei contenuti più stretto
+- Touch spento: toglie solo i controlli cliccabili, su telefono e tablet resta la colonna che scorre (schermate e taglio solo per la TV)
+- Canale: scelta della prossima partita in una funzione pura con test
+- Canale: nessuna attesa con «Dopo la partita» spento, riabbinamento solo per file visti in corso, prossima partita vera dopo la fine
+- Canale: dopo la fine resta la partita finita per delayMinutes (poi foto e conto alla rovescia); la partita appena giocata non è più «prossima»
+- Video su smartphone: corretti testi a video, documenti, commenti e test (nuova voce in decisioni.md)
+- Avvisi con giocatore: il video compare anche su smartphone (resta escluso solo con movimento ridotto)
+- Portale: tabellone speculare, nome breve al posto del codice numerico, pulsanti delle pause solo su schermi touch
+- Prossima partita: tolta la nota «La diretta comparirà qui da sola…» durante il conto alla rovescia
+
 ## [2.7.1] - 2026-10-25
 
 - Pause: «Pausa attiva» spenta non compare mai; senza configurazione caricata niente pause né avvisi predefiniti

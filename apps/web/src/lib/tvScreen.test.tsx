@@ -1,6 +1,6 @@
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { TV_ROOT_CLASS, tvRemPx, useIdle, useTvRootClass, useWakeLock } from './tvScreen.ts';
+import { TV_ROOT_CLASS, tvRemPx, useIdle, useNoTranslate, useTvRootClass, useWakeLock } from './tvScreen.ts';
 
 afterEach(() => {
   cleanup();
@@ -120,6 +120,29 @@ describe('useTvRootClass', () => {
     unmount();
     expect(document.documentElement.classList.contains(TV_ROOT_CLASS)).toBe(false);
     expect(document.documentElement.style.getPropertyValue('--sir-vh')).toBe('');
+  });
+});
+
+function NoTranslate() {
+  useNoTranslate();
+  return null;
+}
+
+describe('useNoTranslate', () => {
+  it('forbids the translation while mounted and restores the previous state', () => {
+    const root = document.documentElement;
+    const metas = (): number => document.head.querySelectorAll('meta[name="google"][content="notranslate"]').length;
+    expect(root.hasAttribute('translate')).toBe(false);
+    const { unmount } = render(<NoTranslate />);
+    expect(root.getAttribute('translate')).toBe('no');
+    expect(metas()).toBe(1);
+    unmount();
+    expect(root.hasAttribute('translate')).toBe(false);
+    expect(metas()).toBe(0);
+    root.setAttribute('translate', 'yes');
+    render(<NoTranslate />).unmount();
+    expect(root.getAttribute('translate')).toBe('yes');
+    root.removeAttribute('translate');
   });
 });
 

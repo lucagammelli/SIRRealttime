@@ -124,3 +124,25 @@ export function useTvRootClass(enabled: boolean): void {
     };
   }, [enabled]);
 }
+
+/**
+ * Tells the browser not to offer the translation of the page (`translate="no"` on <html> and
+ * `<meta name="google" content="notranslate">`): the big screen has nobody in front to dismiss the bar. Only for the
+ * player page: the public pages stay translatable for the spectators. The previous state is restored on unmount.
+ */
+export function useNoTranslate(): void {
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const previous = root.getAttribute('translate');
+    root.setAttribute('translate', 'no');
+    const meta = document.createElement('meta');
+    meta.name = 'google';
+    meta.content = 'notranslate';
+    document.head.appendChild(meta);
+    return () => {
+      meta.remove();
+      if (previous === null) root.removeAttribute('translate');
+      else root.setAttribute('translate', previous);
+    };
+  }, []);
+}

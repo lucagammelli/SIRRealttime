@@ -173,7 +173,7 @@ export function NextMatchView({
               />
               <p
                 className={`min-w-0 max-w-full break-words font-display font-bold uppercase leading-tight tracking-wide ${INK[sideRole(fixture, side)]} ${
-                  big ? 'text-2xl [@media(min-height:900px)]:text-4xl' : tv ? 'text-xl' : 'text-sm sm:text-base'
+                  big ? 'text-2xl tall:text-4xl' : tv ? 'text-xl' : 'text-sm sm:text-base'
                 }`}
               >
                 <BreakableName text={team.name} />
@@ -186,9 +186,7 @@ export function NextMatchView({
   );
   const details = (
     <div className="space-y-1 text-center">
-      <p
-        className={`font-semibold text-text ${big ? 'text-2xl [@media(min-height:900px)]:text-3xl' : tv ? 'text-xl' : 'text-base'}`}
-      >
+      <p className={`font-semibold text-text ${big ? 'text-2xl tall:text-3xl' : tv ? 'text-xl' : 'text-base'}`}>
         {dateText}
       </p>
       <p className={`text-muted ${big ? 'text-lg' : tv ? 'text-base' : 'text-sm'}`}>
@@ -207,7 +205,7 @@ export function NextMatchView({
         {details}
         {showQr && (
           <div className="flex flex-col items-center gap-2">
-            <FixtureQr fixture={fixture} logoSrc={logoSrc} className="h-auto w-32 [@media(min-height:900px)]:w-48" />
+            <FixtureQr fixture={fixture} logoSrc={logoSrc} className="h-auto w-32 tall:w-48" />
             <p className="text-center text-base text-muted">Inquadra il codice per seguire la partita sul telefono</p>
           </div>
         )}

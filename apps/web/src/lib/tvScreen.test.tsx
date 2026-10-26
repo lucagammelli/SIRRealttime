@@ -112,9 +112,14 @@ describe('useTvRootClass', () => {
     expect(document.documentElement.classList.contains(TV_ROOT_CLASS)).toBe(true);
     rerender(<RootClass on={false} />);
     expect(document.documentElement.classList.contains(TV_ROOT_CLASS)).toBe(false);
+    expect(document.documentElement.style.getPropertyValue('--sir-vw')).toBe('');
     rerender(<RootClass on />);
+    // 1vw and 1vh of the page are 1 % of the 1920 × 1080 canvas, not of the window.
+    expect(document.documentElement.style.getPropertyValue('--sir-vw')).toBe('19.2px');
+    expect(document.documentElement.style.getPropertyValue('--sir-vh')).toBe('10.8px');
     unmount();
     expect(document.documentElement.classList.contains(TV_ROOT_CLASS)).toBe(false);
+    expect(document.documentElement.style.getPropertyValue('--sir-vh')).toBe('');
   });
 });
 
@@ -124,6 +129,13 @@ describe('tvRemPx', () => {
     expect(tvRemPx('clamp(14px, min(0.9vw, 1.6vh), 36px)', 1920, 1080)).toBeCloseTo(17.28);
     expect(tvRemPx('clamp(14px, min(0.9vw, 1.6vh), 36px)', 800, 450)).toBe(14);
     expect(tvRemPx('clamp(14px, min(0.9vw, 1.6vh), 36px)', 7680, 4320)).toBe(36);
+  });
+
+  it('reads the token written with the canvas variables, also as the browser returns it', () => {
+    expect(
+      tvRemPx('clamp(16px, min(calc(1.25 * var(--sir-vw)), calc(2.2 * var(--sir-vh))), 48px)', 1920, 1080),
+    ).toBeCloseTo(23.76);
+    expect(tvRemPx('clamp(14px, min(calc(0.9 * 1vw), calc(1.6 * 1vh)), 36px)', 1920, 1080)).toBeCloseTo(17.28);
   });
 
   it('falls back to the default theme when the text is not readable', () => {

@@ -55,9 +55,9 @@ const COVER_MEDIA_CLASS = 'absolute inset-0 size-full object-cover';
 
 /** With a background the box is larger (16:9), so that the image or the video can be seen. */
 const MEDIA_BOX: Record<Device, string> = {
-  tv: 'w-[min(56rem,90vw)]',
-  tablet: 'w-[min(36rem,90vw)]',
-  phone: 'w-[90vw]',
+  tv: 'w-[min(56rem,calc(90*var(--sir-vw)))]',
+  tablet: 'w-[min(36rem,calc(90*var(--sir-vw)))]',
+  phone: 'w-[calc(90*var(--sir-vw))]',
 };
 
 /** Padding and text size of the box, by device and size (medium is the look from before the setting existed). */

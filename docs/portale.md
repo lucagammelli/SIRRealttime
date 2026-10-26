@@ -58,7 +58,7 @@ tra tre impaginazioni, con gli stessi blocchi della tabella sopra:
 |---|---|---|
 | Telefono | larghezza fino a 767 px (`viewportClass`: `phone`); in orizzontale (più larga che alta, alta al massimo 500 px, sotto 1200 px) il telefono resta tale sotto 560 px (`PHONE_LANDSCAPE_MIN_WIDTH`) | una colonna; tabellone compatto fisso in alto con «Dettagli del set» (`ScoreFacts`); sezioni comprimibili (`Card` con `aria-expanded`), all'inizio aperta solo «Andamento del set»; grafici semplificati (legenda sotto, più bassi); tabella giocatori con le colonne essenziali (vedi «Regole del telefono») |
 | Tablet | da 768 px e sotto le soglie della TV; telefono orizzontale da 560 px | **verticale** 768-899 px: una colonna; **orizzontale** 900-1199 px: griglia a 12 colonne con card a metà; **desktop** da 1200 px: la griglia a 12 colonne del layout (le soglie sono sulla larghezza della griglia, `GRID_LANDSCAPE_MIN_PX` 856 e `GRID_DESKTOP_MIN_PX` 1150, perciò l'anteprima dell'editor si comporta come la pagina vera) |
-| TV | da sola con almeno 1600 × 800 px e proporzioni ≥ 16:10; sempre con `?tv=1`; mai con `?tv=0`; con «Schermo intero» solo da tablet in su (mai da telefono, anche orizzontale) | senza scorrimento, testi scalati, rotazione dei gruppi |
+| TV | da sola con almeno 1600 × 800 px e proporzioni ≥ 16:10; sempre con `?tv=1`; mai con `?tv=0`; con «Schermo intero» solo da tablet in su (mai da telefono, anche orizzontale) | tela fissa 1920×1080 scalata allo schermo, senza scorrimento, rotazione dei gruppi |
 
 I breakpoint sono quelli delle specifiche grafiche (`docs/grafica/`) e valgono per **tutti** i modelli. Un monitor
 desktop 4:3 o 16:10 basso resta quindi tablet/desktop e mantiene lo scorrimento. `defaultLayouts` è l'elenco predefinito dei
@@ -72,8 +72,23 @@ una squadra alla volta con un selettore; `CourtMap` raccoglie i filtri sotto «A
 Il tabellone del telefono resta fisso in alto e `scroll-padding-top` segue la sua altezza (`useStickyOffset`, variabile
 `--sir-sticky-offset`), così le sezioni aperte non finiscono sotto di lui.
 
-**Modalità TV.** Classe `html.sir-tv`: corpo del testo `clamp(16px, min(1.25vw, 2.2vh), 48px)`, quindi ogni `rem` cresce
-con lo schermo (leggibile a 4-5 m). I blocchi sotto il tabellone sono divisi in gruppi in base all'altezza (`tvGroups`
+**Modalità TV: tela fissa 1920×1080** (decisione del 2026-10-26). Sul dispositivo TV la pagina si disegna sempre su una
+tela logica di 1920×1080 px CSS (`TV_CANVAS_WIDTH`, `TV_CANVAS_HEIGHT` in `lib/tvCanvas.ts`) e la tela viene scalata in
+modo uniforme (`transform: scale`, `tvCanvasFit`, componente `TvCanvas`) per riempire lo schermo reale, centrata, come
+un'immagine. Su uno schermo che non è 16:9 restano bande ai bordi (sfondo della pagina). Quindi il **numero di schermate e
+il contenuto di ognuna non dipendono da risoluzione, zoom del browser, barre visibili o modello della TV**, ma solo dalla
+tela e dalla configurazione (layout, modello, opzioni). Dentro la tela `vw` e `vh` non sono quelli della finestra:
+`useTvRootClass` (`lib/tvScreen.ts`) scrive su `<html>` le variabili `--sir-vw` e `--sir-vh` (1 % della tela, 19,2 e
+10,8 px; fuori dalla TV valgono `1vw` e `1vh`, `tokens.css`) e tutte le misure in vw/vh dei componenti (tabellone,
+logo di sistema, avvisi, grafici, diapositive) usano queste variabili. Le varianti Tailwind `tall:` (da 900 px di altezza)
+e `short:` (fino a 820 px) sostituiscono le media query sull'altezza della finestra: sulla tela `tall:` vale sempre e
+`short:` mai (`styles/index.css`). Avvisi, pause e «Simulazione» sono `fixed` dentro la tela (il `transform` li tiene
+dentro). `LayoutScaleContext` porta la scala della tela e `TvLayout` riporta le misure di `getBoundingClientRect` ai px
+della tela. Telefono e tablet restano adattivi alla finestra; il Touch sulla TV non cambia.
+
+**Testo e schermate della TV.** Classe `html.sir-tv`: corpo del testo `clamp(16px, min(1.25 × --sir-vw, 2.2 × --sir-vh), 48px)`
+(`--sir-tv-font-size`, 23,76 px sulla tela con il modello standard), quindi ogni `rem` è sempre lo stesso sulla tela
+(leggibile a 4-5 m). I blocchi sotto il tabellone sono divisi in gruppi in base all'altezza (`tvGroups`
 con `blockMinRem`: l'altezza minima del tipo, `TV_BLOCK_MIN_REM` o i `tvMinRem` del modello, alzata a quella che
 servono le righe che le **opzioni** del blocco permettono di mostrare: «Parziale e marcatori» 8,5 rem + `limit` righe da
 `TV_LIST_ROW_REM` = 2,55 rem, «Attacco» 14 rem + `limit` righe; le due liste stanno affiancate da
@@ -1132,7 +1147,8 @@ Sono blocchi della pagina (larghezze 4/6/8/12) e diapositive delle pause (stesse
 - **Anteprima**: la pagina del dispositivo scelto è disegnata alla grandezza vera (`DevicePreview`: 1920×1080,
   1024×768, 390×845) e ridotta, non interattiva (si può solo cliccare un elemento per aprirne l'impostazione), con le
   modifiche non ancora salvate. Per la TV il riquadro è più piccolo in rapporto al `rem` dell'area riservata (16 px) e quello
-  della TV vera a 1920×1080 col modello scelto (`tvRemPx` in `lib/tvScreen.ts` legge `--sir-tv-font-size`): in rem lo
+  della TV vera a 1920×1080 col modello scelto (`tvRemPx` in `lib/tvScreen.ts` legge `--sir-tv-font-size`; le stesse costanti della tela fissa
+  della TV, `lib/tvCanvas.ts`, e le variabili `--sir-vw`/`--sir-vh` scalate come il riquadro, `data-tv-canvas` per le varianti `tall:`/`short:`): in rem lo
   schermo ha le stesse misure della pagina vera, quindi testi e raggruppamento dei blocchi in schermate (`tvGroups`)
   coincidono; il bordo alto «accento» c'è solo col modello «standard», come in `LivePage`. Usa la partita live del cliente (`/ws/admin`: «Dati della partita live.») oppure, se non c'è,
   la «Partita d'esempio» (`src/blocks/sampleMatch.json`, caricata solo dall'editor in un suo file separato; si rigenera con

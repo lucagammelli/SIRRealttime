@@ -29,9 +29,9 @@ const CLASSES: Record<ClubLogoPlace, Record<ClubLogoSize, string>> = {
   nextMatchBlock: { small: 'size-12', medium: 'size-16', large: 'size-20' },
   nextMatchBlockTv: { small: 'size-20', medium: 'size-24', large: 'size-32' },
   nextMatchBlockFull: {
-    small: 'size-20 [@media(min-height:900px)]:size-32',
-    medium: 'size-28 [@media(min-height:900px)]:size-44',
-    large: 'size-36 [@media(min-height:900px)]:size-56',
+    small: 'size-20 tall:size-32',
+    medium: 'size-28 tall:size-44',
+    large: 'size-36 tall:size-56',
   },
   nextMatchPage: { small: 'size-16 sm:size-20', medium: 'size-20 sm:size-28', large: 'size-28 sm:size-36' },
   nextMatchPageBig: { small: 'size-32 lg:size-40', medium: 'size-40 lg:size-56', large: 'size-48 lg:size-72' },

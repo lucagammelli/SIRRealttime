@@ -266,7 +266,7 @@ function SponsorSlide({
         key={current.src}
         item={current}
         alt={alt}
-        className={`w-auto max-w-full object-contain ${size === 'compact' ? 'max-h-14' : 'max-h-[60vh]'}`}
+        className={`w-auto max-w-full object-contain ${size === 'compact' ? 'max-h-14' : 'max-h-[calc(60*var(--sir-vh))]'}`}
       />
     </div>
   );

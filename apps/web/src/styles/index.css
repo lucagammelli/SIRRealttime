@@ -5,6 +5,27 @@
 @import './themes.generated.css';
 
 /* Tailwind utilities mapped on the tokens (bg-surface, text-muted, text-home…): no hand-written colours in components. */
+/*
+ * Height variants: `tall:` from a screen 900 px high, `short:` up to 820 px. On the big screen the page is drawn on the
+ * fixed 1920 × 1080 canvas (also in the preview of the Studio, `data-tv-canvas`), so the real height of the window
+ * must not decide: there `tall:` always applies and `short:` never.
+ */
+@custom-variant tall {
+  @media (min-height: 900px) {
+    @slot;
+  }
+  :is(:root.sir-tv, [data-tv-canvas]) & {
+    @slot;
+  }
+}
+@custom-variant short {
+  @media (max-height: 820px) {
+    &:not(:is(:root.sir-tv, [data-tv-canvas]) *) {
+      @slot;
+    }
+  }
+}
+
 @theme inline {
   --font-sans: var(--sir-font-sans);
   --font-display: var(--sir-font-display);

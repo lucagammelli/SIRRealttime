@@ -852,6 +852,7 @@ tabella in `docs/server.md` («Player per i maxischermi»); messaggi in `docs/ar
 - Legge il token dal frammento e lo toglie dall'indirizzo con `replaceState`, poi lo tiene in `sessionStorage` sotto
   `arenalive-player-token` (`readDisplayToken`) per i ricaricamenti; senza token valido, o con `sessionStorage` che rifiuta
   e senza frammento, mostra «Player non valido».
+- Vieta la traduzione automatica del browser (`useNoTranslate`: `translate="no"` su `<html>` e `<meta name="google" content="notranslate">`, tolti allo smontaggio): sul maxischermo la barra «Traduci» di Chromium non deve comparire; le pagine pubbliche restano traducibili.
 - È sempre la **tela TV 1920×1080** con lo schermo tenuto acceso (`useWakeLock`) e il puntatore nascosto; non ci sono
   controlli touch né «Ferma rotazione». Il corpo di `LivePage` è stato estratto in `LiveScreen` (opzione `touch=false`
   per il player): `/live` funziona come prima.

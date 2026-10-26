@@ -3,7 +3,7 @@ import { LiveScreen } from '../components/LiveScreen.tsx';
 import { StatusScreen } from '../components/StatusScreen.tsx';
 import { TvCanvas } from '../components/TvCanvas.tsx';
 import { displayAuthMessage, readDisplayToken, sessionStorageOrNull } from '../lib/displayToken.ts';
-import { useIdle, useTvRootClass, useWakeLock } from '../lib/tvScreen.ts';
+import { useIdle, useNoTranslate, useTvRootClass, useWakeLock } from '../lib/tvScreen.ts';
 import { socketUrl, useLiveSocket } from '../lib/useLiveSocket.ts';
 
 /** A player with an invalid token tries again this often (the admin may download a new configuration). */
@@ -24,6 +24,7 @@ export const DISPLAY_INVALID_TEXT = 'Scarica di nuovo la configurazione dal port
  * again every minute.
  */
 export function DisplayPage() {
+  useNoTranslate();
   const [token] = useState(() => readDisplayToken(window.location.hash, sessionStorageOrNull()));
   useEffect(() => {
     if (window.location.hash === '') return;

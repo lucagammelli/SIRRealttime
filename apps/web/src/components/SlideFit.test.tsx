@@ -1,6 +1,6 @@
-import { cleanup, render } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
-import { FIT_LIMITS, largestFit, SlideFit } from './SlideFit.tsx';
+import { cleanup, fireEvent, render } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { FIT_LIMITS, IMAGE_WAIT_MS, largestFit, SlideFit } from './SlideFit.tsx';
 
 describe('largestFit', () => {
   it('gives the largest scale that fits, the maximum when all fit and the minimum when none does', () => {
@@ -53,6 +53,7 @@ afterEach(() => {
   }
 });
 
+const nextFrame = (): Promise<void> => new Promise((done) => requestAnimationFrame(() => done()));
 const scaleOf = (container: HTMLElement): number =>
   Number(container.querySelector<HTMLElement>('[data-slide-fit] > div')?.dataset.scale);
 
@@ -113,5 +114,78 @@ describe('SlideFit', () => {
       </SlideFit>,
     );
     expect(scaleOf(large.container)).toBeCloseTo(Math.SQRT2, 2);
+  });
+
+  it('measures the slide as at rest: what overflows only while the entrance animation runs does not shrink the scale', () => {
+    fakeLayout();
+    // The animation (translate) widens the content: simulated while the attribute is absent.
+    Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
+      configurable: true,
+      get(this: HTMLElement) {
+        const w = Number.parseFloat(this.style.width) || 1000;
+        return this.hasAttribute('data-fit-measuring') ? w : w + 32;
+      },
+    });
+    const { container } = render(
+      <SlideFit size="large">
+        <p>Slide</p>
+      </SlideFit>,
+    );
+    expect(scaleOf(container)).toBeCloseTo(Math.SQRT2, 2);
+    expect(container.querySelector('[data-fit-measuring]')).toBeNull();
+  });
+
+  it('measures again when an image gets its size, and keeps the slide hidden until then', async () => {
+    fakeLayout();
+    let tall = true;
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get(this: HTMLElement) {
+        const w = Number.parseFloat(this.style.width) || 1000;
+        return (tall ? 500_000 : 250_000) / w;
+      },
+    });
+    const { container } = render(
+      <SlideFit size="fill">
+        <img src="/x.png" alt="x" />
+      </SlideFit>,
+    );
+    const inner = container.querySelector<HTMLElement>('[data-slide-fit] > div');
+    const img = container.querySelector('img');
+    if (!inner || !img) throw new Error('missing');
+    Object.defineProperty(img, 'complete', { configurable: true, value: false });
+    await nextFrame();
+    fireEvent.error(img); // measures again with the image still pending
+    expect(inner.style.visibility).toBe('hidden');
+    const before = Number(inner.dataset.scale);
+    await nextFrame();
+    tall = false;
+    Object.defineProperty(img, 'complete', { configurable: true, value: true });
+    fireEvent.load(img);
+    expect(inner.style.visibility).toBe('');
+    expect(Number(inner.dataset.scale)).toBeGreaterThan(before);
+  });
+
+  it('shows the slide anyway when an image does not load within the time limit', () => {
+    fakeLayout();
+    vi.useFakeTimers();
+    try {
+      const { container } = render(
+        <SlideFit size="fill">
+          <img src="/x.png" alt="x" />
+        </SlideFit>,
+      );
+      const inner = container.querySelector<HTMLElement>('[data-slide-fit] > div');
+      const img = container.querySelector('img');
+      if (!inner || !img) throw new Error('missing');
+      Object.defineProperty(img, 'complete', { configurable: true, value: false });
+      fireEvent.error(img);
+      vi.advanceTimersByTime(0);
+      expect(inner.style.visibility).toBe('hidden');
+      vi.advanceTimersByTime(IMAGE_WAIT_MS + 10);
+      expect(inner.style.visibility).toBe('');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

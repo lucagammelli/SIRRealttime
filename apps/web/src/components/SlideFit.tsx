@@ -9,6 +9,8 @@ export const FIT_LIMITS: Record<Exclude<IntermissionFullscreenSize, 'normal'>, {
 };
 /** Steps of the search of the scale (precision about (max − min) / 2^steps). */
 const FIT_STEPS = 10;
+/** Longest time (ms) the slide stays hidden waiting for an image: then it is shown anyway. */
+export const IMAGE_WAIT_MS = 2500;
 
 /**
  * Pure: the largest scale in [min, max] for which `fits` says yes (binary search, `fits` growing false with the
@@ -50,6 +52,8 @@ export function SlideFit({
   const outer = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const fitting = size !== 'normal';
+  // Start of the wait for the images (null: none pending); kept across renders so the limit does not restart.
+  const waitingSince = useRef<number | null>(null);
 
   useLayoutEffect(() => {
     const box = outer.current;
@@ -57,12 +61,15 @@ export function SlideFit({
     if (!fitting || !box || !content) return;
     const limits = FIT_LIMITS[size];
     let busy = false;
+    let giveUp: ReturnType<typeof setTimeout> | undefined;
     const measure = (): void => {
       if (busy) return;
       const width = box.clientWidth;
       const height = box.clientHeight;
       if (width <= 0 || height <= 0) return;
       busy = true;
+      // Slide as at rest: no entrance animation (CSS rule) and hidden while an image has no size yet.
+      content.setAttribute('data-fit-measuring', '');
       const fits = (scale: number): boolean => {
         content.style.width = `${width / scale}px`;
         return content.offsetHeight * scale <= height + 0.5 && content.scrollWidth <= content.offsetWidth + 1;
@@ -72,17 +79,57 @@ export function SlideFit({
       content.style.transform = `scale(${scale})`;
       content.style.top = `${Math.max(0, (height - content.offsetHeight * scale) / 2)}px`;
       content.dataset.scale = scale.toFixed(3);
+      content.removeAttribute('data-fit-measuring');
+      const missing = Array.from(content.querySelectorAll('img')).some((img) => !img.complete);
+      if (!missing) {
+        waitingSince.current = null;
+        clearTimeout(giveUp);
+        giveUp = undefined;
+        content.style.visibility = '';
+      } else {
+        waitingSince.current ??= Date.now();
+        const left = IMAGE_WAIT_MS - (Date.now() - waitingSince.current);
+        if (left <= 0) content.style.visibility = '';
+        else {
+          content.style.visibility = 'hidden';
+          giveUp ??= setTimeout(() => {
+            giveUp = undefined;
+            content.style.visibility = '';
+          }, left);
+        }
+      }
       // The observers see the sizes just set: the next frame may measure again.
       requestAnimationFrame(() => {
         busy = false;
       });
     };
     measure();
-    if (typeof ResizeObserver !== 'function') return;
+    // Safety nets: the animations end, the images get their size (load, or error: the alt text shows).
+    const again = (): void => {
+      if (busy) requestAnimationFrame(measure);
+      else measure();
+    };
+    content.addEventListener('animationend', again);
+    content.addEventListener('load', again, true);
+    content.addEventListener('error', again, true);
+    const stop = (): void => {
+      content.removeEventListener('animationend', again);
+      content.removeEventListener('load', again, true);
+      content.removeEventListener('error', again, true);
+    };
+    if (typeof ResizeObserver !== 'function')
+      return () => {
+        stop();
+        clearTimeout(giveUp);
+      };
     const observer = new ResizeObserver(measure);
     observer.observe(box);
     observer.observe(content);
-    return () => observer.disconnect();
+    return () => {
+      stop();
+      clearTimeout(giveUp);
+      observer.disconnect();
+    };
   });
 
   if (!fitting)

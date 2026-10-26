@@ -357,6 +357,11 @@
     transform: translateX(0);
   }
 }
+/* SlideFit measures the slide as it will be at rest: entrance animations (translate) must not widen it. */
+[data-fit-measuring] * {
+  transform: none !important;
+  translate: none !important;
+}
 @keyframes sir-enter-right {
   0% {
     opacity: 0;

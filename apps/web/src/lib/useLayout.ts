@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
 import type { Device, TvMode } from './layout.ts';
 import { deviceFor } from './layout.ts';
 
@@ -77,7 +77,7 @@ export const LayoutScaleContext = createContext(1);
  */
 export function useElementHeight(ref: RefObject<HTMLElement | null>, watch: unknown = null): number {
   const [height, setHeight] = useState(0);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el) {
       setHeight(0);
@@ -102,7 +102,8 @@ export function useElementSize(
   watch: unknown = null,
 ): { width: number; height: number } {
   const [size, setSize] = useState({ width: 0, height: 0 });
-  useEffect(() => {
+  // Layout effect: the first measure is done before the first paint (no 0 × 0 frame).
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     const measure = (): void => {

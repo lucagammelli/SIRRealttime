@@ -26,6 +26,52 @@
   }
 }
 
+/*
+ * Width variants. On the big screen (and in its preview) the page is drawn on the fixed 1920 px canvas, so the width
+ * of the window must not decide: there every `min-width` breakpoint (all at or under 1920 px) is true. Elsewhere they
+ * are the usual media queries. The `max-*` variants are not used on the public page.
+ */
+@custom-variant sm {
+  @media (min-width: 40rem) {
+    @slot;
+  }
+  :where(:root.sir-tv, [data-tv-canvas]) & {
+    @slot;
+  }
+}
+@custom-variant md {
+  @media (min-width: 48rem) {
+    @slot;
+  }
+  :where(:root.sir-tv, [data-tv-canvas]) & {
+    @slot;
+  }
+}
+@custom-variant lg {
+  @media (min-width: 64rem) {
+    @slot;
+  }
+  :where(:root.sir-tv, [data-tv-canvas]) & {
+    @slot;
+  }
+}
+@custom-variant xl {
+  @media (min-width: 80rem) {
+    @slot;
+  }
+  :where(:root.sir-tv, [data-tv-canvas]) & {
+    @slot;
+  }
+}
+@custom-variant 2xl {
+  @media (min-width: 96rem) {
+    @slot;
+  }
+  :where(:root.sir-tv, [data-tv-canvas]) & {
+    @slot;
+  }
+}
+
 @theme inline {
   --font-sans: var(--sir-font-sans);
   --font-display: var(--sir-font-display);

@@ -92,8 +92,15 @@ export function useElementHeight(ref: RefObject<HTMLElement | null>, watch: unkn
   return height;
 }
 
-/** Width and height (px) of an element, followed with ResizeObserver; 0 × 0 before the first measure or without the API. */
-export function useElementSize(ref: RefObject<HTMLElement | null>): { width: number; height: number } {
+/**
+ * Width and height (px) of an element, followed with ResizeObserver; 0 × 0 before the first measure or without the API.
+ * `watch`: a value that makes it measure again (the size on the screen changes with the scale of the canvas without any
+ * change of the layout box, so the observer does not fire).
+ */
+export function useElementSize(
+  ref: RefObject<HTMLElement | null>,
+  watch: unknown = null,
+): { width: number; height: number } {
   const [size, setSize] = useState({ width: 0, height: 0 });
   useEffect(() => {
     const el = ref.current;
@@ -107,7 +114,7 @@ export function useElementSize(ref: RefObject<HTMLElement | null>): { width: num
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [ref]);
+  }, [ref, watch]);
   return size;
 }
 

@@ -79,8 +79,8 @@
 }
 
 @media (max-width: 1199px) {
-  :root[data-template='sir-volley'],
-  [data-sir-scope][data-template='sir-volley'] {
+  :root[data-template='sir-volley']:not(.sir-tv),
+  [data-sir-scope][data-template='sir-volley']:not([data-tv-canvas]) {
     --sir-page-pad: 20px;
     --sir-gap: 16px;
     --sir-card-pad: 16px;
@@ -93,8 +93,8 @@
 }
 
 @media (max-width: 899px) {
-  :root[data-template='sir-volley'],
-  [data-sir-scope][data-template='sir-volley'] {
+  :root[data-template='sir-volley']:not(.sir-tv),
+  [data-sir-scope][data-template='sir-volley']:not([data-tv-canvas]) {
     --sir-page-pad: 16px;
     --sir-gap: 12px;
     --sir-card-pad: 14px;
@@ -105,8 +105,8 @@
 }
 
 @media (max-width: 767px) {
-  :root[data-template='sir-volley'],
-  [data-sir-scope][data-template='sir-volley'] {
+  :root[data-template='sir-volley']:not(.sir-tv),
+  [data-sir-scope][data-template='sir-volley']:not([data-tv-canvas]) {
     --sir-radius-lg: 12px;
     --sir-page-pad: 12px;
     --sir-gap: 12px;
@@ -121,8 +121,8 @@
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
-  :root[data-template='sir-volley'],
-  [data-sir-scope][data-template='sir-volley'] {
+  :root[data-template='sir-volley']:not(.sir-tv),
+  [data-sir-scope][data-template='sir-volley']:not([data-tv-canvas]) {
     --sir-page-pad: 12px;
     --sir-gap: 12px;
     --sir-card-pad: 12px;

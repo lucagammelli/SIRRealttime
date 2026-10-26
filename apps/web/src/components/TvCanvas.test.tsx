@@ -101,4 +101,41 @@ describe('TvCanvas', () => {
     expect(results[0]?.cells.length).toBeGreaterThan(2);
     for (const r of results) expect(r).toEqual(results[0]);
   });
+
+  it('after a resize of the window (full screen, bars of the browser) screens and cells stay the same', () => {
+    noReducedMotion();
+    // The browser measures the area on the screen, scaled by the canvas at the moment of the measure.
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const scale = tvCanvasFit(window.innerWidth, window.innerHeight).scale;
+      return this.hasAttribute('data-tv-area')
+        ? ({ width: 1800 * scale, height: 800 * scale } as DOMRect)
+        : ({ width: 0, height: 0 } as DOMRect);
+    });
+    setViewport(1280, 720);
+    const { container } = render(
+      <TvCanvas>
+        <MatchView state={midMatchState()} device="tv" />
+      </TvCanvas>,
+    );
+    const summary = () => ({
+      label: screen.queryByRole('img', { name: /^Schermata/ })?.getAttribute('aria-label') ?? null,
+      cells: [...container.querySelectorAll<HTMLElement>('[data-tv-block]')].map(
+        (cell) => `${cell.dataset.tvBlock}:${cell.parentElement?.style.flex ?? ''}`,
+      ),
+      zoom: container.querySelector<HTMLElement>('[data-tv-area]')?.firstElementChild?.getAttribute('style') ?? '',
+    });
+    const before = summary();
+    expect(before.label).toMatch(/^Schermata 1 di \d+$/);
+    for (const [w, h] of [
+      [3840, 2160],
+      [960, 540],
+      [1366, 768],
+    ] as const) {
+      act(() => {
+        setViewport(w, h);
+        window.dispatchEvent(new Event('resize'));
+      });
+      expect(summary()).toEqual(before);
+    }
+  });
 });

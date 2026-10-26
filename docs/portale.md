@@ -84,7 +84,12 @@ logo di sistema, avvisi, grafici, diapositive) usano queste variabili. Le varian
 e `short:` (fino a 820 px) sostituiscono le media query sull'altezza della finestra: sulla tela `tall:` vale sempre e
 `short:` mai (`styles/index.css`). Avvisi, pause e «Simulazione» sono `fixed` dentro la tela (il `transform` li tiene
 dentro). `LayoutScaleContext` porta la scala della tela e `TvLayout` riporta le misure di `getBoundingClientRect` ai px
-della tela. Telefono e tablet restano adattivi alla finestra; il Touch sulla TV non cambia.
+della tela. Anche le varianti di larghezza di Tailwind (`sm:`, `md:`, `lg:`, `xl:`, `2xl:`, ridefinite in `styles/index.css`) e le
+regole `max-width` dei modelli (`themeCss`, `:not(.sir-tv)` / `:not([data-tv-canvas])`) non guardano la finestra sulla TV e
+nella sua anteprima: lì valgono come su 1920 px (le `min-width` sono vere, le `max-width` non si applicano); fuori dalla TV
+sono le media query di sempre. `TvLayout` rimisura l'area quando cambia la scala della tela (`useElementSize(area, scale)`),
+perché con il `transform` il ridimensionamento della finestra non cambia le dimensioni di layout e il ResizeObserver non scatta.
+Anche «Link non valido o scaduto» sta nella tela. Telefono e tablet restano adattivi alla finestra; il Touch sulla TV non cambia.
 
 **Testo e schermate della TV.** Classe `html.sir-tv`: corpo del testo `clamp(16px, min(1.25 × --sir-vw, 2.2 × --sir-vh), 48px)`
 (`--sir-tv-font-size`, 23,76 px sulla tela con il modello standard), quindi ogni `rem` è sempre lo stesso sulla tela

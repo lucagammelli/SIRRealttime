@@ -101,8 +101,8 @@
 
 /* Tablet landscape (900-1199 px, iPad 1024 × 768). */
 @media (max-width: 1199px) {
-  :root[data-template='sir-volley'],
-  [data-sir-scope][data-template='sir-volley'] {
+  :root[data-template='sir-volley']:not(.sir-tv),
+  [data-sir-scope][data-template='sir-volley']:not([data-tv-canvas]) {
     --sir-page-pad: 20px;
     --sir-gap: 16px;
     --sir-card-pad: 16px;
@@ -116,8 +116,8 @@
 
 /* Tablet portrait (768-899 px, iPad 768 × 1024). */
 @media (max-width: 899px) {
-  :root[data-template='sir-volley'],
-  [data-sir-scope][data-template='sir-volley'] {
+  :root[data-template='sir-volley']:not(.sir-tv),
+  [data-sir-scope][data-template='sir-volley']:not([data-tv-canvas]) {
     --sir-page-pad: 16px;
     --sir-gap: 12px;
     --sir-card-pad: 14px;
@@ -129,8 +129,8 @@
 
 /* Smartphone portrait (≤ 767 px). */
 @media (max-width: 767px) {
-  :root[data-template='sir-volley'],
-  [data-sir-scope][data-template='sir-volley'] {
+  :root[data-template='sir-volley']:not(.sir-tv),
+  [data-sir-scope][data-template='sir-volley']:not([data-tv-canvas]) {
     --sir-radius-lg: 12px;
     --sir-page-pad: 12px;
     --sir-gap: 12px;
@@ -146,8 +146,8 @@
 
 /* Smartphone landscape (667 × 375, 844 × 390, 932 × 430): low screens. */
 @media (orientation: landscape) and (max-height: 500px) {
-  :root[data-template='sir-volley'],
-  [data-sir-scope][data-template='sir-volley'] {
+  :root[data-template='sir-volley']:not(.sir-tv),
+  [data-sir-scope][data-template='sir-volley']:not([data-tv-canvas]) {
     --sir-page-pad: 12px;
     --sir-gap: 12px;
     --sir-card-pad: 12px;

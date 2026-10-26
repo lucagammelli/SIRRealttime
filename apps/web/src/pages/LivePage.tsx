@@ -167,13 +167,14 @@ export function LivePage() {
   };
 
   if (!valid) {
-    return (
+    const invalid = (
       <main className="mx-auto max-w-7xl p-4">
         <StatusScreen title="Link non valido o scaduto" tone="error">
           Controlla di aver copiato il link per intero.
         </StatusScreen>
       </main>
     );
+    return tv ? <TvCanvas>{invalid}</TvCanvas> : invalid;
   }
 
   // «Touch» of the device chosen by the client: without it nothing on the page can be tapped or clicked.

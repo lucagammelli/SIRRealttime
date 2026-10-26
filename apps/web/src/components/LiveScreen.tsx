@@ -16,7 +16,7 @@ import { usePointSequence } from '../lib/pointSequence.ts';
 import { nextFixture, useSchedule } from '../lib/schedule.ts';
 import { useSystemLogos } from '../lib/systemLogos.ts';
 import { TouchContext } from '../lib/useLayout.ts';
-import { AfterMatchScreen } from './AfterMatchScreen.tsx';
+import { afterMatchFile, AfterMatchScreen } from './AfterMatchScreen.tsx';
 import { BrandMark } from './BrandMark.tsx';
 import { Intermission } from './Intermission.tsx';
 import { LiveMatch, screensFor } from './LiveMatch.tsx';
@@ -169,8 +169,12 @@ export function LiveScreen({
             sponsorLogo={look?.images.sponsorLogo ?? null}
           />
         )}
-        {afterMatchImage !== null && (
-          <AfterMatchScreen imageUrl={publicAssetPath(afterMatchImage)} fixture={afterMatchFixture} device={device} />
+        {afterMatchImage !== null && intermissions && (
+          <AfterMatchScreen
+            file={afterMatchFile(intermissions.afterMatch, publicAssetPath(afterMatchImage))}
+            fixture={afterMatchFixture}
+            device={device}
+          />
         )}
       </div>
     </TouchContext.Provider>

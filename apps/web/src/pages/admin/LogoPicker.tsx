@@ -1,4 +1,4 @@
-import type { AssetKind } from '@arenalive/shared';
+import type { AssetKind, AssetSummary } from '@arenalive/shared';
 import { AssetListResponseSchema, isVideoMime } from '@arenalive/shared';
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
@@ -13,7 +13,8 @@ import { assetOptionText } from './imageUpload.ts';
  * A logo chosen from the library of the client with «Predefinito»: `url` the logo shown now (null: none, the initials or
  * nothing), `custom` whether it is a logo chosen here (then «Predefinito» goes back to the default one). The files are
  * not uploaded here: the list offers the images of the library of the kind asked, and «Carica nella libreria» opens
- * «Immagini e video». Disabled for a viewer.
+ * «Immagini e video». With `videos` the list offers also the videos (as `kind`), and `urlIsVideo` says the file shown is
+ * one. Disabled for a viewer.
  */
 export function LogoPicker({
   label,
@@ -23,17 +24,23 @@ export function LogoPicker({
   onChange,
   defaultLabel = 'Predefinito',
   kind = 'logo',
+  videos = false,
+  urlIsVideo = false,
   onLibrary,
 }: {
   label: string;
   url: string | null;
   custom: boolean;
   disabled?: boolean;
-  /** The id of the new image, null for the default one; a rejection is shown under the logo. */
-  onChange: (assetId: string | null) => Promise<void>;
+  /** The id of the new image (with its file of the library), null for the default one; a rejection is shown under the logo. */
+  onChange: (assetId: string | null, asset?: AssetSummary) => Promise<void>;
   defaultLabel?: string;
-  /** Kind of the images offered (default `logo`; `sponsor` for the photos of the pauses). */
-  kind?: AssetKind;
+  /** Kind of the images offered (default `logo`; `sponsor` for the photos of the pauses; null: every use). */
+  kind?: AssetKind | null;
+  /** The videos of the library are offered too. */
+  videos?: boolean;
+  /** The file shown (`url`) is a video. */
+  urlIsVideo?: boolean;
   /**
    * «Carica nella libreria» goes to the library by this action instead of a plain link (a modal procedure closes itself
    * first, otherwise it would stay over the library).
@@ -61,7 +68,9 @@ export function LogoPicker({
     }
   };
 
-  const files = (library.data?.assets ?? []).filter((a) => a.kind === kind && !isVideoMime(a.mime));
+  const files = (library.data?.assets ?? []).filter(
+    (a) => (kind === null || a.kind === kind) && (videos || !isVideoMime(a.mime)),
+  );
   const placeholder = library.loading
     ? 'Caricamento…'
     : files.length === 0
@@ -70,7 +79,16 @@ export function LogoPicker({
 
   return (
     <div className="flex min-w-0 items-center gap-3">
-      {url ? (
+      {url && urlIsVideo ? (
+        <video
+          src={url}
+          muted
+          playsInline
+          preload="metadata"
+          aria-hidden="true"
+          className="size-12 shrink-0 rounded-card bg-surface-2 object-contain p-1"
+        />
+      ) : url ? (
         <img src={url} alt="" className="size-12 shrink-0 rounded-card bg-surface-2 object-contain p-1" />
       ) : (
         <span
@@ -90,7 +108,8 @@ export function LogoPicker({
             disabled={disabled || busy || library.loading}
             onChange={(e) => {
               const id = e.target.value;
-              if (id) void run(() => onChange(id));
+              const asset = files.find((a) => a.id === id);
+              if (id) void run(() => onChange(id, asset));
             }}
           >
             <option value="">{placeholder}</option>

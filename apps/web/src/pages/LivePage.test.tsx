@@ -607,7 +607,10 @@ describe('LivePage «Dopo la partita»', () => {
           branding: defaultBranding(),
           images: { logoMain: null, logoMark: null, sponsorLogo: null },
           layout,
-          intermissions: { ...defaultIntermissions(), afterMatch: { enabled: true, image: IMAGE, delayMinutes: 30 } },
+          intermissions: {
+            ...defaultIntermissions(),
+            afterMatch: { ...defaultIntermissions().afterMatch, enabled: true, image: IMAGE, delayMinutes: 30 },
+          },
           overlays: defaultOverlays(),
           sponsors: [],
           players: [],

@@ -53,13 +53,18 @@ export const OVERLAY_QUEUE_MAX = 5;
 const SEEN_MAX = 500;
 
 /**
- * Pure: seconds an overlay with a video that follows its length stays on screen: the length of the video, at most
- * OVERLAY_VIDEO_MAX_SECONDS; the `seconds` of the overlay when the length is not readable (unknown, 0, infinite: a
- * stream) or the video did not start (`null`).
+ * Pure: seconds an overlay (or a «Foto o video» slide of a pause, with its own `max`) with a video that follows its
+ * length stays on screen: the length of the video, at most `max` (OVERLAY_VIDEO_MAX_SECONDS for an overlay); the
+ * `seconds` of the overlay when the length is not readable (unknown, 0, infinite: a stream) or the video did not start
+ * (`null`).
  */
-export function videoHoldSeconds(videoSeconds: number | null | undefined, seconds: number): number {
+export function videoHoldSeconds(
+  videoSeconds: number | null | undefined,
+  seconds: number,
+  max: number = OVERLAY_VIDEO_MAX_SECONDS,
+): number {
   if (typeof videoSeconds !== 'number' || !Number.isFinite(videoSeconds) || videoSeconds <= 0) return seconds;
-  return Math.min(videoSeconds, OVERLAY_VIDEO_MAX_SECONDS);
+  return Math.min(videoSeconds, max);
 }
 
 /** Events of a state; none for a state stored before they existed. */

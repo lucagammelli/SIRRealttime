@@ -3,6 +3,8 @@ import { AssetIdSchema } from './assets.js';
 import { TENANT_CONFIG_VERSION } from './configVersion.js';
 import type { LayoutDevice } from './layout.js';
 import { BLOCK_OPTIONS, BlockIdSchema } from './layout.js';
+import { OVERLAY_BACKGROUND_KINDS, OverlayBackgroundSchema } from './overlays.js';
+import type { OverlayBackgroundKind } from './overlays.js';
 
 /**
  * Pauses of the public page chosen by a client (jsonb `tenants.intermissions`): what the portal shows during a
@@ -43,7 +45,7 @@ export type SetBreakSet = (typeof SET_BREAK_SETS)[number];
  * `teamDuel` (team against team): statistics of a period, the set of the pause or the match (`period`), as the blocks
  * of the page with the same name; `nextMatch` (next match of the club) and `standings` (standings of its championship),
  * skipped when the client has no club; `sponsor`, `message`, `qr`, `logo`: as the blocks of the page with the same name
- * (same options).
+ * (same options); `media` («Foto o video»): an image or a video of the library of the client (MediaSlideOptionsSchema).
  */
 export const SLIDE_TYPES = [
   'setSummary',
@@ -62,6 +64,7 @@ export const SLIDE_TYPES = [
   'message',
   'qr',
   'logo',
+  'media',
 ] as const;
 export type SlideType = (typeof SLIDE_TYPES)[number];
 
@@ -79,6 +82,32 @@ export const PAUSE_TITLE_MAX_LENGTH = 60;
 export const THANKS_MESSAGE = 'Grazie per aver seguito la partita';
 
 const NoSlideOptionsSchema = z.strictObject({});
+
+/**
+ * How the image or video of a «Foto o video» slide uses its space: `contain` («Intero») the whole picture, never cut,
+ * the sides filled (a blurred copy of the image, the page colour for a video); `cover` («Riempi») the whole space,
+ * cutting the edges that do not fit.
+ */
+export const SLIDE_MEDIA_FITS = ['contain', 'cover'] as const;
+export type SlideMediaFit = (typeof SLIDE_MEDIA_FITS)[number];
+/**
+ * Longest a «Foto o video» slide stays when it follows its video (`duration` `video`): the longest any slide stays
+ * (SLIDE_MAX_SECONDS), so a video never holds a pause longer than another slide could (a time-out lasts about 30 s).
+ */
+export const SLIDE_VIDEO_MAX_SECONDS = SLIDE_MAX_SECONDS;
+
+/**
+ * Options of a «Foto o video» slide: a file of the library of the client (`assetId`, any use; the server checks that it
+ * is of the client and an image for `image`, a video for `video`; null: none chosen yet, or dropped by an export of
+ * the graphics: the slide is skipped), `fit`, and for a video the options of a video background of the overlays:
+ * `audio` (muted by default) and `duration` (`seconds`: the seconds of the slide, the video loops; `video`: until the
+ * video ends, at most SLIDE_VIDEO_MAX_SECONDS, the seconds of the slide when its length cannot be read).
+ */
+export const MediaSlideOptionsSchema = OverlayBackgroundSchema.pick({ audio: true, duration: true }).extend({
+  kind: z.enum(OVERLAY_BACKGROUND_KINDS).default('image'),
+  assetId: AssetIdSchema.nullable().default(null),
+  fit: z.enum(SLIDE_MEDIA_FITS).default('contain'),
+});
 
 /** Options of every type of slide: the ones of the blocks for sponsor, message, QR and logo. */
 export const SLIDE_OPTIONS = {
@@ -98,6 +127,7 @@ export const SLIDE_OPTIONS = {
   message: BLOCK_OPTIONS.message,
   qr: BLOCK_OPTIONS.qr,
   logo: BLOCK_OPTIONS.logo,
+  media: MediaSlideOptionsSchema,
 } as const satisfies Record<SlideType, z.ZodType>;
 
 const slideOf = <T extends SlideType, O extends z.ZodType>(type: T, options: O) =>
@@ -107,6 +137,11 @@ const slideOf = <T extends SlideType, O extends z.ZodType>(type: T, options: O) 
     seconds: z.int().min(SLIDE_MIN_SECONDS).max(SLIDE_MAX_SECONDS).default(SLIDE_DEFAULT_SECONDS),
     /** Off: the slide stays in the list with its options but is never shown (missing in a saved document: on). */
     enabled: z.boolean().default(true),
+    /**
+     * The title of the pause shows while this slide is on screen (missing in a saved document: yes). Hidden: it stays
+     * for screen readers, the slide takes its space.
+     */
+    showTitle: z.boolean().default(true),
     /** Missing: the defaults of the type. */
     options,
   });
@@ -128,6 +163,7 @@ export const IntermissionSlideSchema = z.discriminatedUnion('type', [
   slideOf('message', SLIDE_OPTIONS.message.prefault({})),
   slideOf('qr', SLIDE_OPTIONS.qr.prefault({})),
   slideOf('logo', SLIDE_OPTIONS.logo.prefault({})),
+  slideOf('media', SLIDE_OPTIONS.media.prefault({})),
 ]);
 export type IntermissionSlide = z.output<typeof IntermissionSlideSchema>;
 export type IntermissionSlideInput = z.input<typeof IntermissionSlideSchema>;
@@ -298,17 +334,23 @@ export const AFTER_MATCH_DEFAULT_DELAY_MINUTES = 30;
 
 /**
  * «Dopo la partita»: `delayMinutes` after the end of the match (`finishedAt` of the state message) the public page
- * shows `image` (an image of kind `sponsor` of the client) full screen, with the countdown to the next match of the
- * club over it; it replaces the end-of-match pause. Off, or on without an image: nothing changes.
+ * shows `image` (the file: an image, or a video for `kind` `video`, of the library of the client) full screen, with the
+ * countdown to the next match of the club over it; it replaces the end-of-match pause. Off, or on without a file:
+ * nothing changes. A video loops while the screen is on, muted unless `audio`; `fit` as for a «Foto o video» slide.
+ * Missing in a document saved before the video (the photo only): an image, muted, filling the screen (`cover`, as the
+ * photo always did).
  */
 export const AfterMatchSchema = z.strictObject({
   enabled: z.boolean().default(false),
   image: AssetIdSchema.nullable().default(null),
+  kind: z.enum(OVERLAY_BACKGROUND_KINDS).default('image'),
+  audio: z.boolean().default(false),
+  fit: z.enum(SLIDE_MEDIA_FITS).default('cover'),
   delayMinutes: z.int().min(0).max(AFTER_MATCH_MAX_DELAY_MINUTES).default(AFTER_MATCH_DEFAULT_DELAY_MINUTES),
 });
 export type AfterMatch = z.output<typeof AfterMatchSchema>;
 
-/** Pure: the image of «Dopo la partita» when the screen is on and has one, otherwise null. */
+/** Pure: the file (image or video) of «Dopo la partita» when the screen is on and has one, otherwise null. */
 export const afterMatchImage = (config: AfterMatch): string | null => (config.enabled ? config.image : null);
 
 /** Pauses document of a client: `{}` (the database default) reads as the defaults of every pause. */
@@ -366,15 +408,44 @@ export function allIntermissions(config: TenantIntermissions): Intermission[] {
 }
 
 /**
- * Pure: ids of the images used by the sponsor slides of every pause and by «Dopo la partita» (even when off: the
- * choice is kept), each once, in order of appearance.
+ * Pure: ids of the images used by the sponsor slides of every pause and by «Dopo la partita» when it shows an image
+ * (even when off: the choice is kept), each once, in order of appearance.
  */
 export function intermissionImageIds(config: TenantIntermissions): string[] {
   const ids = new Set<string>();
   for (const pause of allIntermissions(config))
     for (const slide of pause.slides) if (slide.type === 'sponsor') for (const id of slide.options.images) ids.add(id);
-  if (config.afterMatch.image !== null) ids.add(config.afterMatch.image);
+  if (config.afterMatch.image !== null && config.afterMatch.kind === 'image') ids.add(config.afterMatch.image);
   return [...ids];
+}
+
+/**
+ * Pure: the files of the «Foto o video» slides of every pause (even when off: the choice is kept), with the kind each
+ * slide asks for, in order of appearance (a file used by two slides comes twice: each kind is checked), and last the
+ * video of «Dopo la partita» (its image is in `intermissionImageIds`).
+ */
+export function intermissionMedia(config: TenantIntermissions): { kind: OverlayBackgroundKind; assetId: string }[] {
+  const out: { kind: OverlayBackgroundKind; assetId: string }[] = [];
+  for (const pause of allIntermissions(config))
+    for (const slide of pause.slides)
+      if (slide.type === 'media' && slide.options.assetId !== null)
+        out.push({ kind: slide.options.kind, assetId: slide.options.assetId });
+  const after = config.afterMatch;
+  if (after.image !== null && after.kind === 'video') out.push({ kind: 'video', assetId: after.image });
+  return out;
+}
+
+/**
+ * Pure: copy of a document with no file in the «Foto o video» slides (they stay, with their options, skipped until a
+ * file is chosen again) and no video in «Dopo la partita» (its image stays): the packages of the graphics carry no
+ * videos, as for the backgrounds of the overlays.
+ */
+export function withoutIntermissionMedia(config: TenantIntermissions): TenantIntermissions {
+  const out = structuredClone(config);
+  for (const pause of allIntermissions(out))
+    for (const slide of pause.slides) if (slide.type === 'media') slide.options.assetId = null;
+  if (out.afterMatch.kind === 'video') out.afterMatch.image = null;
+  return out;
 }
 
 /** Pure: ids of the sponsors chosen by the sponsor slides of every pause (each once, in order of appearance). */

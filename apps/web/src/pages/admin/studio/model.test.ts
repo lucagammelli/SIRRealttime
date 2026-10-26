@@ -200,7 +200,12 @@ describe('ready-made models', () => {
   });
 
   it('keeps «Dopo la partita» as it is, and still recognizes the model', () => {
-    const afterMatch = { enabled: true, image: '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11', delayMinutes: 45 };
+    const afterMatch = {
+      ...defaultIntermissions().afterMatch,
+      enabled: true,
+      image: '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a11',
+      delayMinutes: 45,
+    };
     for (const m of STUDIO_MODELS) {
       const pauses = applyPauseModel({ ...defaultIntermissions(), afterMatch }, m);
       expect(pauses.afterMatch).toEqual(afterMatch);

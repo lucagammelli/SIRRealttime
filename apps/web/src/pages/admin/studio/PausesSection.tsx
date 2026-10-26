@@ -9,7 +9,10 @@ import type {
   IntermissionSlide,
   LayoutBlock,
   MilestoneIntermission,
+  OverlayBackgroundKind,
+  OverlayVideoDuration,
   SetBreakSet,
+  SlideMediaFit,
   SlideType,
   TenantIntermissions,
 } from '@arenalive/shared';
@@ -20,30 +23,36 @@ import {
   INTERMISSION_MAX_DELAY_SECONDS,
   INTERMISSION_MAX_SLIDES,
   IntermissionSlideSchema,
+  isVideoMime,
   LAYOUT_DEVICES,
   MILESTONE_MAX_EVERY,
   MILESTONE_MAX_STOP_BEFORE_END,
   MILESTONE_MIN_EVERY,
   MILESTONE_MIN_STOP_BEFORE_END,
   PAUSE_TITLE_MAX_LENGTH,
+  OVERLAY_VIDEO_DURATIONS,
   SET_BREAK_SETS,
+  SLIDE_MEDIA_FITS,
   SLIDE_TYPES,
+  SLIDE_VIDEO_MAX_SECONDS,
 } from '@arenalive/shared';
 import { setTarget } from '@arenalive/volley-stats';
 import type { ReactNode } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { SAMPLE_SCHEDULE } from '../../../blocks/sampleSchedule.ts';
 import { SLIDE_LABELS } from '../../../blocks/IntermissionSlides.tsx';
-import { AfterMatchScreen } from '../../../components/AfterMatchScreen.tsx';
+import { afterMatchFile, AfterMatchScreen } from '../../../components/AfterMatchScreen.tsx';
 import { Button } from '../../../components/ui.tsx';
 import { nextFixture } from '../../../lib/schedule.ts';
 import { useElementSize } from '../../../lib/useLayout.ts';
 import { LogoPicker } from '../LogoPicker.tsx';
 import { inputClass } from '../forms.tsx';
-import type { PauseTarget } from '../intermissionEditor.ts';
+import { assetOptionText } from '../imageUpload.ts';
+import type { MediaSlide, PauseTarget } from '../intermissionEditor.ts';
 import {
   addSlide,
   canAddSlide,
+  mediaSlideFiles,
   moveSlide,
   pauseAt,
   pauseProblems,
@@ -51,12 +60,16 @@ import {
   resetPause,
   setOwnPause,
   updateSlide,
+  withMediaKind,
+  withMediaOptions,
   withMilestoneRule,
   withPause,
 } from '../intermissionEditor.ts';
 import type { StatItem } from '../StatOptionsFields.tsx';
 import { StatOptionsFields, withStatOptions } from '../StatOptionsFields.tsx';
 import { BlockOptionsEditor, selectClass, SPONSOR_SECONDS } from './blockEditors.tsx';
+import { LibraryLink } from './ColorsSection.tsx';
+import { VIDEO_DURATION_LABELS } from './OverlaysSection.tsx';
 import type { StudioModel } from './model.ts';
 import {
   activePauseModel,
@@ -262,13 +275,163 @@ function SlideRow({
                   ))}
                 </select>
               </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={slide.showTitle}
+                  aria-label={`Mostra titolo: ${label}`}
+                  onChange={(e) => onChange({ ...slide, showTitle: e.target.checked })}
+                />
+                Mostra titolo
+              </label>
             </div>
+            {!slide.showTitle && (
+              <p className="text-xs text-muted">
+                Il titolo della pausa non compare mentre c’è questa diapositiva, che ne prende lo spazio (resta per chi
+                usa un lettore di schermo).
+              </p>
+            )}
             {children}
           </div>
         </details>
         {invalid && <p className="text-xs text-danger">Controlla le opzioni di questa diapositiva (testo vuoto?).</p>}
       </Setting>
     </li>
+  );
+}
+
+/** Names of the choices of a «Foto o video» slide. */
+const MEDIA_KIND_LABELS: Record<OverlayBackgroundKind, string> = { image: 'Immagine', video: 'Video' };
+export const MEDIA_FIT_LABELS: Record<SlideMediaFit, string> = { contain: 'Intero', cover: 'Riempi' };
+const isMediaFit = (v: string): v is SlideMediaFit => (SLIDE_MEDIA_FITS as readonly string[]).includes(v);
+const isDuration = (v: string): v is OverlayVideoDuration => (OVERLAY_VIDEO_DURATIONS as readonly string[]).includes(v);
+
+/**
+ * Options of a «Foto o video» slide: image or video, the file chosen from the library (any use: new files are uploaded
+ * in «Immagini e video»), with its preview; how it uses the space; for a video its sound (off by default) and how
+ * long (the seconds of the slide, or until the video ends), as for a video background of the overlays.
+ */
+function MediaSlideOptions({
+  slide,
+  label,
+  assets,
+  onChange,
+}: {
+  slide: MediaSlide;
+  label: string;
+  assets: AssetListResponse;
+  onChange: (slide: MediaSlide) => void;
+}) {
+  const name = useId();
+  const { kind, assetId, fit, audio, duration } = slide.options;
+  const files = mediaSlideFiles(assets.assets, kind);
+  const chosen = assetId !== null && assets.assets.some((a) => a.id === assetId) ? assetId : '';
+  return (
+    <div className="space-y-2 text-sm text-text">
+      <fieldset className="flex flex-wrap items-center gap-3">
+        <legend className="pb-1">Cosa mostra</legend>
+        {(['image', 'video'] as const).map((k) => (
+          <label key={k} className="flex items-center gap-1.5">
+            <input type="radio" name={name} checked={kind === k} onChange={() => onChange(withMediaKind(slide, k))} />
+            {MEDIA_KIND_LABELS[k]}
+          </label>
+        ))}
+      </fieldset>
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          className={selectClass}
+          aria-label={`${kind === 'video' ? 'Video' : 'Immagine'}: ${label}`}
+          value={chosen}
+          onChange={(e) => onChange(withMediaOptions(slide, { assetId: e.target.value || null }))}
+        >
+          <option value="">{files.length === 0 ? 'Nessun file caricato' : 'Scegli…'}</option>
+          {files.map((a) => (
+            <option key={a.id} value={a.id}>
+              {assetOptionText(a)}
+            </option>
+          ))}
+        </select>
+        <LibraryLink />
+      </div>
+      {assetId !== null && chosen === '' && (
+        <p className="text-xs text-danger">Il file scelto non è più nella libreria: scegline un altro.</p>
+      )}
+      {assetId === null && <p className="text-xs text-muted">Senza un file la diapositiva non compare.</p>}
+      {chosen &&
+        (kind === 'video' ? (
+          <video
+            key={chosen}
+            src={adminAssetPath(chosen)}
+            muted
+            playsInline
+            controls
+            preload="metadata"
+            aria-label={`Anteprima del video: ${label}`}
+            className="max-h-32 rounded-card border border-border"
+          />
+        ) : (
+          <img
+            key={chosen}
+            src={adminAssetPath(chosen)}
+            alt={`Anteprima dell’immagine: ${label}`}
+            className="max-h-32 rounded-card border border-border object-contain"
+          />
+        ))}
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-1.5">
+          Spazio
+          <select
+            className={selectClass}
+            aria-label={`Spazio: ${label}`}
+            value={fit}
+            onChange={(e) => {
+              if (isMediaFit(e.target.value)) onChange(withMediaOptions(slide, { fit: e.target.value }));
+            }}
+          >
+            {SLIDE_MEDIA_FITS.map((f) => (
+              <option key={f} value={f}>
+                {MEDIA_FIT_LABELS[f]}
+              </option>
+            ))}
+          </select>
+        </label>
+        {kind === 'video' && (
+          <>
+            <label className="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={audio}
+                aria-label={`Audio del video: ${label}`}
+                onChange={(e) => onChange(withMediaOptions(slide, { audio: e.target.checked }))}
+              />
+              Audio
+            </label>
+            <label className="flex items-center gap-1.5">
+              Durata
+              <select
+                className={selectClass}
+                aria-label={`Durata del video: ${label}`}
+                value={duration}
+                onChange={(e) => {
+                  if (isDuration(e.target.value)) onChange(withMediaOptions(slide, { duration: e.target.value }));
+                }}
+              >
+                {OVERLAY_VIDEO_DURATIONS.map((d) => (
+                  <option key={d} value={d}>
+                    {VIDEO_DURATION_LABELS[d]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
+      </div>
+      <p className="text-xs text-muted">
+        «Intero» mostra tutta l’immagine o il video, senza tagli; «Riempi» occupa tutto lo spazio tagliando i bordi.
+        {kind === 'video' &&
+          ` Il video parte senza audio, se non accendi «Audio» (e il browser lo permette). Con «Quanto il video» la diapositiva resta finché il video finisce, al massimo ${SLIDE_VIDEO_MAX_SECONDS} secondi; se la durata non si legge vale «Secondi sullo schermo». A chi ha chiesto meno animazioni il video non si mostra: la diapositiva si salta.`}
+      </p>
+    </div>
   );
 }
 
@@ -327,7 +490,7 @@ function MilestoneRule({
 const AFTER_MATCH_PREVIEW = { width: 1920, height: 1080 };
 
 /** Preview of «Dopo la partita» on the big screen, with the next match of the example schedule. */
-function AfterMatchPreview({ image }: { image: string }) {
+function AfterMatchPreview({ config, image }: { config: AfterMatch; image: string }) {
   const frame = useRef<HTMLDivElement>(null);
   const { width } = useElementSize(frame);
   const scale = width > 0 ? width / AFTER_MATCH_PREVIEW.width : 0.2;
@@ -345,7 +508,7 @@ function AfterMatchPreview({ image }: { image: string }) {
           style={{ ...AFTER_MATCH_PREVIEW, transform: `scale(${scale})`, transformOrigin: '0 0' }}
         >
           <AfterMatchScreen
-            imageUrl={adminAssetPath(image)}
+            file={afterMatchFile(config, adminAssetPath(image))}
             fixture={nextFixture(SAMPLE_SCHEDULE)}
             device="tv"
             contained
@@ -358,8 +521,9 @@ function AfterMatchPreview({ image }: { image: string }) {
 }
 
 /**
- * «Dopo la partita» (in the tab «Fine partita»): on/off, the photo (chosen from the library) and the minutes after the
- * end of the match; «Vedi nell'anteprima» shows the screen in the big preview.
+ * «Dopo la partita» (in the tab «Fine partita»): on/off, the photo or video (chosen from the whole library: its kind
+ * follows the file), how it uses the screen, the sound of a video and the minutes after the end of the match; «Vedi
+ * nell'anteprima» shows the screen in the big preview.
  */
 export function AfterMatchEditor({
   config,
@@ -374,26 +538,61 @@ export function AfterMatchEditor({
   return (
     <SettingsCard title="Dopo la partita">
       <p className="text-xs text-muted">
-        Passati i minuti scelti dalla fine della partita, il link mostra la foto a tutto schermo con sopra il conto alla
-        rovescia della prossima partita (solo la foto se non ce n’è una in calendario). Prende il posto della pausa di
-        fine partita.
+        Passati i minuti scelti dalla fine della partita, il link mostra la foto o il video a tutto schermo con sopra il
+        conto alla rovescia della prossima partita (solo la foto o il video se non ce n’è una in calendario). Prende il
+        posto della pausa di fine partita. Il video gira in loop finché la schermata resta, senza audio se non accendi
+        «Audio»; a chi ha chiesto meno animazioni il video non si mostra (resta il conto alla rovescia).
       </p>
       <SwitchRow
-        label="Mostra la foto dopo la partita"
+        label="Mostra foto o video dopo la partita"
         checked={config.enabled}
         onChange={(enabled) => onChange({ enabled })}
       />
       <LogoPicker
-        label="Foto a tutto schermo"
-        kind="sponsor"
+        label="Foto o video a tutto schermo"
+        kind={null}
+        videos
+        urlIsVideo={config.kind === 'video'}
         url={config.image ? adminAssetPath(config.image) : null}
         custom={config.image !== null}
-        defaultLabel="Togli foto"
-        onChange={(image) => {
-          onChange({ image });
+        defaultLabel="Togli foto o video"
+        onChange={(image, asset) => {
+          onChange(image === null ? { image } : { image, kind: asset && isVideoMime(asset.mime) ? 'video' : 'image' });
           return Promise.resolve();
         }}
       />
+      {config.image !== null && (
+        <div className="flex flex-wrap items-center gap-3 text-sm text-text">
+          <label className="flex items-center gap-1.5">
+            Spazio
+            <select
+              className={selectClass}
+              aria-label="Spazio: Dopo la partita"
+              value={config.fit}
+              onChange={(e) => {
+                if (isMediaFit(e.target.value)) onChange({ fit: e.target.value });
+              }}
+            >
+              {SLIDE_MEDIA_FITS.map((f) => (
+                <option key={f} value={f}>
+                  {MEDIA_FIT_LABELS[f]}
+                </option>
+              ))}
+            </select>
+          </label>
+          {config.kind === 'video' && (
+            <label className="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={config.audio}
+                aria-label="Audio del video: Dopo la partita"
+                onChange={(e) => onChange({ audio: e.target.checked })}
+              />
+              Audio
+            </label>
+          )}
+        </div>
+      )}
       <label className="flex flex-wrap items-center gap-2 text-sm text-text">
         Minuti dopo la fine della partita
         <input
@@ -408,14 +607,16 @@ export function AfterMatchEditor({
         <span className="text-xs text-muted">Da 0 a {AFTER_MATCH_MAX_DELAY_MINUTES}.</span>
       </label>
       {config.enabled && config.image === null && (
-        <p className="text-sm text-muted">Scegli una foto dalla libreria: senza foto la schermata non compare.</p>
+        <p className="text-sm text-muted">
+          Scegli una foto o un video dalla libreria: senza file la schermata non compare.
+        </p>
       )}
       {onShow && (
         <Button variant="ghost" onClick={onShow}>
           Vedi nell’anteprima grande
         </Button>
       )}
-      {config.image !== null && <AfterMatchPreview image={config.image} />}
+      {config.image !== null && <AfterMatchPreview config={config} image={config.image} />}
     </SettingsCard>
   );
 }
@@ -576,6 +777,14 @@ function PauseEditor({
                         name={SLIDE_LABELS[slide.type].label}
                         setLabel={SET_LABELS[kind]}
                         onChange={(next) => onChange((p) => updateSlide(p, slide.id, (s) => withStatOptions(s, next)))}
+                      />
+                    )}
+                    {slide.type === 'media' && (
+                      <MediaSlideOptions
+                        slide={slide}
+                        label={SLIDE_LABELS.media.label}
+                        assets={assets}
+                        onChange={(next) => onChange((p) => updateSlide(p, slide.id, () => next))}
                       />
                     )}
                     {block && (

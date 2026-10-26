@@ -1,4 +1,4 @@
-import type { TenantIntermissionsInput } from '@arenalive/shared';
+import type { IntermissionSlideInput, TenantIntermissionsInput } from '@arenalive/shared';
 import { defaultIntermissions, TenantIntermissionsSchema, THANKS_MESSAGE } from '@arenalive/shared';
 import type { MatchState } from '@arenalive/volley-stats';
 import { MATCH_PERIOD } from '@arenalive/volley-stats';
@@ -632,4 +632,174 @@ describe('Intermission: «Pausa attiva» off wins over everything', () => {
       expect(anyPause()).toBeNull();
     });
   }
+});
+
+describe('Intermission: «Mostra titolo»', () => {
+  const noTitle: TenantIntermissionsInput = { setBreak: { slides: [{ id: 'q', type: 'qr', showTitle: false }] } };
+
+  it('full screen: the title is not shown but still names the dialog; the slide takes its space', () => {
+    // Without touch no button either: no header at all.
+    touchScreen = false;
+    try {
+      setup(setBreak, { config: noTitle });
+      const heading = screen.getByRole('heading', { name: 'Fine 1° set' });
+      expect(heading.className).toBe('sr-only');
+      expect(heading.dataset.title).toBe('hidden');
+      expect(screen.getByRole('dialog', { name: 'Fine 1° set' })).toBeTruthy();
+      expect(dialog()?.querySelector(':scope > header')).toBeNull();
+    } finally {
+      touchScreen = true;
+    }
+  });
+
+  it('with the buttons the header stays, without the title; shown by default', () => {
+    render(
+      <TouchContext.Provider value>
+        <Intermission
+          state={setBreak}
+          config={TenantIntermissionsSchema.parse(noTitle)}
+          device="tablet"
+          paused={false}
+        />
+      </TouchContext.Provider>,
+    );
+    expect(screen.getByRole('heading', { name: 'Fine 1° set' }).className).toBe('sr-only');
+    expect(dialog()?.querySelector(':scope > header')?.textContent).toContain('Torna alla partita');
+    cleanup();
+    setup(setBreak);
+    expect(screen.getByRole('heading', { name: 'Fine 1° set' }).dataset.title).toBe('shown');
+  });
+
+  it('banner: hidden for that slide, the band stays named by it', () => {
+    setup(setBreak, { device: 'phone', config: noTitle });
+    const heading = screen.getByRole('heading', { name: 'Fine 1° set' });
+    expect(heading.className).toBe('sr-only');
+    expect(banner()?.getAttribute('aria-labelledby')).toBe(heading.id);
+  });
+});
+
+describe('Intermission: «Foto o video» slides', () => {
+  const IMAGE = '6f1f7d36-8a43-4c50-9f0b-0f3c1d2b4a12';
+  const VIDEO = '3f1c2b9e-7a4d-4c8e-9b1a-2d3e4f5a6b7c';
+  const GONE = '00000000-0000-4000-8000-000000000000';
+  let fetched: string[];
+
+  beforeEach(() => {
+    fetched = [];
+    // The files of the library: read into memory (the public address), a deleted one answers 404.
+    vi.stubGlobal('fetch', (path: string) => {
+      // Only the files (the schedule of the default pauses is not there: no club).
+      if (!path.includes('/assets/')) return Promise.resolve({ ok: false, status: 404 });
+      fetched.push(path);
+      return Promise.resolve(path.includes(GONE) ? { ok: false } : { ok: true, blob: () => Promise.resolve({ path }) });
+    });
+    vi.stubGlobal(
+      'URL',
+      Object.assign(URL, {
+        createObjectURL: (b: { path: string }) => `blob:${b.path}`,
+        revokeObjectURL: () => undefined,
+      }),
+    );
+  });
+
+  type MediaOptions = Extract<IntermissionSlideInput, { type: 'media' }>['options'];
+  const pause = (options: MediaOptions): TenantIntermissionsInput => ({
+    setBreak: {
+      slides: [
+        { id: 'm', type: 'media', seconds: 5, options },
+        { id: 'q', type: 'qr', seconds: 5 },
+      ],
+    },
+  });
+  const flush = async () => {
+    for (let i = 0; i < 4; i += 1) await act(() => Promise.resolve());
+  };
+  const shownSlide = () => document.querySelector('[data-studio-slide]')?.getAttribute('data-studio-slide');
+
+  it('an image of the library on the whole space of the slide, read from the public address', async () => {
+    setup(setBreak, { config: pause({ assetId: IMAGE, fit: 'cover' }) });
+    await flush();
+    expect(fetched).toEqual([`/api/public/assets/${IMAGE}`]);
+    expect(shownSlide()).toBe('m');
+    const box = screen.getByRole('img', { name: 'Foto' });
+    expect(box.dataset.fit).toBe('cover');
+    expect(box.querySelector('img')?.getAttribute('src')).toBe(`blob:/api/public/assets/${IMAGE}`);
+    expect(box.querySelector('[data-fill]')).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(shownSlide()).toBe('q');
+  });
+
+  it('«Intero»: the whole picture with the sides filled; on the banner a small box', async () => {
+    setup(setBreak, { device: 'phone', config: pause({ assetId: IMAGE }) });
+    await flush();
+    const box = screen.getByRole('img', { name: 'Foto' });
+    expect(box.dataset.fit).toBe('contain');
+    expect(box.querySelector('[data-fill="blur"]')).toBeTruthy();
+    expect(box.className).toContain('h-14');
+  });
+
+  it('a video: muted by default, in a loop for the seconds of the slide', async () => {
+    setup(setBreak, { config: pause({ kind: 'video', assetId: VIDEO }) });
+    await flush();
+    const video = screen.getByRole('img', { name: 'Video' }).querySelector('video');
+    expect(video?.getAttribute('src')).toBe(`blob:/api/public/assets/${VIDEO}`);
+    expect(video?.dataset.audio).toBe('off');
+    expect(video?.loop).toBe(true);
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(shownSlide()).toBe('q');
+  });
+
+  it('a video that sets the length: played once with its sound, the next slide at its end', async () => {
+    setup(setBreak, { config: pause({ kind: 'video', assetId: VIDEO, audio: true, duration: 'video' }) });
+    await flush();
+    const video = document.querySelector('video');
+    if (!video) throw new Error('no video');
+    expect(video.loop).toBe(false);
+    expect(video.dataset.audio).toBe('on');
+    // Longer than the seconds of the slide: it waits for the video.
+    act(() => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(shownSlide()).toBe('m');
+    fireEvent(video, new Event('ended'));
+    expect(shownSlide()).toBe('q');
+  });
+
+  it('a file no longer in the library (or none chosen) is skipped, with the other slides', async () => {
+    setup(setBreak, { config: pause({ assetId: GONE }) });
+    await flush();
+    expect(fetched).toEqual([`/api/public/assets/${GONE}`]);
+    expect(shownSlide()).toBe('q');
+    expect(screen.queryByRole('img', { name: 'Foto' })).toBeNull();
+    cleanup();
+    setup(setBreak, { config: pause({}) });
+    await flush();
+    expect(shownSlide()).toBe('q');
+  });
+
+  it('reduced motion: a video never starts nor downloads (skipped), an image stays', async () => {
+    stubReducedMotion(true);
+    setup(setBreak, { config: pause({ kind: 'video', assetId: VIDEO }) });
+    await flush();
+    expect(fetched).toEqual([]);
+    expect(document.querySelector('video')).toBeNull();
+    expect(shownSlide()).toBe('q');
+    cleanup();
+    setup(setBreak, { config: pause({ assetId: IMAGE }) });
+    await flush();
+    expect(screen.getByRole('img', { name: 'Foto' })).toBeTruthy();
+  });
+
+  it('the file is read when the pause starts, not before', async () => {
+    const view = setup(inPlay, { config: pause({ assetId: IMAGE }) });
+    await flush();
+    expect(fetched).toEqual([]);
+    view.update(setBreak);
+    await flush();
+    expect(fetched).toEqual([`/api/public/assets/${IMAGE}`]);
+  });
 });

@@ -2,6 +2,8 @@ import type { AfterMatch } from '@arenalive/shared';
 import { afterMatchImage } from '@arenalive/shared';
 import { useEffect, useState } from 'react';
 import type { LiveData } from './liveConnection.ts';
+import { nextFixture, useSchedule } from './schedule.ts';
+import { useReducedMotion } from './theme.ts';
 
 /**
  * «Dopo la partita» of the public page: `delayMinutes` after the end of the match (`finishedAt` of the state message)
@@ -31,7 +33,9 @@ export function afterMatchDueAt(data: LiveData | null, config: AfterMatch | null
 }
 
 /**
- * The id of the photo of «Dopo la partita» once its moment has come, otherwise null. `now` is the clock (tests).
+ * The id of the photo or video of «Dopo la partita» once its moment has come, otherwise null. `now` is the clock
+ * (tests). With reduced motion a video is not shown (there is no poster): without a next match of the club (or while
+ * the schedule is still being read) the screen would be empty, so null, and the end-of-match pause stays.
  */
 export function useAfterMatchImage(
   data: LiveData | null,
@@ -51,5 +55,10 @@ export function useAfterMatchImage(
     );
     return () => clearTimeout(timer);
   }, [due, now, rearm]);
-  return due !== null && reached === due && config ? afterMatchImage(config) : null;
+  const id = due !== null && reached === due && config ? afterMatchImage(config) : null;
+  const reduced = useReducedMotion();
+  const videoHidden = id !== null && config?.kind === 'video' && reduced;
+  // Read only when it decides (shared with the screen, which reads it anyway for the countdown).
+  const fixture = nextFixture(useSchedule(videoHidden));
+  return videoHidden && fixture === null ? null : id;
 }

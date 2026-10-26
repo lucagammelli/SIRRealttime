@@ -246,7 +246,7 @@ in casa** (`sampleWithOurTeam`: nome e codice di «nostra squadra»). I colori d
 ECharts dell'anteprima: l'anteprima è un ambito di colori (`data-sir-scope`, palette e tema della bozza in `BrandScope`) e
 i grafici leggono la palette da lì (`PaletteScopeContext`, `usePalette` in `charts/usePalette.ts`) invece che da `<html>`.
 Le pause e le diapositive usano dati d'esempio del calendario (`SAMPLE_SCHEDULE`). Avvisi sotto la barra: «Pausa
-disattivata: gli spettatori non la vedono.», «Nessuna diapositiva da mostrare (uno sponsor senza immagini?): la pausa non
+disattivata: gli spettatori non la vedono.», «Nessuna diapositiva da mostrare (uno sponsor senza immagini, una «Foto o video» senza file?): la pausa non
 compare.», «Avviso spento: gli spettatori non lo vedono.», «Su <dispositivo> questo avviso non compare.».
 
 - **Scena automatica e manuale** (`autoScene`): aprendo una sezione la scena si sceglie da sola (Colori e Pagina: «In
@@ -304,7 +304,7 @@ Ex pagina «Grafica» (`ColorsSection.tsx`), schede «Colori», «Loghi e nome»
 - «Squadra»: «Nostra squadra» («Codice squadra», es. PER, e «Testo nel nome della squadra», es. Perugia, entrambi
   facoltativi).
 - **Libreria dei file**: non è più nello Studio ma la pagina «Immagini e video» del menu, vedi «Immagini e video»
-  (`/admin/media`). Le scelte dei file (loghi, sfondi degli avvisi, foto «Dopo la partita», procedura guidata) sono
+  (`/admin/media`). Le scelte dei file (loghi, sfondi degli avvisi, foto o video «Dopo la partita», procedura guidata) sono
   menu «Scegli dalla libreria…» con i file del tipo giusto, per nome, e il collegamento «Carica nella libreria».
 - **Miniature e anteprime dell'area riservata**: ogni immagine del cliente (miniature di «Immagini», dei loghi, della
   pagina «Sponsor», dei loghi delle partite in «Calendario», anteprime dello Studio e della prima configurazione) si
@@ -359,13 +359,20 @@ se la diapositiva ha opzioni diverse da quelle predefinite, `slideHasSettings`).
 `enabled` della diapositiva, predefinito attivo: i documenti salvati prima restano tutti attivi) resta nell'elenco con le
 sue opzioni, segnata «(disattivata)», ma non compare né sulla pagina pubblica né nell'anteprima (`visibleSlides`); se
 tutte sono disattivate la pausa non compare (`intermissionFor` dà null) e l'elenco lo dice («Tutte le diapositive sono
-disattivate: la pausa non compare.»). Sotto «Opzioni» «Secondi sullo schermo» e le opzioni del tipo (come nei blocchi;
-lo sponsor sceglie gli sponsor e «Come mostrarli» come il blocco); in fondo «Tipo di diapositiva» con «Aggiungi diapositiva» (al massimo 12). In «Avanzate»: «Ritardo prima della
+disattivate: la pausa non compare.»). Sotto «Opzioni» «Secondi sullo schermo», la casella «Mostra titolo: <tipo>»
+(`showTitle`, vedi «Titoli» in «Pause della partita»; tolta, la nota «Il titolo della pausa non compare mentre c’è questa
+diapositiva…») e le opzioni del tipo (come nei blocchi; lo sponsor sceglie gli sponsor e «Come mostrarli» come il blocco;
+«Foto o video» ha `MediaSlideOptions`: «Cosa mostra» «Immagine» / «Video», il file da una tendina con tutte le immagini o
+tutti i video della libreria, di qualsiasi uso (`mediaSlideFiles`; «Nessun file caricato» / «Scegli…», «Carica nella
+libreria» apre `/admin/media`), l'anteprima del file, «Spazio» «Intero» / «Riempi» e, per un video, «Audio» e «Durata»
+«Secondi impostati» / «Quanto il video» (le stesse etichette degli sfondi degli avvisi); cambiando tra immagine e video il
+file scelto si toglie (`withMediaKind`); senza file «Senza un file la diapositiva non compare.», con un file non più nella
+libreria «Il file scelto non è più nella libreria: scegline un altro.»); in fondo «Tipo di diapositiva» con «Aggiungi diapositiva» (al massimo 12). In «Avanzate»: «Ritardo prima della
 pausa (secondi)» e «Ripristina predefinito» (solo della pausa aperta). «Salva» è disattivato se una pausa attiva non ha
 diapositive o un testo è vuoto. Nella scheda «Fine partita» c'è anche la card «Dopo la partita» (`AfterMatchEditor`):
-«Mostra la foto dopo la partita» (interruttore), «Foto a tutto schermo» scelta da «Scegli dalla libreria…» (immagini di tipo sponsor; «Carica nella libreria» apre `/admin/media`) e «Togli foto» (un'unica scelta: niente seconda lista delle stesse immagini), «Minuti dopo la fine della partita» (0-240), l'anteprima TV con la prossima partita
-d'esempio e «Vedi nell’anteprima grande», che apre nell'anteprima la scena «Dopo la partita» (`StudioScene` `afterMatch`: `AfterMatchScreen` con la foto della bozza, anche se spenta, e la prossima partita d'esempio; l'avviso «scegli una foto e accendi…» se manca la foto, «Dopo la partita è spento…» se è spento). I «Modelli pronti» non la toccano. Logica pura in `intermissionEditor.ts` (`moveSlide`, `addSlide`, `removeSlide`,
-`updateSlide`, `setOwnPause`, `resetPause`, `pauseProblems`); le opzioni delle statistiche in `StatOptionsFields.tsx`.
+«Mostra foto o video dopo la partita» (interruttore), «Foto o video a tutto schermo» scelta da «Scegli dalla libreria…» (`LogoPicker` con `kind={null}` e `videos`: tutte le immagini e tutti i video della libreria, di qualsiasi uso; il `kind` del documento segue il file scelto; «Carica nella libreria» apre `/admin/media`) e «Togli foto o video» (un'unica scelta: niente seconda lista degli stessi file), con un file scelto «Spazio» («Riempi», predefinito, / «Intero») e per un video «Audio», «Minuti dopo la fine della partita» (0-240), l'anteprima TV con la prossima partita
+d'esempio e «Vedi nell’anteprima grande», che apre nell'anteprima la scena «Dopo la partita» (`StudioScene` `afterMatch`: `AfterMatchScreen` con la foto della bozza, anche se spenta, e la prossima partita d'esempio; l'avviso «scegli una foto o un video e accendi…» se manca il file, «Dopo la partita è spento…» se è spento). I «Modelli pronti» non la toccano. Logica pura in `intermissionEditor.ts` (`moveSlide`, `addSlide`, `removeSlide`,
+`updateSlide`, `setOwnPause`, `resetPause`, `pauseProblems`, `mediaSlideFiles`, `withMediaKind`, `withMediaOptions`); le opzioni delle statistiche in `StatOptionsFields.tsx`.
 Nell'anteprima la pausa è mostrata subito con le bozze (`previewState` mette nello stato la fase della pausa aperta).
 
 #### Sezione «Avvisi»
@@ -375,7 +382,7 @@ set, Set point, Ace, Muro punto, Sorpasso, Pareggio, Break, Time-out, Scambio lu
 pulsante «Modifica» («In modifica» sull'avviso aperto). L'avviso aperto mostra: «Testo» (il risultato con i dati
 d'esempio compare sotto, «Risultato: …», oppure il problema: vuoto, oltre 80 caratteri, segnaposto sconosciuto, `<` o
 `>`), «Sfondo» (`BackgroundSetting`: «Nessuno» / «Immagine» / «Video»; un menu con i file della libreria per gli avvisi e il collegamento «Carica nella libreria» (`/admin/media`: qui non si
-carica), con l'anteprima del file scelto; per immagine e video «Posizione dello sfondo» (`fit`: «Al centro» / «A tutto schermo», intero) e «Sfondo per» («Solo la nostra squadra», predefinito anche nei documenti salvati / «Entrambe le squadre»: `OverlayBackground.teams`, applicato da `backgroundForTeam`; con `ourSide` ignoto o evento dell'avversario lo sfondo non compare, resta il testo) e «Mostra il testo» (`OverlayBackground.showText`, predefinito sì; spento: sfondo pulito senza velo `VEIL`, testo `sr-only`; acceso: velo come prima; stesso schema di `playerMedia.showText`); a tutto schermo l'immagine o il video entrano interi (`object-contain`, `FULLSCREEN_MEDIA_CLASS`) su una copia sfocata della stessa immagine o, per il video, sul colore di sfondo del tema, senza veli sopra; l'anteprima dello Studio usa `backgroundForTeam` con la nostra squadra della bozza; cambiando tipo lo sfondo scelto si toglie; per il video anche «Audio» e «Durata» («Secondi impostati» / «Quanto il video»: `OverlayBackground.duration`, predefinito `seconds`; con `video` il video parte una sola volta, senza ciclo, e l'avviso resta finché finisce, al massimo `OVERLAY_VIDEO_MAX_SECONDS` = 30 s; se la durata non si legge, il video non parte o non si vede (movimento ridotto) valgono i «Secondi»; `videoHoldSeconds` in `lib/overlay.ts`, tempo in `Overlay.tsx`; con la nota «L’avviso resta finché il video finisce…»; in «Prova» l'anteprima segue la stessa regola, altrimenti il video gira in ciclo); nell'anteprima l'audio suona solo durante «Prova» e l'evento di prova è della nostra squadra), i «Segnaposto» ammessi (`{giocatore}`, `{numero}`, `{squadra}`, `{punteggio}`, `{set}`, `{serie}`, `{attacchi}`),
+carica), con l'anteprima del file scelto; per immagine e video «Posizione dello sfondo» (`fit`: «Al centro» / «A tutto schermo», intero) e «Sfondo per» («Solo la nostra squadra», predefinito anche nei documenti salvati / «Entrambe le squadre»: `OverlayBackground.teams`, applicato da `backgroundForTeam`; con `ourSide` ignoto o evento dell'avversario lo sfondo non compare, resta il testo) e «Mostra il testo» (`OverlayBackground.showText`, predefinito sì; spento: sfondo pulito senza velo `VEIL`, testo `sr-only`; acceso: velo come prima; stesso schema di `playerMedia.showText`); a tutto schermo l'immagine o il video entrano interi (`object-contain`, `CONTAIN_MEDIA_CLASS` di `MediaPicture.tsx`) su una copia sfocata della stessa immagine o, per il video, sul colore di sfondo del tema, senza veli sopra; l'anteprima dello Studio usa `backgroundForTeam` con la nostra squadra della bozza; cambiando tipo lo sfondo scelto si toglie; per il video anche «Audio» e «Durata» («Secondi impostati» / «Quanto il video»: `OverlayBackground.duration`, predefinito `seconds`; con `video` il video parte una sola volta, senza ciclo, e l'avviso resta finché finisce, al massimo `OVERLAY_VIDEO_MAX_SECONDS` = 30 s; se la durata non si legge, il video non parte o non si vede (movimento ridotto) valgono i «Secondi»; `videoHoldSeconds` in `lib/overlay.ts`, tempo in `Overlay.tsx`; con la nota «L’avviso resta finché il video finisce…»; in «Prova» l'anteprima segue la stessa regola, altrimenti il video gira in ciclo); nell'anteprima l'audio suona solo durante «Prova» e l'evento di prova è della nostra squadra), i «Segnaposto» ammessi (`{giocatore}`, `{numero}`, `{squadra}`, `{punteggio}`, `{set}`, `{serie}`, `{attacchi}`),
 «Secondi» (2-8), i dispositivi (TV, tablet, telefono), «Posizione» e «Dimensione» (In alto / Al centro / In basso;
 Piccolo / Medio / Grande; oppure «Come tutti gli avvisi»), «Prova» (lo mostra nell'anteprima con le modifiche non salvate,
 per i suoi secondi, con l'animazione; la scena passa ad «Avviso»), e in «Avanzate» «Priorità» (1-10) e «Ripristina
@@ -1245,7 +1252,7 @@ Carica con le API esistenti: `GET /api/admin/assets`, `/sponsors` e i quattro do
   arriva da `GET /api/admin/roster`, `playersByAsset`), misure, peso, «in uso», «Rinomina» con «Salva nome» (`PATCH /api/admin/assets/:id`; vuoto toglie
   il nome) ed «Elimina» / «Conferma eliminazione» (il server rifiuta un file in uso). «in uso» (`assetsInUse`) considera i
   documenti **salvati**: logo e immagini della grafica, immagini dei blocchi «Sponsor» e delle pause (diapositive «Sponsor»,
-  «Dopo la partita»), sfondi degli avvisi, immagini degli sponsor scelti da un blocco o da una diapositiva, foto e video dei giocatori della rosa. Vuota: «Nessun file
+  «Foto o video», «Dopo la partita»), sfondi degli avvisi, immagini degli sponsor scelti da un blocco o da una diapositiva, foto e video dei giocatori della rosa. Vuota: «Nessun file
   caricato.».
 - Test: `MediaPage.test.tsx`, `AdminApp.test.tsx` (voce di menu e rimando).
 
@@ -1324,9 +1331,15 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   `delaySeconds` della pausa (il tabellone mostra prima la fine del set); **non si applica a chi apre la pagina durante
   una pausa**, che la vede subito. Si chiude da sola alla prima azione dopo (la fase torna `rally`); la fine partita
   resta finché lo spettatore non la chiude. Sotto la pausa la pagina continua ad aggiornarsi.
-- **«Dopo la partita»** (`components/AfterMatchScreen.tsx`, `lib/afterMatch.ts`, montata da `LivePage.tsx`): la foto scelta
-  dal cliente a tutto schermo (`object-cover`) e, sopra, squadre, data e ora e conto alla rovescia della prossima partita
-  (`nextFixture`); se non c'è, la sola foto. Nessun elemento cliccabile e nessuna animazione, quindi funziona uguale con
+- **«Dopo la partita»** (`components/AfterMatchScreen.tsx`, `lib/afterMatch.ts`, montata da `LivePage.tsx`): la foto o il
+  video scelti dal cliente a tutto schermo (`MediaPicture`, lo stesso componente degli avvisi e delle diapositive «Foto o
+  video»; `fit` `cover` «Riempi», predefinito e come la foto di prima, o `contain` «Intero») e, sopra, squadre, data e ora e
+  conto alla rovescia della prossima partita (`nextFixture`); se non c'è, il solo file. Il video (campo `kind` `video` di
+  `AfterMatchSchema`; i documenti salvati con la sola foto restano un'immagine) si legge direttamente dall'indirizzo
+  pubblico e gira in loop finché la schermata resta, muto salvo «Audio» (se il browser rifiuta il suono parte muto;
+  nell'anteprima dello Studio sempre muto); con `prefers-reduced-motion` il video non c'è (nessun poster): resta il conto
+  alla rovescia sul colore della pagina e, se non c'è una prossima partita, la schermata non compare e resta la pausa di
+  fine partita (`useAfterMatchImage` dà null, anche mentre il calendario si sta leggendo). Nessun elemento cliccabile e nessuna animazione, quindi funziona uguale con
   «Touch» = No. Parte quando la partita è `finished` e sono passati `delayMinutes` da `finishedAt` (campo del messaggio
   `state`, conservato da `liveConnection.ts` nei patch finché la partita è finita), calcolati con l'**orologio del
   dispositivo** e **un solo `setTimeout`** (`afterMatchDueAt`, `useAfterMatchImage`; niente polling; attese più lunghe di 24 ore
@@ -1336,7 +1349,7 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   dopo i minuti scelti, se meno), così si vede provando con la simulazione. Le modifiche salvate in «Pause» (anche foto e
   minuti) arrivano alle pagine già aperte senza ricaricare: il salvataggio manda il messaggio `config` al WebSocket del
   cliente (`tenantConfigChanged`) e la pagina rilegge la grafica (`useTenantIntermissions`). Se «Dopo la partita» è spento
-  o senza foto resta la schermata di «Fine partita» (nessun cambio: è voluto).
+  o senza file resta la schermata di «Fine partita» (nessun cambio: è voluto).
 - **Chiusura a mano**: una pausa chiusa a mano non si riapre; la pausa successiva (`describePause` dà una chiave per ogni
   pausa: set, squadra e numero del time-out) sì.
 - **Tutto schermo**: finestra di dialogo (`role="dialog"`, `aria-modal`) sopra la pagina con i pulsanti «Torna alla
@@ -1356,8 +1369,13 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   `PAUSE_TITLE_MAX_LENGTH` = 60 caratteri, nella scheda «Quando e come» di «Pause»; anche per ogni set con pausa propria)
   vale a tutto schermo e nella banda in basso, su ogni dispositivo e nell'anteprima; vuoto (anche nei documenti salvati
   senza il campo) il titolo automatico: «Time-out <squadra>», «Fine N° set», «Fine partita», «Statistiche del set ·
-  N° set H-A» per «Ogni N punti» (`MILESTONE_TITLE`), così si capisce perché la schermata è cambiata.
-- **Rotazione**: le diapositive girano ognuna per i suoi secondi. «Ferma rotazione» (`aria-pressed`, `title` «Riprendi
+  N° set H-A» per «Ogni N punti» (`MILESTONE_TITLE`), così si capisce perché la schermata è cambiata. Ogni diapositiva
+  sceglie se il titolo compare mentre è a video («Mostra titolo», campo `showTitle`, predefinito sì: i documenti salvati
+  prima restano come erano). Nascosto, il titolo resta nella pagina con la classe `sr-only` (`data-title="hidden"`) e
+  continua a dare il nome alla finestra di dialogo e alla banda (`aria-labelledby`); a tutto schermo, se non ci sono
+  nemmeno pulsanti, l'intestazione sparisce e la diapositiva prende tutta l'altezza.
+- **Rotazione**: le diapositive girano ognuna per i suoi secondi (una «Foto o video» con «Quanto il video» per la durata
+  del video, vedi sotto). «Ferma rotazione» (`aria-pressed`, `title` «Riprendi
   rotazione») è lo stesso interruttore della rotazione della TV; con `prefers-reduced-motion` la rotazione è ferma e il
   pulsante non c'è.
 - **Diapositive** (`blocks/IntermissionSlides.tsx`, `renderSlide`, a tutto schermo o compatte): «Riepilogo del set»
@@ -1367,12 +1385,28 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   omonimi, `docs/portale.md` «Pagina pubblica a blocchi»), più le sei viste statistiche in stile TV: «Parziale e marcatori»,
   «Ace», «Muri» (titolo «Muri vincenti»), «Attacco», «Sfida per ruolo» e «Squadre a confronto» (misure e animazioni in
   «Pagina pubblica a blocchi»), e «Prossima partita» e «Classifica» (`CalendarBlocks.tsx`, vedi «Blocchi del
-  calendario»; i predefiniti le mettono dopo le statistiche di fine set e di fine partita). «Sfida per ruolo» a rotazione diventa una diapositiva per ogni ruolo con un duello (id
+  calendario»; i predefiniti le mettono dopo le statistiche di fine set e di fine partita) e «Foto o video» (vedi sotto). «Sfida per ruolo» a rotazione diventa una diapositiva per ogni ruolo con un duello (id
   `<id>:<ruolo>`, ognuna per i suoi secondi). Le diapositive senza nulla da mostrare sono saltate
   (`visibleSlides`): lo sponsor senza immagini usa il logo sponsor della grafica, e se non c'è nemmeno quello è saltato;
   il riepilogo senza il set, il Miglior Realizzatore senza giocatori con punti, i parziali senza set, ace/muri/attacco senza nemmeno un punto
   o tentativo, il confronto senza righe con valori, il duello senza giocatori. **Conseguenza**: la pausa time-out di
   default (solo sponsor) non compare se il cliente non ha né immagini sponsor né logo sponsor.
+- **«Foto o video»** (`media`, opzioni `MediaSlideOptionsSchema` in `docs/architettura.md`): un'immagine o un video della
+  libreria del cliente su tutto lo spazio della diapositiva (`role="img"` «Foto» / «Video»; nella banda una piccola cornice
+  16:9 alta 3,5 rem), disegnato da `components/MediaPicture.tsx`, lo stesso componente degli sfondi degli avvisi
+  (`MediaPicture` e `MediaVideo`): «Intero» (`contain`) mostra tutto il file con i lati riempiti (copia sfocata
+  dell'immagine, colore della pagina per un video), «Riempi» (`cover`) taglia i bordi. A tutto schermo la diapositiva non
+  si scala né scorre (`SlideFit` «Normale» tagliato), qualunque sia la «Dimensione a tutto schermo». I file della pausa si
+  leggono in memoria appena la pausa parte (anche durante il ritardo; `slideMediaFiles` e `useMediaFiles` in
+  `lib/overlayMedia.ts`, dall'indirizzo pubblico); finché il file non è pronto, o se non c'è più (404: cancellato), la
+  diapositiva è saltata (`visibleSlides` con `mediaUrl`), come senza file scelto. Il video parte muto (con «Audio» il suono,
+  se il browser lo permette, altrimenti muto), in loop per i secondi della diapositiva; con «Quanto il video» e le
+  diapositive in rotazione gira una volta e la diapositiva passa alla successiva alla fine del video (al massimo
+  `SLIDE_VIDEO_MAX_SECONDS` = 60 s; i secondi della diapositiva se la durata non si legge; ferma la rotazione o con una
+  sola diapositiva torna in loop). Con `prefers-reduced-motion` un video non si scarica né parte: la diapositiva è saltata
+  (le immagini restano). Nell'«ogni N punti», che si chiude dopo la somma dei secondi delle diapositive, conta i secondi
+  della diapositiva. Nell'anteprima dello Studio i file si leggono dall'area riservata (`adminAssetPath`,
+  `directMediaUrl`) e il video è sempre muto.
 - **Caricamento della grafica** (`useTenantIntermissions` in `lib/branding.ts`, stato caricamento/caricata/fallita):
   finché `GET /api/public/tenant` non risponde non si mostra nessuna pausa; se fallisce non valgono mai i predefiniti (sono accesi): resta l'ultima configurazione già caricata in quella pagina, se non ce n'è nessuna nessuna pausa. «Pausa attiva» spenta vale sopra tutto.
 - **Editor**: sezione «Pause» dello «Studio grafico» (`studio/PausesSection.tsx`; schede, diapositive, regola «ogni N
@@ -1393,7 +1427,8 @@ configurazione del cliente da `overlays` di `GET /api/public/tenant` (`docs/arch
   il cui avviso è acceso e ammesso sul dispositivo; testo da `overlayText` (`fillOverlayText` di `@arenalive/shared`), sempre testo
   semplice, mai HTML. Il riquadro ha il colore della squadra dell'evento (neutro senza squadra), cade dall'alto con
   l'animazione `.sir-overlay` (450 ms, spenta con `prefers-reduced-motion`) e resta per i secondi scelti.
-- **Sfondo immagine o video** (`lib/overlayMedia.ts`, `useOverlayMedia`, usato da `Overlay`): all'apertura della pagina
+- **Sfondo immagine o video** (`lib/overlayMedia.ts`, `useOverlayMedia` sopra `useMediaFiles`, usato da `Overlay`; il
+  disegno di immagine e video è `components/MediaPicture.tsx`, comune con le diapositive «Foto o video»): all'apertura della pagina
   i file degli sfondi sono scaricati in memoria come blob (`URL.createObjectURL`, da `GET /api/public/assets/:id`), così il
   video parte subito; si precaricano solo gli sfondi degli avvisi **accesi e ammessi sul dispositivo** (`wantedBackgrounds`),
   ogni file una volta, e gli URL sono rilasciati quando lo sfondo non serve più o la pagina si chiude. **Con

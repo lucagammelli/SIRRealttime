@@ -1,0 +1,3 @@
+-- Reversibile (i loghi di sistema più larghi di 150 px vanno prima rimossi): ALTER TABLE "system_logos" DROP CONSTRAINT "system_logos_size_check"; ALTER TABLE "system_logos" ADD CONSTRAINT "system_logos_size_check" CHECK ("system_logos"."width" between 1 and 150 and "system_logos"."height" between 1 and 50);
+ALTER TABLE "system_logos" DROP CONSTRAINT "system_logos_size_check";--> statement-breakpoint
+ALTER TABLE "system_logos" ADD CONSTRAINT "system_logos_size_check" CHECK ("system_logos"."width" between 1 and 180 and "system_logos"."height" between 1 and 50);

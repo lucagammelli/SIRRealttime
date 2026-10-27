@@ -752,7 +752,7 @@ loghi della piattaforma, uguali per tutti i clienti: lato sinistro e destro, cia
 «Nessun logo: le testate restano come sono.» se non ce n'è nessuno. Poi una scheda per lato («Logo a sinistra», «Logo a
 destra»), con una griglia 2×2 in tutto: per ogni variante «Positivo · per sfondi chiari» / «Negativo · per sfondi
 scuri», l'anteprima (o «Nessun logo») su sfondo chiaro o scuro, le misure in px, «Carica logo» / «Sostituisci logo» (PNG,
-JPEG, WebP o SVG, al massimo 2 MB e 150×50 px: uno più grande è rifiutato con il messaggio del server) e «Rimuovi» con
+JPEG, WebP o SVG, al massimo 2 MB e 180×50 px: uno più grande è rifiutato con il messaggio del server) e «Rimuovi» con
 «Conferma rimozione». Rotte e limiti: `docs/server.md` («Loghi di sistema»).
 
 - **Scelta della variante**: automatica, dallo sfondo reale dietro al logo. `useBackgroundBehind` (`lib/backgroundTone.ts`)
@@ -763,7 +763,7 @@ JPEG, WebP o SVG, al massimo 2 MB e 150×50 px: uno più grande è rifiutato con
   `pickSystemLogo` (`packages/shared`): luminanza < 0,5 → negativo, altrimenti positivo; se la variante voluta manca usa
   l'altra; se lo sfondo non si legge usa il positivo.
 - **`SystemLogo`**: un lato (`pair`, `side`); immagine con `object-contain`, `alt` vuoto (decorativa), box al massimo
-  `min(150px, 25vw)` × `min(50px, 8.33vw)` in riga (niente scorrimento orizzontale su un telefono da 360 px) oppure 150×50
+  `min(180px, 25vw)` × `min(50px, 8.33vw)` in riga (niente scorrimento orizzontale su un telefono da 360 px) oppure 180×50
   px pieni (`SYSTEM_LOGO_FULL_SIZE`). Non disegna nulla se il lato non ha loghi.
 - **`SystemLogosBar`**: riga con il lato sinistro e il destro (solo pagina live e anteprima della pagina). Senza loghi non
   disegna nulla; con un solo lato l'altro resta vuoto. Con almeno un logo di sistema la pagina live non mostra più

@@ -16,11 +16,12 @@ const POS = logo('00000000-0000-4000-8000-000000000001');
 const NEG = logo('00000000-0000-4000-8000-000000000002');
 
 describe('system logos', () => {
-  it('fit in 150×50 px at most', () => {
+  it('fit in 180×50 px at most', () => {
+    expect(systemLogoFits(180, 50)).toBe(true);
     expect(systemLogoFits(150, 50)).toBe(true);
     expect(systemLogoFits(1, 1)).toBe(true);
-    expect(systemLogoFits(151, 50)).toBe(false);
-    expect(systemLogoFits(150, 51)).toBe(false);
+    expect(systemLogoFits(181, 50)).toBe(false);
+    expect(systemLogoFits(180, 51)).toBe(false);
   });
 
   it('two slots × two variants; base64 only, no other field', () => {

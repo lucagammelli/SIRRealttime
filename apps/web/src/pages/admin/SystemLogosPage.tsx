@@ -179,7 +179,7 @@ function SlotCard({
           <img
             src={logo.url}
             alt={name}
-            className="max-h-[50px] max-w-[150px] object-contain"
+            className="max-h-[50px] max-w-[180px] object-contain"
             width={logo.width}
             height={logo.height}
           />

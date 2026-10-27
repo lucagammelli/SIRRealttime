@@ -108,7 +108,7 @@ describe('«Loghi di sistema»', () => {
     expect(screen.getAllByRole('group')).toHaveLength(4);
     expect(screen.getByRole('heading', { name: 'Logo a sinistra' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Logo a destra' })).toBeTruthy();
-    expect(screen.getAllByText(/al massimo 150×50 px/)).toHaveLength(2);
+    expect(screen.getAllByText(/al massimo 180×50 px/)).toHaveLength(2);
   });
 
   it('previews the header in the light and in the dark theme', async () => {
@@ -154,14 +154,14 @@ describe('«Loghi di sistema»', () => {
   it('shows why the server refuses a logo too large, and keeps the old one', async () => {
     mockServer(logos(pair(LEFT)), {
       'PUT /api/admin/system-logos/left/positive': json(
-        { error: 'Logo troppo grande: al massimo 150×50 px, questo è 300×100 px' },
+        { error: 'Logo troppo grande: al massimo 180×50 px, questo è 300×100 px' },
         422,
       ),
     });
     renderPage();
     const input = await screen.findByLabelText('Sostituisci: logo a sinistra positivo');
     fireEvent.change(input, { target: { files: [new File(['x'], 'grande.png', { type: 'image/png' })] } });
-    expect(await screen.findByText('Logo troppo grande: al massimo 150×50 px, questo è 300×100 px.')).toBeTruthy();
+    expect(await screen.findByText('Logo troppo grande: al massimo 180×50 px, questo è 300×100 px.')).toBeTruthy();
     expect(within(slot('Logo a sinistra positivo')).getByRole('img').getAttribute('src')).toBe(LEFT.url);
   });
 

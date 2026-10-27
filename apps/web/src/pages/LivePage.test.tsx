@@ -532,7 +532,7 @@ describe('LivePage: loghi di sistema', () => {
     expect(left?.dataset.systemLogo).toBe('sinistra');
     expect(right?.getAttribute('src')).toBe(RIGHT.url);
     expect(right?.dataset.systemLogo).toBe('destra');
-    expect(left?.className).toContain('max-w-[min(150px,calc(25*var(--sir-vw)))]');
+    expect(left?.className).toContain('max-w-[min(180px,calc(25*var(--sir-vw)))]');
     expect(left?.className).toContain('max-h-[min(50px,calc(8.33*var(--sir-vw)))]');
     expect(left?.className).toContain('object-contain');
     phone.unmount();

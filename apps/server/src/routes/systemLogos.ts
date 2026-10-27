@@ -109,7 +109,7 @@ export function systemLogoAdminRoutes(app: FastifyInstance, ctx: AppContext): vo
 
   /**
    * Upload as base64 JSON: type and size recognized from the bytes (PNG, JPEG, WebP, strictly checked SVG; anything
-   * else 422), at most 2 MB (413) and 150×50 px (422 with the size found; an SVG by its declared size).
+   * else 422), at most 2 MB (413) and 180×50 px (422 with the size found; an SVG by its declared size).
    */
   app.put(
     '/api/admin/system-logos/:slot/:variant',

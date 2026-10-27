@@ -250,7 +250,7 @@ Punto aperto: l'uso dei marchi (loghi) va chiarito con la Lega e con i club. L'`
    scelgono gli sponsor, link in nuova scheda dall'immagine, sponsor nell'esporta/importa della grafica
    (`docs/server.md`, `docs/portale.md`, `docs/architettura.md`).
 16. `loghi-sistema` (**fatto**, 2026-10-20): quattro loghi della piattaforma (sinistra e destra, ciascuno positivo per
-   sfondi chiari e negativo per scuri, al massimo 150×50 px) caricati dal superadmin nella pagina «Loghi di sistema»;
+   sfondi chiari e negativo per scuri, al massimo 180×50 px) caricati dal superadmin nella pagina «Loghi di sistema»;
    entrambi stanno sopra la testata della pagina pubblica, il sinistro in cima all'area riservata, in login
    e nelle pagine dei link account (tabella `system_logos`, migrazioni `0016` e `0017`; `docs/server.md`, `docs/portale.md`, `docs/architettura.md`,
    `docs/infrastruttura.md`).

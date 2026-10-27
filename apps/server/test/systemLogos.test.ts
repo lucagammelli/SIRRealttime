@@ -74,10 +74,10 @@ describe('system logos', () => {
   });
 
   it('loads a logo per side; every client and hostname sees the same ones; the file is public and immutable', async () => {
-    const res = await put('left', png(150, 50));
+    const res = await put('left', png(180, 50));
     expect(res.statusCode).toBe(200);
     const logos = SystemLogosSchema.parse(res.json());
-    expect(logos.left.positive).toMatchObject({ mime: 'image/png', width: 150, height: 50 });
+    expect(logos.left.positive).toMatchObject({ mime: 'image/png', width: 180, height: 50 });
     expect(logos.left.negative).toBeNull();
     expect(logos.right).toEqual({ positive: null, negative: null });
     const right = SystemLogosSchema.parse(
@@ -91,18 +91,18 @@ describe('system logos', () => {
     expect(file.headers['content-type']).toBe('image/png');
     expect(file.headers['x-content-type-options']).toBe('nosniff');
     expect(file.headers['cache-control']).toBe('public, max-age=31536000, immutable');
-    expect(file.rawPayload.equals(png(150, 50))).toBe(true);
+    expect(file.rawPayload.equals(png(180, 50))).toBe(true);
     const svgFile = await call(null, { url: right?.url ?? '' });
     expect(svgFile.headers['content-type']).toBe('image/svg+xml; charset=utf-8');
     expect(svgFile.headers['content-security-policy']).toBe("default-src 'none'; style-src 'unsafe-inline'; sandbox");
   });
 
-  it('refuses a logo larger than 150×50 px, an unknown format, an unsafe SVG and an unknown slot', async () => {
+  it('refuses a logo larger than 180×50 px, an unknown format, an unsafe SVG and an unknown slot', async () => {
     const before = await list();
-    const wide = await put('left', png(151, 50));
+    const wide = await put('left', png(181, 50));
     expect(wide.statusCode).toBe(422);
-    expect(wide.json<{ error: string }>().error).toContain('al massimo 150×50 px, questo è 151×50 px');
-    expect((await put('left', png(150, 51))).statusCode).toBe(422);
+    expect(wide.json<{ error: string }>().error).toContain('al massimo 180×50 px, questo è 181×50 px');
+    expect((await put('left', png(180, 51))).statusCode).toBe(422);
     expect((await put('right', svg('<rect width="10" height="10"/>', 'viewBox="0 0 300 100"'))).statusCode).toBe(422);
     expect((await put('left', Buffer.from('non è un’immagine'))).statusCode).toBe(422);
     expect((await put('left', svg('<script>alert(1)</script>'))).statusCode).toBe(422);

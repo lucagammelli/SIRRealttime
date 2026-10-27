@@ -19,7 +19,7 @@ export const SystemLogoVariantSchema = z.enum(SYSTEM_LOGO_VARIANTS);
 export type SystemLogoVariant = z.infer<typeof SystemLogoVariantSchema>;
 
 /** Largest logo accepted (pixels; an SVG by its declared size): a larger one is refused at upload. */
-export const SYSTEM_LOGO_MAX_WIDTH = 150;
+export const SYSTEM_LOGO_MAX_WIDTH = 180;
 export const SYSTEM_LOGO_MAX_HEIGHT = 50;
 
 /** Pure: whether a logo of `width` × `height` px fits in SYSTEM_LOGO_MAX_WIDTH × SYSTEM_LOGO_MAX_HEIGHT. */

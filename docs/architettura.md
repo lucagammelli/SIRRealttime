@@ -182,7 +182,7 @@ Immagini e video (`assets.ts`): `AssetKindSchema` (`logo` | `sponsor` | `overlay
 Loghi di sistema (`systemLogos.ts`): quattro loghi della piattaforma (lato sinistro/destro × variante positiva/negativa)
 uguali per tutti i clienti, caricati solo dal superadmin. `SYSTEM_LOGO_SLOTS` (`left`, `right`), `SYSTEM_LOGO_VARIANTS`
 (`positive` per sfondi chiari, `negative` per scuri), `SystemLogoSlotSchema`, `SystemLogoVariantSchema`,
-`SystemLogoSlotParamSchema` (`:slot` e `:variant`), `SYSTEM_LOGO_MAX_WIDTH` 150 e `SYSTEM_LOGO_MAX_HEIGHT` 50 con la
+`SystemLogoSlotParamSchema` (`:slot` e `:variant`), `SYSTEM_LOGO_MAX_WIDTH` 180 e `SYSTEM_LOGO_MAX_HEIGHT` 50 con la
 funzione pura `systemLogoFits`, `UploadSystemLogoRequestSchema` (`{ data }` base64), `systemLogoPath(id)`
 (`/api/public/system-logos/<id>`), `SystemLogoSchema` (`url`, `mime`, `width`, `height`), `SystemLogoPairSchema`
 (`positive` e `negative`, nulli se mancano), `SystemLogosSchema` (`GET /api/public/system-logos` e risposta delle rotte

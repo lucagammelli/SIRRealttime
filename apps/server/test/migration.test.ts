@@ -558,6 +558,29 @@ describe('migration 0026: a player that follows the simulation', () => {
   });
 });
 
+describe('migration 0027: system logos up to 180×50 px', () => {
+  it('accepts a logo 180 px wide, refuses 181 px, and is undone back to 150 px', async () => {
+    const client = new PGlite();
+    cleanup.push(() => client.close());
+    const db = drizzle({ client, schema });
+    await migrate(db, { migrationsFolder: await migrationsUpTo('0026_player_simulazione') });
+    const insert = (slot: string, width: number) =>
+      client.exec(`insert into system_logos (slot, sha256, mime, width, height, bytes)
+        values ('${slot}', repeat('a', 64), 'image/png', ${width}, 50, 100)`);
+    await expect(insert('left', 180)).rejects.toThrow();
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    await insert('left', 180);
+    await expect(insert('right', 181)).rejects.toThrow();
+    const sqlText = await readFile(join(MIGRATIONS_FOLDER, '0027_loghi_sistema_180.sql'), 'utf8');
+    const down = /^-- Reversibile[^:]*: (.*)$/m.exec(sqlText)?.[1];
+    expect(down).toBeDefined();
+    await client.exec('delete from system_logos where width > 150');
+    await client.exec(down ?? '');
+    await insert('left', 150);
+    await expect(insert('right', 151)).rejects.toThrow();
+  });
+});
+
 describe('seed', () => {
   const config = (env: Record<string, string> = {}) =>
     loadConfig({

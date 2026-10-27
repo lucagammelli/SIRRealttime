@@ -211,7 +211,7 @@ sfondo. Contratti in `packages/shared/src/systemLogos.ts` (`docs/architettura.md
 
 - **Tabella** `system_logos` (migrazione `0016_loghi_sistema.sql`, poi `0017_loghi_sistema_varianti.sql`): una riga per
   slot e variante (chiave primaria `(slot, variant)`, CHECK `left`/`right` e `positive`/`negative`), `id` (uuid, unico,
-  nuovo a ogni caricamento), `sha256`, `mime`, `width`, `height` (CHECK: larghezza 1-150 e altezza 1-50), `bytes`,
+  nuovo a ogni caricamento), `sha256`, `mime`, `width`, `height` (CHECK: larghezza 1-180 e altezza 1-50, dalla migrazione `0027_loghi_sistema_180.sql`, reversibile con l'istruzione in testa dopo aver tolto i loghi più larghi di 150 px), `bytes`,
   `updated_at`. La `0017` aggiunge `variant` (predefinito `positive`): i loghi già caricati diventano positivi. Il file
   è in `<ASSETS_DIR>/_system/<sha256>` (`assetStore.ts`: `writeSystemLogoFile`, `readSystemLogoFile`,
   `removeSystemLogoFile`).
@@ -223,8 +223,8 @@ sfondo. Contratti in `packages/shared/src/systemLogos.ts` (`docs/architettura.md
   `{ data }` in base64, corpo fino a ~2,7 MB) e `DELETE /api/admin/system-logos/:slot/:variant` (la vecchia rotta
   `/:slot` senza variante dà 404); la risposta è la nuova lista completa come nella `GET` pubblica.
   Il `PUT` controlla l'immagine con `inspectImage` (tipo e misure dai byte; SVG controllato, per gli SVG vale la misura
-  dichiarata): 413 oltre 2 MB, 422 per un'immagine non ammessa o più grande di 150×50 px («Logo troppo grande: al massimo
-  150×50 px, questo è …»). Caricamento e rimozione sono serializzati da un advisory lock (`pg_advisory_xact_lock`); il file
+  dichiarata): 413 oltre 2 MB, 422 per un'immagine non ammessa o più grande di 180×50 px («Logo troppo grande: al massimo
+  180×50 px, questo è …»). Caricamento e rimozione sono serializzati da un advisory lock (`pg_advisory_xact_lock`); il file
   vecchio è cancellato se nessun altro slot o variante lo usa (i quattro posti possono condividere lo stesso file).
 - **Log**: `redactUrl` (`src/app.ts`) maschera nei log anche `/api/public/system-logos…`.
 - **Test**: `apps/server/test/` (loghi di sistema).
@@ -1468,7 +1468,7 @@ Schema in `apps/server/src/db/schema.ts` (Drizzle):
 | `fixtures` | `league_id`, `external_id` (`n<numero ufficiale>`; unico per campionato), `number`, fase, giornata, `starts_at` (UTC), `home_team_id`, `away_team_id`, impianto, `status` (`scheduled`/`played`/`postponed`), `home_sets`, `away_sets`, `set_scores`, `provider_match_id`, `note`, `content_hash` |
 | `standings` | chiave `league_id` + `position`: `team_id` (nullo se il nome non è nel calendario), `team_name`, punti, partite, set e punti fatti e subiti, quozienti, `by_result` |
 | `team_logos` | `sha256` (unico), `mime`, `width`, `height`, `bytes`: il file è `ASSETS_DIR/_leagues/<sha256>` |
-| `system_logos` | **comune a tutti i clienti** (migrazioni `0016_loghi_sistema.sql` e `0017_loghi_sistema_varianti.sql`): `slot` (`left`/`right`) e `variant` (`positive`/`negative`, chiave insieme a `slot`), `id` (unico), `sha256`, `mime`, `width` (1-150), `height` (1-50), `bytes`, `updated_at`; il file è `ASSETS_DIR/_system/<sha256>` |
+| `system_logos` | **comune a tutti i clienti** (migrazioni `0016_loghi_sistema.sql` e `0017_loghi_sistema_varianti.sql`, larghezza fino a 180 px da `0027_loghi_sistema_180.sql`): `slot` (`left`/`right`) e `variant` (`positive`/`negative`, chiave insieme a `slot`), `id` (unico), `sha256`, `mime`, `width` (1-180), `height` (1-50), `bytes`, `updated_at`; il file è `ASSETS_DIR/_system/<sha256>` |
 | `league_http_cache` | `url` (chiave), `etag`, `last_modified` |
 | `tenant_leagues` | scelta del cliente (migrazione `0006_club.sql`): `tenant_id`, `league_id`, `league_team_id` (la squadra del club, nulla finché non scelta; `ON DELETE SET NULL`); unica per cliente e campionato |
 | `client_fixtures` | copia delle partite del club dal calendario (migrazione `0006_club.sql`; `0007_ruoli_calendario.sql` aggiunge `origin` `league`/`manual`, `manual_kind` `friendly`/`cup`/`other`, `broadcast` `auto`/`on`/`off`, `hidden`, `our_logo_asset_id` e `opponent_logo_asset_id` → `assets` `ON DELETE SET NULL`, e rende `league_id` nullo; vincolo: `league_id` nullo se e solo se `origin` è `manual`): `tenant_id`, `league_id`, `fixture_external_id` (unica con cliente e campionato), `fixture_id`, `removed_at` (la partita non è più nel calendario, il link resta), `starts_at`, `our_side` (`club_side`: `home`/`away`), nomi, città e loghi delle due squadre, impianto, `round_label`, `league_name`, `status`, `home_sets`, `away_sets` |

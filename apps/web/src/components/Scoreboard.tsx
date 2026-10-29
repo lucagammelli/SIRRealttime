@@ -5,7 +5,7 @@ import { Fragment, useRef, useState } from 'react';
 import { useOurSide, useTemplate } from '../lib/branding.ts';
 import type { ClubLogoPlace } from '../lib/clubLogo.ts';
 import { clubLogoClass, useOurLogoSize } from '../lib/clubLogo.ts';
-import { formatMinutes, SIDE_LABEL, teamName, teamShort } from '../lib/format.ts';
+import { formatMinutes, lastPointText, SIDE_LABEL, teamName, teamShort } from '../lib/format.ts';
 import type { Device } from '../lib/layout.ts';
 import type { SetPartial } from '../lib/scoreboard.ts';
 import { canScroll, useDeviceContext, useStickyOffset, useTouch } from '../lib/useLayout.ts';
@@ -514,8 +514,7 @@ export function ScoreFacts({ state, size, framed = true }: { state: MatchState; 
             className="sir-flash inline-flex items-center gap-1.5"
           >
             <span className={`inline-block size-2 rounded-full ${BG[live.lastPoint.team]}`} aria-hidden="true" />
-            <span className={INK[live.lastPoint.team]}>{SIDE_LABEL[live.lastPoint.team]}</span>
-            <span className="text-text">{live.lastPoint.label}</span>
+            <span className={INK[live.lastPoint.team]}>{lastPointText(state, live.lastPoint)}</span>
           </span>
         ) : (
           '–'

@@ -41,7 +41,10 @@ function event(kind: MatchEvent['kind'], extra: Partial<MatchEvent> = {}): Match
     index: line,
     set: 2,
     team: 'home',
-    player: kind === 'ace' || kind === 'block' ? { number: 8, firstName: 'Mario', lastName: 'Rossi' } : null,
+    player:
+      kind === 'ace' || kind === 'block' || kind === 'attack'
+        ? { number: 8, firstName: 'Mario', lastName: 'Rossi' }
+        : null,
     playerOut: null,
     homeScore: 24,
     awayScore: 20,
@@ -230,6 +233,8 @@ describe('overlays: pure functions', () => {
     expect(overlayValues(event('longRally', { count: 5 }), base).attacchi).toBe('5');
     expect(overlayValues(event('tie', { team: null }), base).squadra).toBeUndefined();
     expect(sampleEvent('run', base)).toMatchObject({ kind: 'run', count: 3, team: 'home' });
+    expect(overlayValues(event('attack'), base)).toMatchObject({ giocatore: 'Rossi', numero: '8' });
+    expect(sampleEvent('attack', base).player).not.toBeNull();
   });
 
   it('queue: old ones out, then the highest priority, then the earlier one', () => {

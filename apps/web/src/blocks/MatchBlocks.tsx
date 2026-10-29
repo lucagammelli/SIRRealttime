@@ -3,7 +3,7 @@ import type { Side } from '@arenalive/volley-stats';
 import { topPlayers } from '@arenalive/volley-stats';
 import { Partials } from '../components/Scoreboard.tsx';
 import { Card, Empty } from '../components/ui.tsx';
-import { playerName, teamName, teamShort } from '../lib/format.ts';
+import { lastPointDetail, playerName, teamName, teamShort } from '../lib/format.ts';
 import { setPartials } from '../lib/scoreboard.ts';
 import type { BlockEnv } from './env.ts';
 
@@ -14,6 +14,7 @@ const BG: Record<Side, string> = { home: 'bg-home', away: 'bg-away' };
 /** Last point of the match, big: team, score after it and how it was won. */
 export function LastPointBlock({ env }: { env: BlockEnv }) {
   const point = env.state.live.lastPoint;
+  const detail = point ? lastPointDetail(env.state, point) : null;
   return (
     <Card title="Ultimo punto" className={FILL}>
       {point ? (
@@ -30,7 +31,7 @@ export function LastPointBlock({ env }: { env: BlockEnv }) {
             {point.homeScore}-{point.awayScore}
           </span>
           <span className="text-base text-muted">
-            {point.set}° set · {point.label}
+            {point.set}° set{detail ? ` · ${detail}` : ''}
           </span>
         </div>
       ) : (

@@ -1,9 +1,12 @@
+import type { LastPoint } from '@arenalive/volley-stats';
 import { describe, expect, it } from 'vitest';
 import {
   DASH,
   formatCount,
   formatMinutes,
   formatPct,
+  lastPointDetail,
+  lastPointText,
   playerName,
   romeDateTime,
   romeToIso,
@@ -88,5 +91,62 @@ describe('date and time in Italian time for the inputs', () => {
     expect(romeToIso('2026-10-25', '12:00')).toBe('2026-10-25T11:00:00.000Z');
     expect(romeToIso('', '18:00')).toBeNull();
     expect(romeToIso('2026-10-18', '')).toBeNull();
+  });
+});
+
+describe('lastPointText', () => {
+  const ref = (number: number, lastName: string | null) => ({
+    number,
+    firstName: null,
+    lastName,
+    role: null,
+    specialRole: null,
+  });
+  const state = {
+    teams: {
+      home: { code: 'CAS', name: 'Casa Volley' },
+      away: { code: 'SIR', name: 'Sir Susa' },
+    },
+    players: { home: [ref(6, 'Bianchi'), ref(9, null)], away: [ref(7, 'Rossi')] },
+  } as unknown as Parameters<typeof lastPointText>[0];
+  const point = (p: Partial<LastPoint>): LastPoint => ({
+    set: 1,
+    team: 'away',
+    homeScore: 3,
+    awayScore: 4,
+    kind: 'unknown',
+    skill: null,
+    player: null,
+    playerTeam: null,
+    evaluation: null,
+    label: 'x',
+    ...p,
+  });
+
+  it('error of the other team: names the team that made it', () => {
+    const p = point({ kind: 'opponentError', skill: 'serve', player: 7, playerTeam: 'away', team: 'home' });
+    expect(lastPointText(state, p)).toBe('Punto Casa: errore in battuta SIR 7 Rossi');
+    expect(lastPointDetail(state, p)).toBe('errore in battuta SIR 7 Rossi');
+  });
+
+  it('direct points: attack, ace, block', () => {
+    expect(lastPointText(state, point({ kind: 'attack', skill: 'attack', player: 7, playerTeam: 'away' }))).toBe(
+      'Punto Ospiti: attacco 7 Rossi',
+    );
+    expect(
+      lastPointText(state, point({ team: 'home', kind: 'serve', skill: 'serve', player: 6, playerTeam: 'home' })),
+    ).toBe('Punto Casa: ace 6 Bianchi');
+    expect(lastPointText(state, point({ kind: 'block', skill: 'block', player: 7, playerTeam: 'away' }))).toBe(
+      'Punto Ospiti: muro 7 Rossi',
+    );
+  });
+
+  it('without roster the player is #number; green code and no detail', () => {
+    expect(
+      lastPointText(state, point({ team: 'home', kind: 'attack', skill: 'attack', player: 9, playerTeam: 'home' })),
+    ).toBe('Punto Casa: attacco #9');
+    expect(lastPointText(state, point({ team: 'home', kind: 'greenCode' }))).toBe('Punto Casa: codice verde');
+    expect(lastPointText(state, point({ team: 'home' }))).toBe('Punto Casa');
+    expect(lastPointDetail(state, point({}))).toBeNull();
   });
 });

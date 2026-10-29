@@ -326,7 +326,7 @@ anche `afterMatch.image` quando è una foto (`graphicsExport.ts`). `Intermission
 `PublicTenantResponseSchema` contiene anche `intermissions`. Server in `docs/server.md` («Pause della partita»),
 schermate ed editor in `docs/portale.md`, fase e riepiloghi in `docs/statistiche.md`.
 
-Avvisi sugli eventi (`overlays.ts`): `TenantOverlaysSchema` / `TenantOverlays` = `{ version, ace, block, run, longRally,
+Avvisi sugli eventi (`overlays.ts`): `TenantOverlaysSchema` / `TenantOverlays` = `{ version, ace, block, attack, run, longRally,
 setPoint, matchPoint, tie, lead, timeout, substitution, setEnd, matchEnd }` (`OVERLAY_KINDS`, gli eventi di
 `MatchState.events`, `docs/statistiche.md`; strict). Ogni avviso (`Overlay`) ha `enabled`, `text`, `seconds`
 (`OVERLAY_MIN_SECONDS` 2 - `OVERLAY_MAX_SECONDS` 8, predefinito 4), `devices` (`tv`, `tablet`, `phone`) e `priority`
@@ -337,6 +337,9 @@ caratteri `<` e `>`; `fillOverlayText(testo, valori)` li sostituisce (valore man
 i predefiniti (`defaultOverlays`, `defaultOverlay(kind)`, `defaultOverlayText`, `resolveOverlays`: un documento non valido
 vale i predefiniti), per esempio «ACE! {giocatore}», «Muro di {giocatore}», «Break di {serie} punti per {squadra}», «SET
 POINT {squadra}», «MATCH POINT {squadra}», «{squadra} vince il {set}° set {punteggio}», «{squadra} vince la partita!».
+`MatchEventKind` e `OVERLAY_KINDS` comprendono `attack` (punto da attacco vincente): predefinito spento, testo «Attacco
+vincente di {giocatore}»; un documento salvato senza la chiave `attack` prende il predefinito. Un pacchetto di grafica
+esportato da questa versione non si importa in una versione precedente (la chiave `attack` è sconosciuta allo schema strict).
 Time-out spento (la pausa lo mostra già); cambio e scambio lungo non sul telefono. Posizione e dimensione: il documento ha
 `position` (`OVERLAY_POSITIONS`: `top`, `center`, `bottom`; predefinito `OVERLAY_DEFAULT_POSITION` `top`) e `size`
 (`OVERLAY_SIZES`: `small`, `medium`, `large`; predefinita `medium`) generali; ogni avviso può avere `position` e `size`

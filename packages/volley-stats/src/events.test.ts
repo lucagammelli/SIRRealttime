@@ -93,6 +93,33 @@ describe('eventi: punti diretti', () => {
     expect(eventsOf([row('a05SM+~~~14C', 1, 'r'), row('*12RM-'), row('a07BH-'), point(1, 0)])).toEqual([]);
   });
 
+  it('punto in attacco: attacco # col giocatore che attacca, priorità sotto sorpasso e pareggio', () => {
+    const lines = [row('a05SM+~~~14C', 1, 'r'), row('*12RM-'), row('*08AH#'), point(1, 0)];
+    expect(eventsOf(lines)).toEqual([
+      {
+        id: 'attack-1-1-0',
+        kind: 'attack',
+        index: 3,
+        set: 1,
+        team: 'home',
+        player: { number: 8, firstName: 'Mario', lastName: 'Rossi' },
+        playerOut: null,
+        homeScore: 1,
+        awayScore: 0,
+        count: null,
+        priority: MATCH_EVENT_PRIORITY.attack,
+      },
+    ]);
+    expect(MATCH_EVENT_PRIORITY.attack).toBeLessThan(MATCH_EVENT_PRIORITY.tie);
+    expect(MATCH_EVENT_PRIORITY.attack).toBeLessThan(MATCH_EVENT_PRIORITY.lead);
+    expect(MATCH_EVENT_PRIORITY.attack).toBeLessThan(MATCH_EVENT_PRIORITY.run);
+  });
+
+  it('un attacco murato non è un punto in attacco (è il muro avversario)', () => {
+    const lines = [row('*08SM+~~~14C', 1, 's'), row('a05AH/'), row('*12BH#'), point(1, 0)];
+    expect(eventsOf(lines).map((e) => e.kind)).toEqual(['block']);
+  });
+
   it('un errore avversario non è un ace né un muro', () => {
     expect(eventsOf([row('*08SM=~~~14C', 1, 's'), point(0, 1, 1, 'a')])).toEqual([]);
   });
@@ -286,7 +313,7 @@ describe('eventi: riproduzione riga per riga', () => {
     replay(parsed);
     const events = matchEvents(parsed);
     const found = new Set(events.map((e) => e.kind));
-    for (const kind of ['ace', 'block', 'run', 'setPoint', 'matchPoint', 'timeout', 'substitution', 'setEnd'])
+    for (const kind of ['ace', 'block', 'attack', 'run', 'setPoint', 'matchPoint', 'timeout', 'substitution', 'setEnd'])
       expect(found).toContain(kind);
     expect(events.filter((e) => e.kind === 'matchEnd')).toHaveLength(1);
   });

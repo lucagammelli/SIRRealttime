@@ -249,11 +249,13 @@ const LARGE: Record<LayoutDevice, boolean> = { tv: true, tablet: true, phone: fa
 
 /**
  * Defaults: every event on, on every device, for OVERLAY_DEFAULT_SECONDS, with the priority of `@arenalive/volley-stats`;
- * substitutions and long rallies not on the phone; the time-out off (the time-out pause already says it).
+ * substitutions and long rallies not on the phone; the time-out off (the time-out pause already says it) and the point in
+ * attack off (almost every other point: the documents saved before do not show it until it is turned on).
  */
 const DEFAULTS: Record<OverlayKind, OverlayDefaults> = {
   ace: { enabled: true, text: 'ACE! {giocatore}', devices: ALL },
   block: { enabled: true, text: 'Muro di {giocatore}', devices: ALL },
+  attack: { enabled: false, text: 'Attacco vincente di {giocatore}', devices: ALL },
   run: { enabled: true, text: 'Break di {serie} punti per {squadra}', devices: ALL },
   longRally: { enabled: true, text: 'Scambio lungo: {attacchi} attacchi', devices: LARGE },
   setPoint: { enabled: true, text: 'SET POINT {squadra}', devices: ALL },

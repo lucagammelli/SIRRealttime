@@ -2,7 +2,7 @@ import type { ParsedMatch } from '@arenalive/dvw-parser';
 import { describePoint } from './score.js';
 import type { PointEvent, Timeline } from './timeline.js';
 import { buildTimeline } from './timeline.js';
-import type { EventPlayer, MatchEvent, MatchEventKind, PlayerRef, Side } from './types.js';
+import type { EventPlayer, LastPoint, MatchEvent, MatchEventKind, PlayerRef, Side } from './types.js';
 import { other } from './util.js';
 import { playerRefs } from './players.js';
 
@@ -15,6 +15,7 @@ export const MATCH_EVENT_KINDS = [
   'ace',
   'block',
   'lead',
+  'attack',
   'tie',
   'run',
   'timeout',
@@ -34,8 +35,16 @@ export const MATCH_EVENT_PRIORITY: Record<MatchEventKind, number> = {
   tie: 4,
   run: 4,
   timeout: 4,
+  attack: 3,
   longRally: 3,
   substitution: 2,
+};
+
+/** Evento del punto deciso da un'azione vincente di un giocatore: battuta (ace), muro, attacco. */
+const POINT_EVENT_OF: Partial<Record<LastPoint['kind'], MatchEventKind>> = {
+  serve: 'ace',
+  block: 'block',
+  attack: 'attack',
 };
 
 /** Eventi tenuti nello stato (`MatchState.events`): gli ultimi, quanti bastano agli avvisi del portale. */
@@ -70,6 +79,7 @@ export function setPointTeam(set: number, homeScore: number, awayScore: number):
  * punteggio, o il conteggio nel set): rileggendo lo stesso file, o lo stesso file con righe in più, gli eventi già
  * trovati hanno lo stesso id. Eventi:
  * - `ace` (battuta #) e `block` (muro #): punto diretto, col giocatore;
+ * - `attack` (attacco #): punto in attacco, col giocatore che attacca;
  * - `run`: la squadra segna il RUN_MIN_POINTS° punto consecutivo nel set, e ogni punto dopo (`count` = punti);
  * - `longRally`: rally con almeno LONG_RALLY_MIN_ATTACKS attacchi (`count` = attacchi), squadra che segna;
  * - `setPoint`/`matchPoint`: una squadra arriva a un punto dalla vittoria del set (della partita, se ha già 2 set),
@@ -155,16 +165,12 @@ export function detectEvents(tl: Timeline, players: Record<Side, PlayerRef[]>): 
         const pe = pointByIndex.get(e.index);
         if (pe) {
           const decisive = describePoint(pe);
-          if ((decisive.kind === 'serve' || decisive.kind === 'block') && decisive.playerTeam) {
-            push(
-              decisive.kind === 'serve' ? 'ace' : 'block',
-              `${decisive.kind === 'serve' ? 'ace' : 'block'}-${score}`,
-              e.index,
-              {
-                team: decisive.playerTeam,
-                player: playerOf(decisive.playerTeam, decisive.player),
-              },
-            );
+          const pointKind = POINT_EVENT_OF[decisive.kind];
+          if (pointKind && decisive.playerTeam) {
+            push(pointKind, `${pointKind}-${score}`, e.index, {
+              team: decisive.playerTeam,
+              player: playerOf(decisive.playerTeam, decisive.player),
+            });
           }
           const attacks = pe.actions.filter((a) => a.skill === 'attack').length;
           if (attacks >= LONG_RALLY_MIN_ATTACKS)

@@ -1,6 +1,6 @@
 import type { IntermissionSlide, SlideType } from '@arenalive/shared';
 import type { Side, StatLine } from '@arenalive/volley-stats';
-import { matchMvp, setRecap } from '@arenalive/volley-stats';
+import { matchMvp, setMvp, setRecap } from '@arenalive/volley-stats';
 import type { ReactNode } from 'react';
 import { MediaPicture } from '../components/MediaPicture.tsx';
 import { Partials } from '../components/Scoreboard.tsx';
@@ -56,7 +56,11 @@ export const SLIDE_LABELS: Record<SlideType, { label: string; description: strin
     description: 'Punti, attacco, battuta, ricezione, muri, errori e migliore.',
   },
   finalResult: { label: 'Risultato', description: 'Set vinti e parziali della partita.' },
-  mvp: { label: 'Miglior Realizzatore', description: 'Il migliore della partita (punti, poi efficienza d’attacco).' },
+  mvp: {
+    label: 'Miglior Realizzatore',
+    description:
+      'Il migliore del set nella pausa di un set, della partita a partita finita (punti, poi efficienza d’attacco).',
+  },
   setScores: { label: 'Parziali dei set', description: 'Punteggio di ogni set.' },
   setScorers: {
     label: 'Parziale e marcatori',
@@ -226,13 +230,16 @@ function FinalResultSlide({ env, size }: { env: SlideEnv; size: SlideSize }) {
 
 function MvpSlide({ env, size }: { env: SlideEnv; size: SlideSize }) {
   const { state } = env;
-  const mvp = matchMvp(state);
+  // In the pause of a set the best of that set only; the match is over: the best of the match.
+  const ofMatch = state.status === 'finished';
+  const mvp = ofMatch ? matchMvp(state) : setMvp(state, env.set);
   if (!mvp) return null;
+  const scope = ofMatch ? 'della partita' : 'del set';
   const name = playerName(mvp.player ?? undefined, mvp.number);
   if (size === 'compact') {
     return (
       <p className="text-sm text-text">
-        <span className="font-display font-bold uppercase">Miglior Realizzatore </span>
+        <span className="font-display font-bold uppercase">Miglior Realizzatore {ofMatch ? '' : 'del set '}</span>
         <span className={`tabular font-bold ${TEXT[mvp.team]}`}>{mvp.number}</span> {name} (
         {teamShort(state.teams, mvp.team)}) · {mvp.points} punti
       </p>
@@ -241,7 +248,7 @@ function MvpSlide({ env, size }: { env: SlideEnv; size: SlideSize }) {
   return (
     <div className="flex min-h-full flex-col items-center justify-center gap-4 text-center">
       <p className="font-display text-xl font-semibold uppercase tracking-wide text-muted">
-        Miglior Realizzatore della partita
+        Miglior Realizzatore {scope}
       </p>
       <p className="font-display text-5xl font-bold uppercase text-text">
         <span className={`tabular mr-4 ${TEXT[mvp.team]}`}>{mvp.number}</span>

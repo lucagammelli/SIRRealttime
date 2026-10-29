@@ -3,8 +3,12 @@ import type { RosterPlayer } from '@arenalive/dvw-simulator';
 import { buildDvwText } from '@arenalive/shared';
 import type { SimulationProfile } from '@arenalive/shared';
 import { computeMatchState } from '@arenalive/volley-stats';
+import type { MatchEventKind } from '@arenalive/volley-stats';
 import { describe, expect, it } from 'vitest';
 import { generatedMatch } from '../src/simulation/source.js';
+
+/** Events of a point with the player who made it (the recent events are a window: attacks take part of it). */
+const POINT_KINDS: ReadonlySet<MatchEventKind> = new Set(['ace', 'block', 'attack']);
 
 /** Statistics of @arenalive/volley-stats on the file of a generated match, averaged per team and per set. */
 function perTeamSet(profile: SimulationProfile | undefined, seeds: number[]) {
@@ -88,40 +92,43 @@ const ROSTER: RosterPlayer[] = [
 ];
 
 describe('generated match with the roster of the club, read by @arenalive/volley-stats', () => {
-  it.each(['home', 'away'] as const)('aces and blocks of our team (%s) go to the numbers of the roster', (ourSide) => {
-    const byNumber = new Map(ROSTER.map((p) => [p.number, p]));
-    let checked = 0;
-    for (const seed of [3, 4, 5, 6]) {
-      const loaded = generatedMatch({ sets: 4, seed, ourSide, roster: ROSTER });
-      expect(loaded.ourSide).toBe(ourSide);
-      const state = computeMatchState(parseDvw(buildDvwText(loaded.header, loaded.lines)));
-      const other = ourSide === 'home' ? 'away' : 'home';
-      expect(state.players[ourSide].map((p) => p.number).sort((a, b) => a - b)).toEqual(
-        [...byNumber.keys()].sort((a, b) => a - b),
-      );
-      for (const p of state.players[ourSide]) expect(p.lastName).toBe(byNumber.get(p.number)?.lastName);
-      // Numbers of the opponent: generated, never two players with one number.
-      const theirs = state.players[other].map((p) => p.number);
-      expect(new Set(theirs).size).toBe(theirs.length);
-      // Every player with an action is of the roster; the aces of each number are its serves `#` in the file.
-      const prefix = ourSide === 'home' ? '*' : 'a';
-      for (const [key, stats] of Object.entries(state.stats[ourSide].players)) {
-        const n = Number(key);
-        expect(byNumber.has(n), key).toBe(true);
-        const aces = loaded.lines.filter(
-          (l) => l.startsWith(`${prefix}${String(n).padStart(2, '0')}S`) && l[5] === '#',
+  it.each(['home', 'away'] as const)(
+    'aces, blocks and attacks of our team (%s) go to the numbers of the roster',
+    (ourSide) => {
+      const byNumber = new Map(ROSTER.map((p) => [p.number, p]));
+      let checked = 0;
+      for (const seed of [3, 4, 5, 6]) {
+        const loaded = generatedMatch({ sets: 4, seed, ourSide, roster: ROSTER });
+        expect(loaded.ourSide).toBe(ourSide);
+        const state = computeMatchState(parseDvw(buildDvwText(loaded.header, loaded.lines)));
+        const other = ourSide === 'home' ? 'away' : 'home';
+        expect(state.players[ourSide].map((p) => p.number).sort((a, b) => a - b)).toEqual(
+          [...byNumber.keys()].sort((a, b) => a - b),
         );
-        expect(stats.total.serve.aces).toBe(aces.length);
+        for (const p of state.players[ourSide]) expect(p.lastName).toBe(byNumber.get(p.number)?.lastName);
+        // Numbers of the opponent: generated, never two players with one number.
+        const theirs = state.players[other].map((p) => p.number);
+        expect(new Set(theirs).size).toBe(theirs.length);
+        // Every player with an action is of the roster; the aces of each number are its serves `#` in the file.
+        const prefix = ourSide === 'home' ? '*' : 'a';
+        for (const [key, stats] of Object.entries(state.stats[ourSide].players)) {
+          const n = Number(key);
+          expect(byNumber.has(n), key).toBe(true);
+          const aces = loaded.lines.filter(
+            (l) => l.startsWith(`${prefix}${String(n).padStart(2, '0')}S`) && l[5] === '#',
+          );
+          expect(stats.total.serve.aces).toBe(aces.length);
+        }
+        for (const event of state.events.filter((e) => POINT_KINDS.has(e.kind) && e.team === ourSide)) {
+          const player = byNumber.get(event.player?.number ?? -1);
+          expect(player, event.id).toBeDefined();
+          expect(event.player?.lastName).toBe(player?.lastName);
+          checked++;
+        }
       }
-      for (const event of state.events.filter((e) => (e.kind === 'ace' || e.kind === 'block') && e.team === ourSide)) {
-        const player = byNumber.get(event.player?.number ?? -1);
-        expect(player, event.id).toBeDefined();
-        expect(event.player?.lastName).toBe(player?.lastName);
-        checked++;
-      }
-    }
-    expect(checked).toBeGreaterThan(5);
-  });
+      expect(checked).toBeGreaterThan(5);
+    },
+  );
 
   it('without a roster both teams are generated as before; the same seed and roster give the same match', () => {
     expect(generatedMatch({ sets: 3, seed: 8, roster: [] }).lines).toEqual(generatedMatch({ sets: 3, seed: 8 }).lines);

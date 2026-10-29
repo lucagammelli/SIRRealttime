@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseDvw } from '@arenalive/dvw-parser';
 import { describe, expect, it } from 'vitest';
-import { computeMatchState, matchMvp, setRecap } from './index.js';
+import { computeMatchState, matchMvp, setMvp, setRecap } from './index.js';
 import type { MatchState } from './index.js';
 
 const row = (code: string, set = 1, phase = ''): string => `${code};${phase};;;;;;18.00.00;${set};1;1;1;0`;
@@ -129,5 +129,28 @@ describe('MVP della partita', () => {
     const same = build([row('*09AH#', 1, 'r'), row('*08AH#', 1, 'r'), row('a05AH#', 1, 'r')]);
     expect(matchMvp(same)).toMatchObject({ team: 'home', number: 8 });
     expect(matchMvp(same)).toEqual(matchMvp(same));
+  });
+});
+
+describe('miglior realizzatore del set', () => {
+  // set 1: #8 casa 1 punto, #5 ospite 2 punti; set 2: #9 casa 2 punti
+  const state = build([
+    row('*08SM#~~~14C', 1, 's'),
+    row('a05AH#', 1, 'r'),
+    row('a05AH#', 1, 'r'),
+    row('*09AH#', 2, 'r'),
+    row('*09AH#', 2, 'r'),
+  ]);
+
+  it('guarda solo il set richiesto, con i candidati di tutte e due le squadre', () => {
+    expect(setMvp(state, 1)).toMatchObject({ team: 'away', number: 5, points: 2 });
+    expect(setMvp(state, 2)).toMatchObject({ team: 'home', number: 9, points: 2 });
+    // i punti sono quelli del set, non della partita
+    expect(matchMvp(state)).toMatchObject({ points: 2 });
+  });
+
+  it('null senza punti nel set o con un set inesistente', () => {
+    expect(setMvp(state, 3)).toBeNull();
+    expect(setMvp(build([row('*p01:00')]), 1)).toBeNull();
   });
 });

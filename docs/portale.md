@@ -16,7 +16,7 @@ connessioni. Con un valore valido la pagina si collega a `/ws/public/<token o co
 
 | Blocco | Contenuto |
 |---|---|
-| Tabellone | punteggio del set, set vinti, pallino della battuta (lati speculari: casa «pallino, logo, nome, set vinti», ospite «set vinti, nome, logo, pallino», uguale su ogni dispositivo; nome intero sulla TV, nome breve su tablet e telefono, intero per i lettori di schermo), parziali dei set, «Ultimo punto», «Serie in corso», «Timeout nel set», «Cambi nel set», «Vince» a partita finita |
+| Tabellone | punteggio del set, set vinti, pallino della battuta (lati speculari: casa «pallino, logo, nome, set vinti», ospite «set vinti, nome, logo, pallino», uguale su ogni dispositivo; nome intero sulla TV, nome breve su tablet e telefono, intero per i lettori di schermo), parziali dei set, «Ultimo punto» (riga «Punto Ospiti: errore in battuta Sir 7 Rossi», `lastPointText` in `lib/format.ts`), «Serie in corso», «Timeout nel set», «Cambi nel set», «Vince» a partita finita |
 | Andamento del set | vantaggio punto per punto, selettore «Set» |
 | Confronto squadre | statistiche delle due squadre, selettore «Periodo» |
 | Statistiche giocatori | tabella per squadra («Squadra») e per set («Set») |
@@ -377,17 +377,17 @@ Nell'anteprima la pausa è mostrata subito con le bozze (`previewState` mette ne
 
 #### Sezione «Avvisi»
 Ex pagina «Avvisi» (`OverlaysSection.tsx`, vedi «Avvisi sugli eventi»). In alto i «Modelli pronti»; due schede: «Quali
-avvisi» e «Posizione e dimensione». «Quali avvisi» (scheda «Eventi») elenca i 12 eventi (Fine partita, Match point, Fine
-set, Set point, Ace, Muro punto, Sorpasso, Pareggio, Break, Time-out, Scambio lungo, Cambio), ognuno con interruttore e
+avvisi» e «Posizione e dimensione». «Quali avvisi» (scheda «Eventi») elenca i 13 eventi (Fine partita, Match point, Fine
+set, Set point, Ace, Muro punto, Attacco vincente (spento all'inizio), Sorpasso, Pareggio, Break, Time-out, Scambio lungo, Cambio), ognuno con interruttore e
 pulsante «Modifica» («In modifica» sull'avviso aperto). L'avviso aperto mostra: «Testo» (il risultato con i dati
 d'esempio compare sotto, «Risultato: …», oppure il problema: vuoto, oltre 80 caratteri, segnaposto sconosciuto, `<` o
 `>`), «Sfondo» (`BackgroundSetting`: «Nessuno» / «Immagine» / «Video»; un menu con i file della libreria per gli avvisi e il collegamento «Carica nella libreria» (`/admin/media`: qui non si
 carica), con l'anteprima del file scelto; per immagine e video «Posizione dello sfondo» (`fit`: «Al centro» / «A tutto schermo», intero) e «Sfondo per» («Solo la nostra squadra», predefinito anche nei documenti salvati / «Entrambe le squadre»: `OverlayBackground.teams`, applicato da `backgroundForTeam`; con `ourSide` ignoto o evento dell'avversario lo sfondo non compare, resta il testo) e «Mostra il testo» (`OverlayBackground.showText`, predefinito sì; spento: sfondo pulito senza velo `VEIL`, testo `sr-only`; acceso: velo come prima; stesso schema di `playerMedia.showText`); a tutto schermo l'immagine o il video entrano interi (`object-contain`, `CONTAIN_MEDIA_CLASS` di `MediaPicture.tsx`) su una copia sfocata della stessa immagine o, per il video, sul colore di sfondo del tema, senza veli sopra; l'anteprima dello Studio usa `backgroundForTeam` con la nostra squadra della bozza; cambiando tipo lo sfondo scelto si toglie; per il video anche «Audio» e «Durata» («Secondi impostati» / «Quanto il video»: `OverlayBackground.duration`, predefinito `seconds`; con `video` il video parte una sola volta, senza ciclo, e l'avviso resta finché finisce, al massimo `OVERLAY_VIDEO_MAX_SECONDS` = 30 s; se la durata non si legge, il video non parte o non si vede (movimento ridotto) valgono i «Secondi»; `videoHoldSeconds` in `lib/overlay.ts`, tempo in `Overlay.tsx`; con la nota «L’avviso resta finché il video finisce…»; in «Prova» l'anteprima segue la stessa regola, altrimenti il video gira in ciclo); nell'anteprima l'audio suona solo durante «Prova» e l'evento di prova è della nostra squadra), i «Segnaposto» ammessi (`{giocatore}`, `{numero}`, `{squadra}`, `{punteggio}`, `{set}`, `{serie}`, `{attacchi}`),
-«Secondi» (2-8), i dispositivi (TV, tablet, telefono), «Posizione» e «Dimensione» (In alto / Al centro / In basso;
+«Secondi» (2-8), i dispositivi (TV, tablet, telefono), «Posizione» e «Dimensione» (In alto / Al centro / In basso; con uno sfondo mostrato lo sfondo resta fermo al centro e la posizione sposta solo la fascia del testo dentro lo sfondo, `overlayRegionClass` e prop `position` di `OverlayBanner`, anche a tutto schermo; senza sfondo, o per l'avversario con «Solo la nostra squadra», si sposta tutto l'avviso;
 Piccolo / Medio / Grande; oppure «Come tutti gli avvisi»), «Prova» (lo mostra nell'anteprima con le modifiche non salvate,
 per i suoi secondi, con l'animazione; la scena passa ad «Avviso»), e in «Avanzate» «Priorità» (1-10) e «Ripristina
 predefinito» (solo di quell'evento). «Posizione e dimensione» è il riquadro «Posizione e dimensione di tutti gli avvisi»
-(impostazioni generali). Per i tre avvisi di un giocatore (ACE!, Muro, Cambio: `OVERLAY_PLAYER_KINDS`) l'avviso aperto ha
+(impostazioni generali). Per i tre avvisi di un giocatore (ACE!, Muro, Cambio: `OVERLAY_PLAYER_KINDS`; «Attacco vincente» non è tra questi: niente foto né video del giocatore) l'avviso aperto ha
 anche il riquadro «Giocatore della nostra squadra» (`PlayerMediaSetting`): «Sfondo fisso dell'avviso» (nessun `playerMedia`),
 «Foto del giocatore» o «Video del giocatore» (il file è quello scelto per l'avviso in «Squadra» › «Foto e video»: non c'è più
 «Quale», il vecchio `pick` dei documenti salvati si legge e si scarta); «Mostra il testo sopra il video» (o «la foto»,
@@ -1171,7 +1171,7 @@ pagina di prima.
 | Sponsor | gli sponsor scelti (al massimo 12; opzione `sponsors`), «Immagini singole» (opzione `images`, fino a 12, solo quelle già nei documenti salvati prima: si possono togliere, non aggiungere), «Secondi per immagine» (3-60, predefinito 8) | immagini a rotazione con dissolvenza breve (nessuna con `prefers-reduced-motion`): prima tutte le immagini degli sponsor nell'ordine della lista «Sponsor», poi le immagini singole (`sponsorItems` in `lib/sponsors.ts`); l'immagine di uno sponsor con sito è un link in una nuova scheda (`target="_blank"`, `rel="noopener noreferrer"`, `SponsorImage` in `BrandBlocks.tsx`); si ferma con «Ferma rotazione» della TV; senza immagini: «Nessuna immagine sponsor scelta.» (in una diapositiva si usa il logo sponsor della grafica, `sponsorLogo`) |
 | Messaggio | testo (al massimo 280 caratteri, una riga), «Dimensione» Normale / Grande | sempre testo semplice, mai HTML |
 | Codice QR | testo sopra il codice (al massimo 80 caratteri, predefinito «Segui la partita sul telefono») | QR del link della pagina aperta (origine + percorso, senza query come `?tv=1`); il codice breve sotto compare solo se la pagina è aperta con `/l/<codice>` |
-| Ultimo punto | - | squadra, punteggio e come è stato vinto (`LastPointBlock`) |
+| Ultimo punto | - | squadra, punteggio e come è stato vinto (`LastPointBlock`; riga piccola «1° set · errore in battuta Sir 7 Rossi», `lastPointDetail`: attacco/ace/muro/errore in … con numero e cognome, «#7» senza anagrafica; l'errore nomina la squadra che sbaglia) |
 | Parziali dei set | - | punteggio di ogni set (`SetScoresBlock`) |
 | Migliori giocatori | «Quanti» (1-10), «Squadra» Entrambe / Casa / Ospiti | classifica a punti di `topPlayers` (`docs/statistiche.md`); tabella Giocatore, Att, Muro, Ace, Punti |
 | Parziale e marcatori, Ace, Muri, Attacco, Sfida per ruolo, Squadre a confronto | periodo («Il set in corso» / «Tutta la partita»), «Marcatori per squadra» (3-8) o «Attaccanti per squadra» (1-5), «Ruolo» (predefinito «Tutti i ruoli, a rotazione»), «Righe del confronto» (nessuna scelta = tutte) | viste in stile TV dei calcoli di `period.ts` (`docs/statistiche.md`), le stesse delle diapositive delle pause; senza dati un messaggio (per esempio «Nessun dato della partita.») |
@@ -1381,7 +1381,7 @@ fase viene da `state.phase` (`docs/statistiche.md`, «Fase della partita»), la 
   pulsante non c'è.
 - **Diapositive** (`blocks/IntermissionSlides.tsx`, `renderSlide`, a tutto schermo o compatte): «Riepilogo del set»
   (`setRecap`: punteggio, tabella per squadra con punti, attacco, efficienza, battuta, ricezione, muri, errori e «Migliore
-  del set»), «Risultato» (set vinti e parziali), «Miglior Realizzatore» (`matchMvp`: maglia, nome, punti, attacchi vincenti, muri, ace,
+  del set»), «Risultato» (set vinti e parziali), «Miglior Realizzatore» (nella pausa di un set «Miglior Realizzatore del set» con `setMvp` sul set della pausa; a partita finita «… della partita» con `matchMvp`: maglia, nome, punti, attacchi vincenti, muri, ace,
   efficienza d'attacco), «Parziali dei set», «Sponsor», «Messaggio», «Codice QR», «Logo» (gli ultimi quattro come i blocchi
   omonimi, `docs/portale.md` «Pagina pubblica a blocchi»), più le sei viste statistiche in stile TV: «Parziale e marcatori»,
   «Ace», «Muri» (titolo «Muri vincenti»), «Attacco», «Sfida per ruolo» e «Squadre a confronto» (misure e animazioni in

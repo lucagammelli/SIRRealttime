@@ -91,3 +91,17 @@ export function matchMvp(state: Pick<MatchState, 'stats' | 'players' | 'setsWon'
   );
   return candidates[0] ?? null;
 }
+
+/**
+ * Funzione pura: miglior realizzatore del solo set `set`, con la regola di `matchMvp` sulle statistiche del set e
+ * i candidati di tutte e due le squadre (nessun vincitore di partita). `null` se nessuno ha punti nel set.
+ */
+export function setMvp(state: Pick<MatchState, 'stats' | 'players'>, set: number): Mvp | null {
+  const key = String(set);
+  return matchMvp({
+    players: state.players,
+    stats: { home: teamInSet(state.stats.home, key), away: teamInSet(state.stats.away, key) },
+    setsWon: { home: 0, away: 0 },
+    status: 'inProgress',
+  });
+}

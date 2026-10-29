@@ -13,7 +13,7 @@ import { computeZones } from './zones.js';
 export * from './types.js';
 export { topPlayers } from './leaders.js';
 export type { TopPlayer, TopPlayersOptions } from './leaders.js';
-export { matchMvp, setRecap } from './recap.js';
+export { matchMvp, setMvp, setRecap } from './recap.js';
 export { matchPoints, matchStateUntilPoint, pointsExtend } from './replay.js';
 export type { MatchPoint } from './replay.js';
 export { RECENT_POINTS_LIMIT } from './score.js';

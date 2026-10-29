@@ -1,3 +1,4 @@
+import { OVERLAY_DEFAULT_POSITION } from '@arenalive/shared';
 import type { OverlayPosition, OverlaySize, PublicPlayerMedia, TenantOverlays } from '@arenalive/shared';
 import { OVERLAY_VIDEO_MAX_SECONDS } from '@arenalive/shared';
 import type { MatchState, Side } from '@arenalive/volley-stats';
@@ -33,6 +34,26 @@ export const OVERLAY_REGION_CLASSES: Record<OverlayPosition, string> = {
 };
 /** Default region (near the top). */
 export const OVERLAY_REGION_CLASS = OVERLAY_REGION_CLASSES.top;
+
+/** The background really shown: none with reduced motion for a video (text only then). */
+export function shownBackground(media: OverlayMedia | null | undefined, reduced: boolean): OverlayMedia | null {
+  return media && !(reduced && media.kind === 'video') ? media : null;
+}
+
+/**
+ * Region of an overlay: with a background shown the box stays still in the middle of the screen (the text band moves
+ * inside it, see `OverlayBanner`); text only, the region follows the position.
+ */
+export function overlayRegionClass(position: OverlayPosition, background: OverlayMedia | null): string {
+  return OVERLAY_REGION_CLASSES[background ? 'center' : position];
+}
+
+/** Where the text band sits inside a background (with a margin from the edge). */
+const TEXT_ALIGN: Record<OverlayPosition, string> = {
+  top: 'items-start py-[6%]',
+  center: 'items-center',
+  bottom: 'items-end py-[6%]',
+};
 
 /** Light band only behind the text of an overlay with a background (the media itself is never covered, no veil). */
 const TEXT_BAND: Record<Side | 'neutral', string> = {
@@ -73,6 +94,7 @@ export function OverlayBanner({
   device,
   size = 'medium',
   media = null,
+  position = OVERLAY_DEFAULT_POSITION,
   onVideoLength,
   onVideoEnd,
 }: {
@@ -81,6 +103,8 @@ export function OverlayBanner({
   device: Device;
   size?: OverlaySize;
   media?: OverlayMedia | null;
+  /** Where the text goes inside a background (top, centre or bottom); text only: ignored (the region moves). */
+  position?: OverlayPosition;
   /**
    * A video that follows its length (`media.duration` `video`): its length in seconds once known, `null` when it cannot
    * be read or the video does not start.
@@ -92,7 +116,7 @@ export function OverlayBanner({
   const reduced = useReducedMotion();
   const tone = team ?? 'neutral';
   // No video with reduced motion (the page does not even download it then).
-  const shown = media && !(reduced && media.kind === 'video') ? media : null;
+  const shown = shownBackground(media, reduced);
   if (!shown)
     return (
       <div
@@ -116,7 +140,8 @@ export function OverlayBanner({
       data-size={size}
       data-background={shown.kind}
       data-fit={fullscreen ? 'fullscreen' : 'center'}
-      className={`${reduced ? '' : 'sir-overlay'} flex items-center justify-center overflow-hidden text-center font-display font-bold uppercase tracking-wide ${box} ${TEXT_TONE[tone]}`}
+      data-text-position={position}
+      className={`${reduced ? '' : 'sir-overlay'} flex ${TEXT_ALIGN[position]} justify-center overflow-hidden text-center font-display font-bold uppercase tracking-wide ${box} ${TEXT_TONE[tone]}`}
     >
       {/* On the whole screen the whole picture (sides filled), in the box the whole box (edges cut). */}
       <MediaPicture
@@ -251,12 +276,15 @@ export function Overlay({
     return () => clearTimeout(id);
   }, [current, followsVideo, known]);
 
+  // With a background really shown the region stays in the middle (the text moves inside the background).
+  const shown = shownBackground(shownMedia, reducedMotion);
+  const regionPosition = shown ? 'center' : (current?.position ?? 'top');
   return (
     <div
       aria-live="polite"
       aria-atomic="true"
-      data-overlay-region={current?.position ?? 'top'}
-      className={OVERLAY_REGION_CLASSES[current?.position ?? 'top']}
+      data-overlay-region={regionPosition}
+      className={overlayRegionClass(current?.position ?? 'top', shown)}
     >
       {current && (
         <OverlayBanner
@@ -266,6 +294,7 @@ export function Overlay({
           device={device}
           size={current.size}
           media={shownMedia}
+          position={current.position}
           onVideoLength={(seconds) => setLength({ id: current.id, seconds })}
           onVideoEnd={() => setCurrent(null)}
         />

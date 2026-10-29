@@ -65,7 +65,7 @@ describe('Scoreboard', () => {
         `Punteggio del ${state.live.set}° set: Pallavolo Città ${state.live.homeScore}, Volley Club Lugo ${state.live.awayScore}`,
       ),
     ).toBeTruthy();
-    expect(screen.getByText(state.live.lastPoint?.label ?? '')).toBeTruthy();
+    expect(screen.getByText(/^Punto (Casa|Ospiti)/)).toBeTruthy();
     expect(screen.getByText('in corso')).toBeTruthy();
     expect(screen.queryByText('Vince')).toBeNull();
   });

@@ -52,7 +52,7 @@ Il calcolo riparte da zero a ogni aggiornamento (nessuno stato conservato tra du
 - **Punti** = attacco `#` + muro `#` + battuta `#`.
 - **`stats.players`**: solo i giocatori con almeno un'azione.
 - **Ultimo punto** (`live.lastPoint`): etichette in quest'ordine: azione `#` di chi segna (battuta, attacco, muro),
-  errore dell'avversario (`=` o `/`), codice verde, altrimenti `punto`.
+  errore dell'avversario (`=` o `/`, label «errore battuta #7»: non porta il nome della squadra che sbaglia, il portale compone la riga con `lastPointText`/`lastPointDetail`, `apps/web/src/lib/format.ts`), codice verde, altrimenti `punto`.
 - **Posizione del palleggiatore**: dalla riga `point`, valida se 1..6, altrimenti `null`.
 - **Zone**: solo attacco e battuta con zone di partenza e arrivo valide (1-9); la valutazione assente è contata come `~`.
 - **Migliori giocatori** (`topPlayers(state, { limit, team? })`, usata dal blocco «Migliori giocatori» del portale): funzione
@@ -94,6 +94,7 @@ scout), `set`, `team`, `player`, `playerOut`, `homeScore`, `awayScore` (dopo l'e
 |---|---|---|
 | `ace` | punto diretto in battuta (`#`) | squadra che segna, `player` |
 | `block` | punto diretto a muro (`#`) | squadra che segna, `player` |
+| `attack` | punto deciso da un attacco vincente (`#`); un attacco murato è un `block`, un punto su errore avversario non dà evento | squadra che segna, `player` che attacca |
 | `run` | dal 3° punto di fila (`RUN_MIN_POINTS`) e poi a ogni punto in più | squadra che segna, `count` = punti di fila |
 | `longRally` | rally con almeno 4 attacchi (`LONG_RALLY_MIN_ATTACKS`; le alzate non sono sempre registrate, quindi si contano gli attacchi) | squadra che segna, `count` = attacchi |
 | `setPoint` / `matchPoint` | una squadra arriva a un punto dal set; `matchPoint` se ha già 2 set vinti | la squadra col set point |
@@ -109,10 +110,11 @@ scout), `set`, `team`, `player`, `playerOut`, `homeScore`, `awayScore` (dopo l'e
   match point può nascere per entrambe.
 - **Sorpasso**: vale solo se passa avanti chi era dietro prima del pareggio; il pareggio e il sorpasso a punteggi bassi si
   segnalano solo dopo una rimonta di 3 punti.
-- **Id stabili**: tipo + set + punteggio (`ace-2-14-9`), il time-out col conteggio della squadra nel set, `matchEnd` senza
+- **Id stabili**: tipo + set + punteggio (`ace-2-14-9`, `attack-<set>-<casa>-<ospite>`), il time-out col conteggio della squadra nel set, `matchEnd` senza
   altro. Rileggendo lo stesso file, o con righe in più, gli stessi eventi hanno lo stesso id: il portale li riconosce.
 - **Priorità predefinita** (la più alta si mostra prima): `matchEnd` 10, `matchPoint` 9, `setEnd` 8, `setPoint` 7, `ace` e
-  `block` 6, `lead` 5, `tie`, `run` e `timeout` 4, `longRally` 3, `substitution` 2.
+  `block` 6, `lead` 5, `tie`, `run` e `timeout` 4, `longRally` e `attack` 3, `substitution` 2 (`attack` sta sotto `lead`, `tie` e `run`). Gli eventi `attack` entrano
+  comunque negli ultimi `RECENT_EVENTS_LIMIT` (20) anche se l'avviso è spento, quindi spingono fuori i più vecchi.
 - Un set nuovo senza `**Nset` per il precedente conta come chiuso per i set vinti, senza evento.
 
 ### Riepilogo del set e Miglior Realizzatore (`recap.ts`; nel codice `matchMvp`)
@@ -125,6 +127,8 @@ scout), `set`, `team`, `player`, `playerOut`, `homeScore`, `awayScore` (dopo l'e
   punti, poi migliore efficienza d'attacco (chi non ha attacchi conta meno di tutti), poi meno errori, poi la squadra di
   casa, poi il numero di maglia più basso. Ogni `Mvp` estende la voce di `topPlayers` con `attackTotal` e
   `attackEfficiency`. Null se nessuno ha punti.
+- `setMvp(state, set)`: funzione pura, stessa regola di `matchMvp` sulle sole statistiche del set `set` (`teamInSet`), con i
+  candidati di tutte e due le squadre (nessun vincitore di partita). Null se nessuno ha punti nel set.
 
 ### Periodi, sintesi e duelli (`period.ts`)
 Funzioni pure sullo stato già calcolato (non rileggono il `.dvw`), per i blocchi del portale che confrontano squadre e

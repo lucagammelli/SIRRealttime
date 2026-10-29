@@ -1,4 +1,4 @@
-import type { PlayerRef, Ratio, Side, TeamRef } from '@arenalive/volley-stats';
+import type { LastPoint, MatchState, PlayerRef, Ratio, Side, TeamRef } from '@arenalive/volley-stats';
 
 /** Shown for every missing value (`null`, ratio with zero denominator). */
 export const DASH = '–';
@@ -166,3 +166,37 @@ export const EVALUATION_LABEL: Record<string, string> = {
   '=': 'Errore (=)',
   '~': 'Senza valutazione',
 };
+
+const SKILL_IN: Record<NonNullable<LastPoint['skill']>, string> = {
+  serve: 'battuta',
+  reception: 'ricezione',
+  attack: 'attacco',
+  block: 'muro',
+  dig: 'difesa',
+  set: 'alzata',
+  freeball: 'free ball',
+};
+
+/**
+ * How the last point was won, without the team that scored: «attacco 7 Rossi», «ace 6 Bianchi», «muro 7 Rossi»,
+ * «errore in battuta Sir 7 Rossi» (the team named is the one that made the error), «codice verde»; `null` when there
+ * is no detail. Without the roster the player is «#7».
+ */
+export function lastPointDetail(state: Pick<MatchState, 'teams' | 'players'>, point: LastPoint): string | null {
+  if (point.kind === 'greenCode') return 'codice verde';
+  if (point.kind === 'unknown' || point.skill === null || point.player === null) return null;
+  const ref = point.playerTeam ? state.players[point.playerTeam].find((p) => p.number === point.player) : undefined;
+  const who = playerName(ref, point.player);
+  const player = who.startsWith('#') ? who : `${point.player} ${who}`;
+  if (point.kind === 'opponentError') {
+    const team = point.playerTeam ? `${teamShort(state.teams, point.playerTeam)} ` : '';
+    return `errore in ${SKILL_IN[point.skill]} ${team}${player}`;
+  }
+  return `${point.kind === 'serve' ? 'ace' : SKILL_IN[point.skill]} ${player}`;
+}
+
+/** Line of the scoreboard: «Punto Ospiti: errore in battuta Sir 7 Rossi», «Punto Casa» without detail. */
+export function lastPointText(state: Pick<MatchState, 'teams' | 'players'>, point: LastPoint): string {
+  const detail = lastPointDetail(state, point);
+  return `Punto ${SIDE_LABEL[point.team]}${detail ? `: ${detail}` : ''}`;
+}

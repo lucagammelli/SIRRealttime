@@ -52,8 +52,7 @@ Il calcolo riparte da zero a ogni aggiornamento (nessuno stato conservato tra du
 - **Punti** = attacco `#` + muro `#` + battuta `#`.
 - **`stats.players`**: solo i giocatori con almeno un'azione.
 - **Ultimo punto** (`live.lastPoint`): etichette in quest'ordine: azione `#` di chi segna (battuta, attacco, muro),
-  errore dell'avversario (`=` o `/`, etichetta «su errore battuta #7»: l'errore è dell'altra squadra rispetto a quella che
-  segna e il portale la scrive dopo il nome di chi ha segnato), codice verde, altrimenti `punto`.
+  errore dell'avversario (`=` o `/`, label «errore battuta #7»: non porta il nome della squadra che sbaglia, il portale compone la riga con `lastPointText`/`lastPointDetail`, `apps/web/src/lib/format.ts`), codice verde, altrimenti `punto`.
 - **Posizione del palleggiatore**: dalla riga `point`, valida se 1..6, altrimenti `null`.
 - **Zone**: solo attacco e battuta con zone di partenza e arrivo valide (1-9); la valutazione assente è contata come `~`.
 - **Migliori giocatori** (`topPlayers(state, { limit, team? })`, usata dal blocco «Migliori giocatori» del portale): funzione

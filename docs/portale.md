@@ -16,7 +16,7 @@ connessioni. Con un valore valido la pagina si collega a `/ws/public/<token o co
 
 | Blocco | Contenuto |
 |---|---|
-| Tabellone | punteggio del set, set vinti, pallino della battuta (lati speculari: casa «pallino, logo, nome, set vinti», ospite «set vinti, nome, logo, pallino», uguale su ogni dispositivo; nome intero sulla TV, nome breve su tablet e telefono, intero per i lettori di schermo), parziali dei set, «Ultimo punto», «Serie in corso», «Timeout nel set», «Cambi nel set», «Vince» a partita finita |
+| Tabellone | punteggio del set, set vinti, pallino della battuta (lati speculari: casa «pallino, logo, nome, set vinti», ospite «set vinti, nome, logo, pallino», uguale su ogni dispositivo; nome intero sulla TV, nome breve su tablet e telefono, intero per i lettori di schermo), parziali dei set, «Ultimo punto» (riga «Punto Ospiti: errore in battuta Sir 7 Rossi», `lastPointText` in `lib/format.ts`), «Serie in corso», «Timeout nel set», «Cambi nel set», «Vince» a partita finita |
 | Andamento del set | vantaggio punto per punto, selettore «Set» |
 | Confronto squadre | statistiche delle due squadre, selettore «Periodo» |
 | Statistiche giocatori | tabella per squadra («Squadra») e per set («Set») |
@@ -1171,7 +1171,7 @@ pagina di prima.
 | Sponsor | gli sponsor scelti (al massimo 12; opzione `sponsors`), «Immagini singole» (opzione `images`, fino a 12, solo quelle già nei documenti salvati prima: si possono togliere, non aggiungere), «Secondi per immagine» (3-60, predefinito 8) | immagini a rotazione con dissolvenza breve (nessuna con `prefers-reduced-motion`): prima tutte le immagini degli sponsor nell'ordine della lista «Sponsor», poi le immagini singole (`sponsorItems` in `lib/sponsors.ts`); l'immagine di uno sponsor con sito è un link in una nuova scheda (`target="_blank"`, `rel="noopener noreferrer"`, `SponsorImage` in `BrandBlocks.tsx`); si ferma con «Ferma rotazione» della TV; senza immagini: «Nessuna immagine sponsor scelta.» (in una diapositiva si usa il logo sponsor della grafica, `sponsorLogo`) |
 | Messaggio | testo (al massimo 280 caratteri, una riga), «Dimensione» Normale / Grande | sempre testo semplice, mai HTML |
 | Codice QR | testo sopra il codice (al massimo 80 caratteri, predefinito «Segui la partita sul telefono») | QR del link della pagina aperta (origine + percorso, senza query come `?tv=1`); il codice breve sotto compare solo se la pagina è aperta con `/l/<codice>` |
-| Ultimo punto | - | squadra, punteggio e come è stato vinto (`LastPointBlock`) |
+| Ultimo punto | - | squadra, punteggio e come è stato vinto (`LastPointBlock`; riga piccola «1° set · errore in battuta Sir 7 Rossi», `lastPointDetail`: attacco/ace/muro/errore in … con numero e cognome, «#7» senza anagrafica; l'errore nomina la squadra che sbaglia) |
 | Parziali dei set | - | punteggio di ogni set (`SetScoresBlock`) |
 | Migliori giocatori | «Quanti» (1-10), «Squadra» Entrambe / Casa / Ospiti | classifica a punti di `topPlayers` (`docs/statistiche.md`); tabella Giocatore, Att, Muro, Ace, Punti |
 | Parziale e marcatori, Ace, Muri, Attacco, Sfida per ruolo, Squadre a confronto | periodo («Il set in corso» / «Tutta la partita»), «Marcatori per squadra» (3-8) o «Attaccanti per squadra» (1-5), «Ruolo» (predefinito «Tutti i ruoli, a rotazione»), «Righe del confronto» (nessuna scelta = tutte) | viste in stile TV dei calcoli di `period.ts` (`docs/statistiche.md`), le stesse delle diapositive delle pause; senza dati un messaggio (per esempio «Nessun dato della partita.») |

@@ -50,7 +50,7 @@ export interface LastPoint {
   /** Squadra del giocatore dell'azione decisiva. */
   playerTeam: Side | null;
   evaluation: Evaluation | null;
-  /** Testo breve, es. "attacco #12" oppure "su errore battuta #7" (numero di maglia). */
+  /** Testo breve, es. "attacco #12" oppure "errore battuta #7" (numero di maglia). */
   label: string;
 }
 

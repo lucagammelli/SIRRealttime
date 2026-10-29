@@ -138,7 +138,7 @@ export function describePoint(p: PointEvent): LastPoint {
     return mk(scoring.skill, scoring, `${SKILL_LABEL[scoring.skill]} #${scoring.player}`);
   }
   const error = [...p.actions].reverse().find((a) => a.team === other(p.scorer) && isError(a));
-  if (error) return mk('opponentError', error, `su errore ${SKILL_LABEL[error.skill]} #${error.player}`);
+  if (error) return mk('opponentError', error, `errore ${SKILL_LABEL[error.skill]} #${error.player}`);
   const empty = { skill: null, player: null, playerTeam: null, evaluation: null };
   if (p.green) return { ...base, kind: 'greenCode', ...empty, label: 'codice verde' };
   return { ...base, kind: 'unknown', ...empty, label: 'punto' };

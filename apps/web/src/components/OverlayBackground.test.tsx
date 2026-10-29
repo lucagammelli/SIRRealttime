@@ -132,6 +132,29 @@ describe('drawing an overlay with a background', () => {
     expect(box?.textContent).toBe('MURO');
   });
 
+  it.each(['top', 'center', 'bottom'] as const)(
+    'text band at «%s» inside the background, in the box and on the whole screen',
+    (position) => {
+      const cls = { top: 'items-start', center: 'items-center', bottom: 'items-end' }[position];
+      for (const fit of ['center', 'fullscreen'] as const) {
+        const view = render(
+          <OverlayBanner
+            text="ACE"
+            team="home"
+            device="tv"
+            position={position}
+            media={{ kind: 'image', url: 'blob:img', fit }}
+          />,
+        );
+        const box = document.querySelector('[data-overlay="home"]');
+        expect(box?.getAttribute('data-text-position')).toBe(position);
+        expect(box?.className).toContain(cls);
+        expect(box?.className).toContain(fit === 'fullscreen' ? 'fixed inset-0' : 'aspect-video');
+        view.unmount();
+      }
+    },
+  );
+
   it('video: muted, inline, in a loop, playing by itself; with reduced motion only the text', () => {
     const view = render(
       <OverlayBanner text="ACE" team="home" device="tablet" media={{ kind: 'video', url: 'blob:vid' }} />,
@@ -488,6 +511,45 @@ describe('options of a video background', () => {
       expect(on()).toBe(true);
       tick(200);
       expect(on()).toBe(false);
+      release();
+    });
+  });
+
+  describe('region of the overlay with a background', () => {
+    async function showAt(position: 'top' | 'bottom', team: 'home' | 'away', fit: 'center' | 'fullscreen') {
+      stubReducedMotion(false);
+      vi.stubGlobal('fetch', () => Promise.resolve(new Response(new Blob(['i'], { type: 'image/png' }))));
+      vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:image' }));
+      const release = claimOurSide('home');
+      const c = config({ ace: { position, background: { kind: 'image', assetId: IMAGE, fit } } });
+      const view = render(<Overlay state={withEvents([])} live={false} config={c} device="tv" />);
+      await act(() => Promise.resolve());
+      await act(() => Promise.resolve());
+      view.rerender(<Overlay state={withEvents([event('ace', team)])} live config={c} device="tv" />);
+      return release;
+    }
+    const regionOf = () => document.querySelector('[data-overlay-region]');
+
+    it('the box stays in the middle of the screen, only the text goes to the top', async () => {
+      const release = await showAt('top', 'home', 'center');
+      expect(regionOf()?.getAttribute('data-overlay-region')).toBe('center');
+      expect(regionOf()?.className).toContain('inset-y-0');
+      expect(document.querySelector('[data-overlay]')?.getAttribute('data-text-position')).toBe('top');
+      release();
+    });
+
+    it('on the whole screen the text goes to the bottom', async () => {
+      const release = await showAt('bottom', 'home', 'fullscreen');
+      expect(regionOf()?.getAttribute('data-overlay-region')).toBe('center');
+      expect(document.querySelector('[data-overlay]')?.getAttribute('data-text-position')).toBe('bottom');
+      release();
+    });
+
+    it('the other team gets no background: text only, the region follows the position', async () => {
+      const release = await showAt('bottom', 'away', 'center');
+      expect(document.querySelector('[data-overlay]')?.hasAttribute('data-background')).toBe(false);
+      expect(regionOf()?.getAttribute('data-overlay-region')).toBe('bottom');
+      expect(regionOf()?.className).toContain('bottom-[14%]');
       release();
     });
   });

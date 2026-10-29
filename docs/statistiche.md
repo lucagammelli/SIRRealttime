@@ -52,7 +52,8 @@ Il calcolo riparte da zero a ogni aggiornamento (nessuno stato conservato tra du
 - **Punti** = attacco `#` + muro `#` + battuta `#`.
 - **`stats.players`**: solo i giocatori con almeno un'azione.
 - **Ultimo punto** (`live.lastPoint`): etichette in quest'ordine: azione `#` di chi segna (battuta, attacco, muro),
-  errore dell'avversario (`=` o `/`), codice verde, altrimenti `punto`.
+  errore dell'avversario (`=` o `/`, etichetta «su errore battuta #7»: l'errore è dell'altra squadra rispetto a quella che
+  segna e il portale la scrive dopo il nome di chi ha segnato), codice verde, altrimenti `punto`.
 - **Posizione del palleggiatore**: dalla riga `point`, valida se 1..6, altrimenti `null`.
 - **Zone**: solo attacco e battuta con zone di partenza e arrivo valide (1-9); la valutazione assente è contata come `~`.
 - **Migliori giocatori** (`topPlayers(state, { limit, team? })`, usata dal blocco «Migliori giocatori» del portale): funzione
@@ -125,6 +126,8 @@ scout), `set`, `team`, `player`, `playerOut`, `homeScore`, `awayScore` (dopo l'e
   punti, poi migliore efficienza d'attacco (chi non ha attacchi conta meno di tutti), poi meno errori, poi la squadra di
   casa, poi il numero di maglia più basso. Ogni `Mvp` estende la voce di `topPlayers` con `attackTotal` e
   `attackEfficiency`. Null se nessuno ha punti.
+- `setMvp(state, set)`: funzione pura, stessa regola di `matchMvp` sulle sole statistiche del set `set` (`teamInSet`), con i
+  candidati di tutte e due le squadre (nessun vincitore di partita). Null se nessuno ha punti nel set.
 
 ### Periodi, sintesi e duelli (`period.ts`)
 Funzioni pure sullo stato già calcolato (non rileggono il `.dvw`), per i blocchi del portale che confrontano squadre e

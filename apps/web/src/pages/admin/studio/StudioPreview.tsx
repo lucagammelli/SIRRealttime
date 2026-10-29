@@ -16,7 +16,7 @@ import { PaletteScopeContext } from '../../../charts/usePalette.ts';
 import { SAMPLE_SCHEDULE } from '../../../blocks/sampleSchedule.ts';
 import { afterMatchFile, AfterMatchScreen } from '../../../components/AfterMatchScreen.tsx';
 import { Intermission } from '../../../components/Intermission.tsx';
-import { OVERLAY_REGION_CLASSES, OverlayBanner } from '../../../components/Overlay.tsx';
+import { overlayRegionClass, OverlayBanner, shownBackground } from '../../../components/Overlay.tsx';
 import { PreviewFullscreen } from '../../../components/PreviewDock.tsx';
 import { buttonClass, Segmented, Spinner } from '../../../components/ui.tsx';
 import { previewState, visibleSlides } from '../../../lib/intermission.ts';
@@ -24,7 +24,7 @@ import { nextFixture } from '../../../lib/schedule.ts';
 import { overlayText } from '../../../lib/overlay.ts';
 import { mediaOf } from '../../../lib/overlayMedia.ts';
 import { teamColorVars } from '../../../lib/teamColors.ts';
-import { useResolvedTheme } from '../../../lib/theme.ts';
+import { useReducedMotion, useResolvedTheme } from '../../../lib/theme.ts';
 import type { PauseTarget } from '../intermissionEditor.ts';
 import { pauseAt, targetSet } from '../intermissionEditor.ts';
 import { DevicePreview, previewPageUrl } from './blockEditors.tsx';
@@ -206,10 +206,20 @@ function Stage({
   const overlayKindShown = trial?.kind ?? overlayKind;
   const overlay = docs.overlays[overlayKindShown];
   const placement = overlayPlacement(docs.overlays, overlay);
+  const reducedMotion = useReducedMotion();
   // The example event is of our team (home when the team of the client is not in the match): its video is shown.
   const trialSide = ourTeamSide(shown.teams, docs.branding.ourTeam) ?? 'home';
   const preview = overlayPreview(overlayKindShown, overlay, shown, trialSide, sample, trial?.key ?? 0);
   const previewBackground = preview.background;
+  const previewMedia = previewBackground
+    ? {
+        ...mediaOf(previewBackground, adminAssetPath(previewBackground.assetId), preview.player),
+        // The sound only in a «Prova»: the preview always in view stays silent.
+        audio: previewBackground.audio && trial !== null,
+        // Always in view (no «Prova»): the video loops; in a «Prova» it plays once and ends the test.
+        duration: trial === null ? ('seconds' as const) : previewBackground.duration,
+      }
+    : null;
   const slides =
     pause && kind
       ? visibleSlides(
@@ -273,7 +283,7 @@ function Stage({
         />
       )}
       {scene === 'overlay' && (
-        <div className={OVERLAY_REGION_CLASSES[placement.position]} data-testid="prova-avviso">
+        <div className={overlayRegionClass(placement.position, shownBackground(previewMedia, reducedMotion))} data-testid="prova-avviso">
           {showOverlay && (
             <OverlayBanner
               key={trial ? `prova-${trial.key}` : overlayKindShown}
@@ -281,17 +291,8 @@ function Stage({
               team={trialSide}
               device={device}
               size={placement.size}
-              media={
-                previewBackground
-                  ? {
-                      ...mediaOf(previewBackground, adminAssetPath(previewBackground.assetId), preview.player),
-                      // The sound only in a «Prova»: the preview always in view stays silent.
-                      audio: previewBackground.audio && trial !== null,
-                      // Always in view (no «Prova»): the video loops; in a «Prova» it plays once and ends the test.
-                      duration: trial === null ? 'seconds' : previewBackground.duration,
-                    }
-                  : null
-              }
+              media={previewMedia}
+              position={placement.position}
               onVideoEnd={onTrialEnd}
               onVideoLength={onTrialLength}
             />

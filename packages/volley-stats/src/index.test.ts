@@ -141,7 +141,7 @@ describe('casi costruiti a mano', () => {
     expect(state.stats.away.total.reception.errors).toBe(1);
     expect(state.stats.away.total.reception.total).toBe(1);
     expect(state.stats.home.total.reception.positivePct).toBe(1);
-    expect(state.live.lastPoint).toMatchObject({ team: 'away', kind: 'opponentError', label: 'errore battuta #8' });
+    expect(state.live.lastPoint).toMatchObject({ team: 'away', kind: 'opponentError', label: 'su errore battuta #8' });
     expect(state.live.servingTeam).toBe('away');
     expect(state.zones.home.serve).toEqual([{ from: '1', to: '4', total: 2, byEvaluation: { '#': 1, '=': 1 } }]);
   });
@@ -351,6 +351,6 @@ describe('casi costruiti a mano', () => {
     ]);
     expect(d.stats.away.total.errors).toBe(1);
     expect(d.stats.home.total.errors).toBe(0);
-    expect(d.live.lastPoint).toMatchObject({ kind: 'opponentError', label: 'errore muro #4' });
+    expect(d.live.lastPoint).toMatchObject({ kind: 'opponentError', label: 'su errore muro #4' });
   });
 });

@@ -134,6 +134,12 @@ describe('Intermission: when it opens and closes', () => {
     expect(onFullscreenChange).toHaveBeenLastCalledWith(false);
   });
 
+  it('the best scorer in the pause of a set is the one of that set, not of the match', () => {
+    setup(setBreak, { config: { setBreakBySet: { '1': { slides: [{ id: 'm', type: 'mvp' }] } } } });
+    expect(screen.queryByText('Miglior Realizzatore della partita')).toBeNull();
+    expect(screen.getByText('Miglior Realizzatore del set')).toBeTruthy();
+  });
+
   it('a set with its own pause uses it', () => {
     setup(setBreak, { config: { setBreakBySet: { '1': { slides: [{ id: 'q', type: 'qr' }] } } } });
     expect(screen.getByRole('heading', { name: 'Segui la partita sul telefono' })).toBeTruthy();

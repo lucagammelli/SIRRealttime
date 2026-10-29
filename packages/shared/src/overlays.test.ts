@@ -58,6 +58,20 @@ describe('overlays: defaults', () => {
     expect(config.substitution.devices).toEqual({ tv: true, tablet: true, phone: false });
   });
 
+  it('point in attack: off by default, also in a stored document saved before it existed', () => {
+    expect(defaultOverlayText('attack')).toBe('Attacco vincente di {giocatore}');
+    expect(defaultOverlays().attack).toEqual({
+      enabled: false,
+      text: 'Attacco vincente di {giocatore}',
+      seconds: 4,
+      devices: { tv: true, tablet: true, phone: true },
+      priority: MATCH_EVENT_PRIORITY.attack,
+    });
+    const old = TenantOverlaysSchema.parse({ version: 1, ace: { enabled: false }, block: { seconds: 6 } });
+    expect(old.attack).toEqual(defaultOverlay('attack'));
+    expect(resolveOverlays({ attack: { enabled: true } }).attack.enabled).toBe(true);
+  });
+
   it('a partial overlay takes the defaults of its own kind; defaults are new objects', () => {
     const config = TenantOverlaysSchema.parse({ ace: { seconds: 6 }, block: { devices: { phone: false } } });
     expect(config.ace).toEqual({ ...defaultOverlay('ace'), seconds: 6 });

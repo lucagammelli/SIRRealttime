@@ -214,12 +214,13 @@ export type MatchPhaseKind = MatchPhase['kind'];
 
 /**
  * Eventi della partita per gli avvisi del portale (vedi `detectEvents` in events.ts): punto diretto (`ace`, `block`),
- * serie (`run`), scambio lungo (`longRally`), `setPoint`, `matchPoint`, `tie` (pareggio), `lead` (sorpasso),
+ * punto in attacco (`attack`), serie (`run`), scambio lungo (`longRally`), `setPoint`, `matchPoint`, `tie` (pareggio), `lead` (sorpasso),
  * `timeout`, `substitution`, `setEnd`, `matchEnd`.
  */
 export type MatchEventKind =
   | 'ace'
   | 'block'
+  | 'attack'
   | 'run'
   | 'longRally'
   | 'setPoint'

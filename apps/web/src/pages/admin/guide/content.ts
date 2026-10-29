@@ -166,7 +166,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
           '«Colori e loghi»: i colori della società e i loghi (orizzontale, quadrato e sponsor).',
           '«Pagina live»: cosa mostrare su TV, tablet e telefono durante la partita.',
           '«Pause»: cosa si vede a fine set, nei time-out e a fine partita, anche con gli sponsor.',
-          '«Avvisi»: i messaggi che compaiono per ace, muro, set point e altro.',
+          '«Avvisi»: i messaggi che compaiono per ace, muro, attacco vincente (spento all’inizio), set point e altro.',
         ],
       },
       {

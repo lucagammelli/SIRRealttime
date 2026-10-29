@@ -176,7 +176,7 @@ export function nextOverlay(
  */
 export function sampleEvent(kind: MatchEvent['kind'], state: MatchState, side: Side = 'home'): MatchEvent {
   const player = state.players[side][0];
-  const withPlayer = kind === 'ace' || kind === 'block' || kind === 'substitution';
+  const withPlayer = kind === 'ace' || kind === 'block' || kind === 'attack' || kind === 'substitution';
   return {
     id: `prova-${kind}`,
     kind,

@@ -403,9 +403,12 @@ describe('inventory: every option of the old pages is in the Studio', () => {
     mockServer();
     renderAt('/admin/studio/avvisi');
     const items = within(await screen.findByRole('list', { name: 'Eventi' })).getAllByRole('listitem');
-    expect(items).toHaveLength(12);
+    expect(items).toHaveLength(13);
     const ace = await overlayRow('ace');
     expect(within(ace).getByRole('switch', { name: 'Ace' })).toHaveProperty('checked', true);
+    // The point in attack is there, off at the start (almost every other point).
+    const attack = await overlayRow('attack');
+    expect(within(attack).getByRole('switch', { name: 'Attacco vincente' })).toHaveProperty('checked', false);
     for (const p of ['{giocatore}', '{numero}', '{squadra}', '{punteggio}', '{set}', '{serie}', '{attacchi}'])
       expect(within(ace).getByText(p)).toBeTruthy();
     expect(within(ace).getByRole('textbox', { name: 'Testo' })).toBeTruthy();

@@ -377,8 +377,8 @@ Nell'anteprima la pausa è mostrata subito con le bozze (`previewState` mette ne
 
 #### Sezione «Avvisi»
 Ex pagina «Avvisi» (`OverlaysSection.tsx`, vedi «Avvisi sugli eventi»). In alto i «Modelli pronti»; due schede: «Quali
-avvisi» e «Posizione e dimensione». «Quali avvisi» (scheda «Eventi») elenca i 12 eventi (Fine partita, Match point, Fine
-set, Set point, Ace, Muro punto, Sorpasso, Pareggio, Break, Time-out, Scambio lungo, Cambio), ognuno con interruttore e
+avvisi» e «Posizione e dimensione». «Quali avvisi» (scheda «Eventi») elenca i 13 eventi (Fine partita, Match point, Fine
+set, Set point, Ace, Muro punto, Attacco vincente (spento all'inizio), Sorpasso, Pareggio, Break, Time-out, Scambio lungo, Cambio), ognuno con interruttore e
 pulsante «Modifica» («In modifica» sull'avviso aperto). L'avviso aperto mostra: «Testo» (il risultato con i dati
 d'esempio compare sotto, «Risultato: …», oppure il problema: vuoto, oltre 80 caratteri, segnaposto sconosciuto, `<` o
 `>`), «Sfondo» (`BackgroundSetting`: «Nessuno» / «Immagine» / «Video»; un menu con i file della libreria per gli avvisi e il collegamento «Carica nella libreria» (`/admin/media`: qui non si
@@ -387,7 +387,7 @@ carica), con l'anteprima del file scelto; per immagine e video «Posizione dello
 Piccolo / Medio / Grande; oppure «Come tutti gli avvisi»), «Prova» (lo mostra nell'anteprima con le modifiche non salvate,
 per i suoi secondi, con l'animazione; la scena passa ad «Avviso»), e in «Avanzate» «Priorità» (1-10) e «Ripristina
 predefinito» (solo di quell'evento). «Posizione e dimensione» è il riquadro «Posizione e dimensione di tutti gli avvisi»
-(impostazioni generali). Per i tre avvisi di un giocatore (ACE!, Muro, Cambio: `OVERLAY_PLAYER_KINDS`) l'avviso aperto ha
+(impostazioni generali). Per i tre avvisi di un giocatore (ACE!, Muro, Cambio: `OVERLAY_PLAYER_KINDS`; «Attacco vincente» non è tra questi: niente foto né video del giocatore) l'avviso aperto ha
 anche il riquadro «Giocatore della nostra squadra» (`PlayerMediaSetting`): «Sfondo fisso dell'avviso» (nessun `playerMedia`),
 «Foto del giocatore» o «Video del giocatore» (il file è quello scelto per l'avviso in «Squadra» › «Foto e video»: non c'è più
 «Quale», il vecchio `pick` dei documenti salvati si legge e si scarta); «Mostra il testo sopra il video» (o «la foto»,

@@ -180,6 +180,10 @@ export const OVERLAY_LABELS: Record<OverlayKind, { label: string; hint: string }
   },
   ace: { label: OVERLAY_PLAYER_KIND_LABELS.ace, hint: 'Punto diretto in battuta.' },
   block: { label: OVERLAY_PLAYER_KIND_LABELS.block, hint: 'Punto diretto a muro.' },
+  attack: {
+    label: 'Attacco vincente',
+    hint: 'Punto in attacco: {giocatore} e {numero} sono di chi attacca. Spento all’inizio: capita quasi a un punto su due.',
+  },
   lead: {
     label: 'Sorpasso',
     hint: `La squadra che era dietro passa avanti: dal 15-15 (9-9 al tie-break) o dopo una rimonta di ${COMEBACK_MIN_POINTS} punti.`,

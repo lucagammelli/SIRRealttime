@@ -4,6 +4,13 @@ Le versioni seguono il versionamento semantico (`vX.Y.Z`); la fonte della versio
 `package.json` alla radice. Le sezioni nuove le aggiunge `scripts/rilascia.sh` con i titoli dei commit dal tag
 precedente; le note della release su GitHub sono la sezione della versione (`docs/regole/test-job-rilasci.md`).
 
+## [2.11.0] - 2026-10-29
+
+- Ultimo punto: «Punto Ospiti: errore in battuta SIR 7 Rossi»
+- Test della simulazione: controlla anche i giocatori degli eventi attacco
+- Nuovo avviso «Attacco vincente»
+- Avvisi con sfondo, miglior realizzatore del set, etichetta dell'ultimo punto
+
 ## [2.10.2] - 2026-10-27
 
 - Loghi di sistema fino a 180×50 px
